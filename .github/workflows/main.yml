@@ -35,10 +35,10 @@ jobs:
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "storeFile=/dev/null" >> local.properties
           chmod +x gradlew
-          ./gradlew :app:assembleMobileDebug --no-daemon
+          ./gradlew :app:assembleMobileArm64_v8aDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: webhtv-apk
-          path: webhtv-src/app/build/outputs/apk/mobile/debug/*.apk
+          path: webhtv-src/app/build/outputs/apk/mobile/arm64_v8a/debug/*.apk
