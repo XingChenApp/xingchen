@@ -18,6 +18,16 @@ jobs:
           sed -i 's/applicationId "com.fongmi.android.tv"/applicationId "com.xingchen.tv"/' app/build.gradle
           sed -i 's/<string name="app_name">TV<\/string>/<string name="app_name">星辰<\/string>/' app/src/main/res/values/strings.xml
           sed -i 's/<string name="setting_player">播放设置<\/string>/<string name="setting_player">播放器设置<\/string>/' app/src/main/res/values-zh-rCN/strings.xml
+          sed -i 's/<string name="about_title">关于 WebHomeTV<\/string>/<string name="about_title">关于星辰<\/string>/' app/src/main/res/values-zh-rCN/strings.xml
+          python3 -c "
+          p='app/src/main/res/values-zh-rCN/strings.xml'
+          c=open(p,encoding='utf-8').read()
+          c=c.replace('WebHomeTV 是基于开源生态','星辰是基于开源生态')
+          c=c.replace('影视内容、直播源、接口源','影视内容、直播源、阅读内容、接口源')
+          c=c.replace('不传播任何影视资源','不传播任何影视、直播、阅读资源')
+          open(p,'w',encoding='utf-8').write(c)
+          print('disclaimer done')
+          "
           echo "patch done"
 
       - name: Set up JDK 21
