@@ -41,4 +41,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: webhtv-apk
-          path: webhtv-src/app/build/outputs/apk/mobile/arm64_v8a/debug/*.apk
+          path: webhtv-src/app/build/outputs/apk/mobileArm64_v8a/debug/*.apk
