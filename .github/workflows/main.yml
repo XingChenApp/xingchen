@@ -9,8 +9,8 @@ jobs:
     steps:
       - name: Download and extract source
         run: |
-          curl -L -o part-00.gz https://github.com/user-attachments/files/33009406/fongmi-src-part-00.gz
-          curl -L -o part-01.gz https://github.com/user-attachments/files/33009404/fongmi-src-part-01.gz
+          curl -L -o part-00.gz https://muse.ai/files/1392977643892470/1401963165430781/8p2b9ruis3rixz7vrt9md6l6/fongmi-src-part-00.gz
+          curl -L -o part-01.gz https://muse.ai/files/1392977643892470/1614253217120476/rljq36t0genl3cdl1a1jalp0/fongmi-src-part-01.gz
           cat part-00.gz part-01.gz > fongmi-tv-src.tar.gz
           tar -xzf fongmi-tv-src.tar.gz
           ls fongmi-tv/
