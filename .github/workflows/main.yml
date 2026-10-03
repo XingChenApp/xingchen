@@ -38,8 +38,8 @@ jobs:
           unzip -o /tmp/icons.zip -d app/src/main/res/
           curl -L -o /tmp/ui1.sh "https://muse.ai/files/1392977643892470/1132076146239095/vkf5spvqh73bgv9tzpydi2da/xingchen-ui-patch.sh"
           curl -L -o /tmp/ui2.sh "https://muse.ai/files/1392977643892470/2856296241396294/jnij2ws1ksedrqr40l6t79db/xingchen-ui-v2-patch.sh"
-          bash /tmp/ui1.sh .
-          bash /tmp/ui2.sh .
+          bash /tmp/ui1.sh $PWD
+          bash /tmp/ui2.sh $PWD
           echo "patch done"
 
       - name: Set up JDK 21
