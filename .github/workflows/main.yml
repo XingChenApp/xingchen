@@ -15,9 +15,9 @@ jobs:
       - name: Apply XingChen patch
         run: |
           cd webhtv-src
-          sed -i "s/namespace = 'com.fongmi.android.tv'/namespace = 'com.xingchen.tv'/" app/build.gradle
           sed -i 's/applicationId "com.fongmi.android.tv"/applicationId "com.xingchen.tv"/' app/build.gradle
           sed -i 's/<string name="app_name">TV<\/string>/<string name="app_name">星辰<\/string>/' app/src/main/res/values/strings.xml
+          sed -i 's/<string name="setting_player">播放设置<\/string>/<string name="setting_player">播放器设置<\/string>/' app/src/main/res/values-zh-rCN/strings.xml
           echo "patch done"
 
       - name: Set up JDK 21
