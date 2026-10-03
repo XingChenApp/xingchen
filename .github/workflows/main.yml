@@ -30,6 +30,8 @@ jobs:
       - name: Build Mobile Debug APK
         working-directory: fongmi-tv
         run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "storeFile=/dev/null" >> local.properties
           chmod +x gradlew
           ./gradlew :app:assembleMobileDebug --no-daemon
 
