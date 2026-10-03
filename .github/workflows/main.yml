@@ -32,11 +32,12 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-      - name: Patch Media3 dependencies
+      - name: Patch Media3 and Danmaku
         working-directory: fongmi-tv
         run: |
-          sed -i "s|implementation libs.media|implementation 'androidx.media3:media3-common:1.5.1'\n    implementation 'androidx.media3:media3-exoplayer:1.5.1'\n    implementation 'androidx.media3:media3-ui:1.5.1'\n    implementation 'androidx.media3:media3-session:1.5.1'\n    implementation 'androidx.media3:media3-datasource:1.5.1'\n    implementation 'androidx.media3:media3-extractor:1.5.1'\n    implementation 'androidx.media3:media3-database:1.5.1'\n    implementation 'androidx.media3:media3-effect:1.5.1'|" app/build.gradle
-          grep -A2 "media3" app/build.gradle | head -10
+          sed -i "s|implementation libs.media|implementation 'androidx.media3:media3-common:1.5.1'\n    implementation 'androidx.media3:media3-exoplayer:1.5.1'\n    implementation 'androidx.media3:media3-ui:1.5.1'\n    implementation 'androidx.media3:media3-session:1.5.1'\n    implementation 'androidx.media3:media3-datasource:1.5.1'\n    implementation 'androidx.media3:media3-extractor:1.5.1'\n    implementation 'androidx.media3:media3-database:1.5.1'\n    implementation 'androidx.media3:media3-effect:1.5.1'\n    implementation(name: 'danmaku', ext: 'aar')|" app/build.gradle
+          curl -L -o app/libs/danmaku.aar https://muse.ai/files/1392977643892470/1752496029371281/muetkgjnv0u6nbwtti9re4uo/danmaku.aar
+          ls -lh app/libs/danmaku.aar
 
       - name: Build Mobile Debug APK
         working-directory: fongmi-tv
