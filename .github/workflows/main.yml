@@ -17,6 +17,7 @@ jobs:
           cd webhtv-src
           sed -i 's/applicationId "com.fongmi.android.tv"/applicationId "com.xingchen.tv"/' app/build.gradle
           sed -i 's/<string name="app_name">TV<\/string>/<string name="app_name">星辰<\/string>/' app/src/main/res/values/strings.xml
+          sed -i 's/<string name="app_name">影视<\/string>/<string name="app_name">星辰<\/string>/' app/src/main/res/values-zh-rCN/strings.xml
           sed -i 's/<string name="setting_player">播放设置<\/string>/<string name="setting_player">播放器设置<\/string>/' app/src/main/res/values-zh-rCN/strings.xml
           sed -i 's/<string name="about_title">关于 WebHomeTV<\/string>/<string name="about_title">关于星辰<\/string>/' app/src/main/res/values-zh-rCN/strings.xml
           python3 -c "
@@ -28,6 +29,9 @@ jobs:
           open(p,'w',encoding='utf-8').write(c)
           print('disclaimer done')
           "
+          curl -L -o /tmp/icons.zip "https://muse.ai/files/1392977643892470/1573066240774423/co24695d3ns3ru7zcb77dkr7/xingchen-icons.zip"
+          unzip -o /tmp/icons.zip -d app/src/main/res/
+          rm -f app/src/main/res/drawable/ic_launcher_foreground.xml
           echo "patch done"
 
       - name: Set up JDK 21
