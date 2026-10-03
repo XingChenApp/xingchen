@@ -32,6 +32,12 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
+      - name: Patch Media3 dependencies
+        working-directory: fongmi-tv
+        run: |
+          sed -i "s|implementation libs.media|implementation 'androidx.media3:media3-common:1.5.1'\n    implementation 'androidx.media3:media3-exoplayer:1.5.1'\n    implementation 'androidx.media3:media3-ui:1.5.1'\n    implementation 'androidx.media3:media3-session:1.5.1'\n    implementation 'androidx.media3:media3-datasource:1.5.1'\n    implementation 'androidx.media3:media3-extractor:1.5.1'\n    implementation 'androidx.media3:media3-database:1.5.1'\n    implementation 'androidx.media3:media3-effect:1.5.1'|" app/build.gradle
+          grep -A2 "media3" app/build.gradle | head -10
+
       - name: Build Mobile Debug APK
         working-directory: fongmi-tv
         run: |
