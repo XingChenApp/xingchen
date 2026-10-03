@@ -1,4 +1,4 @@
-name: Build FongMi APK
+name: Build WebHTV APK
 
 on:
   workflow_dispatch:
@@ -7,13 +7,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Download and extract source
+      - name: Clone webhtv source
         run: |
-          curl -L -o part-00.gz https://muse.ai/files/1392977643892470/4616859125300616/ps0b8rfl0l35anav86er7bq8/fongmi-v2-00.gz
-          curl -L -o part-01.gz https://muse.ai/files/1392977643892470/1078270204979182/baksdg7xcdq2ob3hxm2kxrc4/fongmi-v2-01.gz
-          cat part-00.gz part-01.gz > fongmi-tv-src.tar.gz
-          tar -xzf fongmi-tv-src.tar.gz
-          ls fongmi-tv/
+          git clone --depth 1 https://github.com/webhtv/webhtv.git webhtv-src
+          ls webhtv-src/
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -32,15 +29,8 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-      - name: Patch Media3 and Danmaku
-        working-directory: fongmi-tv
-        run: |
-          sed -i "s|implementation libs.media|implementation 'androidx.media3:media3-common:1.5.1'\n    implementation 'androidx.media3:media3-exoplayer:1.5.1'\n    implementation 'androidx.media3:media3-ui:1.5.1'\n    implementation 'androidx.media3:media3-session:1.5.1'\n    implementation 'androidx.media3:media3-datasource:1.5.1'\n    implementation 'androidx.media3:media3-extractor:1.5.1'\n    implementation 'androidx.media3:media3-database:1.5.1'\n    implementation 'androidx.media3:media3-effect:1.5.1'\n    implementation(name: 'danmaku', ext: 'aar')|" app/build.gradle
-          curl -L -o app/libs/danmaku.aar https://muse.ai/files/1392977643892470/1752496029371281/muetkgjnv0u6nbwtti9re4uo/danmaku.aar
-          ls -lh app/libs/danmaku.aar
-
       - name: Build Mobile Debug APK
-        working-directory: fongmi-tv
+        working-directory: webhtv-src
         run: |
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "storeFile=/dev/null" >> local.properties
@@ -50,5 +40,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: fongmi-apk
-          path: fongmi-tv/app/build/outputs/apk/mobile/debug/*.apk
+          name: webhtv-apk
+          path: webhtv-src/app/build/outputs/apk/mobile/debug/*.apk
