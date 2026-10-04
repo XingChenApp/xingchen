@@ -41,13 +41,13 @@ jobs:
       - name: Apply UI patches
         run: |
           cd webhtv-src
-          for patch in xingchen-ui-patch.sh xingchen-ui-v2-patch.sh xingchen-theme-patch.sh xingchen-ui-final-patch.sh xingchen-ui-lite-patch.sh xingchen-topbottom-patch.sh xingchen-setting-v2-patch.sh xingchen-setting-sub-patch.sh xingchen-setting-sub2-patch.sh xingchen-prune-v3-patch.sh xingchen-slim-patch.sh xingchen-navicons-fix2-patch.sh xingchen-bottombar-final-patch.sh xingchen-bottomnav-patch.sh xingchen-fabnav-patch.sh xingchen-appearance-patch.sh xingchen-health-page-patch.sh xingchen-plugin-page-patch.sh xingchen-about-page-patch.sh xingchen-config-page-patch.sh xingchen-config-dialog-patch.sh xingchen-playersettings-v2-patch.sh xingchen-backnav-fix-patch.sh xingchen-features-page-patch.sh; do
+          for patch in xingchen-ui-patch.sh xingchen-ui-v2-patch.sh xingchen-theme-patch.sh xingchen-ui-final-patch.sh xingchen-ui-lite-patch.sh xingchen-topbottom-patch.sh xingchen-setting-v2-patch.sh xingchen-setting-sub-patch.sh xingchen-setting-sub2-patch.sh xingchen-prune-v3-patch.sh xingchen-slim-patch.sh xingchen-navicons-fix2-patch.sh xingchen-appearance-patch.sh xingchen-health-page-patch.sh xingchen-plugin-page-patch.sh xingchen-about-page-patch.sh xingchen-config-page-patch.sh xingchen-config-dialog-patch.sh xingchen-playersettings-v2-patch.sh xingchen-backnav-fix-patch.sh xingchen-features-page-patch.sh; do
             if [ -f "/tmp/patches/$patch" ]; then
               echo "Applying $patch..."
               bash "/tmp/patches/$patch" || echo "Warning: $patch failed"
             fi
           done
-          echo "UI patches done"
+          echo "UI patches done (skipped conflicting bottombar patches)"
 
       - name: Apply status bar and bottom bar fixes
         run: |
@@ -190,6 +190,19 @@ jobs:
               with open(path, "w", encoding="utf-8") as f:
                   f.write(c)
               print("Wallpaper transparent: OK")
+          # Settings page: transparent background so global wallpaper shows through
+          path = os.path.join(BASE, "app/src/mobile/res/layout/fragment_setting.xml")
+          with open(path, "r", encoding="utf-8") as f:
+              c = f.read()
+          if 'android:background' not in c.split('>')[0]:
+              c = c.replace(
+                  'android:orientation="vertical">',
+                  'android:orientation="vertical"\n    android:background="@android:color/transparent">',
+                  1
+              )
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(c)
+              print("Settings transparent: OK")
           print("All fixes done!")
           PYEOF
           # Create floating capsule drawable for bottom bar
