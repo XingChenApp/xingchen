@@ -20,37 +20,137 @@ jobs:
           sed -i 's/<string name="app_name">TV<\/string>/<string name="app_name">星辰<\/string>/' app/src/main/res/values/strings.xml
           sed -i 's/<string name="app_name">影视<\/string>/<string name="app_name">星辰<\/string>/' app/src/main/res/values-zh-rCN/strings.xml
 
-      - name: Status bar solid cream
+      - name: Apply XingChen UI patches
         run: |
           cd webhtv-src
-          # Replace transparent with solid cream in styles.xml (single sed, no append)
-          sed -i 's|<item name="android:statusBarColor">@color/transparent</item>|<item name="android:statusBarColor">#F5F0E8</item><item name="android:windowLightStatusBar">true</item>|' app/src/mobile/res/values/styles.xml
-          echo "Status bar fixed"
-
-      - name: Bottom bar 4 tabs
-        run: |
-          cd webhtv-src
-          # Create reading icon (simple book) - fixed fillColor
-          mkdir -p app/src/mobile/res/drawable
-          cat > app/src/mobile/res/drawable/ic_nav_reading.xml << 'EOF'
-          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-            <path android:strokeColor="#8A8A8A" android:strokeWidth="2" android:pathData="M4,5a2,2 0,0 1,2 -2h13v16H6a2,2 0,0 0,-2 2z"/>
-          </vector>
-          EOF
-          # Update menu to 4 tabs - use correct drawable names (ic_nav_vod not ic_nav_home)
-          cat > app/src/mobile/res/menu/menu_nav.xml << 'MENUEOF'
-          <?xml version="1.0" encoding="utf-8"?>
+          python3 << 'PYEOF'
+          import os
+          BASE = "."
+          def patch_status_bar():
+              path = os.path.join(BASE, "app/src/mobile/res/values/styles.xml")
+              with open(path, "r", encoding="utf-8") as f:
+                  content = f.read()
+              old = '<item name="android:statusBarColor">@color/transparent</item>'
+              new = '<item name="android:statusBarColor">#F5F0E8</item><item name="android:windowLightStatusBar">true</item>'
+              if old in content:
+                  content = content.replace(old, new)
+                  with open(path, "w", encoding="utf-8") as f:
+                      f.write(content)
+                  print("Status bar: OK")
+          def patch_menu():
+              path = os.path.join(BASE, "app/src/mobile/res/menu/menu_nav.xml")
+              menu_xml = """<?xml version="1.0" encoding="utf-8"?>
           <menu xmlns:android="http://schemas.android.com/apk/res/android">
               <item android:id="@+id/vod" android:icon="@drawable/ic_nav_vod" android:title="@string/nav_vod" />
               <item android:id="@+id/live" android:icon="@drawable/ic_nav_live" android:title="@string/nav_live" />
               <item android:id="@+id/reading" android:icon="@drawable/ic_nav_reading" android:title="@string/nav_reading" />
               <item android:id="@+id/setting" android:icon="@drawable/ic_nav_setting" android:title="@string/nav_setting" />
           </menu>
-          MENUEOF
-          echo "Menu updated to 4 tabs"
-          # Add nav_reading string
-          sed -i 's|</resources>|    <string name="nav_reading">阅读</string>\n</resources>|' app/src/mobile/res/values/strings.xml
-          sed -i 's|</resources>|    <string name="nav_reading">阅读</string>\n</resources>|' app/src/mobile/res/values-zh-rCN/strings.xml
+          """
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(menu_xml)
+              print("Menu: OK")
+          def create_icon():
+              path = os.path.join(BASE, "app/src/mobile/res/drawable/ic_nav_reading.xml")
+              icon = """<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+              <path android:strokeColor="#8A8A8A" android:strokeWidth="2" android:pathData="M4,5a2,2 0,0 1,2 -2h13v16H6a2,2 0,0 0,-2 2z"/>
+          </vector>
+          """
+              os.makedirs(os.path.dirname(path), exist_ok=True)
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(icon)
+              print("Icon: OK")
+          def add_string():
+              for rp in ["app/src/mobile/res/values/strings.xml", "app/src/mobile/res/values-zh-rCN/strings.xml"]:
+                  p = os.path.join(BASE, rp)
+                  with open(p, "r", encoding="utf-8") as f:
+                      c = f.read()
+                  if 'name="nav_reading"' not in c:
+                      c = c.replace("</resources>", '    <string name="nav_reading">阅读</string>\n</resources>')
+                      with open(p, "w", encoding="utf-8") as f:
+                          f.write(c)
+                  print(f"String {rp}: OK")
+          def create_activity():
+              path = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/ReadingActivity.java")
+              code = """package com.fongmi.android.tv.ui.activity;
+          import android.app.Activity;
+          import android.content.Intent;
+          import android.os.Bundle;
+          import android.view.Gravity;
+          import android.widget.LinearLayout;
+          import android.widget.TextView;
+          public class ReadingActivity extends Activity {
+              public static void start(Activity activity) {
+                  activity.startActivity(new Intent(activity, ReadingActivity.class));
+              }
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  LinearLayout layout = new LinearLayout(this);
+                  layout.setOrientation(LinearLayout.VERTICAL);
+                  layout.setGravity(Gravity.CENTER);
+                  layout.setPadding(48, 48, 48, 48);
+                  TextView title = new TextView(this);
+                  title.setText("阅读");
+                  title.setTextSize(28);
+                  title.setGravity(Gravity.CENTER);
+                  layout.addView(title);
+                  TextView desc = new TextView(this);
+                  desc.setText("书架功能开发中");
+                  desc.setTextSize(16);
+                  desc.setGravity(Gravity.CENTER);
+                  desc.setPadding(0, 24, 0, 0);
+                  layout.addView(desc);
+                  setContentView(layout);
+              }
+          }
+          """
+              os.makedirs(os.path.dirname(path), exist_ok=True)
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(code)
+              print("ReadingActivity: OK")
+          def patch_manifest():
+              path = os.path.join(BASE, "app/src/mobile/AndroidManifest.xml")
+              with open(path, "r", encoding="utf-8") as f:
+                  c = f.read()
+              if "ReadingActivity" not in c:
+                  old = '        <activity\n            android:name=".ui.activity.ScanActivity"'
+                  new = '        <activity\n            android:name=".ui.activity.ReadingActivity"\n            android:screenOrientation="fullUser" />\n\n        <activity\n            android:name=".ui.activity.ScanActivity"'
+                  c = c.replace(old, new)
+                  with open(path, "w", encoding="utf-8") as f:
+                      f.write(c)
+                  print("Manifest: OK")
+          def patch_home():
+              path = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/HomeActivity.java")
+              with open(path, "r", encoding="utf-8") as f:
+                  c = f.read()
+              if "R.id.reading" in c:
+                  print("HomeActivity: already patched")
+                  return
+              c = c.replace(
+                  "        if (item.getItemId() == R.id.live) return openLive();",
+                  "        if (item.getItemId() == R.id.live) return openLive();\n        if (item.getItemId() == R.id.reading) return openReading();"
+              )
+              c = c.replace(
+                  "    private boolean openLive() {",
+                  "    private boolean openReading() {\n        ReadingActivity.start(this);\n        return false;\n    }\n\n    private boolean openLive() {"
+              )
+              c = c.replace(
+                  "        mBinding.navigation.getMenu().findItem(R.id.live).setVisible(LiveConfig.hasUrl());",
+                  "        mBinding.navigation.getMenu().findItem(R.id.live).setVisible(LiveConfig.hasUrl());\n        mBinding.navigation.getMenu().findItem(R.id.reading).setVisible(true);"
+              )
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(c)
+              print("HomeActivity: OK")
+          patch_status_bar()
+          patch_menu()
+          create_icon()
+          add_string()
+          create_activity()
+          patch_manifest()
+          patch_home()
+          print("All patches done!")
+          PYEOF
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -68,7 +168,6 @@ jobs:
           echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
           echo "/usr/local/lib/android/sdk/platform-tools" >> $GITHUB_PATH
-          ls /usr/local/lib/android/sdk/platform-tools/adb && echo "SDK OK"
 
       - name: Build APK
         run: |
@@ -76,8 +175,8 @@ jobs:
           cd webhtv-src
           chmod +x gradlew
           ./gradlew :app:assembleMobileArm64_v8aRelease --parallel
-          echo "=== Build done, checking APK ==="
-          find app/build/outputs/apk -name "*.apk" | head -5
+          echo "Build done"
+          find app/build/outputs/apk -name "*.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
