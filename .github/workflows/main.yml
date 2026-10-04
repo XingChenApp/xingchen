@@ -33,9 +33,8 @@ jobs:
           unzip -q -o /tmp/icons.zip -d /tmp/icons
           echo "Icons downloaded"
           ls /tmp/icons/ | head -10
-          # Copy icons to app res (delete old webp first to avoid duplicates)
-          find app/src/main/res -name "ic_launcher*.webp" -delete
-          find app/src/main/res -name "ic_launcher*.png" -delete
+          # Copy icons to app res (delete old first to avoid duplicates)
+          find app/src/main/res -name "ic_launcher*" -delete
           cp -r /tmp/icons/* app/src/main/res/
           echo "Icons installed"
 
