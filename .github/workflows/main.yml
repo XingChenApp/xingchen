@@ -186,13 +186,8 @@ jobs:
               with open(path, "w", encoding="utf-8") as f:
                   f.write(c)
               print("Bottom bar capsule: OK")
-          # Create pill drawable
-          pill_path = os.path.join(BASE, "app/src/mobile/res/drawable/xc_bottombar_pill.xml")
-          pill_xml = "<shape><corners/></shape>"
-          os.makedirs(os.path.dirname(pill_path), exist_ok=True)
-          with open(pill_path, "w", encoding="utf-8") as f:
-              f.write(pill_xml)
-          print("Pill drawable: OK")
+          # Create pill drawable via bash (avoid YAML/Python quoting issues)
+          print("Pill drawable: will create via bash")
           # Default wallpaper to transparent
           path = os.path.join(BASE, "app/src/main/java/com/fongmi/android/tv/ui/custom/CustomWallView.java")
           with open(path, "r", encoding="utf-8") as f:
@@ -207,6 +202,17 @@ jobs:
               print("Wallpaper transparent: OK")
           print("All fixes done!")
           PYEOF
+          # Create floating capsule drawable for bottom bar
+          mkdir -p app/src/mobile/res/drawable
+          cat > app/src/mobile/res/drawable/xc_bottombar_pill.xml << 'XMLEOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+              <corners android:radius="28dp"/>
+              <solid android:color="#FFF5F0E8"/>
+              <stroke android:width="1dp" android:color="#FFE0D5C0"/>
+          </shape>
+          XMLEOF
+          echo "Pill drawable created"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
