@@ -55,17 +55,6 @@ jobs:
           python3 << 'PYEOF'
           import os
           BASE = "."
-          # Status bar: solid cream
-          path = os.path.join(BASE, "app/src/mobile/res/values/styles.xml")
-          with open(path, "r", encoding="utf-8") as f:
-              content = f.read()
-          old = '<item name="android:statusBarColor">@color/transparent</item>'
-          new = '<item name="android:statusBarColor">#F5F0E8</item><item name="android:windowLightStatusBar">true</item>'
-          if old in content:
-              content = content.replace(old, new)
-              with open(path, "w", encoding="utf-8") as f:
-                  f.write(content)
-              print("Status bar: OK")
           # Menu: 4 tabs
           path = os.path.join(BASE, "app/src/mobile/res/menu/menu_nav.xml")
           menu_xml = """<?xml version="1.0" encoding="utf-8"?>
