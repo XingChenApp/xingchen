@@ -92,4 +92,4 @@ jobs:
           ./gradlew :app:assembleMobileArm64_v8aRelease --no-daemon
 
       - name: Upload APK
-        uses: actions/upload-artifact@v
+        uses: actions/upload-artifact@v4
