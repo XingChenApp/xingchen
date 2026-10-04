@@ -43,7 +43,7 @@ jobs:
           curl -L -o /tmp/ui1.sh "https://muse.ai/files/1392977643892470/1132076146239095/vkf5spvqh73bgv9tzpydi2da/xingchen-ui-patch.sh"
           curl -L -o /tmp/ui2.sh "https://muse.ai/files/1392977643892470/2856296241396294/jnij2ws1ksedrqr40l6t79db/xingchen-ui-v2-patch.sh"
           curl -L -o /tmp/theme.sh "https://muse.ai/files/1392977643892470/1104859175577309/k6oufq8qirvsdv83l8c4nzgh/xingchen-theme-patch.sh"
-          curl -L -o /tmp/uifinal.sh "https://muse.ai/files/1392977643892470/1064695222843120/h0k00dd4ckda7cr0pd93ngsn/xingchen-ui-final-patch.sh"
+          curl -L -o /tmp/uifinal.sh "https://muse.ai/files/1392977643892470/1349048930446544/ozbk98ktippzehcq2m6we3x8/xingchen-ui-final-patch.sh"
           bash /tmp/ui1.sh $PWD
           bash /tmp/ui2.sh $PWD
           bash /tmp/theme.sh $PWD
