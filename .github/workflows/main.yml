@@ -58,6 +58,11 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
       - name: Setup Android SDK
         run: |
           echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
@@ -69,7 +74,9 @@ jobs:
         run: |
           cd webhtv-src
           chmod +x gradlew
-          ./gradlew :app:assembleMobileArm64_v8aRelease --parallel 2>&1 | tail -5
+          ./gradlew :app:assembleMobileArm64_v8aRelease --parallel
+          echo "=== Build done, checking APK ==="
+          find app/build/outputs/apk -name "*.apk" | head -5
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
