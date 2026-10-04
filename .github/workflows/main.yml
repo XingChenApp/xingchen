@@ -30,18 +30,18 @@ jobs:
       - name: Bottom bar 4 tabs
         run: |
           cd webhtv-src
-          # Create reading icon (simple book)
+          # Create reading icon (simple book) - fixed fillColor
           mkdir -p app/src/mobile/res/drawable
           cat > app/src/mobile/res/drawable/ic_nav_reading.xml << 'EOF'
           <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-            <path android:fillColor="none" android:strokeColor="#8A8A8A" android:strokeWidth="2" android:pathData="M4,5a2,2 0,0 1,2 -2h13v16H6a2,2 0,0 0,-2 2z"/>
+            <path android:strokeColor="#8A8A8A" android:strokeWidth="2" android:pathData="M4,5a2,2 0,0 1,2 -2h13v16H6a2,2 0,0 0,-2 2z"/>
           </vector>
           EOF
-          # Update menu to 4 tabs
+          # Update menu to 4 tabs - use correct drawable names (ic_nav_vod not ic_nav_home)
           cat > app/src/mobile/res/menu/menu_nav.xml << 'MENUEOF'
           <?xml version="1.0" encoding="utf-8"?>
           <menu xmlns:android="http://schemas.android.com/apk/res/android">
-              <item android:id="@+id/vod" android:icon="@drawable/ic_nav_home" android:title="@string/nav_vod" />
+              <item android:id="@+id/vod" android:icon="@drawable/ic_nav_vod" android:title="@string/nav_vod" />
               <item android:id="@+id/live" android:icon="@drawable/ic_nav_live" android:title="@string/nav_live" />
               <item android:id="@+id/reading" android:icon="@drawable/ic_nav_reading" android:title="@string/nav_reading" />
               <item android:id="@+id/setting" android:icon="@drawable/ic_nav_setting" android:title="@string/nav_setting" />
