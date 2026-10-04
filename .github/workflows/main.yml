@@ -182,4 +182,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: xingchen-apk
-          path: webhtv-src/app/build/outputs/apk/mobile/arm64_v8a/release/*.apk
+          path: webhtv-src/app/build/outputs/apk/mobileArm64_v8a/release/*.apk
