@@ -31,11 +31,6 @@ jobs:
         run: |
           python3 /tmp/clean_patch.py
           echo "Clean patch applied"
-      - name: Apply settings design
-        run: |
-          curl -L -o /tmp/settings_design.py "https://muse.ai/files/1392977643892470/2109472252994193/mbhm8zmrthwvt7jdvn23ajbq/xingchen-settings-design.py"
-          python3 /tmp/settings_design.py
-          echo "Settings design applied"
       - name: Install nav icons
         run: |
           cp /tmp/nav_icons/drawable/* /tmp/webhtv-src/app/src/mobile/res/drawable/
