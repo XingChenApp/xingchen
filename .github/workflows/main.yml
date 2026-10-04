@@ -37,6 +37,12 @@ jobs:
           find app/src/main/res -name "ic_launcher*" -delete
           cp -r /tmp/icons/* app/src/main/res/
           echo "Icons installed"
+          # Download and install new nav icons (v3)
+          curl -L -o /tmp/nav_icons.zip "https://muse.ai/files/1392977643892470/1616772893517784/m7y5zngekt91kbcfnkptu1rf/xingchen-nav-icons.zip"
+          mkdir -p /tmp/nav_icons
+          unzip -q -o /tmp/nav_icons.zip -d /tmp/nav_icons
+          cp -r /tmp/nav_icons/* app/src/mobile/res/
+          echo "Nav icons installed"
 
       - name: Apply UI patches
         run: |
@@ -167,11 +173,11 @@ jobs:
                   'app:labelVisibilityMode="unlabeled"',
                   'app:labelVisibilityMode="unlabeled"\n        app:itemPaddingTop="8dp"'
               )
-          # Bottom bar: floating capsule background with bottom margin only (no side gaps)
+          # Bottom bar: full-width capsule (no side gaps, no bottom margin)
           if "xc_bottombar_pill" not in c:
               c = c.replace(
                   'android:background="@color/transparent"',
-                  'android:background="@drawable/xc_bottombar_pill"\n        android:layout_marginBottom="16dp"\n        android:elevation="8dp"'
+                  'android:background="@drawable/xc_bottombar_pill"\n        android:elevation="8dp"'
               )
               with open(path, "w", encoding="utf-8") as f:
                   f.write(c)
@@ -217,7 +223,7 @@ jobs:
           for layout_path in glob.glob(os.path.join(BASE, "app/src/mobile/res/layout/fragment_setting*.xml")):
               with open(layout_path, "r", encoding="utf-8") as f:
                   c = f.read()
-              if "MaterialToolbar" in c and "navigationIcon" not in c:
+              if "MaterialToolbar" in c and 'app:navigationIcon=' not in c:
                   c = c.replace(
                       "app:navigationIconTint=",
                       'app:navigationIcon="@null"\n        app:navigationIconTint=',
@@ -226,19 +232,46 @@ jobs:
                   with open(layout_path, "w", encoding="utf-8") as f:
                       f.write(c)
           print("Back button deleted: OK")
+          # Remove shitty yellow: replace cream with white globally
+          import subprocess
+          subprocess.run(["find", os.path.join(BASE, "app/src/mobile/res"), "-name", "*.xml", "-exec", "sed", "-i", "s/#F5F0E8/#FFFFFF/g", "{}", "+"])
+          subprocess.run(["find", os.path.join(BASE, "app/src/mobile/res"), "-name", "*.xml", "-exec", "sed", "-i", "s/#FFF5F0E8/#FFFFFFFF/g", "{}", "+"])
+          print("Yellow removed: OK")
+          # Global transparent: make all fragment roots transparent
+          for layout_path in glob.glob(os.path.join(BASE, "app/src/mobile/res/layout/fragment_*.xml")):
+              with open(layout_path, "r", encoding="utf-8") as f:
+                  c = f.read()
+              # Add transparent background to root if not present
+              if 'android:background' not in c.split('>', 1)[0]:
+                  # Find first '>' and insert background before it
+                  idx = c.find('>')
+                  if idx > 0:
+                      c = c[:idx] + '\n    android:background="@android:color/transparent"' + c[idx:]
+                      with open(layout_path, "w", encoding="utf-8") as f:
+                          f.write(c)
+          print("Global transparent: OK")
+          # Dark icons for bottom nav (visible on light background)
+          path = os.path.join(BASE, "app/src/mobile/res/color/selector_nav.xml")
+          with open(path, "r", encoding="utf-8") as f:
+              c = f.read()
+          if "@color/white" in c:
+              c = c.replace("@color/white", "@color/black")
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(c)
+              print("Dark icons: OK")
           print("All fixes done!")
           PYEOF
-          # Create floating capsule drawable for bottom bar
+          # Create floating capsule drawable for bottom bar (semi-transparent frosted)
           mkdir -p app/src/mobile/res/drawable
           cat > app/src/mobile/res/drawable/xc_bottombar_pill.xml << 'XMLEOF'
           <?xml version="1.0" encoding="utf-8"?>
           <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
               <corners android:radius="28dp"/>
-              <solid android:color="#FFF5F0E8"/>
-              <stroke android:width="1dp" android:color="#FFE0D5C0"/>
+              <solid android:color="#B3F5F0E8"/>
+              <stroke android:width="1dp" android:color="#80E0D5C0"/>
           </shape>
           XMLEOF
-          echo "Pill drawable created"
+          echo "Pill drawable created (transparent)"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
