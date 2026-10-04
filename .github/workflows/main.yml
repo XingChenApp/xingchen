@@ -46,6 +46,7 @@ jobs:
           curl -L -o /tmp/uifinal.sh "https://muse.ai/files/1392977643892470/1349048930446544/ozbk98ktippzehcq2m6we3x8/xingchen-ui-final-patch.sh"
           curl -L -o /tmp/uilite.sh "https://muse.ai/files/1392977643892470/2518348632017376/ravrp3ibpybzmphqoa97z0c7/xingchen-ui-lite-patch.sh"
           curl -L -o /tmp/uitb.sh "https://muse.ai/files/1392977643892470/1576360180249810/n1xksckvy0cafuq5iravqji6/xingchen-topbottom-patch.sh"
+          curl -L -o /tmp/uiset.sh "https://muse.ai/files/1392977643892470/843209512181970/nwr60xlcmd112qrqi7nu5wcx/xingchen-setting-rewrite-patch.sh"
           curl -L -o /tmp/slim.sh "https://muse.ai/files/1392977643892470/2333718637375255/zqkcs81qxlmfz76iegd0tm60/xingchen-slim-patch.sh"
           bash /tmp/ui1.sh $PWD
           bash /tmp/ui2.sh $PWD
@@ -53,7 +54,17 @@ jobs:
           bash /tmp/uifinal.sh $PWD
           bash /tmp/uilite.sh $PWD
           bash /tmp/uitb.sh $PWD
+          bash /tmp/uiset.sh $PWD
           bash /tmp/slim.sh $PWD
+          python3 -c "
+          import glob
+          for p in glob.glob('app/src/main/res/values*/themes.xml'):
+              c=open(p,encoding='utf-8').read()
+              if 'android:statusBarColor' not in c:
+                  c=c.replace('</style>', '    <item name=\"android:statusBarColor\">@color/xc_page_bg</item>\n</style>', 1)
+                  open(p,'w',encoding='utf-8').write(c)
+          print('statusbar solid done')
+          "
           echo "patch done"
 
       - name: Set up JDK 21
