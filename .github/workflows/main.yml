@@ -167,11 +167,11 @@ jobs:
                   'app:labelVisibilityMode="unlabeled"',
                   'app:labelVisibilityMode="unlabeled"\n        app:itemPaddingTop="8dp"'
               )
-          # Bottom bar: floating capsule background
+          # Bottom bar: floating capsule background with bottom margin only (no side gaps)
           if "xc_bottombar_pill" not in c:
               c = c.replace(
                   'android:background="@color/transparent"',
-                  'android:background="@drawable/xc_bottombar_pill"'
+                  'android:background="@drawable/xc_bottombar_pill"\n        android:layout_marginBottom="16dp"\n        android:elevation="8dp"'
               )
               with open(path, "w", encoding="utf-8") as f:
                   f.write(c)
@@ -203,6 +203,29 @@ jobs:
               with open(path, "w", encoding="utf-8") as f:
                   f.write(c)
               print("Settings transparent: OK")
+          # Delete splash: change HomeActivity theme from Splash to App
+          path = os.path.join(BASE, "app/src/mobile/AndroidManifest.xml")
+          with open(path, "r", encoding="utf-8") as f:
+              c = f.read()
+          if '@style/Theme.Splash' in c:
+              c = c.replace('@style/Theme.Splash', '@style/Theme.App')
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(c)
+              print("Splash deleted: OK")
+          # Delete back button: remove navigation icon from settings toolbars
+          import glob
+          for layout_path in glob.glob(os.path.join(BASE, "app/src/mobile/res/layout/fragment_setting*.xml")):
+              with open(layout_path, "r", encoding="utf-8") as f:
+                  c = f.read()
+              if "MaterialToolbar" in c and "navigationIcon" not in c:
+                  c = c.replace(
+                      "app:navigationIconTint=",
+                      'app:navigationIcon="@null"\n        app:navigationIconTint=',
+                      1
+                  )
+                  with open(layout_path, "w", encoding="utf-8") as f:
+                      f.write(c)
+          print("Back button deleted: OK")
           print("All fixes done!")
           PYEOF
           # Create floating capsule drawable for bottom bar
