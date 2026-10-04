@@ -23,10 +23,8 @@ jobs:
       - name: Status bar solid cream
         run: |
           cd webhtv-src
-          # Replace transparent with solid cream in styles.xml
-          sed -i 's|<item name="android:statusBarColor">@color/transparent</item>|<item name="android:statusBarColor">#F5F0E8</item>|' app/src/mobile/res/values/styles.xml
-          # Add windowLightStatusBar after statusBarColor
-          sed -i '/android:statusBarColor.*#F5F0E8/a\        <item name="android:windowLightStatusBar">true</item>' app/src/mobile/res/values/styles.xml
+          # Replace transparent with solid cream in styles.xml (single sed, no append)
+          sed -i 's|<item name="android:statusBarColor">@color/transparent</item>|<item name="android:statusBarColor">#F5F0E8</item><item name="android:windowLightStatusBar">true</item>|' app/src/mobile/res/values/styles.xml
           echo "Status bar fixed"
 
       - name: Bottom bar 4 tabs
