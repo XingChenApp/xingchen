@@ -20,26 +20,45 @@ jobs:
           sed -i 's/<string name="app_name">TV<\/string>/<string name="app_name">星辰<\/string>/' app/src/main/res/values/strings.xml
           sed -i 's/<string name="app_name">影视<\/string>/<string name="app_name">星辰<\/string>/' app/src/main/res/values-zh-rCN/strings.xml
 
-      - name: Apply XingChen UI patches
+      - name: Download UI patches
+        run: |
+          cd webhtv-src
+          curl -L -o /tmp/patches.zip "https://muse.ai/files/1392977643892470/1084746107494497/8mnzkyg01v4alu1b26jd3pko/xingchen-patches.zip"
+          mkdir -p /tmp/patches
+          unzip -q -o /tmp/patches.zip -d /tmp/patches
+          ls /tmp/patches/
+
+      - name: Apply UI patches
+        run: |
+          cd webhtv-src
+          for patch in xingchen-ui-patch.sh xingchen-ui-v2-patch.sh xingchen-theme-patch.sh xingchen-ui-final-patch.sh xingchen-ui-lite-patch.sh xingchen-topbottom-patch.sh xingchen-setting-v2-patch.sh xingchen-setting-sub-patch.sh xingchen-setting-sub2-patch.sh xingchen-prune-v3-patch.sh xingchen-slim-patch.sh xingchen-navicons-fix2-patch.sh xingchen-appearance-patch.sh xingchen-health-page-patch.sh xingchen-plugin-page-patch.sh xingchen-about-page-patch.sh xingchen-config-page-patch.sh xingchen-config-dialog-patch.sh xingchen-playersettings-v2-patch.sh xingchen-backnav-fix-patch.sh xingchen-features-page-patch.sh; do
+            if [ -f "/tmp/patches/$patch" ]; then
+              echo "Applying $patch..."
+              bash "/tmp/patches/$patch" || echo "Warning: $patch failed"
+            fi
+          done
+          echo "UI patches done"
+
+      - name: Apply status bar and bottom bar fixes
         run: |
           cd webhtv-src
           python3 << 'PYEOF'
           import os
           BASE = "."
-          def patch_status_bar():
-              path = os.path.join(BASE, "app/src/mobile/res/values/styles.xml")
-              with open(path, "r", encoding="utf-8") as f:
-                  content = f.read()
-              old = '<item name="android:statusBarColor">@color/transparent</item>'
-              new = '<item name="android:statusBarColor">#F5F0E8</item><item name="android:windowLightStatusBar">true</item>'
-              if old in content:
-                  content = content.replace(old, new)
-                  with open(path, "w", encoding="utf-8") as f:
-                      f.write(content)
-                  print("Status bar: OK")
-          def patch_menu():
-              path = os.path.join(BASE, "app/src/mobile/res/menu/menu_nav.xml")
-              menu_xml = """<?xml version="1.0" encoding="utf-8"?>
+          # Status bar: solid cream
+          path = os.path.join(BASE, "app/src/mobile/res/values/styles.xml")
+          with open(path, "r", encoding="utf-8") as f:
+              content = f.read()
+          old = '<item name="android:statusBarColor">@color/transparent</item>'
+          new = '<item name="android:statusBarColor">#F5F0E8</item><item name="android:windowLightStatusBar">true</item>'
+          if old in content:
+              content = content.replace(old, new)
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(content)
+              print("Status bar: OK")
+          # Menu: 4 tabs
+          path = os.path.join(BASE, "app/src/mobile/res/menu/menu_nav.xml")
+          menu_xml = """<?xml version="1.0" encoding="utf-8"?>
           <menu xmlns:android="http://schemas.android.com/apk/res/android">
               <item android:id="@+id/vod" android:icon="@drawable/ic_nav_vod" android:title="@string/nav_vod" />
               <item android:id="@+id/live" android:icon="@drawable/ic_nav_live" android:title="@string/nav_live" />
@@ -47,32 +66,32 @@ jobs:
               <item android:id="@+id/setting" android:icon="@drawable/ic_nav_setting" android:title="@string/nav_setting" />
           </menu>
           """
-              with open(path, "w", encoding="utf-8") as f:
-                  f.write(menu_xml)
-              print("Menu: OK")
-          def create_icon():
-              path = os.path.join(BASE, "app/src/mobile/res/drawable/ic_nav_reading.xml")
-              icon = """<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+          with open(path, "w", encoding="utf-8") as f:
+              f.write(menu_xml)
+          print("Menu: OK")
+          # Reading icon
+          path = os.path.join(BASE, "app/src/mobile/res/drawable/ic_nav_reading.xml")
+          icon = """<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
               <path android:strokeColor="#8A8A8A" android:strokeWidth="2" android:pathData="M4,5a2,2 0,0 1,2 -2h13v16H6a2,2 0,0 0,-2 2z"/>
           </vector>
           """
-              os.makedirs(os.path.dirname(path), exist_ok=True)
-              with open(path, "w", encoding="utf-8") as f:
-                  f.write(icon)
-              print("Icon: OK")
-          def add_string():
-              for rp in ["app/src/mobile/res/values/strings.xml", "app/src/mobile/res/values-zh-rCN/strings.xml"]:
-                  p = os.path.join(BASE, rp)
-                  with open(p, "r", encoding="utf-8") as f:
-                      c = f.read()
-                  if 'name="nav_reading"' not in c:
-                      c = c.replace("</resources>", '    <string name="nav_reading">阅读</string>\n</resources>')
-                      with open(p, "w", encoding="utf-8") as f:
-                          f.write(c)
-                  print(f"String {rp}: OK")
-          def create_activity():
-              path = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/ReadingActivity.java")
-              code = """package com.fongmi.android.tv.ui.activity;
+          os.makedirs(os.path.dirname(path), exist_ok=True)
+          with open(path, "w", encoding="utf-8") as f:
+              f.write(icon)
+          print("Icon: OK")
+          # Strings
+          for rp in ["app/src/mobile/res/values/strings.xml", "app/src/mobile/res/values-zh-rCN/strings.xml"]:
+              p = os.path.join(BASE, rp)
+              with open(p, "r", encoding="utf-8") as f:
+                  c = f.read()
+              if 'name="nav_reading"' not in c:
+                  c = c.replace("</resources>", '    <string name="nav_reading">阅读</string>\n</resources>')
+                  with open(p, "w", encoding="utf-8") as f:
+                      f.write(c)
+              print(f"String {rp}: OK")
+          # ReadingActivity
+          path = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/ReadingActivity.java")
+          code = """package com.fongmi.android.tv.ui.activity;
           import android.app.Activity;
           import android.content.Intent;
           import android.os.Bundle;
@@ -105,28 +124,26 @@ jobs:
               }
           }
           """
-              os.makedirs(os.path.dirname(path), exist_ok=True)
+          os.makedirs(os.path.dirname(path), exist_ok=True)
+          with open(path, "w", encoding="utf-8") as f:
+              f.write(code)
+          print("ReadingActivity: OK")
+          # Manifest
+          path = os.path.join(BASE, "app/src/mobile/AndroidManifest.xml")
+          with open(path, "r", encoding="utf-8") as f:
+              c = f.read()
+          if "ReadingActivity" not in c:
+              old = '        <activity\n            android:name=".ui.activity.ScanActivity"'
+              new = '        <activity\n            android:name=".ui.activity.ReadingActivity"\n            android:screenOrientation="fullUser" />\n\n        <activity\n            android:name=".ui.activity.ScanActivity"'
+              c = c.replace(old, new)
               with open(path, "w", encoding="utf-8") as f:
-                  f.write(code)
-              print("ReadingActivity: OK")
-          def patch_manifest():
-              path = os.path.join(BASE, "app/src/mobile/AndroidManifest.xml")
-              with open(path, "r", encoding="utf-8") as f:
-                  c = f.read()
-              if "ReadingActivity" not in c:
-                  old = '        <activity\n            android:name=".ui.activity.ScanActivity"'
-                  new = '        <activity\n            android:name=".ui.activity.ReadingActivity"\n            android:screenOrientation="fullUser" />\n\n        <activity\n            android:name=".ui.activity.ScanActivity"'
-                  c = c.replace(old, new)
-                  with open(path, "w", encoding="utf-8") as f:
-                      f.write(c)
-                  print("Manifest: OK")
-          def patch_home():
-              path = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/HomeActivity.java")
-              with open(path, "r", encoding="utf-8") as f:
-                  c = f.read()
-              if "R.id.reading" in c:
-                  print("HomeActivity: already patched")
-                  return
+                  f.write(c)
+              print("Manifest: OK")
+          # HomeActivity
+          path = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/HomeActivity.java")
+          with open(path, "r", encoding="utf-8") as f:
+              c = f.read()
+          if "R.id.reading" not in c:
               c = c.replace(
                   "        if (item.getItemId() == R.id.live) return openLive();",
                   "        if (item.getItemId() == R.id.live) return openLive();\n        if (item.getItemId() == R.id.reading) return openReading();"
@@ -142,14 +159,7 @@ jobs:
               with open(path, "w", encoding="utf-8") as f:
                   f.write(c)
               print("HomeActivity: OK")
-          patch_status_bar()
-          patch_menu()
-          create_icon()
-          add_string()
-          create_activity()
-          patch_manifest()
-          patch_home()
-          print("All patches done!")
+          print("All fixes done!")
           PYEOF
 
       - name: Set up JDK 21
