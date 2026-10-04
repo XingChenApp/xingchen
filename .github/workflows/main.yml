@@ -49,47 +49,8 @@ jobs:
           curl -L -o /tmp/uiset.sh "https://muse.ai/files/1392977643892470/1136208552071427/i1726ottdyo0eewetbvo3imc/xingchen-setting-v2-patch.sh"
           curl -L -o /tmp/uisub.sh "https://muse.ai/files/1392977643892470/28309170212039076/38v24zasdff7lfbrviuq17jt/xingchen-setting-sub-patch.sh"
           curl -L -o /tmp/sb.sh "https://muse.ai/files/1392977643892470/1828376118332486/ele4yxdq1rl1nvry2mgkk1ds/xingchen-statusbar-patch.sh"
-          curl -L -o /tmp/prune.sh "https://muse.ai/files/1392977643892470/2563800974030820/et7z3n0ryxvy59mn8webc8gj/xingchen-prune-v2-patch.sh"
+          curl -L -o /tmp/prune.sh "https://muse.ai/files/1392977643892470/1647983503391345/tan9o5ugsr63wb8fsflx86k1/xingchen-prune-v2-patch.sh"
           curl -L -o /tmp/rmne.sh "https://muse.ai/files/1392977643892470/2137230743532275/lnnfjnw7d7nmaqovz19pscu1/xingchen-remove-enhance-patch.sh"
           curl -L -o /tmp/slim.sh "https://muse.ai/files/1392977643892470/2333718637375255/zqkcs81qxlmfz76iegd0tm60/xingchen-slim-patch.sh"
           bash /tmp/ui1.sh $PWD
-          bash /tmp/ui2.sh $PWD
-          bash /tmp/theme.sh $PWD
-          bash /tmp/uifinal.sh $PWD
-          bash /tmp/uilite.sh $PWD
-          bash /tmp/uitb.sh $PWD
-          bash /tmp/uiset.sh $PWD
-          bash /tmp/uisub.sh $PWD
-          bash /tmp/sb.sh $PWD
-          bash /tmp/prune.sh $PWD
-          bash /tmp/rmne.sh $PWD
-          bash /tmp/slim.sh $PWD
-          echo "patch done"
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Setup Android SDK
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-
-      - name: Build Mobile Release APK
-        working-directory: webhtv-src
-        run: |
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          echo "storeFile=/dev/null" >> local.properties
-          chmod +x gradlew
-          ./gradlew :app:assembleMobileArm64_v8aRelease --no-daemon
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+          bash /
