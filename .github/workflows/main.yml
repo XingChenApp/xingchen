@@ -19,7 +19,7 @@ jobs:
           echo "App icons installed"
       - name: Download nav icons
         run: |
-          curl -L -o /tmp/nav_icons.zip "https://muse.ai/files/1392977643892470/3305432652981077/0kuj55hp9c2oxrpcbrdsefqp/xingchen-nav-icons.zip"
+          curl -L -o /tmp/nav_icons.zip "https://muse.ai/files/1392977643892470/1082985161192653/4xjhb28cmq2tpe5a3cs7g0ax/xingchen-nav-icons.zip"
           mkdir -p /tmp/nav_icons
           unzip -q -o /tmp/nav_icons.zip -d /tmp/nav_icons
           echo "Nav icons downloaded"
@@ -31,6 +31,12 @@ jobs:
         run: |
           python3 /tmp/clean_patch.py
           echo "Clean patch applied"
+      - name: Apply settings v2
+        run: |
+          curl -L -o /tmp/setting_v2.sh "https://muse.ai/files/1392977643892470/2089805641634830/tf95jvtdqeji4u0sb5d2qk3t/xingchen-setting-v2-patch.sh"
+          chmod +x /tmp/setting_v2.sh
+          /tmp/setting_v2.sh /tmp/webhtv-src
+          echo "Settings v2 applied"
       - name: Install nav icons
         run: |
           cp /tmp/nav_icons/drawable/* /tmp/webhtv-src/app/src/mobile/res/drawable/
