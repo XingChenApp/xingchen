@@ -25,7 +25,7 @@ jobs:
           echo "Nav icons downloaded"
       - name: Download clean patch
         run: |
-          curl -L -o /tmp/clean_patch.py "https://muse.ai/files/1392977643892470/1439775941367145/uid5es8c29uqrinvj9mn87hn/xingchen-clean-patch.py"
+          curl -L -o /tmp/clean_patch.py "https://muse.ai/files/1392977643892470/1133406402962756/27sxd81n9mob9j1upo4o2pjs/xingchen-clean-patch.py"
           echo "Clean patch downloaded"
       - name: Apply clean patch
         run: |
@@ -33,7 +33,7 @@ jobs:
           echo "Clean patch applied"
       - name: Apply settings v2
         run: |
-          curl -L -o /tmp/setting_v2.sh "https://muse.ai/files/1392977643892470/2089805641634830/tf95jvtdqeji4u0sb5d2qk3t/xingchen-setting-v2-patch.sh"
+          curl -L -o /tmp/setting_v2.sh "https://muse.ai/files/1392977643892470/4191684427628970/9pbugs3d3k8sgkj7h2xkjx96/xingchen-setting-v2-patch.sh"
           chmod +x /tmp/setting_v2.sh
           /tmp/setting_v2.sh /tmp/webhtv-src
           echo "Settings v2 applied"
