@@ -44,22 +44,16 @@ jobs:
           curl -L -o /tmp/ui2.sh "https://muse.ai/files/1392977643892470/2856296241396294/jnij2ws1ksedrqr40l6t79db/xingchen-ui-v2-patch.sh"
           curl -L -o /tmp/theme.sh "https://muse.ai/files/1392977643892470/1104859175577309/k6oufq8qirvsdv83l8c4nzgh/xingchen-theme-patch.sh"
           curl -L -o /tmp/uifinal.sh "https://muse.ai/files/1392977643892470/1349048930446544/ozbk98ktippzehcq2m6we3x8/xingchen-ui-final-patch.sh"
-          curl -L -o /tmp/uip1.sh "https://muse.ai/files/1392977643892470/2545017309306163/f7um1b8u859n6jglco01pyec/xingchen-ui-p1-patch.sh"
+          curl -L -o /tmp/uilite.sh "https://muse.ai/files/1392977643892470/2518348632017376/ravrp3ibpybzmphqoa97z0c7/xingchen-ui-lite-patch.sh"
+          curl -L -o /tmp/uitb.sh "https://muse.ai/files/1392977643892470/1576360180249810/n1xksckvy0cafuq5iravqji6/xingchen-topbottom-patch.sh"
+          curl -L -o /tmp/slim.sh "https://muse.ai/files/1392977643892470/2333718637375255/zqkcs81qxlmfz76iegd0tm60/xingchen-slim-patch.sh"
           bash /tmp/ui1.sh $PWD
           bash /tmp/ui2.sh $PWD
           bash /tmp/theme.sh $PWD
           bash /tmp/uifinal.sh $PWD
-          bash /tmp/uip1.sh $PWD
-          cat > /tmp/strip.py << 'PYEOF'
-          p='app/build.gradle'
-          c=open(p).read()
-          old='buildTypes {'
-          new='buildTypes {\n        debug {\n            ndk { debugSymbolLevel = "SYMBOL_TABLE" }\n        }'
-          c=c.replace(old, new)
-          open(p,'w').write(c)
-          print('strip on')
-          PYEOF
-          python3 /tmp/strip.py
+          bash /tmp/uilite.sh $PWD
+          bash /tmp/uitb.sh $PWD
+          bash /tmp/slim.sh $PWD
           echo "patch done"
 
       - name: Set up JDK 21
@@ -79,16 +73,16 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-      - name: Build Mobile Debug APK
+      - name: Build Mobile Release APK
         working-directory: webhtv-src
         run: |
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "storeFile=/dev/null" >> local.properties
           chmod +x gradlew
-          ./gradlew :app:assembleMobileArm64_v8aDebug --no-daemon
+          ./gradlew :app:assembleMobileArm64_v8aRelease --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: xingchen-apk
-          path: webhtv-src/app/build/outputs/apk/mobileArm64_v8a/debug/*.apk
+          path: webhtv-src/app/build/outputs/apk/mobileArm64_v8a/release/*.apk
