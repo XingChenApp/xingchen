@@ -1,43 +1,47 @@
-name: Build XingChen APK
+name: Debug XingChen Patches
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  debug:
     runs-on: ubuntu-latest
     steps:
       - name: Clone webhtv source
         run: |
           git clone --depth 1 https://github.com/webhtv/webhtv.git webhtv-src
+          echo "=== Clone done ==="
 
-      - name: Basic renames
+      - name: Check original styles.xml
         run: |
           cd webhtv-src
-          sed -i 's/applicationId "com.fongmi.android.tv"/applicationId "com.xingchen.tv"/' app/build.gradle
-          sed -i 's/versionCode 560/versionCode 2/' app/build.gradle
-          sed -i 's/versionName "5.6.0"/versionName "1.0.1"/' app/build.gradle
-          sed -i 's/<string name="app_name">TV<\/string>/<string name="app_name">星辰<\/string>/' app/src/main/res/values/strings.xml
-          sed -i 's/<string name="app_name">影视<\/string>/<string name="app_name">星辰<\/string>/' app/src/main/res/values-zh-rCN/strings.xml
+          echo "=== Original statusBarColor ==="
+          grep -n "statusBarColor" app/src/mobile/res/values/styles.xml | head -3
 
-      - name: Status bar solid cream
+      - name: Apply status bar patch
         run: |
           cd webhtv-src
-          # Replace transparent with solid cream in styles.xml (single sed, no append)
           sed -i 's|<item name="android:statusBarColor">@color/transparent</item>|<item name="android:statusBarColor">#F5F0E8</item><item name="android:windowLightStatusBar">true</item>|' app/src/mobile/res/values/styles.xml
-          echo "Status bar fixed"
+          echo "=== After patch ==="
+          grep -n "statusBarColor" app/src/mobile/res/values/styles.xml | head -3
+          echo "=== Check if #F5F0E8 exists ==="
+          grep -c "#F5F0E8" app/src/mobile/res/values/styles.xml || echo "NOT FOUND"
 
-      - name: Bottom bar 4 tabs
+      - name: Check original menu
         run: |
           cd webhtv-src
-          # Create reading icon (simple book)
+          echo "=== Original menu items ==="
+          grep -c "<item" app/src/mobile/res/menu/menu_nav.xml
+
+      - name: Apply bottom bar patch
+        run: |
+          cd webhtv-src
           mkdir -p app/src/mobile/res/drawable
           cat > app/src/mobile/res/drawable/ic_nav_reading.xml << 'EOF'
           <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
             <path android:fillColor="none" android:strokeColor="#8A8A8A" android:strokeWidth="2" android:pathData="M4,5a2,2 0,0 1,2 -2h13v16H6a2,2 0,0 0,-2 2z"/>
           </vector>
           EOF
-          # Update menu to 4 tabs
           cat > app/src/mobile/res/menu/menu_nav.xml << 'MENUEOF'
           <?xml version="1.0" encoding="utf-8"?>
           <menu xmlns:android="http://schemas.android.com/apk/res/android">
@@ -47,19 +51,7 @@ jobs:
               <item android:id="@+id/setting" android:icon="@drawable/ic_nav_setting" android:title="@string/nav_setting" />
           </menu>
           MENUEOF
-          echo "Menu updated to 4 tabs"
-          # Add nav_reading string
-          sed -i 's|</resources>|    <string name="nav_reading">阅读</string>\n</resources>|' app/src/mobile/res/values/strings.xml
-          sed -i 's|</resources>|    <string name="nav_reading">阅读</string>\n</resources>|' app/src/mobile/res/values-zh-rCN/strings.xml
-
-      - name: Build APK
-        run: |
-          cd webhtv-src
-          chmod +x gradlew
-          ./gradlew :app:assembleMobileArm64_v8aRelease --parallel 2>&1 | tail -5
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: xingchen-apk
-          path: webhtv-src/app/build/outputs/apk/mobile/arm64_v8a/release/*.apk
+          echo "=== After patch menu items ==="
+          grep -c "<item" app/src/mobile/res/menu/menu_nav.xml
+          echo "=== Check reading icon exists ==="
+          ls -lh app/src/mobile/res/drawable/ic_nav_reading.xml || echo "NOT FOUND"
