@@ -60,7 +60,7 @@ jobs:
               about) url="https://muse.ai/files/1392977643892470/1369009255021373/j8quqrnntth8t9gi2r4xj3bs/xingchen-about-page-patch.sh" ;;
               config) url="https://muse.ai/files/1392977643892470/5520363191522311/jyl5lpsft1f11fnqgux2p8ns/xingchen-config-page-patch.sh" ;;
               configdialog) url="https://muse.ai/files/1392977643892470/1099910636107040/pc3jp0q9sjsg6e2dekn6dnen/xingchen-config-dialog-patch.sh" ;;
-              playersettings2) url="https://muse.ai/files/1392977643892470/4630935837184688/2jkv8dz7zmw1s8yej7sn8v8w/xingchen-playersettings-v2-patch.sh" ;;
+              playersettings2) url="https://muse.ai/files/1392977643892470/1742757910148024/wftw83kw8wdpw3jifh0f9l7t/xingchen-playersettings-v2-patch.sh" ;;
               statusbarfix3) url="https://muse.ai/files/1392977643892470/1807221780411003/yb3mycuem1zf663uzzp8hql2/xingchen-statusbar-fix3-patch.sh" ;;
               navicons2) url="https://muse.ai/files/1392977643892470/2359971981409859/x9t0hskk7tgbatlkowc7telm/xingchen-navicons-fix2-patch.sh" ;;
               bottombar2) url="https://muse.ai/files/1392977643892470/1813994076607223/qbkbxfwhe07op3juoe13uew0/xingchen-bottombar-fix2-patch.sh" ;;
