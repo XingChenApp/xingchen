@@ -47,6 +47,10 @@ jobs:
           curl -L -o /tmp/uilite.sh "https://muse.ai/files/1392977643892470/2518348632017376/ravrp3ibpybzmphqoa97z0c7/xingchen-ui-lite-patch.sh"
           curl -L -o /tmp/uitb.sh "https://muse.ai/files/1392977643892470/1576360180249810/n1xksckvy0cafuq5iravqji6/xingchen-topbottom-patch.sh"
           curl -L -o /tmp/uiset.sh "https://muse.ai/files/1392977643892470/1136208552071427/i1726ottdyo0eewetbvo3imc/xingchen-setting-v2-patch.sh"
+          curl -L -o /tmp/uisub.sh "https://muse.ai/files/1392977643892470/28309170212039076/38v24zasdff7lfbrviuq17jt/xingchen-setting-sub-patch.sh"
+          curl -L -o /tmp/sb.sh "https://muse.ai/files/1392977643892470/1452957393405250/dwuqx6pd87131ipanxoriym6/xingchen-statusbar-patch.sh"
+          curl -L -o /tmp/prune.sh "https://muse.ai/files/1392977643892470/3237690253089587/lhzhjofuo6c5w959st76ppja/xingchen-prune-v2-patch.sh"
+          curl -L -o /tmp/rmne.sh "https://muse.ai/files/1392977643892470/2137230743532275/lnnfjnw7d7nmaqovz19pscu1/xingchen-remove-enhance-patch.sh"
           curl -L -o /tmp/slim.sh "https://muse.ai/files/1392977643892470/2333718637375255/zqkcs81qxlmfz76iegd0tm60/xingchen-slim-patch.sh"
           bash /tmp/ui1.sh $PWD
           bash /tmp/ui2.sh $PWD
@@ -55,16 +59,11 @@ jobs:
           bash /tmp/uilite.sh $PWD
           bash /tmp/uitb.sh $PWD
           bash /tmp/uiset.sh $PWD
+          bash /tmp/uisub.sh $PWD
+          bash /tmp/sb.sh $PWD
+          bash /tmp/prune.sh $PWD
+          bash /tmp/rmne.sh $PWD
           bash /tmp/slim.sh $PWD
-          python3 -c "
-          import glob
-          for p in glob.glob('app/src/main/res/values*/themes.xml'):
-              c=open(p,encoding='utf-8').read()
-              if 'android:statusBarColor' not in c:
-                  c=c.replace('</style>', '    <item name=\"android:statusBarColor\">@color/xc_page_bg</item>\n</style>', 1)
-                  open(p,'w',encoding='utf-8').write(c)
-          print('statusbar solid done')
-          "
           echo "patch done"
 
       - name: Set up JDK 21
