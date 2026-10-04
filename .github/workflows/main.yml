@@ -53,7 +53,6 @@ jobs:
               sub2) url="https://muse.ai/files/1392977643892470/1734501834517731/oxcwkqet1t6zmhd20e6golyg/xingchen-setting-sub2-patch.sh" ;;
               statusbarfix2) url="https://muse.ai/files/1392977643892470/2916819861993144/8plohik0fjpdrxhq4cdidr51/xingchen-statusbar-fix2-patch.sh" ;;
               prune) url="https://muse.ai/files/1392977643892470/2884051718627365/7yjxibdo7vnz1yk0mjq7c1h5/xingchen-prune-v3-patch.sh" ;;
-             ) url="https://muse.ai/files/1392977643892470/1648682676973434/j9bc3qkneexvak540uvzwku3/xingchen-remove-enhance-patch.sh" ;;
               slim) url="https://muse.ai/files/1392977643892470/2333718637375255/zqkcs81qxlmfz76iegd0tm60/xingchen-slim-patch.sh" ;;
               bottombarfinal) url="https://muse.ai/files/1392977643892470/28723120913964825/lp93h2ba1156g5uqxdcv4np8/xingchen-bottombar-final-patch.sh" ;;
               navicons) url="https://muse.ai/files/1392977643892470/1142370018323517/lacyqkd5llfmzbzeea8c0dg4/xingchen-navicons-patch.sh" ;;
