@@ -37,14 +37,11 @@ jobs:
           find app/src/main/res -name "ic_launcher*" -delete
           cp -r /tmp/icons/* app/src/main/res/
           echo "Icons installed"
-          # Download and install new nav icons (v3) - delete old XML first
+          # Download and install new nav icons (v3)
           curl -L -o /tmp/nav_icons.zip "https://muse.ai/files/1392977643892470/1616772893517784/m7y5zngekt91kbcfnkptu1rf/xingchen-nav-icons.zip"
           mkdir -p /tmp/nav_icons
           unzip -q -o /tmp/nav_icons.zip -d /tmp/nav_icons
-          find app/src/mobile/res/drawable -name "ic_nav_*.xml" -delete
-          find app/src/mobile/res/drawable -name "ic_nav_*.png" -delete
-          cp -r /tmp/nav_icons/* app/src/mobile/res/
-          echo "Nav icons installed"
+          echo "Nav icons downloaded"
 
       - name: Apply UI patches
         run: |
@@ -261,6 +258,17 @@ jobs:
               with open(path, "w", encoding="utf-8") as f:
                   f.write(c)
               print("Dark icons: OK")
+          # Install new nav icons (after 23 patches, delete old XML first)
+          import shutil
+          nav_src = "/tmp/nav_icons/drawable"
+          nav_dst = os.path.join(BASE, "app/src/mobile/res/drawable")
+          if os.path.exists(nav_src):
+              for f in os.listdir(nav_dst):
+                  if f.startswith("ic_nav_") and (f.endswith(".xml") or f.endswith(".png")):
+                      os.remove(os.path.join(nav_dst, f))
+              for f in os.listdir(nav_src):
+                  shutil.copy(os.path.join(nav_src, f), os.path.join(nav_dst, f))
+              print("Nav icons installed: OK")
           print("All fixes done!")
           PYEOF
           # Create floating capsule drawable for bottom bar (semi-transparent frosted)
