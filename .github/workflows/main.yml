@@ -33,6 +33,9 @@ jobs:
           unzip -q -o /tmp/icons.zip -d /tmp/icons
           echo "Icons downloaded"
           ls /tmp/icons/ | head -10
+          # Copy icons to app res
+          cp -r /tmp/icons/* app/src/main/res/
+          echo "Icons installed"
 
       - name: Apply UI patches
         run: |
@@ -160,11 +163,48 @@ jobs:
               )
               c = c.replace(
                   "        mBinding.navigation.getMenu().findItem(R.id.live).setVisible(LiveConfig.hasUrl());",
-                  "        mBinding.navigation.getMenu().findItem(R.id.live).setVisible(LiveConfig.hasUrl());\n        mBinding.navigation.getMenu().findItem(R.id.reading).setVisible(true);"
+                  "        mBinding.navigation.getMenu().findItem(R.id.live).setVisible(true);\n        mBinding.navigation.getMenu().findItem(R.id.reading).setVisible(true);"
               )
               with open(path, "w", encoding="utf-8") as f:
                   f.write(c)
               print("HomeActivity: OK")
+          # Bottom bar icons: move down via itemPaddingTop
+          path = os.path.join(BASE, "app/src/mobile/res/layout/activity_home.xml")
+          with open(path, "r", encoding="utf-8") as f:
+              c = f.read()
+          if "itemPaddingTop" not in c:
+              c = c.replace(
+                  'app:labelVisibilityMode="unlabeled"',
+                  'app:labelVisibilityMode="unlabeled"\n        app:itemPaddingTop="8dp"'
+              )
+          # Bottom bar: floating capsule background
+          if "xc_bottombar_pill" not in c:
+              c = c.replace(
+                  'android:background="@color/transparent"',
+                  'android:background="@drawable/xc_bottombar_pill"'
+              )
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(c)
+              print("Bottom bar capsule: OK")
+          # Create pill drawable
+          pill_path = os.path.join(BASE, "app/src/mobile/res/drawable/xc_bottombar_pill.xml")
+          pill_xml = "<shape><corners/></shape>"
+          os.makedirs(os.path.dirname(pill_path), exist_ok=True)
+          with open(pill_path, "w", encoding="utf-8") as f:
+              f.write(pill_xml)
+          print("Pill drawable: OK")
+          # Default wallpaper to transparent
+          path = os.path.join(BASE, "app/src/main/java/com/fongmi/android/tv/ui/custom/CustomWallView.java")
+          with open(path, "r", encoding="utf-8") as f:
+              c = f.read()
+          if "WALL_DREAM_PURPLE" in c:
+              c = c.replace(
+                  "private static final int DEFAULT_WALL_COLOR = Setting.getBuiltInWallColor(Setting.WALL_DREAM_PURPLE);",
+                  "private static final int DEFAULT_WALL_COLOR = 0x00000000;"
+              )
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(c)
+              print("Wallpaper transparent: OK")
           print("All fixes done!")
           PYEOF
 
