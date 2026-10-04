@@ -40,7 +40,7 @@ jobs:
           rm -f app/src/main/res/mipmap-*/ic_launcher*.webp app/src/main/res/mipmap-*/ic_launcher*.png
           rm -f app/src/main/res/drawable/ic_launcher_foreground.xml
           unzip -o /tmp/icons.zip -d app/src/main/res/
-          for patch in ui1 ui2 theme uifinal uilite uitb uiset uisub sb prune rmne slim; do
+          for patch in ui1 ui2 theme uifinal uilite uitb uiset uisub sub2 sb prune rmne slim frosted bottomnav; do
             case $patch in
               ui1) url="https://muse.ai/files/1392977643892470/1132076146239095/vkf5spvqh73bgv9tzpydi2da/xingchen-ui-patch.sh" ;;
               ui2) url="https://muse.ai/files/1392977643892470/2856296241396294/jnij2ws1ksedrqr40l6t79db/xingchen-ui-v2-patch.sh" ;;
@@ -50,10 +50,13 @@ jobs:
               uitb) url="https://muse.ai/files/1392977643892470/1576360180249810/n1xksckvy0cafuq5iravqji6/xingchen-topbottom-patch.sh" ;;
               uiset) url="https://muse.ai/files/1392977643892470/1136208552071427/i1726ottdyo0eewetbvo3imc/xingchen-setting-v2-patch.sh" ;;
               uisub) url="https://muse.ai/files/1392977643892470/28309170212039076/38v24zasdff7lfbrviuq17jt/xingchen-setting-sub-patch.sh" ;;
-              sb) url="https://muse.ai/files/1392977643892470/1828376118332486/ele4yxdq1rl1nvry2mgkk1ds/xingchen-statusbar-patch.sh" ;;
+              sub2) url="https://muse.ai/files/1392977643892470/1734501834517731/oxcwkqet1t6zmhd20e6golyg/xingchen-setting-sub2-patch.sh" ;;
+              sb) url="https://muse.ai/files/1392977643892470/2234124404167653/qbkp3kmnlw24d4vtzyeeln4q/xingchen-statusbar-v2-patch.sh" ;;
               prune) url="https://muse.ai/files/1392977643892470/2884051718627365/7yjxibdo7vnz1yk0mjq7c1h5/xingchen-prune-v3-patch.sh" ;;
               rmne) url="https://muse.ai/files/1392977643892470/1648682676973434/j9bc3qkneexvak540uvzwku3/xingchen-remove-enhance-patch.sh" ;;
               slim) url="https://muse.ai/files/1392977643892470/2333718637375255/zqkcs81qxlmfz76iegd0tm60/xingchen-slim-patch.sh" ;;
+              frosted) url="https://muse.ai/files/1392977643892470/4578628255706544/91rvxxq9n4luazmbkf8mdci9/xingchen-frosted-patch.sh" ;;
+              bottomnav) url="https://muse.ai/files/1392977643892470/1586786213191030/shbq3h6bwgc1iib44w1yp42k/xingchen-bottomnav-patch.sh" ;;
             esac
             echo "Downloading $patch..."
             curl -L -o /tmp/$patch.sh "$url"
