@@ -25,7 +25,7 @@ jobs:
           echo "Nav icons downloaded"
       - name: Download clean patch
         run: |
-          curl -L -o /tmp/clean_patch.py "https://muse.ai/files/1392977643892470/953383027328186/rvlk9tzerm7ftrpy2wd3cfi1/xingchen-clean-patch.py"
+          curl -L -o /tmp/clean_patch.py "https://muse.ai/files/1392977643892470/1410939860753595/3wp77zma2j8tkbsgq9abdtnb/xingchen-clean-patch.py"
           echo "Clean patch downloaded"
       - name: Apply clean patch
         run: |
