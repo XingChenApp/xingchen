@@ -40,7 +40,7 @@ jobs:
           rm -f app/src/main/res/mipmap-*/ic_launcher*.webp app/src/main/res/mipmap-*/ic_launcher*.png
           rm -f app/src/main/res/drawable/ic_launcher_foreground.xml
           unzip -o /tmp/icons.zip -d app/src/main/res/
-          for patch in ui1 ui2 theme uifinal uilite uitb uiset uisub sub2 sb prune rmne slim fabnav navicons appearance health plugin about config; do
+          for patch in ui1 ui2 theme uifinal uilite uitb uiset uisub sub2 statusbarfix2 prune slim bottombarfinal navicons appearance health plugin about config configdialog playersettings nobackbtn features; do
             case $patch in
               ui1) url="https://muse.ai/files/1392977643892470/1132076146239095/vkf5spvqh73bgv9tzpydi2da/xingchen-ui-patch.sh" ;;
               ui2) url="https://muse.ai/files/1392977643892470/2856296241396294/jnij2ws1ksedrqr40l6t79db/xingchen-ui-v2-patch.sh" ;;
@@ -51,17 +51,21 @@ jobs:
               uiset) url="https://muse.ai/files/1392977643892470/1136208552071427/i1726ottdyo0eewetbvo3imc/xingchen-setting-v2-patch.sh" ;;
               uisub) url="https://muse.ai/files/1392977643892470/28309170212039076/38v24zasdff7lfbrviuq17jt/xingchen-setting-sub-patch.sh" ;;
               sub2) url="https://muse.ai/files/1392977643892470/1734501834517731/oxcwkqet1t6zmhd20e6golyg/xingchen-setting-sub2-patch.sh" ;;
-              sb) url="https://muse.ai/files/1392977643892470/2234124404167653/qbkp3kmnlw24d4vtzyeeln4q/xingchen-statusbar-v2-patch.sh" ;;
+              statusbarfix2) url="https://muse.ai/files/1392977643892470/2916819861993144/8plohik0fjpdrxhq4cdidr51/xingchen-statusbar-fix2-patch.sh" ;;
               prune) url="https://muse.ai/files/1392977643892470/2884051718627365/7yjxibdo7vnz1yk0mjq7c1h5/xingchen-prune-v3-patch.sh" ;;
-              rmne) url="https://muse.ai/files/1392977643892470/1648682676973434/j9bc3qkneexvak540uvzwku3/xingchen-remove-enhance-patch.sh" ;;
+             ) url="https://muse.ai/files/1392977643892470/1648682676973434/j9bc3qkneexvak540uvzwku3/xingchen-remove-enhance-patch.sh" ;;
               slim) url="https://muse.ai/files/1392977643892470/2333718637375255/zqkcs81qxlmfz76iegd0tm60/xingchen-slim-patch.sh" ;;
-              fabnav) url="https://muse.ai/files/1392977643892470/1615495746647828/0ket6jw2j6apmrircko87d8h/xingchen-fabnav-patch.sh" ;;
+              bottombarfinal) url="https://muse.ai/files/1392977643892470/28723120913964825/lp93h2ba1156g5uqxdcv4np8/xingchen-bottombar-final-patch.sh" ;;
               navicons) url="https://muse.ai/files/1392977643892470/1142370018323517/lacyqkd5llfmzbzeea8c0dg4/xingchen-navicons-patch.sh" ;;
               appearance) url="https://muse.ai/files/1392977643892470/1777151933407907/epsjaw2itvg2kfklrutubadm/xingchen-appearance-patch.sh" ;;
               health) url="https://muse.ai/files/1392977643892470/2437123197107834/iais1klhdvphh8oglcp8bodf/xingchen-health-page-patch.sh" ;;
               plugin) url="https://muse.ai/files/1392977643892470/2040908293243440/lpavabyyj1t4nl6q2j7l1oki/xingchen-plugin-page-patch.sh" ;;
               about) url="https://muse.ai/files/1392977643892470/1369009255021373/j8quqrnntth8t9gi2r4xj3bs/xingchen-about-page-patch.sh" ;;
               config) url="https://muse.ai/files/1392977643892470/5520363191522311/jyl5lpsft1f11fnqgux2p8ns/xingchen-config-page-patch.sh" ;;
+              configdialog) url="https://muse.ai/files/1392977643892470/1099910636107040/pc3jp0q9sjsg6e2dekn6dnen/xingchen-config-dialog-patch.sh" ;;
+              playersettings) url="https://muse.ai/files/1392977643892470/1083104914516677/2nvyszie2vc1b1el0g6w6ny5/xingchen-player-settings-patch.sh" ;;
+              nobackbtn) url="https://muse.ai/files/1392977643892470/1640474440785528/vy91oo983lnedwbezaah8e8d/xingchen-remove-backbtn-patch.sh" ;;
+              features) url="https://muse.ai/files/1392977643892470/1744502726621764/6qot6eujabvkhotgzzo2ck8b/xingchen-features-page-patch.sh" ;;
             esac
             echo "Downloading $patch..."
             curl -L -o /tmp/$patch.sh "$url"
