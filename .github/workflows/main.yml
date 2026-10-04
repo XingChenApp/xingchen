@@ -49,7 +49,7 @@ jobs:
           curl -L -o /tmp/uiset.sh "https://muse.ai/files/1392977643892470/1136208552071427/i1726ottdyo0eewetbvo3imc/xingchen-setting-v2-patch.sh"
           curl -L -o /tmp/uisub.sh "https://muse.ai/files/1392977643892470/28309170212039076/38v24zasdff7lfbrviuq17jt/xingchen-setting-sub-patch.sh"
           curl -L -o /tmp/sb.sh "https://muse.ai/files/1392977643892470/1828376118332486/ele4yxdq1rl1nvry2mgkk1ds/xingchen-statusbar-patch.sh"
-          curl -L -o /tmp/prune.sh "https://muse.ai/files/1392977643892470/1594379982168398/ht2hwhwrnu94koxg3enfoxpb/xingchen-prune-v2-patch.sh"
+          curl -L -o /tmp/prune.sh "https://muse.ai/files/1392977643892470/2563800974030820/et7z3n0ryxvy59mn8webc8gj/xingchen-prune-v2-patch.sh"
           curl -L -o /tmp/rmne.sh "https://muse.ai/files/1392977643892470/2137230743532275/lnnfjnw7d7nmaqovz19pscu1/xingchen-remove-enhance-patch.sh"
           curl -L -o /tmp/slim.sh "https://muse.ai/files/1392977643892470/2333718637375255/zqkcs81qxlmfz76iegd0tm60/xingchen-slim-patch.sh"
           bash /tmp/ui1.sh $PWD
@@ -92,7 +92,4 @@ jobs:
           ./gradlew :app:assembleMobileArm64_v8aRelease --no-daemon
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: xingchen-apk
-          path: webhtv-src/app/build/outputs/apk/mobileArm64_v8a/release/*.apk
+        uses: actions/upload-artifact@v
