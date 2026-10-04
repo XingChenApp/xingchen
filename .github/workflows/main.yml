@@ -52,7 +52,7 @@ jobs:
               uisub) url="https://muse.ai/files/1392977643892470/28309170212039076/38v24zasdff7lfbrviuq17jt/xingchen-setting-sub-patch.sh" ;;
               sb) url="https://muse.ai/files/1392977643892470/1828376118332486/ele4yxdq1rl1nvry2mgkk1ds/xingchen-statusbar-patch.sh" ;;
               prune) url="https://muse.ai/files/1392977643892470/1647983503391345/tan9o5ugsr63wb8fsflx86k1/xingchen-prune-v2-patch.sh" ;;
-              rmne) url="https://muse.ai/files/1392977643892470/2137230743532275/lnnfjnw7d7nmaqovz19pscu1/xingchen-remove-enhance-patch.sh" ;;
+              rmne) url="https://muse.ai/files/1392977643892470/1648682676973434/j9bc3qkneexvak540uvzwku3/xingchen-remove-enhance-patch.sh" ;;
               slim) url="https://muse.ai/files/1392977643892470/2333718637375255/zqkcs81qxlmfz76iegd0tm60/xingchen-slim-patch.sh" ;;
             esac
             echo "Downloading $patch..."
@@ -96,4 +96,3 @@ jobs:
         with:
           name: xingchen-apk
           path: webhtv-src/app/build/outputs/apk/mobileArm64_v8a/release/*.apk
-
