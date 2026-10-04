@@ -1,1 +1,99 @@
+name: Build XingChen APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone webhtv source
+        run: |
+          git clone --depth 1 https://github.com/webhtv/webhtv.git webhtv-src
+          ls webhtv-src/
+
+      - name: Apply XingChen patch
+        run: |
+          cd webhtv-src
+          sed -i 's/applicationId "com.fongmi.android.tv"/applicationId "com.xingchen.tv"/' app/build.gradle
+          sed -i 's/versionCode 560/versionCode 2/' app/build.gradle
+          sed -i 's/versionName "5.6.0"/versionName "1.0.1"/' app/build.gradle
+          sed -i 's/<string name="app_name">TV<\/string>/<string name="app_name">星辰<\/string>/' app/src/main/res/values/strings.xml
+          sed -i 's/<string name="app_name">影视<\/string>/<string name="app_name">星辰<\/string>/' app/src/main/res/values-zh-rCN/strings.xml
+          sed -i 's/<string name="setting_player">播放设置<\/string>/<string name="setting_player">播放器设置<\/string>/' app/src/main/res/values-zh-rCN/strings.xml
+          sed -i 's/<string name="about_title">关于 WebHomeTV<\/string>/<string name="about_title">关于星辰<\/string>/' app/src/main/res/values-zh-rCN/strings.xml
+          sed -i 's/return Prefers.getBoolean("update", true)/return Prefers.getBoolean("update", false)/' app/src/main/java/com/fongmi/android/tv/setting/Setting.java
+          python3 << 'PYEOF'
+          p='app/src/main/res/values-zh-rCN/strings.xml'
+          c=open(p,encoding='utf-8').read()
+          c=c.replace('WebHomeTV 是基于开源生态','星辰是基于开源生态')
+          c=c.replace('影视内容、直播源、接口源','影视内容、直播源、阅读内容、接口源')
+          c=c.replace('不传播任何影视资源','不传播任何影视、直播、阅读资源')
+          open(p,'w',encoding='utf-8').write(c)
+          p2='app/src/main/res/layout/dialog_about.xml'
+          c2=open(p2,encoding='utf-8').read()
+          c2=c2.replace('android:id="@+id/checkUpdate"','android:id="@+id/checkUpdate"\n            android:visibility="gone"')
+          open(p2,'w',encoding='utf-8').write(c2)
+          print('disclaimer+hide update done')
+          PYEOF
+          curl -L -o /tmp/icons.zip "https://muse.ai/files/1392977643892470/1573066240774423/co24695d3ns3ru7zcb77dkr7/xingchen-icons.zip"
+          rm -f app/src/main/res/mipmap-*/ic_launcher*.webp app/src/main/res/mipmap-*/ic_launcher*.png
+          rm -f app/src/main/res/drawable/ic_launcher_foreground.xml
+          unzip -o /tmp/icons.zip -d app/src/main/res/
+          for patch in ui1 ui2 theme uifinal uilite uitb uiset uisub sb prune rmne slim; do
+            case $patch in
+              ui1) url="https://muse.ai/files/1392977643892470/1132076146239095/vkf5spvqh73bgv9tzpydi2da/xingchen-ui-patch.sh" ;;
+              ui2) url="https://muse.ai/files/1392977643892470/2856296241396294/jnij2ws1ksedrqr40l6t79db/xingchen-ui-v2-patch.sh" ;;
+              theme) url="https://muse.ai/files/1392977643892470/1104859175577309/k6oufq8qirvsdv83l8c4nzgh/xingchen-theme-patch.sh" ;;
+              uifinal) url="https://muse.ai/files/1392977643892470/1349048930446544/ozbk98ktippzehcq2m6we3x8/xingchen-ui-final-patch.sh" ;;
+              uilite) url="https://muse.ai/files/1392977643892470/2518348632017376/ravrp3ibpybzmphqoa97z0c7/xingchen-ui-lite-patch.sh" ;;
+              uitb) url="https://muse.ai/files/1392977643892470/1576360180249810/n1xksckvy0cafuq5iravqji6/xingchen-topbottom-patch.sh" ;;
+              uiset) url="https://muse.ai/files/1392977643892470/1136208552071427/i1726ottdyo0eewetbvo3imc/xingchen-setting-v2-patch.sh" ;;
+              uisub) url="https://muse.ai/files/1392977643892470/28309170212039076/38v24zasdff7lfbrviuq17jt/xingchen-setting-sub-patch.sh" ;;
+              sb) url="https://muse.ai/files/1392977643892470/1828376118332486/ele4yxdq1rl1nvry2mgkk1ds/xingchen-statusbar-patch.sh" ;;
+              prune) url="https://muse.ai/files/1392977643892470/1647983503391345/tan9o5ugsr63wb8fsflx86k1/xingchen-prune-v2-patch.sh" ;;
+              rmne) url="https://muse.ai/files/1392977643892470/2137230743532275/lnnfjnw7d7nmaqovz19pscu1/xingchen-remove-enhance-patch.sh" ;;
+              slim) url="https://muse.ai/files/1392977643892470/2333718637375255/zqkcs81qxlmfz76iegd0tm60/xingchen-slim-patch.sh" ;;
+            esac
+            echo "Downloading $patch..."
+            curl -L -o /tmp/$patch.sh "$url"
+            if [ ! -s /tmp/$patch.sh ]; then
+              echo "ERROR: Failed to download $patch"
+              exit 1
+            fi
+            echo "Running $patch..."
+            bash /tmp/$patch.sh $PWD
+          done
+          echo "patch done"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Setup Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+      - name: Build Mobile Release APK
+        working-directory: webhtv-src
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "storeFile=/dev/null" >> local.properties
+          chmod +x gradlew
+          ./gradlew :app:assembleMobileArm64_v8aRelease --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: xingchen-apk
+          path: webhtv-src/app/build/outputs/apk/mobileArm64_v8a/release/*.apk
 
