@@ -44,10 +44,12 @@ jobs:
           curl -L -o /tmp/ui2.sh "https://muse.ai/files/1392977643892470/2856296241396294/jnij2ws1ksedrqr40l6t79db/xingchen-ui-v2-patch.sh"
           curl -L -o /tmp/theme.sh "https://muse.ai/files/1392977643892470/1104859175577309/k6oufq8qirvsdv83l8c4nzgh/xingchen-theme-patch.sh"
           curl -L -o /tmp/uifinal.sh "https://muse.ai/files/1392977643892470/1349048930446544/ozbk98ktippzehcq2m6we3x8/xingchen-ui-final-patch.sh"
+          curl -L -o /tmp/uip1.sh "https://muse.ai/files/1392977643892470/1458869186148520/2dzcadh6q3k2xhkzto73t5ja/xingchen-ui-p1-patch.sh"
           bash /tmp/ui1.sh $PWD
           bash /tmp/ui2.sh $PWD
           bash /tmp/theme.sh $PWD
           bash /tmp/uifinal.sh $PWD
+          bash /tmp/uip1.sh $PWD
           cat > /tmp/strip.py << 'PYEOF'
           p='app/build.gradle'
           c=open(p).read()
