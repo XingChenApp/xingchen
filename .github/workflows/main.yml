@@ -59,7 +59,7 @@ jobs:
               navicons) url="https://muse.ai/files/1392977643892470/1142370018323517/lacyqkd5llfmzbzeea8c0dg4/xingchen-navicons-patch.sh" ;;
               appearance) url="https://muse.ai/files/1392977643892470/1777151933407907/epsjaw2itvg2kfklrutubadm/xingchen-appearance-patch.sh" ;;
               health) url="https://muse.ai/files/1392977643892470/2437123197107834/iais1klhdvphh8oglcp8bodf/xingchen-health-page-patch.sh" ;;
-              plugin) url="https://muse.ai/files/1392977643892470/1377447092119995/jwkuk6f6qd1vq0otbug8bg8z/xingchen-plugin-page-patch.sh" ;;
+              plugin) url="https://muse.ai/files/1392977643892470/2040908293243440/lpavabyyj1t4nl6q2j7l1oki/xingchen-plugin-page-patch.sh" ;;
               about) url="https://muse.ai/files/1392977643892470/1369009255021373/j8quqrnntth8t9gi2r4xj3bs/xingchen-about-page-patch.sh" ;;
               config) url="https://muse.ai/files/1392977643892470/5520363191522311/jyl5lpsft1f11fnqgux2p8ns/xingchen-config-page-patch.sh" ;;
             esac
