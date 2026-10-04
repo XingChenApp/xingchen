@@ -1,316 +1,57 @@
 name: Build XingChen APK
-
 on:
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Clone webhtv source
+      - name: Checkout source
         run: |
-          git clone --depth 1 https://github.com/webhtv/webhtv.git webhtv-src
-
-      - name: Basic renames
+          git clone --depth 1 https://github.com/webhtv/webhtv.git /tmp/webhtv-src
+          echo "Source cloned"
+      - name: Download app icons
         run: |
-          cd webhtv-src
-          sed -i 's/applicationId "com.fongmi.android.tv"/applicationId "com.xingchen.tv"/' app/build.gradle
-          sed -i 's/versionCode 560/versionCode 2/' app/build.gradle
-          sed -i 's/versionName "5.6.0"/versionName "1.0.1"/' app/build.gradle
-          sed -i 's/<string name="app_name">TV<\/string>/<string name="app_name">星辰<\/string>/' app/src/main/res/values/strings.xml
-          sed -i 's/<string name="app_name">影视<\/string>/<string name="app_name">星辰<\/string>/' app/src/main/res/values-zh-rCN/strings.xml
-
-      - name: Download UI patches
-        run: |
-          cd webhtv-src
-          curl -L -o /tmp/patches.zip "https://muse.ai/files/1392977643892470/1400229772318718/xj11cr0jglracssqfgazubwk/xingchen-patches-full.zip"
-          mkdir -p /tmp/patches
-          unzip -q -o /tmp/patches.zip -d /tmp/patches
-          ls /tmp/patches/ | head -20
-          # Download and install app icons
           curl -L -o /tmp/icons.zip "https://muse.ai/files/1392977643892470/1423151855987498/w5hsnxpzh2wycxzt12qztve4/xingchen-icons.zip"
           mkdir -p /tmp/icons
           unzip -q -o /tmp/icons.zip -d /tmp/icons
-          echo "Icons downloaded"
-          ls /tmp/icons/ | head -10
-          # Copy icons to app res (delete old first to avoid duplicates)
-          find app/src/main/res -name "ic_launcher*" -delete
-          cp -r /tmp/icons/* app/src/main/res/
-          echo "Icons installed"
-          # Download and install new nav icons (v3)
+          find /tmp/webhtv-src/app/src/main/res -name "ic_launcher*" -delete
+          cp -r /tmp/icons/* /tmp/webhtv-src/app/src/main/res/
+          echo "App icons installed"
+      - name: Download nav icons
+        run: |
           curl -L -o /tmp/nav_icons.zip "https://muse.ai/files/1392977643892470/3305432652981077/0kuj55hp9c2oxrpcbrdsefqp/xingchen-nav-icons.zip"
           mkdir -p /tmp/nav_icons
           unzip -q -o /tmp/nav_icons.zip -d /tmp/nav_icons
           echo "Nav icons downloaded"
-
-      - name: Apply UI patches
+      - name: Download clean patch
         run: |
-          cd webhtv-src
-          for patch in xingchen-ui-patch.sh xingchen-ui-v2-patch.sh xingchen-theme-patch.sh xingchen-ui-final-patch.sh xingchen-ui-lite-patch.sh xingchen-topbottom-patch.sh xingchen-setting-v2-patch.sh xingchen-setting-sub-patch.sh xingchen-setting-sub2-patch.sh xingchen-prune-v3-patch.sh xingchen-slim-patch.sh xingchen-navicons-fix2-patch.sh xingchen-appearance-patch.sh xingchen-health-page-patch.sh xingchen-plugin-page-patch.sh xingchen-about-page-patch.sh xingchen-config-page-patch.sh xingchen-config-dialog-patch.sh xingchen-playersettings-v2-patch.sh xingchen-backnav-fix-patch.sh xingchen-features-page-patch.sh; do
-            if [ -f "/tmp/patches/$patch" ]; then
-              echo "Applying $patch..."
-              bash "/tmp/patches/$patch" || echo "Warning: $patch failed"
-            fi
-          done
-          echo "UI patches done (skipped conflicting bottombar patches)"
-
-      - name: Apply status bar and bottom bar fixes
+          curl -L -o /tmp/clean_patch.py "https://muse.ai/files/1392977643892470/953383027328186/rvlk9tzerm7ftrpy2wd3cfi1/xingchen-clean-patch.py"
+          echo "Clean patch downloaded"
+      - name: Apply clean patch
         run: |
-          cd webhtv-src
-          python3 << 'PYEOF'
-          import os
-          BASE = "."
-          # Menu: 4 tabs
-          path = os.path.join(BASE, "app/src/mobile/res/menu/menu_nav.xml")
-          menu_xml = """<?xml version="1.0" encoding="utf-8"?>
-          <menu xmlns:android="http://schemas.android.com/apk/res/android">
-              <item android:id="@+id/vod" android:icon="@drawable/ic_nav_vod" android:title="@string/nav_vod" />
-              <item android:id="@+id/live" android:icon="@drawable/ic_nav_live" android:title="@string/nav_live" />
-              <item android:id="@+id/reading" android:icon="@drawable/ic_nav_reading" android:title="@string/nav_reading" />
-              <item android:id="@+id/setting" android:icon="@drawable/ic_nav_setting" android:title="@string/nav_setting" />
-          </menu>
-          """
-          with open(path, "w", encoding="utf-8") as f:
-              f.write(menu_xml)
-          print("Menu: OK")
-          # Reading icon
-          path = os.path.join(BASE, "app/src/mobile/res/drawable/ic_nav_reading.xml")
-          icon = """<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-              <path android:strokeColor="#8A8A8A" android:strokeWidth="2" android:pathData="M4,5a2,2 0,0 1,2 -2h13v16H6a2,2 0,0 0,-2 2z"/>
-          </vector>
-          """
-          os.makedirs(os.path.dirname(path), exist_ok=True)
-          with open(path, "w", encoding="utf-8") as f:
-              f.write(icon)
-          print("Icon: OK")
-          # Strings
-          for rp in ["app/src/mobile/res/values/strings.xml", "app/src/mobile/res/values-zh-rCN/strings.xml"]:
-              p = os.path.join(BASE, rp)
-              with open(p, "r", encoding="utf-8") as f:
-                  c = f.read()
-              if 'name="nav_reading"' not in c:
-                  c = c.replace("</resources>", '    <string name="nav_reading">阅读</string>\n</resources>')
-                  with open(p, "w", encoding="utf-8") as f:
-                      f.write(c)
-              print(f"String {rp}: OK")
-          # ReadingActivity
-          path = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/ReadingActivity.java")
-          code = """package com.fongmi.android.tv.ui.activity;
-          import android.app.Activity;
-          import android.content.Intent;
-          import android.os.Bundle;
-          import android.view.Gravity;
-          import android.widget.LinearLayout;
-          import android.widget.TextView;
-          public class ReadingActivity extends Activity {
-              public static void start(Activity activity) {
-                  activity.startActivity(new Intent(activity, ReadingActivity.class));
-              }
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  LinearLayout layout = new LinearLayout(this);
-                  layout.setOrientation(LinearLayout.VERTICAL);
-                  layout.setGravity(Gravity.CENTER);
-                  layout.setPadding(48, 48, 48, 48);
-                  TextView title = new TextView(this);
-                  title.setText("阅读");
-                  title.setTextSize(28);
-                  title.setGravity(Gravity.CENTER);
-                  layout.addView(title);
-                  TextView desc = new TextView(this);
-                  desc.setText("书架功能开发中");
-                  desc.setTextSize(16);
-                  desc.setGravity(Gravity.CENTER);
-                  desc.setPadding(0, 24, 0, 0);
-                  layout.addView(desc);
-                  setContentView(layout);
-              }
-          }
-          """
-          os.makedirs(os.path.dirname(path), exist_ok=True)
-          with open(path, "w", encoding="utf-8") as f:
-              f.write(code)
-          print("ReadingActivity: OK")
-          # Manifest
-          path = os.path.join(BASE, "app/src/mobile/AndroidManifest.xml")
-          with open(path, "r", encoding="utf-8") as f:
-              c = f.read()
-          if "ReadingActivity" not in c:
-              old = '        <activity\n            android:name=".ui.activity.ScanActivity"'
-              new = '        <activity\n            android:name=".ui.activity.ReadingActivity"\n            android:screenOrientation="fullUser" />\n\n        <activity\n            android:name=".ui.activity.ScanActivity"'
-              c = c.replace(old, new)
-              with open(path, "w", encoding="utf-8") as f:
-                  f.write(c)
-              print("Manifest: OK")
-          # HomeActivity
-          path = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/HomeActivity.java")
-          with open(path, "r", encoding="utf-8") as f:
-              c = f.read()
-          if "R.id.reading" not in c:
-              c = c.replace(
-                  "        if (item.getItemId() == R.id.live) return openLive();",
-                  "        if (item.getItemId() == R.id.live) return openLive();\n        if (item.getItemId() == R.id.reading) return openReading();"
-              )
-              c = c.replace(
-                  "    private boolean openLive() {",
-                  "    private boolean openReading() {\n        ReadingActivity.start(this);\n        return false;\n    }\n\n    private boolean openLive() {"
-              )
-              c = c.replace(
-                  "        mBinding.navigation.getMenu().findItem(R.id.live).setVisible(LiveConfig.hasUrl());",
-                  "        mBinding.navigation.getMenu().findItem(R.id.live).setVisible(true);\n        mBinding.navigation.getMenu().findItem(R.id.reading).setVisible(true);"
-              )
-              with open(path, "w", encoding="utf-8") as f:
-                  f.write(c)
-              print("HomeActivity: OK")
-          # Bottom bar icons: move down via itemPaddingTop
-          path = os.path.join(BASE, "app/src/mobile/res/layout/activity_home.xml")
-          with open(path, "r", encoding="utf-8") as f:
-              c = f.read()
-          if "itemPaddingTop" not in c:
-              c = c.replace(
-                  'app:labelVisibilityMode="unlabeled"',
-                  'app:labelVisibilityMode="unlabeled"\n        app:itemPaddingTop="8dp"'
-              )
-          # Bottom bar: full-width capsule (no side gaps, no bottom margin)
-          if "xc_bottombar_pill" not in c:
-              c = c.replace(
-                  'android:background="@color/transparent"',
-                  'android:background="@drawable/xc_bottombar_pill"\n        android:elevation="8dp"'
-              )
-              with open(path, "w", encoding="utf-8") as f:
-                  f.write(c)
-              print("Bottom bar capsule: OK")
-          # Create pill drawable via bash (avoid YAML/Python quoting issues)
-          print("Pill drawable: will create via bash")
-          # Default wallpaper to transparent
-          path = os.path.join(BASE, "app/src/main/java/com/fongmi/android/tv/ui/custom/CustomWallView.java")
-          with open(path, "r", encoding="utf-8") as f:
-              c = f.read()
-          if "WALL_DREAM_PURPLE" in c:
-              c = c.replace(
-                  "private static final int DEFAULT_WALL_COLOR = Setting.getBuiltInWallColor(Setting.WALL_DREAM_PURPLE);",
-                  "private static final int DEFAULT_WALL_COLOR = 0x00000000;"
-              )
-              with open(path, "w", encoding="utf-8") as f:
-                  f.write(c)
-              print("Wallpaper transparent: OK")
-          # Settings page: transparent background so global wallpaper shows through
-          path = os.path.join(BASE, "app/src/mobile/res/layout/fragment_setting.xml")
-          with open(path, "r", encoding="utf-8") as f:
-              c = f.read()
-          if 'android:background' not in c.split('>')[0]:
-              c = c.replace(
-                  'android:orientation="vertical">',
-                  'android:orientation="vertical"\n    android:background="@android:color/transparent">',
-                  1
-              )
-              with open(path, "w", encoding="utf-8") as f:
-                  f.write(c)
-              print("Settings transparent: OK")
-          # Delete splash: change HomeActivity theme from Splash to App
-          path = os.path.join(BASE, "app/src/mobile/AndroidManifest.xml")
-          with open(path, "r", encoding="utf-8") as f:
-              c = f.read()
-          if '@style/Theme.Splash' in c:
-              c = c.replace('@style/Theme.Splash', '@style/Theme.App')
-              with open(path, "w", encoding="utf-8") as f:
-                  f.write(c)
-              print("Splash deleted: OK")
-          # Delete back button: remove navigation icon from settings toolbars
-          import glob
-          for layout_path in glob.glob(os.path.join(BASE, "app/src/mobile/res/layout/fragment_setting*.xml")):
-              with open(layout_path, "r", encoding="utf-8") as f:
-                  c = f.read()
-              if "MaterialToolbar" in c and 'app:navigationIcon=' not in c:
-                  c = c.replace(
-                      "app:navigationIconTint=",
-                      'app:navigationIcon="@null"\n        app:navigationIconTint=',
-                      1
-                  )
-                  with open(layout_path, "w", encoding="utf-8") as f:
-                      f.write(c)
-          print("Back button deleted: OK")
-          # Remove shitty yellow: replace cream with white globally
-          import subprocess
-          subprocess.run(["find", os.path.join(BASE, "app/src/mobile/res"), "-name", "*.xml", "-exec", "sed", "-i", "s/#F5F0E8/#FFFFFF/g", "{}", "+"])
-          subprocess.run(["find", os.path.join(BASE, "app/src/mobile/res"), "-name", "*.xml", "-exec", "sed", "-i", "s/#FFF5F0E8/#FFFFFFFF/g", "{}", "+"])
-          print("Yellow removed: OK")
-          # Global transparent: make all fragment roots transparent
-          for layout_path in glob.glob(os.path.join(BASE, "app/src/mobile/res/layout/fragment_*.xml")):
-              with open(layout_path, "r", encoding="utf-8") as f:
-                  c = f.read()
-              # Add transparent background to root if not present
-              if 'android:background' not in c.split('>', 1)[0]:
-                  # Find first '>' and insert background before it
-                  idx = c.find('>')
-                  if idx > 0:
-                      c = c[:idx] + '\n    android:background="@android:color/transparent"' + c[idx:]
-                      with open(layout_path, "w", encoding="utf-8") as f:
-                          f.write(c)
-          print("Global transparent: OK")
-          # Dark icons for bottom nav (visible on light background)
-          path = os.path.join(BASE, "app/src/mobile/res/color/selector_nav.xml")
-          with open(path, "r", encoding="utf-8") as f:
-              c = f.read()
-          if "@color/white" in c:
-              c = c.replace("@color/white", "@color/black")
-              with open(path, "w", encoding="utf-8") as f:
-                  f.write(c)
-              print("Dark icons: OK")
-          # Install new nav icons (after 23 patches, delete old XML first)
-          import shutil
-          nav_src = "/tmp/nav_icons/drawable"
-          nav_dst = os.path.join(BASE, "app/src/mobile/res/drawable")
-          if os.path.exists(nav_src):
-              for f in os.listdir(nav_dst):
-                  if f.startswith("ic_nav_") and (f.endswith(".xml") or f.endswith(".png") or f.endswith(".webp")):
-                      os.remove(os.path.join(nav_dst, f))
-              for f in os.listdir(nav_src):
-                  shutil.copy(os.path.join(nav_src, f), os.path.join(nav_dst, f))
-              print("Nav icons installed: OK")
-          print("All fixes done!")
-          PYEOF
-          # Create floating capsule drawable for bottom bar (semi-transparent frosted)
-          mkdir -p app/src/mobile/res/drawable
-          cat > app/src/mobile/res/drawable/xc_bottombar_pill.xml << 'XMLEOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-              <corners android:radius="28dp"/>
-              <solid android:color="#B3F5F0E8"/>
-              <stroke android:width="1dp" android:color="#80E0D5C0"/>
-          </shape>
-          XMLEOF
-          echo "Pill drawable created (transparent)"
-
-      - name: Set up JDK 21
+          python3 /tmp/clean_patch.py
+          echo "Clean patch applied"
+      - name: Install nav icons
+        run: |
+          cp /tmp/nav_icons/drawable/* /tmp/webhtv-src/app/src/mobile/res/drawable/
+          echo "Nav icons installed"
+          ls /tmp/webhtv-src/app/src/mobile/res/drawable/ic_nav_*
+      - name: Setup JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
-
-      - name: Set up Python 3.10
+      - name: Setup Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
-      - name: Setup Android SDK
-        run: |
-          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
-          echo "/usr/local/lib/android/sdk/platform-tools" >> $GITHUB_PATH
-
       - name: Build APK
         run: |
-          set -e
-          cd webhtv-src
+          cd /tmp/webhtv-src
           chmod +x gradlew
-          ./gradlew :app:assembleMobileArm64_v8aRelease --parallel
-          echo "Build done"
-          find app/build/outputs/apk -name "*.apk"
-
+          ./gradlew :app:assembleMobileArm64_v8aRelease --no-daemon
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: xingchen-apk
-          path: webhtv-src/app/build/outputs/apk/mobileArm64_v8a/release/*.apk
+          path: /tmp/webhtv-src/app/build/outputs/apk/mobileArm64_v8a/release/*.apk
