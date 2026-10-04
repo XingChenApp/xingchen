@@ -34,9 +34,9 @@ jobs:
       - name: Apply settings redesign
         run: |
           curl -L -o /tmp/settings_write.py "https://muse.ai/files/1392977643892470/1704850621642373/otaa9ewuziylzi2c9ca6jxqz/xingchen-settings-write.py"
-          curl -L -o /tmp/java_update.py "https://muse.ai/files/1392977643892470/1665330528717943/xdxaiupq9pdbxuc1mv6gbeah/xingchen-java-update.py"
+          curl -L -o /tmp/java_clean.py "https://muse.ai/files/1392977643892470/2585789958501803/fm4iytxhhsmvumimyek11p1b/xingchen-java-clean.py"
           python3 /tmp/settings_write.py
-          python3 /tmp/java_update.py
+          python3 /tmp/java_clean.py
           echo "Settings redesign applied"
       - name: Install nav icons
         run: |
