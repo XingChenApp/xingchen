@@ -58,3 +58,37 @@ jobs:
           c=c.replace(old, new)
           open(p,'w').write(c)
           print('strip on')
+          PYEOF
+          python3 /tmp/strip.py
+          echo "patch done"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Setup Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+      - name: Build Mobile Debug APK
+        working-directory: webhtv-src
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "storeFile=/dev/null" >> local.properties
+          chmod +x gradlew
+          ./gradlew :app:assembleMobileArm64_v8aDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: xingchen-apk
+          path: webhtv-src/app/build/outputs/apk/mobileArm64_v8a/debug/*.apk
