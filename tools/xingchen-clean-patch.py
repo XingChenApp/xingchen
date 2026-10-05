@@ -29,6 +29,7 @@ for res_dir in ["app/src/main/res/values/strings.xml", "app/src/main/res/values-
     if os.path.exists(p):
         c = read(p)
         c = c.replace('<string name="app_name">TV</string>', '<string name="app_name">星辰</string>')
+        c = c.replace('<string name="app_name">影视</string>', '<string name="app_name">星辰</string>')
         write(p, c)
 
 def replace_once(path, old, new):
