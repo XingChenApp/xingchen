@@ -142,19 +142,54 @@ if os.path.exists(BASE_FRAG):
         write(BASE_FRAG, fc)
         print("BaseFragment patched")
 
-# Create ConfigSourceActivity (配置源二级页) - TEMP DISABLED FOR DEBUGGING
-# CONFIG_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/ConfigSourceActivity.java")
-# (commented out for debugging)
+# Create ConfigSourceActivity - simple version without ViewBinding
+CONFIG_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/ConfigSourceActivity.java")
+config_code = """package com.fongmi.android.tv.ui.activity;
+import android.app.Activity;
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import androidx.viewbinding.ViewBinding;
+import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.ui.dialog.ConfigDialog;
+public class ConfigSourceActivity extends BaseActivity {
+    public static void start(Activity activity) {
+        activity.startActivity(new Intent(activity, ConfigSourceActivity.class));
+    }
+    @Override
+    protected ViewBinding getBinding() {
+        View view = getLayoutInflater().inflate(R.layout.activity_config_source, null);
+        return new ViewBinding() { public View getRoot() { return view; } };
+    }
+    @Override
+    protected void initView(Bundle savedInstanceState) {
+        findViewById(R.id.card_vod).setOnClickListener(v -> ConfigDialog.create().vod().show(getSupportFragmentManager(), null));
+        findViewById(R.id.card_live).setOnClickListener(v -> ConfigDialog.create().live().show(getSupportFragmentManager(), null));
+    }
+}
+"""
+write(CONFIG_JAVA, config_code)
+print("ConfigSourceActivity created")
 
-# Create UiSettingsActivity (界面二级页)
-# Create UiSettingsActivity (界面二级页) - TEMP DISABLED FOR DEBUGGING
-# UI_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/UiSettingsActivity.java")
-# (commented out for debugging)
+# Register in Manifest
+MANIFEST = os.path.join(BASE, "app/src/mobile/AndroidManifest.xml")
+mc = read(MANIFEST)
+if "ConfigSourceActivity" not in mc:
+    mc = mc.replace(
+        '<activity\n            android:name=".ui.activity.HistoryActivity"',
+        '<activity\n            android:name=".ui.activity.ConfigSourceActivity"\n            android:configChanges="screenSize|smallestScreenSize|screenLayout"\n            android:screenOrientation="fullUser" />\n\n        <activity\n            android:name=".ui.activity.HistoryActivity"'
+    )
+    write(MANIFEST, mc)
+    print("Manifest updated")
 
-# Register activities in AndroidManifest - TEMP DISABLED FOR DEBUGGING
-# MANIFEST = os.path.join(BASE, "app/src/mobile/AndroidManifest.xml")
-# (commented out for debugging)
-
-# Modify SettingFragment to start new activities instead of dialogs - TEMP DISABLED
-# SETTING_FRAG = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/fragment/SettingFragment.java")
-# (commented out for debugging)
+# Update SettingFragment to start ConfigSourceActivity
+SF = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/fragment/SettingFragment.java")
+sc = read(SF)
+if "ConfigSourceActivity.start" not in sc:
+    sc = sc.replace(
+        "mBinding.cardConfig.setOnClickListener(v -> onVod(v));",
+        "mBinding.cardConfig.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.ConfigSourceActivity.start(getActivity()));"
+    )
+    write(SF, sc)
+    print("SettingFragment updated")
