@@ -6,15 +6,7 @@ import re
 BASE = "/tmp/webhtv-src"
 MOBILE_RES = os.path.join(BASE, "app/src/mobile/res")
 MOBILE_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv")
-_gw = os.environ.get("GITHUB_WORKSPACE", "/tmp")
-_tools = os.path.join(_gw, "repo-tools", "tools")
-_psrc = os.path.join(_tools, "poster_shanjian.jpg")
-_pdst = os.path.join(MOBILE_RES, "drawable", "poster_shanjian.jpg")
-if os.path.exists(_psrc):
-    shutil.copy(_psrc, _pdst)
-    print("poster_shanjian.jpg copied")
-else:
-    print("WARNING: poster_shanjian.jpg not found at " + _psrc)
+# poster copy disabled for debugging
 
 def read(path):
     assert os.path.exists(path), "missing: " + path
@@ -753,36 +745,6 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
 '''
 write(os.path.join(MOBILE_RES, "layout/activity_player_settings.xml"), player_layout)
 
-cfg_dialog = '''<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="20dp"
-    android:background="@drawable/xc_setcard_v2">
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="16dp">
-        <TextView android:id="@+id/dlg_title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="点播配置" android:textSize="18sp" android:textStyle="bold" android:textColor="#171B23" />
-        <ImageView android:id="@+id/dlg_close" android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_close_v2" android:clickable="true" android:focusable="true" />
-    </LinearLayout>
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="源名称" android:textSize="14sp" android:textColor="#73787F" android:layout_marginBottom="8dp" />
-    <EditText android:id="@+id/dlg_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="输入源名称" android:textSize="14sp" android:layout_marginBottom="16dp" android:background="@drawable/xc_input_bg" android:padding="12dp" />
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="源链接" android:textSize="14sp" android:textColor="#73787F" android:layout_marginBottom="8dp" />
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
-        <EditText android:id="@+id/dlg_url" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="填写 http 或 https 链接" android:textSize="14sp" android:background="@drawable/xc_input_bg" android:padding="12dp" />
-        <ImageView android:id="@+id/dlg_pick" android:layout_width="40dp" android:layout_height="40dp" android:src="@drawable/ic_folder_v2" android:layout_marginLeft="8dp" android:clickable="true" android:focusable="true" android:background="@drawable/xc_seg_normal" android:padding="8dp" />
-    </LinearLayout>
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-        <Button android:id="@+id/dlg_cancel" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="取消" android:layout_marginRight="8dp" android:background="@drawable/xc_seg_normal" />
-        <Button android:id="@+id/dlg_save" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="保存" android:layout_marginLeft="8dp" android:background="@drawable/xc_seg_selected" android:textColor="#FFFFFF" />
-    </LinearLayout>
-</LinearLayout>
-'''
-write(os.path.join(MOBILE_RES, "layout/dialog_config_source.xml"), cfg_dialog)
 
 # Add input background drawable
 input_bg = '''<?xml version="1.0" encoding="utf-8"?>
@@ -794,26 +756,5 @@ input_bg = '''<?xml version="1.0" encoding="utf-8"?>
 '''
 write(os.path.join(MOBILE_RES, "drawable/xc_input_bg.xml"), input_bg)
 
-# Missing icons - simple definitions
-chev_xml = '''<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="18dp" android:height="18dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#171B23" android:pathData="M9,6l6,6l-6,6"/>
-</vector>
-'''
-write(os.path.join(MOBILE_RES, "drawable/ic_chev_v2.xml"), chev_xml)
-
-close_xml = '''<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:strokeColor="#171B23" android:strokeWidth="2.2" android:strokeLineCap="round" android:pathData="M6,6l12,12M18,6L6,18"/>
-</vector>
-'''
-write(os.path.join(MOBILE_RES, "drawable/ic_close_v2.xml"), close_xml)
-
-folder_xml = '''<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#171B23" android:pathData="M4,6h6l2,2h8v10H4z"/>
-</vector>
-'''
-write(os.path.join(MOBILE_RES, "drawable/ic_folder_v2.xml"), folder_xml)
 
 print("xingchen-clean-patch: all done")
