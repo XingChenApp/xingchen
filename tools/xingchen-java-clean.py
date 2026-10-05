@@ -118,7 +118,7 @@ if os.path.exists(HOME_JAVA):
 BASE_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/base/BaseActivity.java")
 if os.path.exists(BASE_JAVA):
     bc = read(BASE_JAVA)
-    if "poster_shanjian" not in bc:
+    if "xc_wallpaper" not in bc:
         assert "super.onCreate(savedInstanceState);" in bc, "BaseActivity onCreate not found"
         assert "enableDynamicColor();" in bc, "BaseActivity enableDynamicColor not found"
         bc = bc.replace(
@@ -128,9 +128,9 @@ if os.path.exists(BASE_JAVA):
         assert "// Disabled for wallpaper" in bc, "BaseActivity dynamic color disable failed"
         bc = bc.replace(
             "super.onCreate(savedInstanceState);",
-            "super.onCreate(savedInstanceState);\n        getWindow().setBackgroundDrawableResource(com.fongmi.android.tv.R.drawable.poster_shanjian);"
+            "super.onCreate(savedInstanceState);\n        { android.widget.ImageView xc_wallpaper = new android.widget.ImageView(this); xc_wallpaper.setImageResource(com.fongmi.android.tv.R.drawable.poster_shanjian); xc_wallpaper.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP); android.view.ViewGroup root = (android.view.ViewGroup) ((android.view.ViewGroup) getWindow().getDecorView()).getChildAt(0); if (root != null) { android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT); root.addView(xc_wallpaper, 0, lp); } }"
         )
-        assert "poster_shanjian" in bc, "BaseActivity patch failed"
+        assert "xc_wallpaper" in bc, "BaseActivity patch failed"
         write(BASE_JAVA, bc)
         print("BaseActivity patched")
 
