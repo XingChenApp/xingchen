@@ -424,6 +424,23 @@ wp_thumb = '''<?xml version="1.0" encoding="utf-8"?>
 '''
 write(os.path.join(MOBILE_RES, "drawable/xc_wp_thumb.xml"), wp_thumb)
 
+seg_selected = '''<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="20dp" />
+    <solid android:color="#f0a400" />
+</shape>
+'''
+write(os.path.join(MOBILE_RES, "drawable/xc_seg_selected.xml"), seg_selected)
+
+seg_normal = '''<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="20dp" />
+    <solid android:color="#FFFFFF" />
+    <stroke android:width="1dp" android:color="#E0E0E0" />
+</shape>
+'''
+write(os.path.join(MOBILE_RES, "drawable/xc_seg_normal.xml"), seg_normal)
+
 player_layout = '''<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -470,8 +487,8 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
-                <Button android:id="@+id/kernel_exo" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="ExoPlayer" />
-                <Button android:id="@+id/kernel_mpv" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="mpv" />
+                <Button android:id="@+id/kernel_exo" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="ExoPlayer" android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
+                <Button android:id="@+id/kernel_mpv" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="mpv" android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
             </LinearLayout>
         </LinearLayout>
         <LinearLayout
@@ -492,8 +509,8 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
-                <Button android:id="@+id/decode_hard" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="硬解" />
-                <Button android:id="@+id/decode_soft" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="软解" />
+                <Button android:id="@+id/decode_hard" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="硬解"  android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
+                <Button android:id="@+id/decode_soft" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="软解"  android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
             </LinearLayout>
         </LinearLayout>
         <LinearLayout
@@ -515,11 +532,11 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
-                <Button android:id="@+id/speed_075" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="0.75x" />
-                <Button android:id="@+id/speed_100" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="1.0x" />
-                <Button android:id="@+id/speed_125" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="1.25x" />
-                <Button android:id="@+id/speed_150" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="1.5x" />
-                <Button android:id="@+id/speed_200" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="2.0x" />
+                <Button android:id="@+id/speed_075" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="0.75x"  android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
+                <Button android:id="@+id/speed_100" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="1.0x"  android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
+                <Button android:id="@+id/speed_125" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="1.25x"  android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
+                <Button android:id="@+id/speed_150" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="1.5x"  android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
+                <Button android:id="@+id/speed_200" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="2.0x"  android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
