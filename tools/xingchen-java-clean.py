@@ -206,15 +206,6 @@ public class ConfigSourceActivity extends BaseActivity {
         dialog.setContentView(layout);
         dialog.show();
     }
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 1001 && resultCode == RESULT_OK && data != null) {
-            android.net.Uri uri = data.getData();
-            if (uri != null) {
-                getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("wallpaper_uri", uri.toString()).putString("wallpaper", "local").apply();
-                recreate();
-            }
         }
     }
     private void applyWallpaper() {
@@ -284,18 +275,6 @@ public class UiSettingsActivity extends BaseActivity {
         binding.themeDark.setOnClickListener(v -> { setTheme("dark"); updateThemeUI(); });
         binding.themeSystem.setOnClickListener(v -> { setTheme("system"); updateThemeUI(); });
         binding.wpShanjian.setOnClickListener(v -> { setWallpaper("shanjian"); });
-        binding.wpLocal.setOnClickListener(v -> {
-            android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
-            intent.setType("image/*");
-            startActivityForResult(intent, 1001);
-        });
-        binding.wpUrlApply.setOnClickListener(v -> {
-            String url = binding.wpUrl.getText().toString().trim();
-            if (!url.isEmpty()) {
-                getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("wallpaper_url", url).putString("wallpaper", "url").apply();
-                recreate();
-            }
-        });
         initCoverSize();
         initOrientation();
         initRatio();
@@ -371,16 +350,6 @@ public class UiSettingsActivity extends BaseActivity {
         binding.themeDark.setBackgroundResource("dark".equals(t) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
         binding.themeSystem.setBackgroundResource("system".equals(t) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
     }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 1001 && resultCode == RESULT_OK && data != null) {
-            android.net.Uri uri = data.getData();
-            if (uri != null) {
-                getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("wallpaper_uri", uri.toString()).putString("wallpaper", "local").apply();
-                recreate();
-            }
         }
     }
     private void applyWallpaper() {
@@ -528,15 +497,6 @@ public class PlayerSettingsActivity extends BaseActivity {
     private void setDecode(String d) {
         getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_decode", d).apply();
     }
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 1001 && resultCode == RESULT_OK && data != null) {
-            android.net.Uri uri = data.getData();
-            if (uri != null) {
-                getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("wallpaper_uri", uri.toString()).putString("wallpaper", "local").apply();
-                recreate();
-            }
         }
     }
     private void applyWallpaper() {
