@@ -391,17 +391,7 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:padding="15dp">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="壁纸" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" android:layout_marginBottom="4dp" />
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="选预置壁纸、纯色或上传自己的图片" android:textColor="#73787F" android:textSize="12sp" android:layout_marginBottom="12dp" />
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="12dp">
-                <ImageView android:id="@+id/wp_shanjian" android:layout_width="90dp" android:layout_height="135dp" android:scaleType="fitCenter" android:src="@drawable/poster_shanjian" android:clickable="true" android:focusable="true" android:foreground="?attr/selectableItemBackground" />
-                <LinearLayout android:layout_width="90dp" android:layout_height="135dp" android:orientation="vertical" android:gravity="center" android:background="@drawable/xc_seg_normal" android:clickable="true" android:focusable="true" android:layout_marginLeft="12dp" android:id="@+id/wp_local">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="+" android:textSize="24sp" android:textColor="#171B23" android:gravity="center" />
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="本地" android:textSize="14sp" android:textColor="#171B23" android:gravity="center" />
-                </LinearLayout>
-            </LinearLayout>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-                <EditText android:id="@+id/wp_url" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="输入在线壁纸URL" android:textSize="14sp" android:singleLine="true" />
-                <Button android:id="@+id/wp_url_apply" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="应用" android:layout_marginLeft="8dp" />
-            </LinearLayout>
+            <ImageView android:id="@+id/wp_shanjian" android:layout_width="90dp" android:layout_height="135dp" android:scaleType="fitCenter" android:src="@drawable/poster_shanjian" android:clickable="true" android:focusable="true" android:foreground="?attr/selectableItemBackground" android:layout_marginBottom="12dp" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>
