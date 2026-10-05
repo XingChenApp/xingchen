@@ -99,18 +99,21 @@ if '@+id/xc_bg_full' not in c:
         write(p, c)
 
 # Add wallpaper ImageView to other activities (Search, History, Live) - same as Home
+# Only for FrameLayout/RelativeLayout roots; LinearLayout roots use DecorView wallpaper via BaseActivity
 for layout_name in ["activity_search.xml", "activity_history.xml", "activity_live.xml"]:
     p = os.path.join(MOBILE_RES, "layout/" + layout_name)
     if os.path.exists(p):
         c = read(p)
         if '@+id/xc_bg_full' not in c:
-            # Find root layout tag (FrameLayout, LinearLayout, etc.)
-            m = re.search(r'<(FrameLayout|LinearLayout|RelativeLayout|androidx\.appcompat\.widget\.LinearLayoutCompat)[^>]*>', c)
+            # Only add to FrameLayout/RelativeLayout, skip LinearLayout (would break layout)
+            m = re.search(r'<(FrameLayout|RelativeLayout)[^>]*>', c)
             if m:
                 bg = '\n    <ImageView android:id="@+id/xc_bg_full" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerCrop" android:src="@drawable/poster_shanjian" />'
                 c = c[:m.end()] + bg + c[m.end():]
                 write(p, c)
                 print("Added wallpaper to " + layout_name)
+            else:
+                print("Skipped " + layout_name + " (LinearLayout, uses DecorView wallpaper)")
 
 p = os.path.join(MOBILE_RES, "color/selector_nav.xml")
 c = read(p)
