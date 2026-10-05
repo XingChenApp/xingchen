@@ -738,4 +738,45 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
 '''
 write(os.path.join(MOBILE_RES, "layout/activity_player_settings.xml"), player_layout)
 
+cfg_dialog = '''<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="@drawable/xc_setcard_v2">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+        <TextView android:id="@+id/dlg_title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="点播配置" android:textSize="18sp" android:textStyle="bold" android:textColor="#171B23" />
+        <ImageView android:id="@+id/dlg_close" android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_close_v2" android:clickable="true" android:focusable="true" />
+    </LinearLayout>
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="源名称" android:textSize="14sp" android:textColor="#5A5F68" android:layout_marginBottom="8dp" />
+    <EditText android:id="@+id/dlg_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="输入源名称" android:textSize="14sp" android:layout_marginBottom="16dp" android:background="@drawable/xc_input_bg" android:padding="12dp" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="源链接" android:textSize="14sp" android:textColor="#5A5F68" android:layout_marginBottom="8dp" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
+        <EditText android:id="@+id/dlg_url" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="填写 http 或 https 链接" android:textSize="14sp" android:background="@drawable/xc_input_bg" android:padding="12dp" />
+        <ImageView android:id="@+id/dlg_pick" android:layout_width="40dp" android:layout_height="40dp" android:src="@drawable/ic_folder_v2" android:layout_marginLeft="8dp" android:clickable="true" android:focusable="true" android:background="@drawable/xc_seg_normal" android:padding="8dp" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+        <Button android:id="@+id/dlg_cancel" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="取消" android:layout_marginRight="8dp" android:background="@drawable/xc_seg_normal" />
+        <Button android:id="@+id/dlg_save" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="保存" android:layout_marginLeft="8dp" android:background="@drawable/xc_seg_selected" android:textColor="#FFFFFF" />
+    </LinearLayout>
+</LinearLayout>
+'''
+write(os.path.join(MOBILE_RES, "layout/dialog_config_source.xml"), cfg_dialog)
+
+# Add input background drawable
+input_bg = '''<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="8dp" />
+    <solid android:color="#F5F5F5" />
+    <stroke android:width="1dp" android:color="#E0E0E0" />
+</shape>
+'''
+write(os.path.join(MOBILE_RES, "drawable/xc_input_bg.xml"), input_bg)
+
 print("xingchen-clean-patch: all done")
