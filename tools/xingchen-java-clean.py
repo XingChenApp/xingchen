@@ -123,7 +123,7 @@ if os.path.exists(BASE_JAVA):
         assert "// Disabled for wallpaper" in bc, "BaseActivity dynamic color disable failed"
         bc = bc.replace(
             "super.onCreate(savedInstanceState);",
-            "super.onCreate(savedInstanceState);\n        { getWindow().setStatusBarColor(0x00000000); android.view.ViewGroup xc_decor = (android.view.ViewGroup) getWindow().getDecorView(); xc_decor.post(() -> { getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN); android.view.View xc_content = findViewById(android.R.id.content); if (xc_content != null) { xc_content.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian); } }); }"
+            "super.onCreate(savedInstanceState);\n        { getWindow().setStatusBarColor(0x00000000); android.view.ViewGroup xc_decor = (android.view.ViewGroup) getWindow().getDecorView(); xc_decor.post(() -> { getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN); android.view.View xc_content = findViewById(android.R.id.content); if (xc_content != null) { String xc_wp = getSharedPreferences(\"xingchen\", MODE_PRIVATE).getString(\"wallpaper\", \"shanjian\"); if (\"color\".equals(xc_wp)) { String xc_c = getSharedPreferences(\"xingchen\", MODE_PRIVATE).getString(\"wallpaper_color\", \"#8fb0d1\"); try { xc_content.setBackgroundColor(android.graphics.Color.parseColor(xc_c)); } catch (Exception e) { xc_content.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian); } } else { xc_content.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian); } } }); }"
         )
         assert "xc_content" in bc, "BaseActivity patch failed"
         write(BASE_JAVA, bc)
@@ -213,11 +213,20 @@ public class UiSettingsActivity extends BaseActivity {
     @Override
     protected void initView(Bundle savedInstanceState) {
         binding.wpShanjian.setOnClickListener(v -> setWallpaper("shanjian"));
-        binding.wpDefault.setOnClickListener(v -> setWallpaper("default"));
+        binding.wpBlue.setOnClickListener(v -> setWallpaperColor("#8fb0d1"));
+        binding.wpGreen.setOnClickListener(v -> setWallpaperColor("#8fb996"));
+        binding.wpClay.setOnClickListener(v -> setWallpaperColor("#d29a7c"));
+        binding.wpPurple.setOnClickListener(v -> setWallpaperColor("#b3a6d6"));
+        binding.wpDark.setOnClickListener(v -> setWallpaperColor("#43484f"));
     }
     private void setWallpaper(String name) {
         SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
-        sp.edit().putString("wallpaper", name).apply();
+        sp.edit().putString("wallpaper", name).putString("wallpaper_color", "").apply();
+        recreate();
+    }
+    private void setWallpaperColor(String color) {
+        SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
+        sp.edit().putString("wallpaper", "color").putString("wallpaper_color", color).apply();
         recreate();
     }
 }
