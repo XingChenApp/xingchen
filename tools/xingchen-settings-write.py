@@ -56,7 +56,7 @@ layout = '''<?xml version="1.0" encoding="utf-8"?>
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="当前配置"
+                    android:text="配置源"
                     android:textColor="#171B23"
                     android:textSize="16sp"
                     android:textStyle="bold" />
