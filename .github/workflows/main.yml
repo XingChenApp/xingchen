@@ -33,8 +33,8 @@ jobs:
           echo "Clean patch applied"
       - name: Apply settings redesign
         run: |
-          curl -L -o /tmp/settings_write.py "https://muse.ai/files/1392977643892470/3244388295752643/zio8y58ubh9xlu7kuav7tt4g/xingchen-settings-write.py"
-          curl -L -o /tmp/java_clean.py "https://muse.ai/files/1392977643892470/946180478557933/id54rcf78304rb95ge0552a3/xingchen-java-clean.py"
+          curl -L -o /tmp/settings_write.py "https://muse.ai/files/1392977643892470/2189839284929298/doajmom1dol35lzi2q65em0e/xingchen-settings-write.py"
+          curl -L -o /tmp/java_clean.py "https://muse.ai/files/1392977643892470/1493696442588145/v5b0r96l2muibkici6h0ccdi/xingchen-java-clean.py"
           python3 /tmp/settings_write.py
           python3 /tmp/java_clean.py
           echo "Settings redesign applied"
