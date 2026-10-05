@@ -213,7 +213,7 @@ config_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:focusable="true">
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="历史线路" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="查看已用线路，快速切换" android:textColor="#5A5F68" android:textSize="12sp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="查看已用线路，快速切换" android:textColor="#73787F" android:textSize="12sp" />
             </LinearLayout>
             <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_chev_v2" />
         </LinearLayout>
@@ -315,7 +315,7 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:gravity="center_vertical">
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="主题" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="当前为浅色主题" android:textColor="#5A5F68" android:textSize="12sp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="当前为浅色主题" android:textColor="#73787F" android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container" android:padding="4dp">
                 <TextView android:id="@+id/theme_light" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="浅色" android:textSize="14sp" android:background="@drawable/xc_seg_selected" />
@@ -333,7 +333,7 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:gravity="center_vertical">
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="首页封面" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="一行显示 3 个海报" android:textColor="#5A5F68" android:textSize="12sp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="一行显示 3 个海报" android:textColor="#73787F" android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container" android:padding="4dp">
                 <TextView android:id="@+id/cover_small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="小" android:textSize="14sp" android:clickable="true" android:focusable="true" />
@@ -351,7 +351,7 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:gravity="center_vertical">
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="封面方向" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="海报按 2:3 竖版显示" android:textColor="#5A5F68" android:textSize="12sp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="海报按 2:3 竖版显示" android:textColor="#73787F" android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container" android:padding="4dp">
                 <TextView android:id="@+id/orient_portrait" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="竖屏" android:textSize="14sp" android:background="@drawable/xc_seg_selected" android:clickable="true" android:focusable="true" />
@@ -368,7 +368,7 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:gravity="center_vertical">
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="封面比例" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="竖屏比例 2:3" android:textColor="#5A5F68" android:textSize="12sp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="竖屏比例 2:3" android:textColor="#73787F" android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container" android:padding="4dp">
                 <TextView android:id="@+id/ratio_23" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="2:3" android:textSize="14sp" android:background="@drawable/xc_seg_selected" android:clickable="true" android:focusable="true" />
@@ -386,7 +386,7 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:gravity="center_vertical">
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="UI 风格" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="毛玻璃：面板半透明" android:textColor="#5A5F68" android:textSize="12sp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="毛玻璃：面板半透明" android:textColor="#73787F" android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container" android:padding="4dp">
                 <TextView android:id="@+id/style_normal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="普通" android:textSize="14sp" android:clickable="true" android:focusable="true" />
@@ -401,7 +401,7 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:orientation="vertical"
             android:padding="15dp">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="毛玻璃透明度" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="越往右越通透" android:textColor="#5A5F68" android:textSize="12sp" android:layout_marginBottom="8dp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="越往右越通透" android:textColor="#73787F" android:textSize="12sp" android:layout_marginBottom="8dp" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
                 <SeekBar android:id="@+id/glass_alpha" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:max="100" android:progress="55" />
                 <TextView android:id="@+id/glass_alpha_text" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="55%" android:textColor="#171B23" android:textSize="14sp" android:layout_marginLeft="12dp" />
@@ -415,7 +415,7 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:orientation="vertical"
             android:padding="15dp">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="壁纸" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" android:layout_marginBottom="4dp" />
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="选预置壁纸、纯色或上传自己的图片" android:textColor="#5A5F68" android:textSize="12sp" android:layout_marginBottom="12dp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="选预置壁纸、纯色或上传自己的图片" android:textColor="#73787F" android:textSize="12sp" android:layout_marginBottom="12dp" />
             <ImageView android:id="@+id/wp_shanjian" android:layout_width="80dp" android:layout_height="106dp" android:scaleType="fitCenter" android:src="@drawable/poster_shanjian" android:clickable="true" android:focusable="true" android:foreground="?attr/selectableItemBackground" android:layout_marginBottom="12dp" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
                 <EditText android:id="@+id/wp_url" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="输入在线壁纸URL" android:textSize="14sp" android:singleLine="true" />
@@ -523,7 +523,7 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="切换视频解码播放核心，切换后立即生效"
-                    android:textColor="#5A5F68"
+                    android:textColor="#73787F"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout
@@ -560,7 +560,7 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="硬解兼容性更好，软解画质更稳"
-                    android:textColor="#5A5F68"
+                    android:textColor="#73787F"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout
@@ -599,7 +599,7 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="本集播完自动播放下一集"
-                    android:textColor="#5A5F68"
+                    android:textColor="#73787F"
                     android:textSize="12sp" />
             </LinearLayout>
             <Switch android:id="@+id/switch_autonext" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true"  android:thumb="@drawable/xc_switch_thumb"/>
@@ -631,7 +631,7 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="自动跳过已标记的片头与片尾片段"
-                    android:textColor="#5A5F68"
+                    android:textColor="#73787F"
                     android:textSize="12sp" />
             </LinearLayout>
             <Switch android:id="@+id/switch_skip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="false"  android:thumb="@drawable/xc_switch_thumb"/>
@@ -660,7 +660,7 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="播放时在播放页也可临时调速"
-                    android:textColor="#5A5F68"
+                    android:textColor="#73787F"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout
@@ -685,7 +685,7 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:gravity="center_vertical">
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="长按倍速" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="播放时长按屏幕快进倍速" android:textColor="#5A5F68" android:textSize="12sp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="播放时长按屏幕快进倍速" android:textColor="#73787F" android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container" android:padding="4dp">
                 <TextView android:id="@+id/lp_off" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="关闭" android:textSize="13sp" android:clickable="true" android:focusable="true" />
@@ -722,7 +722,7 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="已开启"
-                    android:textColor="#5A5F68"
+                    android:textColor="#73787F"
                     android:textSize="12sp" />
             </LinearLayout>
             <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_chev_v2" />
@@ -754,7 +754,7 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="已开启"
-                    android:textColor="#5A5F68"
+                    android:textColor="#73787F"
                     android:textSize="12sp" />
             </LinearLayout>
             <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_chev_v2" />
@@ -780,9 +780,9 @@ cfg_dialog = '''<?xml version="1.0" encoding="utf-8"?>
         <TextView android:id="@+id/dlg_title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="点播配置" android:textSize="18sp" android:textStyle="bold" android:textColor="#171B23" />
         <ImageView android:id="@+id/dlg_close" android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_close_v2" android:clickable="true" android:focusable="true" />
     </LinearLayout>
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="源名称" android:textSize="14sp" android:textColor="#5A5F68" android:layout_marginBottom="8dp" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="源名称" android:textSize="14sp" android:textColor="#73787F" android:layout_marginBottom="8dp" />
     <EditText android:id="@+id/dlg_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="输入源名称" android:textSize="14sp" android:layout_marginBottom="16dp" android:background="@drawable/xc_input_bg" android:padding="12dp" />
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="源链接" android:textSize="14sp" android:textColor="#5A5F68" android:layout_marginBottom="8dp" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="源链接" android:textSize="14sp" android:textColor="#73787F" android:layout_marginBottom="8dp" />
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
         <EditText android:id="@+id/dlg_url" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="填写 http 或 https 链接" android:textSize="14sp" android:background="@drawable/xc_input_bg" android:padding="12dp" />
         <ImageView android:id="@+id/dlg_pick" android:layout_width="40dp" android:layout_height="40dp" android:src="@drawable/ic_folder_v2" android:layout_marginLeft="8dp" android:clickable="true" android:focusable="true" android:background="@drawable/xc_seg_normal" android:padding="8dp" />
@@ -804,5 +804,27 @@ input_bg = '''<?xml version="1.0" encoding="utf-8"?>
 </shape>
 '''
 write(os.path.join(MOBILE_RES, "drawable/xc_input_bg.xml"), input_bg)
+
+# Missing icons - simple definitions
+chev_xml = '''<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="18dp" android:height="18dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#171B23" android:pathData="M9,18l6,-6 -6,-6" android:strokeWidth="2" android:strokeColor="#171B23" android:strokeLineCap="round" android:fillType="evenOdd"/>
+</vector>
+'''
+write(os.path.join(MOBILE_RES, "drawable/ic_chev_v2.xml"), chev_xml)
+
+close_xml = '''<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:strokeColor="#171B23" android:strokeWidth="2.2" android:strokeLineCap="round" android:pathData="M6,6l12,12M18,6L6,18"/>
+</vector>
+'''
+write(os.path.join(MOBILE_RES, "drawable/ic_close_v2.xml"), close_xml)
+
+folder_xml = '''<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:strokeColor="#171B23" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M3.5,6.5h6l2,2h9v9a2,2 0 0,1 -2,2h-13a2,2 0 0,1 -2,-2zM3.5,9h17"/>
+</vector>
+'''
+write(os.path.join(MOBILE_RES, "drawable/ic_folder_v2.xml"), folder_xml)
 
 print("xingchen-clean-patch: all done")
