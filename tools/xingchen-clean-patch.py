@@ -424,4 +424,107 @@ wp_thumb = '''<?xml version="1.0" encoding="utf-8"?>
 '''
 write(os.path.join(MOBILE_RES, "drawable/xc_wp_thumb.xml"), wp_thumb)
 
+player_layout = '''<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingTop="48dp"
+        android:paddingBottom="16dp">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="播放器"
+            android:textColor="#171B23"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="vertical"
+            android:padding="15dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="播放器内核"
+                android:textColor="#171B23"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="切换视频解码播放核心"
+                android:textColor="#8A8F98"
+                android:textSize="12sp"
+                android:layout_marginBottom="8dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <Button android:id="@+id/kernel_exo" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="ExoPlayer" />
+                <Button android:id="@+id/kernel_mpv" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="mpv" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="vertical"
+            android:padding="15dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="解码方式"
+                android:textColor="#171B23"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <Button android:id="@+id/decode_hard" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="硬解" />
+                <Button android:id="@+id/decode_soft" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="软解" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="vertical"
+            android:padding="15dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="默认倍速"
+                android:textColor="#171B23"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <Button android:id="@+id/speed_075" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="0.75x" />
+                <Button android:id="@+id/speed_100" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="1.0x" />
+                <Button android:id="@+id/speed_125" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="1.25x" />
+                <Button android:id="@+id/speed_150" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="1.5x" />
+                <Button android:id="@+id/speed_200" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="2.0x" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
+'''
+write(os.path.join(MOBILE_RES, "layout/activity_player_settings.xml"), player_layout)
+
 print("xingchen-clean-patch: all done")
