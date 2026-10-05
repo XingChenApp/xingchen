@@ -179,7 +179,10 @@ config_layout = '''<?xml version="1.0" encoding="utf-8"?>
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingTop="48dp"
+        android:paddingBottom="16dp">
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -264,7 +267,10 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingTop="48dp"
+        android:paddingBottom="16dp">
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
