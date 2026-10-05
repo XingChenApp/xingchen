@@ -49,6 +49,17 @@ def replace_once(path, old, new):
     assert n == 1, "expected 1, found %d for %s in %s" % (n, old[:40], path)
     write(path, c.replace(old, new, 1))
 
+# Delete default purple background - make theme background transparent so wallpaper shows
+for theme_path in ["app/src/main/res/values/styles.xml", "app/src/mobile/res/values/styles.xml"]:
+    p = os.path.join(BASE, theme_path)
+    if os.path.exists(p):
+        c = read(p)
+        orig = c
+        c = c.replace('<item name="android:colorBackground">@color/white</item>', '<item name="android:colorBackground">@color/transparent</item>')
+        if c != orig:
+            write(p, c)
+            print("Deleted default background: " + theme_path)
+
 p = os.path.join(MOBILE_RES, "menu/menu_nav.xml")
 c = read(p)
 assert c.count('android:visible="false"') == 3
