@@ -163,8 +163,22 @@ public class ConfigSourceActivity extends BaseActivity {
     }
     @Override
     protected void initView(Bundle savedInstanceState) {
+        applyWallpaper();
         binding.cardVod.setOnClickListener(v -> ConfigDialog.create().vod().show(getSupportFragmentManager(), null));
         binding.cardLive.setOnClickListener(v -> ConfigDialog.create().live().show(getSupportFragmentManager(), null));
+    }
+    private void applyWallpaper() {
+        android.view.View root = findViewById(android.R.id.content);
+        if (root != null) {
+            String wp = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper", "shanjian");
+            if ("color".equals(wp)) {
+                String c = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper_color", "#8fb0d1");
+                try { root.setBackgroundColor(android.graphics.Color.parseColor(c)); }
+                catch (Exception e) { root.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian); }
+            } else {
+                root.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
+            }
+        }
     }
 }
 """
@@ -212,6 +226,7 @@ public class UiSettingsActivity extends BaseActivity {
     }
     @Override
     protected void initView(Bundle savedInstanceState) {
+        applyWallpaper();
         binding.wpShanjian.setOnClickListener(v -> setWallpaper("shanjian"));
         binding.wpBlue.setOnClickListener(v -> setWallpaperColor("#8fb0d1"));
         binding.wpGreen.setOnClickListener(v -> setWallpaperColor("#8fb996"));
@@ -221,6 +236,19 @@ public class UiSettingsActivity extends BaseActivity {
         binding.themeLight.setOnClickListener(v -> setTheme("light"));
         binding.themeDark.setOnClickListener(v -> setTheme("dark"));
         binding.themeSystem.setOnClickListener(v -> setTheme("system"));
+    }
+    private void applyWallpaper() {
+        android.view.View root = findViewById(android.R.id.content);
+        if (root != null) {
+            String wp = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper", "shanjian");
+            if ("color".equals(wp)) {
+                String c = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper_color", "#8fb0d1");
+                try { root.setBackgroundColor(android.graphics.Color.parseColor(c)); }
+                catch (Exception e) { root.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian); }
+            } else {
+                root.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
+            }
+        }
     }
     private void setTheme(String theme) {
         SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
@@ -259,3 +287,84 @@ if "UiSettingsActivity.start" not in sc:
     )
     write(SF, sc)
     print("SettingFragment updated for UiSettings")
+
+PLAYER_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/PlayerSettingsActivity.java")
+player_code = """package com.fongmi.android.tv.ui.activity;
+import android.app.Activity;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Bundle;
+import androidx.viewbinding.ViewBinding;
+import com.fongmi.android.tv.databinding.ActivityPlayerSettingsBinding;
+import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.utils.Notify;
+public class PlayerSettingsActivity extends BaseActivity {
+    private ActivityPlayerSettingsBinding binding;
+    public static void start(Activity activity) {
+        activity.startActivity(new Intent(activity, PlayerSettingsActivity.class));
+    }
+    @Override
+    protected ViewBinding getBinding() {
+        binding = ActivityPlayerSettingsBinding.inflate(getLayoutInflater());
+        return binding;
+    }
+    @Override
+    protected void initView(Bundle savedInstanceState) {
+        applyWallpaper();
+        binding.kernelExo.setOnClickListener(v -> setKernel("exo"));
+        binding.kernelMpv.setOnClickListener(v -> setKernel("mpv"));
+        binding.decodeHard.setOnClickListener(v -> setDecode("hard"));
+        binding.decodeSoft.setOnClickListener(v -> setDecode("soft"));
+        binding.speed075.setOnClickListener(v -> setSpeed(0.75f));
+        binding.speed100.setOnClickListener(v -> setSpeed(1.0f));
+        binding.speed125.setOnClickListener(v -> setSpeed(1.25f));
+        binding.speed150.setOnClickListener(v -> setSpeed(1.5f));
+        binding.speed200.setOnClickListener(v -> setSpeed(2.0f));
+    }
+    private void applyWallpaper() {
+        android.view.View root = findViewById(android.R.id.content);
+        if (root != null) {
+            String wp = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper", "shanjian");
+            if ("color".equals(wp)) {
+                String c = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper_color", "#8fb0d1");
+                try { root.setBackgroundColor(android.graphics.Color.parseColor(c)); }
+                catch (Exception e) { root.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian); }
+            } else {
+                root.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
+            }
+        }
+    }
+    private void setKernel(String k) {
+        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_kernel", k).apply();
+        Notify.show("播放器内核: " + k);
+    }
+    private void setDecode(String d) {
+        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_decode", d).apply();
+        Notify.show("解码方式: " + d);
+    }
+    private void setSpeed(float s) {
+        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putFloat("player_speed", s).apply();
+        Notify.show("倍速: " + s + "x");
+    }
+}
+"""
+write(PLAYER_JAVA, player_code)
+print("PlayerSettingsActivity created")
+
+mc = read(MANIFEST)
+if "PlayerSettingsActivity" not in mc:
+    mc = mc.replace(
+        '<activity\n            android:name=".ui.activity.UiSettingsActivity"',
+        '<activity\n            android:name=".ui.activity.PlayerSettingsActivity"\n            android:configChanges="screenSize|smallestScreenSize|screenLayout"\n            android:screenOrientation="fullUser" />\n\n        <activity\n            android:name=".ui.activity.UiSettingsActivity"'
+    )
+    write(MANIFEST, mc)
+    print("Manifest updated for Player")
+
+sc = read(SF)
+if "PlayerSettingsActivity.start" not in sc:
+    sc = sc.replace(
+        "mBinding.cardPlayer.setOnClickListener(v -> onPlayer(v));",
+        "mBinding.cardPlayer.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.PlayerSettingsActivity.start(getActivity()));"
+    )
+    write(SF, sc)
+    print("SettingFragment updated for Player")
