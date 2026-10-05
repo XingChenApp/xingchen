@@ -441,6 +441,24 @@ seg_container = '''<?xml version="1.0" encoding="utf-8"?>
 '''
 write(os.path.join(MOBILE_RES, "drawable/xc_seg_container.xml"), seg_container)
 
+switch_thumb = '''<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true">
+        <shape android:shape="oval">
+            <solid android:color="#f0a400" />
+            <size android:width="24dp" android:height="24dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#FFFFFF" />
+            <size android:width="24dp" android:height="24dp" />
+        </shape>
+    </item>
+</selector>
+'''
+write(os.path.join(MOBILE_RES, "drawable/xc_switch_thumb.xml"), switch_thumb)
+
 player_layout = '''<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -565,7 +583,7 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
                     android:textColor="#5A5F68"
                     android:textSize="12sp" />
             </LinearLayout>
-            <Switch android:id="@+id/switch_autonext" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" />
+            <Switch android:id="@+id/switch_autonext" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true"  android:thumb="@drawable/xc_switch_thumb"/>
         </LinearLayout>
         <LinearLayout
             android:id="@+id/card_skip"
@@ -597,7 +615,7 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
                     android:textColor="#5A5F68"
                     android:textSize="12sp" />
             </LinearLayout>
-            <Switch android:id="@+id/switch_skip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="false" />
+            <Switch android:id="@+id/switch_skip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="false"  android:thumb="@drawable/xc_switch_thumb"/>
         </LinearLayout>
         <LinearLayout
             android:layout_width="match_parent"
