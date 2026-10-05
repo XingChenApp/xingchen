@@ -42,15 +42,6 @@ p = os.path.join(MOBILE_RES, "menu/menu_nav.xml")
 c = read(p)
 assert c.count('android:visible="false"') == 3
 c = c.replace('android:visible="false"', 'android:visible="true"')
-# Add reading tab between live and setting
-reading_item = '''
-    <item
-        android:id="@+id/reading"
-        android:icon="@drawable/ic_nav_reading"
-        android:title="阅读"
-        android:visible="true" />
-'''
-c = c.replace('<item\n        android:id="@+id/setting"', reading_item + '\n    <item\n        android:id="@+id/setting"')
 write(p, c)
 
 p = os.path.join(MOBILE_RES, "values/strings.xml")
