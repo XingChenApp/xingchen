@@ -88,7 +88,7 @@ c = read(p)
 
 p = os.path.join(MOBILE_RES, "layout/activity_home.xml")
 replace_once(p, 'android:background="@color/transparent"', 'android:background="@drawable/xc_bottombar_pill"')
-# Add fullscreen background ImageView behind everything
+# Add fullscreen background ImageView behind everything (Home)
 c = read(p)
 if '@+id/xc_bg_full' not in c:
     import re
@@ -97,6 +97,20 @@ if '@+id/xc_bg_full' not in c:
         bg = '\n    <ImageView android:id="@+id/xc_bg_full" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerCrop" android:src="@drawable/poster_shanjian" />'
         c = c[:m.end()] + bg + c[m.end():]
         write(p, c)
+
+# Add wallpaper ImageView to other activities (Search, History, Live) - same as Home
+for layout_name in ["activity_search.xml", "activity_history.xml", "activity_live.xml"]:
+    p = os.path.join(MOBILE_RES, "layout/" + layout_name)
+    if os.path.exists(p):
+        c = read(p)
+        if '@+id/xc_bg_full' not in c:
+            # Find root layout tag (FrameLayout, LinearLayout, etc.)
+            m = re.search(r'<(FrameLayout|LinearLayout|RelativeLayout|androidx\.appcompat\.widget\.LinearLayoutCompat)[^>]*>', c)
+            if m:
+                bg = '\n    <ImageView android:id="@+id/xc_bg_full" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerCrop" android:src="@drawable/poster_shanjian" />'
+                c = c[:m.end()] + bg + c[m.end():]
+                write(p, c)
+                print("Added wallpaper to " + layout_name)
 
 p = os.path.join(MOBILE_RES, "color/selector_nav.xml")
 c = read(p)
