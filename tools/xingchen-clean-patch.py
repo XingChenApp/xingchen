@@ -38,6 +38,8 @@ for res_dir in ["app/src/main/res/values/strings.xml", "app/src/main/res/values-
         orig = c
         c = c.replace('<string name="app_name">TV</string>', '<string name="app_name">星辰</string>')
         c = c.replace('<string name="app_name">影视</string>', '<string name="app_name">星辰</string>')
+        c = c.replace('<string name="app_name">WebHomeTV</string>', '<string name="app_name">星辰</string>')
+        c = c.replace('WebHomeTV', '星辰')
         assert c != orig, "app_name not changed in " + res_dir
         assert "星辰" in c, "星辰 not in " + res_dir
         write(p, c)
