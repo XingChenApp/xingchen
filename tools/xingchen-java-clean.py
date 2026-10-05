@@ -106,6 +106,10 @@ if os.path.exists(HOME_JAVA):
                 "mBinding.navigation.setOnItemSelectedListener(this);",
                 "mBinding.navigation.setOnItemSelectedListener(this);\\n        { android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable(); gd.setColor(0x57FFFFFF); gd.setStroke((int)(1 * getResources().getDisplayMetrics().density), 0x61FFFFFF); gd.setCornerRadius(10 * getResources().getDisplayMetrics().density); mBinding.navigation.setBackground(gd); mBinding.navigation.setItemActiveIndicatorEnabled(false); }"
             )
+            hc = hc.replace(
+                "mBinding.navigation.setItemActiveIndicatorEnabled(false); }",
+                "mBinding.navigation.setItemActiveIndicatorEnabled(false); }\\n        mBinding.navigation.setOnItemSelectedListener(item -> { boolean r = onNavigationItemSelected(item); android.view.View iv = mBinding.navigation.findViewById(item.getItemId()); if (iv != null) iv.animate().scaleX(1.2f).scaleY(1.2f).setDuration(120).withEndAction(() -> iv.animate().scaleX(1f).scaleY(1f).setDuration(120).start()).start(); return r; });"
+            )
         print("HomeActivity patched")
 
 BASE_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/base/BaseActivity.java")
