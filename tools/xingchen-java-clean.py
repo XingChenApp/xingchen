@@ -499,9 +499,7 @@ public class PlayerSettingsActivity extends BaseActivity {
         binding.lp40.setBackgroundResource("4.0x".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
         binding.lp50.setBackgroundResource("5.0x".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
     }
-    private void setPref(String k, String v) {
-        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString(k, v).apply();
-    }
+
     private void updateSpeedUI() {
         float s = getSharedPreferences("xingchen", MODE_PRIVATE).getFloat("player_speed", 1.0f);
         binding.speed075.setBackgroundResource(s == 0.75f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
