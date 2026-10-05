@@ -607,6 +607,109 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
             </LinearLayout>
             <Switch android:id="@+id/switch_skip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="false" />
         </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="默认倍速"
+                    android:textColor="#171B23"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="播放时在播放页也可临时调速"
+                    android:textColor="#8A8F98"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@drawable/xc_seg_container">
+                <TextView android:id="@+id/speed_075" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="0.75x" android:textSize="13sp" />
+                <TextView android:id="@+id/speed_100" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="1.0x" android:textSize="13sp" android:background="@drawable/xc_seg_selected" />
+                <TextView android:id="@+id/speed_125" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="1.25x" android:textSize="13sp" />
+                <TextView android:id="@+id/speed_150" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="1.5x" android:textSize="13sp" />
+                <TextView android:id="@+id/speed_200" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="2.0x" android:textSize="13sp" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/card_danmu"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="弹幕设置"
+                    android:textColor="#171B23"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="已开启"
+                    android:textColor="#8A8F98"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_chev_v2" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/card_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="字幕设置"
+                    android:textColor="#171B23"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="已开启"
+                    android:textColor="#8A8F98"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_chev_v2" />
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>
 '''
