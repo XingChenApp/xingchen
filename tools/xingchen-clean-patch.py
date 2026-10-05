@@ -83,7 +83,6 @@ print("menu_nav patched")
 
 # Remove icon tint so custom line-style icons show correctly
 # Also disable white pill indicator like Moying (app:itemActiveIndicatorStyle="@null")
-# Set ripple color darker and more visible
 p = os.path.join(MOBILE_RES, "layout/activity_home.xml")
 if os.path.exists(p):
     c = read(p)
@@ -92,10 +91,12 @@ if os.path.exists(p):
     if 'app:itemActiveIndicatorStyle' not in c:
         c = c.replace(
             'app:menu="@menu/menu_nav"',
-            'app:menu="@menu/menu_nav"\n        app:itemActiveIndicatorStyle="@null"\n        app:itemRippleColor="#4D000000"'
+            'app:menu="@menu/menu_nav"\n        app:itemActiveIndicatorStyle="@null"'
         )
+    # Remove custom ripple color if present (was too dark/big)
+    c = re.sub(r'\s*app:itemRippleColor="[^"]*"', '', c)
     write(p, c)
-    print("Patched nav: tint removed, indicator disabled, ripple set")
+    print("Patched nav: tint removed, indicator disabled, ripple default")
 
 p = os.path.join(MOBILE_RES, "values/strings.xml")
 c = read(p)
