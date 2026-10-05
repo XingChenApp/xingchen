@@ -17,12 +17,6 @@ jobs:
           find /tmp/webhtv-src/app/src/main/res -name "ic_launcher*" -delete
           cp -r /tmp/icons/* /tmp/webhtv-src/app/src/main/res/
           echo "App icons installed"
-      - name: Download nav icons
-        run: |
-          curl -L -o /tmp/nav_icons.zip "https://muse.ai/files/1392977643892470/1082985161192653/4xjhb28cmq2tpe5a3cs7g0ax/xingchen-nav-icons.zip"
-          mkdir -p /tmp/nav_icons
-          unzip -q -o /tmp/nav_icons.zip -d /tmp/nav_icons
-          echo "Nav icons downloaded"
       - name: Download clean patch
         run: |
           curl -L -o /tmp/clean_patch.py "https://muse.ai/files/1392977643892470/1133406402962756/27sxd81n9mob9j1upo4o2pjs/xingchen-clean-patch.py"
@@ -34,13 +28,11 @@ jobs:
       - name: Apply settings redesign
         run: |
           curl -L -o /tmp/settings_write.py "https://muse.ai/files/1392977643892470/1897600201648645/od94bwn3x8p8cu1x5y1ciwvo/xingchen-settings-write.py"
-          curl -L -o /tmp/java_clean.py "https://muse.ai/files/1392977643892470/1417148063820318/bg9b2p4g7jlfdwgzybknncf0/xingchen-java-clean.py"
+          curl -L -o /tmp/java_clean.py "https://muse.ai/files/1392977643892470/1070682092430615/eqgautvmhyfd8g0uypd86til/xingchen-java-clean.py"
           curl -L -o /tmp/webhtv-src/app/src/mobile/res/drawable/poster_shanjian.jpg "https://muse.ai/files/1392977643892470/1083558877863244/qg89nof9apezu1r8elvehynk/poster_shanjian_blur.jpg"
           python3 /tmp/settings_write.py
           python3 /tmp/java_clean.py
           echo "Settings redesign applied"
-          echo "Nav icons installed"
-          ls /tmp/webhtv-src/app/src/mobile/res/drawable/ic_nav_*
       - name: Setup JDK 21
         uses: actions/setup-java@v4
         with:
