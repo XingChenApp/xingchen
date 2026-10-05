@@ -98,22 +98,41 @@ if '@+id/xc_bg_full' not in c:
         c = c[:m.end()] + bg + c[m.end():]
         write(p, c)
 
-# Add wallpaper ImageView to other activities (Search, History, Live) - same as Home
-# Only for FrameLayout/RelativeLayout roots; LinearLayout roots use DecorView wallpaper via BaseActivity
+# Add wallpaper to other activities (Search, History, Live)
+# For FrameLayout/RelativeLayout: add ImageView. For LinearLayout: set background.
 for layout_name in ["activity_search.xml", "activity_history.xml", "activity_live.xml"]:
     p = os.path.join(MOBILE_RES, "layout/" + layout_name)
     if os.path.exists(p):
         c = read(p)
-        if '@+id/xc_bg_full' not in c:
-            # Only add to FrameLayout/RelativeLayout, skip LinearLayout (would break layout)
+        if '@+id/xc_bg_full' not in c and '@drawable/poster_shanjian' not in c:
+            # Try FrameLayout/RelativeLayout first (add ImageView)
             m = re.search(r'<(FrameLayout|RelativeLayout)[^>]*>', c)
             if m:
                 bg = '\n    <ImageView android:id="@+id/xc_bg_full" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerCrop" android:src="@drawable/poster_shanjian" />'
                 c = c[:m.end()] + bg + c[m.end():]
                 write(p, c)
-                print("Added wallpaper to " + layout_name)
+                print("Added wallpaper ImageView to " + layout_name)
             else:
-                print("Skipped " + layout_name + " (LinearLayout, uses DecorView wallpaper)")
+                # LinearLayout: set background on root
+                m2 = re.search(r'<(androidx\.appcompat\.widget\.LinearLayoutCompat|LinearLayout)([^>]*)>', c)
+                if m2:
+                    old_tag = m2.group(0)
+                    # Add background attribute if not present
+                    if 'android:background' not in old_tag:
+                        new_tag = old_tag.replace('>', ' android:background="@drawable/poster_shanjian">', 1)
+                        # Handle self-closing or with attributes
+                        if new_tag == old_tag:
+                            # Tag ends with >, insert before
+                            new_tag = m2.group(1) + m2.group(2) + ' android:background="@drawable/poster_shanjian">'
+                            # Actually reconstruct properly
+                            full = '<' + m2.group(1) + m2.group(2)
+                            if not full.rstrip().endswith('>'):
+                                full += '>'
+                            # Simpler: string replace
+                            pass
+                        c = c.replace(old_tag, old_tag[:-1] + ' android:background="@drawable/poster_shanjian">', 1)
+                        write(p, c)
+                        print("Set wallpaper background on " + layout_name)
 
 p = os.path.join(MOBILE_RES, "color/selector_nav.xml")
 c = read(p)
