@@ -124,3 +124,16 @@ if os.path.exists(BASE_JAVA):
         assert "poster_shanjian" in bc, "BaseActivity patch failed"
         write(BASE_JAVA, bc)
         print("BaseActivity patched")
+
+BASE_FRAG = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/base/BaseFragment.java")
+if os.path.exists(BASE_FRAG):
+    fc = read(BASE_FRAG)
+    if "setBackgroundColor(0x00000000)" not in fc:
+        assert "public void onViewCreated" in fc, "BaseFragment onViewCreated not found"
+        fc = fc.replace(
+            "public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {",
+            "public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {\n        view.setBackgroundColor(0x00000000);"
+        )
+        assert "setBackgroundColor(0x00000000)" in fc, "BaseFragment patch failed"
+        write(BASE_FRAG, fc)
+        print("BaseFragment patched")
