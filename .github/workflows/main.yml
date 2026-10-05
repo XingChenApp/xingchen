@@ -28,7 +28,7 @@ jobs:
       - name: Apply settings redesign
         run: |
           curl -L -o /tmp/settings_write.py "https://muse.ai/files/1392977643892470/1703392884767586/2zg8qycl4q21v70dzuol8yy0/xingchen-settings-write.py"
-          curl -L -o /tmp/java_clean.py "https://muse.ai/files/1392977643892470/1170487418640293/cioaosgvk5yyoex17mgoni7x/xingchen-java-clean.py"
+          curl -L -o /tmp/java_clean.py "https://muse.ai/files/1392977643892470/29258021570448111/osuhr257eul5sktsedms9x19/xingchen-java-clean.py"
           curl -L -o /tmp/webhtv-src/app/src/mobile/res/drawable/poster_shanjian.jpg "https://muse.ai/files/1392977643892470/1083558877863244/qg89nof9apezu1r8elvehynk/poster_shanjian_blur.jpg"
           python3 /tmp/settings_write.py
           python3 /tmp/java_clean.py
