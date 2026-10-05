@@ -335,6 +335,25 @@ public class PlayerSettingsActivity extends BaseActivity {
         binding.switchAutonext.setOnCheckedChangeListener((b, c) -> getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("auto_next", c).apply());
         binding.switchSkip.setChecked(getSharedPreferences("xingchen", MODE_PRIVATE).getBoolean("skip_intro", false));
         binding.switchSkip.setOnCheckedChangeListener((b, c) -> getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("skip_intro", c).apply());
+        updateSpeedUI();
+        binding.speed075.setOnClickListener(v -> { setSpeed(0.75f); updateSpeedUI(); });
+        binding.speed100.setOnClickListener(v -> { setSpeed(1.0f); updateSpeedUI(); });
+        binding.speed125.setOnClickListener(v -> { setSpeed(1.25f); updateSpeedUI(); });
+        binding.speed150.setOnClickListener(v -> { setSpeed(1.5f); updateSpeedUI(); });
+        binding.speed200.setOnClickListener(v -> { setSpeed(2.0f); updateSpeedUI(); });
+        binding.cardDanmu.setOnClickListener(v -> {});
+        binding.cardSubtitle.setOnClickListener(v -> {});
+    }
+    private void updateSpeedUI() {
+        float s = getSharedPreferences("xingchen", MODE_PRIVATE).getFloat("player_speed", 1.0f);
+        binding.speed075.setBackgroundResource(s == 0.75f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.speed100.setBackgroundResource(s == 1.0f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.speed125.setBackgroundResource(s == 1.25f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.speed150.setBackgroundResource(s == 1.5f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.speed200.setBackgroundResource(s == 2.0f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+    }
+    private void setSpeed(float s) {
+        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putFloat("player_speed", s).apply();
     }
     private void updateKernelUI() {
         String k = getSharedPreferences("xingchen", MODE_PRIVATE).getString("player_kernel", "exo");
