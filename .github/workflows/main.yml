@@ -33,15 +33,12 @@ jobs:
           echo "Clean patch applied"
       - name: Apply settings redesign
         run: |
-          curl -L -o /tmp/settings_write.py "https://muse.ai/files/1392977643892470/980919857639915/4izyhy6tic2hpx3glmb4648a/xingchen-settings-write.py"
+          curl -L -o /tmp/settings_write.py "https://muse.ai/files/1392977643892470/1897600201648645/od94bwn3x8p8cu1x5y1ciwvo/xingchen-settings-write.py"
           curl -L -o /tmp/java_clean.py "https://muse.ai/files/1392977643892470/1417148063820318/bg9b2p4g7jlfdwgzybknncf0/xingchen-java-clean.py"
-          curl -L -o /tmp/webhtv-src/app/src/mobile/res/drawable/poster_shanjian.jpg "https://muse.ai/files/1392977643892470/4595334764066984/q65ssfq5joij2fhpbuolzfsv/poster-shanjian.jpg"
+          curl -L -o /tmp/webhtv-src/app/src/mobile/res/drawable/poster_shanjian.jpg "https://muse.ai/files/1392977643892470/1083558877863244/qg89nof9apezu1r8elvehynk/poster_shanjian_blur.jpg"
           python3 /tmp/settings_write.py
           python3 /tmp/java_clean.py
           echo "Settings redesign applied"
-      - name: Install nav icons
-        run: |
-          cp /tmp/nav_icons/drawable/* /tmp/webhtv-src/app/src/mobile/res/drawable/
           echo "Nav icons installed"
           ls /tmp/webhtv-src/app/src/mobile/res/drawable/ic_nav_*
       - name: Setup JDK 21
