@@ -250,6 +250,13 @@ public class UiSettingsActivity extends BaseActivity {
         binding.themeDark.setOnClickListener(v -> { setTheme("dark"); updateThemeUI(); });
         binding.themeSystem.setOnClickListener(v -> { setTheme("system"); updateThemeUI(); });
         binding.wpShanjian.setOnClickListener(v -> { setWallpaper("shanjian"); });
+        binding.wpUrlApply.setOnClickListener(v -> {
+            String url = binding.wpUrl.getText().toString().trim();
+            if (!url.isEmpty()) {
+                getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("wallpaper_url", url).putString("wallpaper", "url").apply();
+                recreate();
+            }
+        });
         initCoverSize();
         initOrientation();
         initRatio();
