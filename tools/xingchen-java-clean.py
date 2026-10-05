@@ -102,14 +102,17 @@ if os.path.exists(HOME_JAVA):
             "super.onCreate(savedInstanceState);\\n        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);\\n        getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);"
         )
         if "xc_bottombar" not in hc:
+            assert "mBinding.navigation.setOnItemSelectedListener(this);" in hc, "HomeActivity listener not found"
             hc = hc.replace(
                 "mBinding.navigation.setOnItemSelectedListener(this);",
                 "mBinding.navigation.setOnItemSelectedListener(this);\\n        { android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable(); gd.setColor(0x57FFFFFF); gd.setStroke((int)(1 * getResources().getDisplayMetrics().density), 0x61FFFFFF); gd.setCornerRadius(10 * getResources().getDisplayMetrics().density); mBinding.navigation.setBackground(gd); mBinding.navigation.setItemActiveIndicatorEnabled(false); }"
             )
+            assert "xc_bottombar" in hc or "GradientDrawable" in hc, "HomeActivity background patch failed"
             hc = hc.replace(
                 "mBinding.navigation.setItemActiveIndicatorEnabled(false); }",
                 "mBinding.navigation.setItemActiveIndicatorEnabled(false); }\\n        mBinding.navigation.setOnItemSelectedListener(item -> { boolean r = onNavigationItemSelected(item); android.view.View iv = mBinding.navigation.findViewById(item.getItemId()); if (iv != null) iv.animate().scaleX(1.2f).scaleY(1.2f).setDuration(120).withEndAction(() -> iv.animate().scaleX(1f).scaleY(1f).setDuration(120).start()).start(); return r; });"
             )
+            assert "scaleX(1.2f)" in hc, "HomeActivity animation patch failed"
         print("HomeActivity patched")
 
 BASE_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/base/BaseActivity.java")
@@ -117,10 +120,12 @@ if os.path.exists(BASE_JAVA):
     bc = read(BASE_JAVA)
     if "poster_shanjian" not in bc:
         assert "super.onCreate(savedInstanceState);" in bc, "BaseActivity onCreate not found"
+        assert "enableDynamicColor();" in bc, "BaseActivity enableDynamicColor not found"
         bc = bc.replace(
             "enableDynamicColor();",
             "// enableDynamicColor(); // Disabled for wallpaper"
         )
+        assert "// Disabled for wallpaper" in bc, "BaseActivity dynamic color disable failed"
         bc = bc.replace(
             "super.onCreate(savedInstanceState);",
             "super.onCreate(savedInstanceState);\n        getWindow().setBackgroundDrawableResource(com.fongmi.android.tv.R.drawable.poster_shanjian);"
