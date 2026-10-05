@@ -814,7 +814,7 @@ write(os.path.join(MOBILE_RES, "drawable/xc_input_bg.xml"), input_bg)
 # Missing icons - simple definitions
 chev_xml = '''<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="18dp" android:height="18dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#171B23" android:pathData="M9,18l6,-6 -6,-6" android:strokeWidth="2" android:strokeColor="#171B23" android:strokeLineCap="round" android:fillType="evenOdd"/>
+    <path android:fillColor="#171B23" android:pathData="M9,6l6,6l-6,6"/>
 </vector>
 '''
 write(os.path.join(MOBILE_RES, "drawable/ic_chev_v2.xml"), chev_xml)
@@ -828,7 +828,7 @@ write(os.path.join(MOBILE_RES, "drawable/ic_close_v2.xml"), close_xml)
 
 folder_xml = '''<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:strokeColor="#171B23" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M3.5,6.5h6l2,2h9v9a2,2 0 0,1 -2,2h-13a2,2 0 0,1 -2,-2zM3.5,9h17"/>
+    <path android:fillColor="#171B23" android:pathData="M4,6h6l2,2h8v10H4z"/>
 </vector>
 '''
 write(os.path.join(MOBILE_RES, "drawable/ic_folder_v2.xml"), folder_xml)
