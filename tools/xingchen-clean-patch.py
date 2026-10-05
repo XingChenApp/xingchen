@@ -376,7 +376,10 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:padding="15dp">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="毛玻璃透明度" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="越往右越通透" android:textColor="#5A5F68" android:textSize="12sp" android:layout_marginBottom="8dp" />
-            <SeekBar android:id="@+id/glass_alpha" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="55" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                <SeekBar android:id="@+id/glass_alpha" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:max="100" android:progress="55" />
+                <TextView android:id="@+id/glass_alpha_text" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="55%" android:textColor="#171B23" android:textSize="14sp" android:layout_marginLeft="12dp" />
+            </LinearLayout>
         </LinearLayout>
         <LinearLayout
             android:layout_width="match_parent"
