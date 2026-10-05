@@ -192,6 +192,23 @@ config_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:textStyle="bold"
             android:layout_marginBottom="16dp" />
         <LinearLayout
+            android:id="@+id/card_history"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true">
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="历史线路" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="查看已用线路，快速切换" android:textColor="#5A5F68" android:textSize="12sp" />
+            </LinearLayout>
+            <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_chev_v2" />
+        </LinearLayout>
+        <LinearLayout
             android:id="@+id/card_vod"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
