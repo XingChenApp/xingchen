@@ -142,108 +142,19 @@ if os.path.exists(BASE_FRAG):
         write(BASE_FRAG, fc)
         print("BaseFragment patched")
 
-# Create ConfigSourceActivity (配置源二级页)
-CONFIG_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/ConfigSourceActivity.java")
-config_java_content = """package com.fongmi.android.tv.ui.activity;
-
-import android.app.Activity;
-import android.content.Intent;
-import android.os.Bundle;
-
-import com.fongmi.android.tv.databinding.ActivityConfigSourceBinding;
-import com.fongmi.android.tv.ui.base.BaseActivity;
-import com.fongmi.android.tv.ui.dialog.ConfigDialog;
-
-public class ConfigSourceActivity extends BaseActivity {
-
-    private ActivityConfigSourceBinding mBinding;
-
-    public static void start(Activity activity) {
-        activity.startActivity(new Intent(activity, ConfigSourceActivity.class));
-    }
-
-    @Override
-    protected androidx.viewbinding.ViewBinding getBinding() {
-        return mBinding = ActivityConfigSourceBinding.inflate(getLayoutInflater());
-    }
-
-    @Override
-    protected void initView(Bundle savedInstanceState) {
-        mBinding.cardVod.setOnClickListener(v -> ConfigDialog.create().vod().show(getSupportFragmentManager(), null));
-        mBinding.cardLive.setOnClickListener(v -> ConfigDialog.create().live().show(getSupportFragmentManager(), null));
-    }
-}
-"""
-write(CONFIG_JAVA, config_java_content)
-print("ConfigSourceActivity created")
+# Create ConfigSourceActivity (配置源二级页) - TEMP DISABLED FOR DEBUGGING
+# CONFIG_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/ConfigSourceActivity.java")
+# (commented out for debugging)
 
 # Create UiSettingsActivity (界面二级页)
-UI_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/UiSettingsActivity.java")
-ui_java_content = """package com.fongmi.android.tv.ui.activity;
+# Create UiSettingsActivity (界面二级页) - TEMP DISABLED FOR DEBUGGING
+# UI_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/UiSettingsActivity.java")
+# (commented out for debugging)
 
-import android.app.Activity;
-import android.content.Intent;
-import android.content.SharedPreferences;
-import android.os.Bundle;
+# Register activities in AndroidManifest - TEMP DISABLED FOR DEBUGGING
+# MANIFEST = os.path.join(BASE, "app/src/mobile/AndroidManifest.xml")
+# (commented out for debugging)
 
-import com.fongmi.android.tv.databinding.ActivityUiSettingsBinding;
-import com.fongmi.android.tv.ui.base.BaseActivity;
-
-public class UiSettingsActivity extends BaseActivity {
-
-    private ActivityUiSettingsBinding mBinding;
-
-    public static void start(Activity activity) {
-        activity.startActivity(new Intent(activity, UiSettingsActivity.class));
-    }
-
-    @Override
-    protected androidx.viewbinding.ViewBinding getBinding() {
-        return mBinding = ActivityUiSettingsBinding.inflate(getLayoutInflater());
-    }
-
-    @Override
-    protected void initView(Bundle savedInstanceState) {
-        mBinding.wpDefault.setOnClickListener(v -> setWallpaper("default"));
-        mBinding.wpShanjian.setOnClickListener(v -> setWallpaper("shanjian"));
-    }
-
-    private void setWallpaper(String name) {
-        SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
-        sp.edit().putString("wallpaper", name).apply();
-        recreate();
-    }
-}
-"""
-write(UI_JAVA, ui_java_content)
-print("UiSettingsActivity created")
-
-# Register activities in AndroidManifest
-MANIFEST = os.path.join(BASE, "app/src/mobile/AndroidManifest.xml")
-if os.path.exists(MANIFEST):
-    mc = read(MANIFEST)
-    if "ConfigSourceActivity" not in mc:
-        mc = mc.replace(
-            '<activity\n            android:name=".ui.activity.HistoryActivity"',
-            '<activity\n            android:name=".ui.activity.ConfigSourceActivity"\n            android:configChanges="screenSize|smallestScreenSize|screenLayout"\n            android:screenOrientation="fullUser" />\n\n        <activity\n            android:name=".ui.activity.UiSettingsActivity"\n            android:configChanges="screenSize|smallestScreenSize|screenLayout"\n            android:screenOrientation="fullUser" />\n\n        <activity\n            android:name=".ui.activity.HistoryActivity"'
-        )
-        write(MANIFEST, mc)
-        print("AndroidManifest updated")
-
-# Modify SettingFragment to start new activities instead of dialogs
-SETTING_FRAG = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/fragment/SettingFragment.java")
-if os.path.exists(SETTING_FRAG):
-    sc = read(SETTING_FRAG)
-    # Change cardConfig to start ConfigSourceActivity
-    if "ConfigSourceActivity.start" not in sc:
-        sc = sc.replace(
-            "mBinding.cardConfig.setOnClickListener(v -> onVod(v));",
-            "mBinding.cardConfig.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.ConfigSourceActivity.start(getActivity()));"
-        )
-        # Change cardAppearance to start UiSettingsActivity
-        sc = sc.replace(
-            "mBinding.cardAppearance.setOnClickListener(v -> onAppearance(v));",
-            "mBinding.cardAppearance.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.UiSettingsActivity.start(getActivity()));"
-        )
-        write(SETTING_FRAG, sc)
-        print("SettingFragment updated")
+# Modify SettingFragment to start new activities instead of dialogs - TEMP DISABLED
+# SETTING_FRAG = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/fragment/SettingFragment.java")
+# (commented out for debugging)
