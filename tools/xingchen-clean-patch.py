@@ -284,44 +284,17 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             android:background="@drawable/xc_setcard_v2"
-            android:orientation="vertical"
-            android:padding="15dp">
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="主题"
-                android:textColor="#171B23"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="当前为浅色主题"
-                android:textColor="#8A8F98"
-                android:textSize="12sp"
-                android:layout_marginBottom="8dp" />
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-                <Button
-                    android:id="@+id/theme_light"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="浅色" />
-                <Button
-                    android:id="@+id/theme_dark"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="深色" />
-                <Button
-                    android:id="@+id/theme_system"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="跟随系统" />
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical">
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="主题" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="当前为浅色主题" android:textColor="#8A8F98" android:textSize="12sp" />
+            </LinearLayout>
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container">
+                <TextView android:id="@+id/theme_light" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="浅色" android:textSize="14sp" android:background="@drawable/xc_seg_selected" />
+                <TextView android:id="@+id/theme_dark" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="深色" android:textSize="14sp" />
+                <TextView android:id="@+id/theme_system" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="跟随系统" android:textSize="14sp" />
             </LinearLayout>
         </LinearLayout>
         <LinearLayout
@@ -331,83 +304,21 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:background="@drawable/xc_setcard_v2"
             android:orientation="vertical"
             android:padding="15dp">
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="壁纸"
-                android:textColor="#171B23"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="12dp" />
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-                    <ImageView
-                        android:id="@+id/wp_shanjian"
-                        android:layout_width="0dp"
-                        android:layout_height="80dp"
-                        android:layout_weight="1"
-                        android:layout_margin="4dp"
-                        android:background="@drawable/xc_wp_thumb"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:scaleType="centerCrop"
-                        android:src="@drawable/poster_shanjian" />
-                    <View
-                        android:id="@+id/wp_blue"
-                        android:layout_width="0dp"
-                        android:layout_height="80dp"
-                        android:layout_weight="1"
-                        android:layout_margin="4dp"
-                        android:background="#8fb0d1"
-                        android:clickable="true"
-                        android:focusable="true" />
-                    <View
-                        android:id="@+id/wp_green"
-                        android:layout_width="0dp"
-                        android:layout_height="80dp"
-                        android:layout_weight="1"
-                        android:layout_margin="4dp"
-                        android:background="#8fb996"
-                        android:clickable="true"
-                        android:focusable="true" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="壁纸" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" android:layout_marginBottom="4dp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="选预置壁纸、纯色或上传自己的图片" android:textColor="#8A8F98" android:textSize="12sp" android:layout_marginBottom="12dp" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                    <TextView android:id="@+id/wp_default" android:layout_width="0dp" android:layout_height="80dp" android:layout_weight="1" android:layout_margin="4dp" android:background="@drawable/xc_seg_selected" android:gravity="center" android:text="默认" android:textSize="14sp" />
+                    <ImageView android:id="@+id/wp_shanjian" android:layout_width="0dp" android:layout_height="80dp" android:layout_weight="1" android:layout_margin="4dp" android:scaleType="centerCrop" android:src="@drawable/poster_shanjian" />
+                    <View android:id="@+id/wp_blue" android:layout_width="0dp" android:layout_height="80dp" android:layout_weight="1" android:layout_margin="4dp" android:background="#8fb0d1" />
+                    <View android:id="@+id/wp_green" android:layout_width="0dp" android:layout_height="80dp" android:layout_weight="1" android:layout_margin="4dp" android:background="#8fb996" />
                 </LinearLayout>
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-                    <View
-                        android:id="@+id/wp_clay"
-                        android:layout_width="0dp"
-                        android:layout_height="80dp"
-                        android:layout_weight="1"
-                        android:layout_margin="4dp"
-                        android:background="#d29a7c"
-                        android:clickable="true"
-                        android:focusable="true" />
-                    <View
-                        android:id="@+id/wp_purple"
-                        android:layout_width="0dp"
-                        android:layout_height="80dp"
-                        android:layout_weight="1"
-                        android:layout_margin="4dp"
-                        android:background="#b3a6d6"
-                        android:clickable="true"
-                        android:focusable="true" />
-                    <View
-                        android:id="@+id/wp_dark"
-                        android:layout_width="0dp"
-                        android:layout_height="80dp"
-                        android:layout_weight="1"
-                        android:layout_margin="4dp"
-                        android:background="#43484f"
-                        android:clickable="true"
-                        android:focusable="true" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                    <View android:id="@+id/wp_clay" android:layout_width="0dp" android:layout_height="80dp" android:layout_weight="1" android:layout_margin="4dp" android:background="#d29a7c" />
+                    <View android:id="@+id/wp_purple" android:layout_width="0dp" android:layout_height="80dp" android:layout_weight="1" android:layout_margin="4dp" android:background="#b3a6d6" />
+                    <View android:id="@+id/wp_dark" android:layout_width="0dp" android:layout_height="80dp" android:layout_weight="1" android:layout_margin="4dp" android:background="#43484f" />
+                    <TextView android:id="@+id/wp_upload" android:layout_width="0dp" android:layout_height="80dp" android:layout_weight="1" android:layout_margin="4dp" android:gravity="center" android:text="+
+上传" android:textSize="14sp" android:background="@drawable/xc_seg_normal" />
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
