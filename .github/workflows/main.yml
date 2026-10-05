@@ -5,13 +5,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repo tools
+        uses: actions/checkout@v4
+        with:
+          path: repo-tools
       - name: Checkout source
         run: |
           git clone --depth 1 https://github.com/webhtv/webhtv.git /tmp/webhtv-src
           echo "Source cloned"
       - name: Download app icons
         run: |
-          curl -L -o /tmp/icons.zip "https://muse.ai/files/1392977643892470/1423151855987498/w5hsnxpzh2wycxzt12qztve4/xingchen-icons.zip"
+          cp "$GITHUB_WORKSPACE/repo-tools/tools/xingchen-icons.zip" /tmp/icons.zip
           mkdir -p /tmp/icons
           unzip -q -o /tmp/icons.zip -d /tmp/icons
           find /tmp/webhtv-src/app/src/main/res -name "ic_launcher*" -delete
@@ -19,17 +23,17 @@ jobs:
           echo "App icons installed"
       - name: Download clean patch
         run: |
-          curl -L -o /tmp/clean_patch.py "https://muse.ai/files/1392977643892470/2126626608062941/1wcbgor37zlnsagvhl0z9clr/xingchen-clean-patch.py"
-          echo "Clean patch downloaded"
+          cp "$GITHUB_WORKSPACE/repo-tools/tools/xingchen-clean-patch.py" /tmp/clean_patch.py
+          echo "Clean patch ready"
       - name: Apply clean patch
         run: |
           python3 /tmp/clean_patch.py
           echo "Clean patch applied"
       - name: Apply settings redesign
         run: |
-          curl -L -o /tmp/settings_write.py "https://muse.ai/files/1392977643892470/1703392884767586/2zg8qycl4q21v70dzuol8yy0/xingchen-settings-write.py"
-          curl -L -o /tmp/java_clean.py "https://muse.ai/files/1392977643892470/1774201643888027/y9cg4h9jvk0ij5284jruzkc1/xingchen-java-clean.py"
-          curl -L -o /tmp/webhtv-src/app/src/mobile/res/drawable/poster_shanjian.jpg "https://muse.ai/files/1392977643892470/1083558877863244/qg89nof9apezu1r8elvehynk/poster_shanjian_blur.jpg"
+          cp "$GITHUB_WORKSPACE/repo-tools/tools/xingchen-settings-write.py" /tmp/settings_write.py
+          cp "$GITHUB_WORKSPACE/repo-tools/tools/xingchen-java-clean.py" /tmp/java_clean.py
+          cp "$GITHUB_WORKSPACE/repo-tools/tools/poster_shanjian_blur.jpg" /tmp/webhtv-src/app/src/mobile/res/drawable/poster_shanjian.jpg
           python3 /tmp/settings_write.py
           python3 /tmp/java_clean.py
           echo "Settings redesign applied"
