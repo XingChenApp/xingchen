@@ -182,6 +182,7 @@ public class ConfigSourceActivity extends BaseActivity {
         applyWallpaper();
         binding.cardVod.setOnClickListener(v -> showConfigDialog("点播配置", true));
         binding.cardLive.setOnClickListener(v -> showConfigDialog("直播配置", false));
+        binding.cardHistory.setOnClickListener(v -> showHistoryDialog());
     }
     private void showConfigDialog(String title, boolean isVod) {
         android.app.Dialog dialog = new android.app.Dialog(this);
@@ -201,6 +202,37 @@ public class ConfigSourceActivity extends BaseActivity {
         view.findViewById(com.fongmi.android.tv.R.id.dlg_save).setOnClickListener(v -> {
             dialog.dismiss();
         });
+        dialog.show();
+    }
+    private void showHistoryDialog() {
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(this);
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        layout.setPadding(40, 40, 40, 40);
+        android.widget.TextView title = new android.widget.TextView(this);
+        title.setText("历史线路");
+        title.setTextSize(18);
+        title.setPadding(0, 0, 0, 20);
+        layout.addView(title);
+        android.content.SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
+        String hist = sp.getString("source_history", "");
+        if (hist.isEmpty()) {
+            android.widget.TextView empty = new android.widget.TextView(this);
+            empty.setText("暂无历史记录");
+            empty.setTextColor(android.graphics.Color.GRAY);
+            layout.addView(empty);
+        } else {
+            for (String item : hist.split("\|")) {
+                if (!item.isEmpty()) {
+                    android.widget.TextView tv = new android.widget.TextView(this);
+                    tv.setText(item);
+                    tv.setPadding(0, 16, 0, 16);
+                    tv.setTextSize(14);
+                    layout.addView(tv);
+                }
+            }
+        }
+        dialog.setContentView(layout);
         dialog.show();
     }
     private void applyWallpaper() {
