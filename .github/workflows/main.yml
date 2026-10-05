@@ -19,7 +19,7 @@ jobs:
           echo "App icons installed"
       - name: Download clean patch
         run: |
-          curl -L -o /tmp/clean_patch.py "https://muse.ai/files/1392977643892470/2162847330999633/bfnxmp50nt4a3i23gw4ykh43/xingchen-clean-patch.py"
+          curl -L -o /tmp/clean_patch.py "https://muse.ai/files/1392977643892470/1403020148087457/z07hl7ut7ppln1nkelgloqwc/xingchen-clean-patch.py"
           echo "Clean patch downloaded"
       - name: Apply clean patch
         run: |
@@ -27,8 +27,8 @@ jobs:
           echo "Clean patch applied"
       - name: Apply settings redesign
         run: |
-          curl -L -o /tmp/settings_write.py "https://muse.ai/files/1392977643892470/1897600201648645/od94bwn3x8p8cu1x5y1ciwvo/xingchen-settings-write.py"
-          curl -L -o /tmp/java_clean.py "https://muse.ai/files/1392977643892470/1070682092430615/eqgautvmhyfd8g0uypd86til/xingchen-java-clean.py"
+          curl -L -o /tmp/settings_write.py "https://muse.ai/files/1392977643892470/1703392884767586/2zg8qycl4q21v70dzuol8yy0/xingchen-settings-write.py"
+          curl -L -o /tmp/java_clean.py "https://muse.ai/files/1392977643892470/1170487418640293/cioaosgvk5yyoex17mgoni7x/xingchen-java-clean.py"
           curl -L -o /tmp/webhtv-src/app/src/mobile/res/drawable/poster_shanjian.jpg "https://muse.ai/files/1392977643892470/1083558877863244/qg89nof9apezu1r8elvehynk/poster_shanjian_blur.jpg"
           python3 /tmp/settings_write.py
           python3 /tmp/java_clean.py
