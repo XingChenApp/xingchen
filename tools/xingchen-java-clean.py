@@ -324,15 +324,36 @@ public class PlayerSettingsActivity extends BaseActivity {
     @Override
     protected void initView(Bundle savedInstanceState) {
         applyWallpaper();
-        binding.kernelExo.setOnClickListener(v -> setKernel("exo"));
-        binding.kernelMpv.setOnClickListener(v -> setKernel("mpv"));
-        binding.decodeHard.setOnClickListener(v -> setDecode("hard"));
-        binding.decodeSoft.setOnClickListener(v -> setDecode("soft"));
-        binding.speed075.setOnClickListener(v -> setSpeed(0.75f));
-        binding.speed100.setOnClickListener(v -> setSpeed(1.0f));
-        binding.speed125.setOnClickListener(v -> setSpeed(1.25f));
-        binding.speed150.setOnClickListener(v -> setSpeed(1.5f));
-        binding.speed200.setOnClickListener(v -> setSpeed(2.0f));
+        updateKernelUI();
+        updateDecodeUI();
+        updateSpeedUI();
+        binding.kernelExo.setOnClickListener(v -> { setKernel("exo"); updateKernelUI(); });
+        binding.kernelMpv.setOnClickListener(v -> { setKernel("mpv"); updateKernelUI(); });
+        binding.decodeHard.setOnClickListener(v -> { setDecode("hard"); updateDecodeUI(); });
+        binding.decodeSoft.setOnClickListener(v -> { setDecode("soft"); updateDecodeUI(); });
+        binding.speed075.setOnClickListener(v -> { setSpeed(0.75f); updateSpeedUI(); });
+        binding.speed100.setOnClickListener(v -> { setSpeed(1.0f); updateSpeedUI(); });
+        binding.speed125.setOnClickListener(v -> { setSpeed(1.25f); updateSpeedUI(); });
+        binding.speed150.setOnClickListener(v -> { setSpeed(1.5f); updateSpeedUI(); });
+        binding.speed200.setOnClickListener(v -> { setSpeed(2.0f); updateSpeedUI(); });
+    }
+    private void updateKernelUI() {
+        String k = getSharedPreferences("xingchen", MODE_PRIVATE).getString("player_kernel", "exo");
+        binding.kernelExo.setBackgroundResource("exo".equals(k) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
+        binding.kernelMpv.setBackgroundResource("mpv".equals(k) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
+    }
+    private void updateDecodeUI() {
+        String d = getSharedPreferences("xingchen", MODE_PRIVATE).getString("player_decode", "hard");
+        binding.decodeHard.setBackgroundResource("hard".equals(d) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
+        binding.decodeSoft.setBackgroundResource("soft".equals(d) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
+    }
+    private void updateSpeedUI() {
+        float s = getSharedPreferences("xingchen", MODE_PRIVATE).getFloat("player_speed", 1.0f);
+        binding.speed075.setBackgroundResource(s == 0.75f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
+        binding.speed100.setBackgroundResource(s == 1.0f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
+        binding.speed125.setBackgroundResource(s == 1.25f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
+        binding.speed150.setBackgroundResource(s == 1.5f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
+        binding.speed200.setBackgroundResource(s == 2.0f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
     }
     private void applyWallpaper() {
         android.view.View root = findViewById(android.R.id.content);
