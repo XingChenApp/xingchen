@@ -184,6 +184,14 @@ public class ConfigSourceActivity extends BaseActivity {
         binding.cardVod.setOnClickListener(v -> ConfigDialog.create().vod().show(getSupportFragmentManager(), null));
         binding.cardLive.setOnClickListener(v -> ConfigDialog.create().live().show(getSupportFragmentManager(), null));
     }
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1001 && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("wallpaper_uri", data.getData().toString()).putString("wallpaper", "local").apply();
+            recreate();
+        }
+    }
     private void applyWallpaper() {
         android.view.View root = findViewById(android.R.id.content);
         if (root != null) {
@@ -245,22 +253,20 @@ public class UiSettingsActivity extends BaseActivity {
     protected void initView(Bundle savedInstanceState) {
         applyWallpaper();
         updateThemeUI();
-        updateWallpaperUI();
         binding.themeLight.setOnClickListener(v -> { setTheme("light"); updateThemeUI(); });
         binding.themeDark.setOnClickListener(v -> { setTheme("dark"); updateThemeUI(); });
         binding.themeSystem.setOnClickListener(v -> { setTheme("system"); updateThemeUI(); });
-        binding.wpDefault.setOnClickListener(v -> { setWallpaper("shanjian"); updateWallpaperUI(); });
-        binding.wpShanjian.setOnClickListener(v -> { setWallpaper("shanjian"); updateWallpaperUI(); });
-        binding.wpBlue.setOnClickListener(v -> { setWallpaperColor("#8fb0d1"); updateWallpaperUI(); });
-        binding.wpGreen.setOnClickListener(v -> { setWallpaperColor("#8fb996"); updateWallpaperUI(); });
-        binding.wpClay.setOnClickListener(v -> { setWallpaperColor("#d29a7c"); updateWallpaperUI(); });
-        binding.wpPurple.setOnClickListener(v -> { setWallpaperColor("#b3a6d6"); updateWallpaperUI(); });
-        binding.wpDark.setOnClickListener(v -> { setWallpaperColor("#43484f"); updateWallpaperUI(); });
         initCoverSize();
         initOrientation();
         initRatio();
         initUiStyle();
         initGlassAlpha();
+        try { binding.wpShanjian.setOnClickListener(v -> { setWallpaper("shanjian"); }); } catch (Exception e) {}
+        try { binding.wpLocal.setOnClickListener(v -> {
+            android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
+            intent.setType("image/*");
+            startActivityForResult(intent, 1001);
+        }); } catch (Exception e) {}
     }
     private void initCoverSize() {
         updateCoverSizeUI();
@@ -331,10 +337,16 @@ public class UiSettingsActivity extends BaseActivity {
         binding.themeDark.setBackgroundResource("dark".equals(t) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
         binding.themeSystem.setBackgroundResource("system".equals(t) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
     }
-    private void updateWallpaperUI() {
         String wp = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper", "shanjian");
         String c = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper_color", "");
-        binding.wpDefault.setBackgroundResource("shanjian".equals(wp) && "".equals(c) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+    }
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1001 && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("wallpaper_uri", data.getData().toString()).putString("wallpaper", "local").apply();
+            recreate();
+        }
     }
     private void applyWallpaper() {
         android.view.View root = findViewById(android.R.id.content);
@@ -464,6 +476,14 @@ public class PlayerSettingsActivity extends BaseActivity {
     }
     private void setDecode(String d) {
         getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_decode", d).apply();
+    }
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1001 && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("wallpaper_uri", data.getData().toString()).putString("wallpaper", "local").apply();
+            recreate();
+        }
     }
     private void applyWallpaper() {
         android.view.View root = findViewById(android.R.id.content);
