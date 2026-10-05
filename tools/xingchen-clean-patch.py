@@ -291,7 +291,7 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="主题" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="当前为浅色主题" android:textColor="#8A8F98" android:textSize="12sp" />
             </LinearLayout>
-            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container">
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container" android:padding="4dp">
                 <TextView android:id="@+id/theme_light" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="浅色" android:textSize="14sp" android:background="@drawable/xc_seg_selected" />
                 <TextView android:id="@+id/theme_dark" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="深色" android:textSize="14sp" />
                 <TextView android:id="@+id/theme_system" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="跟随系统" android:textSize="14sp" />
@@ -309,7 +309,7 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="首页封面" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="一行显示 3 个海报" android:textColor="#8A8F98" android:textSize="12sp" />
             </LinearLayout>
-            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container">
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container" android:padding="4dp">
                 <TextView android:id="@+id/cover_small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="小" android:textSize="14sp" android:clickable="true" android:focusable="true" />
                 <TextView android:id="@+id/cover_medium" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="中" android:textSize="14sp" android:background="@drawable/xc_seg_selected" android:clickable="true" android:focusable="true" />
                 <TextView android:id="@+id/cover_large" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="大" android:textSize="14sp" android:clickable="true" android:focusable="true" />
@@ -327,7 +327,7 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="封面方向" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="海报按 2:3 竖版显示" android:textColor="#8A8F98" android:textSize="12sp" />
             </LinearLayout>
-            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container">
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container" android:padding="4dp">
                 <TextView android:id="@+id/orient_portrait" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="竖屏" android:textSize="14sp" android:background="@drawable/xc_seg_selected" android:clickable="true" android:focusable="true" />
                 <TextView android:id="@+id/orient_landscape" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="横屏" android:textSize="14sp" android:clickable="true" android:focusable="true" />
             </LinearLayout>
@@ -344,7 +344,7 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="封面比例" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="竖屏比例 2:3" android:textColor="#8A8F98" android:textSize="12sp" />
             </LinearLayout>
-            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container">
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container" android:padding="4dp">
                 <TextView android:id="@+id/ratio_23" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="2:3" android:textSize="14sp" android:background="@drawable/xc_seg_selected" android:clickable="true" android:focusable="true" />
                 <TextView android:id="@+id/ratio_34" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="3:4" android:textSize="14sp" android:clickable="true" android:focusable="true" />
                 <TextView android:id="@+id/ratio_916" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="9:16" android:textSize="14sp" android:clickable="true" android:focusable="true" />
@@ -362,7 +362,7 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="UI 风格" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="毛玻璃：面板半透明" android:textColor="#8A8F98" android:textSize="12sp" />
             </LinearLayout>
-            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container">
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container" android:padding="4dp">
                 <TextView android:id="@+id/style_normal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="普通" android:textSize="14sp" android:clickable="true" android:focusable="true" />
                 <TextView android:id="@+id/style_glass" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="毛玻璃" android:textSize="14sp" android:background="@drawable/xc_seg_selected" android:clickable="true" android:focusable="true" />
             </LinearLayout>
@@ -493,7 +493,7 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:background="@drawable/xc_seg_container">
+                android:background="@drawable/xc_seg_container" android:padding="4dp">
                 <TextView android:id="@+id/kernel_exo" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="ExoPlayer" android:textSize="14sp" android:background="@drawable/xc_seg_selected" />
                 <TextView android:id="@+id/kernel_mpv" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="mpv" android:textSize="14sp" />
                 <TextView android:id="@+id/kernel_ijk" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="ijk" android:textSize="14sp" />
@@ -530,7 +530,7 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:background="@drawable/xc_seg_container">
+                android:background="@drawable/xc_seg_container" android:padding="4dp">
                 <TextView android:id="@+id/decode_hard" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="硬解" android:textSize="14sp" android:background="@drawable/xc_seg_selected" />
                 <TextView android:id="@+id/decode_soft" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="软解" android:textSize="14sp" />
             </LinearLayout>
@@ -630,7 +630,7 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:background="@drawable/xc_seg_container">
+                android:background="@drawable/xc_seg_container" android:padding="4dp">
                 <TextView android:id="@+id/speed_075" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="0.75x" android:textSize="13sp" />
                 <TextView android:id="@+id/speed_100" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="1.0x" android:textSize="13sp" android:background="@drawable/xc_seg_selected" />
                 <TextView android:id="@+id/speed_125" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="1.25x" android:textSize="13sp" />
