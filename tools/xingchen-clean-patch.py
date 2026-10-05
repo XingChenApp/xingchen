@@ -56,9 +56,9 @@ for theme_path in ["app/src/main/res/values/styles.xml", "app/src/mobile/res/val
         c = read(p)
         orig = c
         c = c.replace('<item name="android:colorBackground">@color/white</item>', '<item name="android:colorBackground">@color/transparent</item>')
-        if c != orig:
-            write(p, c)
-            print("Deleted default background: " + theme_path)
+        assert c != orig, "Theme background NOT FOUND in " + theme_path
+        write(p, c)
+        print("Deleted default background: " + theme_path)
 
 p = os.path.join(MOBILE_RES, "menu/menu_nav.xml")
 c = read(p)
