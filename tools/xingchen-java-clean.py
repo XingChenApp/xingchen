@@ -167,6 +167,7 @@ import android.os.Bundle;
 import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivityConfigSourceBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.ui.dialog.ConfigDialog;
 public class ConfigSourceActivity extends BaseActivity {
     private ActivityConfigSourceBinding binding;
     public static void start(Activity activity) {
@@ -180,21 +181,9 @@ public class ConfigSourceActivity extends BaseActivity {
     @Override
     protected void initView(Bundle savedInstanceState) {
         applyWallpaper();
-        binding.cardVod.setOnClickListener(v -> showConfigDialog("点播配置", true));
-        binding.cardLive.setOnClickListener(v -> showConfigDialog("直播配置", false));
-        binding.cardHistory.setOnClickListener(v -> showHistoryDialog());
+        binding.cardVod.setOnClickListener(v -> com.fongmi.android.tv.ui.dialog.ConfigDialog.create().vod().show(getSupportFragmentManager(), null));
+        binding.cardLive.setOnClickListener(v -> com.fongmi.android.tv.ui.dialog.ConfigDialog.create().live().show(getSupportFragmentManager(), null));
     }
-    private void showConfigDialog(String title, boolean isVod) {
-        android.app.Dialog dialog = new android.app.Dialog(this);
-        android.view.View view = getLayoutInflater().inflate(com.fongmi.android.tv.R.layout.dialog_config_source, null);
-        dialog.setContentView(view);
-        android.view.Window w = dialog.getWindow();
-        if (w != null) {
-            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
-            android.view.WindowManager.LayoutParams p = w.getAttributes();
-            p.width = (int)(getResources().getDisplayMetrics().widthPixels * 0.85);
-            w.setAttributes(p);
-        }
         android.widget.TextView tvTitle = view.findViewById(com.fongmi.android.tv.R.id.dlg_title);
         tvTitle.setText(title);
         view.findViewById(com.fongmi.android.tv.R.id.dlg_close).setOnClickListener(v -> dialog.dismiss());
@@ -203,25 +192,7 @@ public class ConfigSourceActivity extends BaseActivity {
             dialog.dismiss();
         });
         dialog.show();
-    }
-    private void showHistoryDialog() {
-        android.app.Dialog dialog = new android.app.Dialog(this);
-        android.widget.LinearLayout layout = new android.widget.LinearLayout(this);
-        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
-        layout.setPadding(40, 40, 40, 40);
-        android.widget.TextView title = new android.widget.TextView(this);
-        title.setText("历史线路");
-        title.setTextSize(18);
-        title.setPadding(0, 0, 0, 20);
-        layout.addView(title);
-        android.content.SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
-        String hist = sp.getString("source_history", "");
-        if (hist.isEmpty()) {
-            android.widget.TextView empty = new android.widget.TextView(this);
-            empty.setText("暂无历史记录");
-            empty.setTextColor(android.graphics.Color.GRAY);
-            layout.addView(empty);
-        } else {
+    } else {
             for (String item : hist.split("\|")) {
                 if (!item.isEmpty()) {
                     android.widget.TextView tv = new android.widget.TextView(this);
@@ -293,6 +264,7 @@ import android.os.Bundle;
 import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivityUiSettingsBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.ui.dialog.ConfigDialog;
 public class UiSettingsActivity extends BaseActivity {
     private ActivityUiSettingsBinding binding;
     public static void start(Activity activity) {
@@ -478,6 +450,7 @@ import android.os.Bundle;
 import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivityPlayerSettingsBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.ui.dialog.ConfigDialog;
 import com.fongmi.android.tv.utils.Notify;
 public class PlayerSettingsActivity extends BaseActivity {
     private ActivityPlayerSettingsBinding binding;
