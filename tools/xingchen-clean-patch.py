@@ -53,6 +53,7 @@ def replace_once(path, old, new):
     write(path, c.replace(old, new, 1))
 
 # Set global wallpaper via theme windowBackground (默影视 style - one setting, all pages)
+# Also disable white pill indicator like Moying (itemActiveIndicatorStyle=@null)
 for theme_path in ["app/src/main/res/values/styles.xml", "app/src/mobile/res/values/styles.xml"]:
     p = os.path.join(BASE, theme_path)
     if os.path.exists(p):
@@ -61,7 +62,7 @@ for theme_path in ["app/src/main/res/values/styles.xml", "app/src/mobile/res/val
         # Add windowBackground to Theme.App if not present (was empty, replace did nothing)
         c = c.replace(
             '<style name="Theme.App" parent="Theme.Base" />',
-            '<style name="Theme.App" parent="Theme.Base">\n        <item name="android:windowBackground">@drawable/poster_shanjian</item>\n    </style>'
+            '<style name="Theme.App" parent="Theme.Base">\n        <item name="android:windowBackground">@drawable/poster_shanjian</item>\n        <item name="itemActiveIndicatorStyle">@null</item>\n    </style>'
         )
         # Also replace if it exists in other themes
         c = re.sub(r'<item\s+name="android:windowBackground"[^>]*>.*?</item>', '<item name="android:windowBackground">@drawable/poster_shanjian</item>', c)
