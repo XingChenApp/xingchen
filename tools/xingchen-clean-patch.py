@@ -289,47 +289,118 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:text="主题"
+                android:textColor="#171B23"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="当前为浅色主题"
+                android:textColor="#8A8F98"
+                android:textSize="12sp"
+                android:layout_marginBottom="8dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <Button
+                    android:id="@+id/theme_light"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="浅色" />
+                <Button
+                    android:id="@+id/theme_dark"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="深色" />
+                <Button
+                    android:id="@+id/theme_system"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="跟随系统" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="vertical"
+            android:padding="15dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="壁纸"
                 android:textColor="#171B23"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="12dp" />
-            <LinearLayout
+            <GridLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:columnCount="3"
+                android:rowCount="3">
                 <ImageView
                     android:id="@+id/wp_shanjian"
                     android:layout_width="0dp"
                     android:layout_height="80dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="6dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="4dp"
                     android:background="@drawable/xc_wp_thumb"
                     android:clickable="true"
                     android:focusable="true"
-                    android:foreground="?attr/selectableItemBackground"
                     android:scaleType="centerCrop"
                     android:src="@drawable/poster_shanjian" />
-                <LinearLayout
-                    android:id="@+id/wp_default"
+                <View
+                    android:id="@+id/wp_blue"
                     android:layout_width="0dp"
                     android:layout_height="80dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/xc_wp_thumb"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="4dp"
+                    android:background="#8fb0d1"
                     android:clickable="true"
-                    android:focusable="true"
-                    android:foreground="?attr/selectableItemBackground"
-                    android:gravity="center"
-                    android:orientation="vertical">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="默认"
-                        android:textColor="#171B23"
-                        android:textSize="14sp" />
-                </LinearLayout>
-            </LinearLayout>
+                    android:focusable="true" />
+                <View
+                    android:id="@+id/wp_green"
+                    android:layout_width="0dp"
+                    android:layout_height="80dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="4dp"
+                    android:background="#8fb996"
+                    android:clickable="true"
+                    android:focusable="true" />
+                <View
+                    android:id="@+id/wp_clay"
+                    android:layout_width="0dp"
+                    android:layout_height="80dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="4dp"
+                    android:background="#d29a7c"
+                    android:clickable="true"
+                    android:focusable="true" />
+                <View
+                    android:id="@+id/wp_purple"
+                    android:layout_width="0dp"
+                    android:layout_height="80dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="4dp"
+                    android:background="#b3a6d6"
+                    android:clickable="true"
+                    android:focusable="true" />
+                <View
+                    android:id="@+id/wp_dark"
+                    android:layout_width="0dp"
+                    android:layout_height="80dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="4dp"
+                    android:background="#43484f"
+                    android:clickable="true"
+                    android:focusable="true" />
+            </GridLayout>
         </LinearLayout>
     </LinearLayout>
 </ScrollView>
