@@ -112,9 +112,11 @@ BASE_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/bas
 if os.path.exists(BASE_JAVA):
     bc = read(BASE_JAVA)
     if "poster_shanjian" not in bc:
+        assert "super.onCreate(savedInstanceState);" in bc, "BaseActivity onCreate not found"
         bc = bc.replace(
             "super.onCreate(savedInstanceState);",
             "super.onCreate(savedInstanceState);\n        getWindow().setBackgroundDrawableResource(com.fongmi.android.tv.R.drawable.poster_shanjian);"
         )
+        assert "poster_shanjian" in bc, "BaseActivity patch failed"
         write(BASE_JAVA, bc)
         print("BaseActivity patched")
