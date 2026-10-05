@@ -54,17 +54,11 @@ def replace_once(path, old, new):
 
 # Set global wallpaper via theme windowBackground (默影视 style - one setting, all pages)
 # Also disable white pill indicator like Moying (itemActiveIndicatorStyle=@null)
-# Change DynamicColors parent to regular to kill purple
 for theme_path in ["app/src/main/res/values/styles.xml", "app/src/mobile/res/values/styles.xml"]:
     p = os.path.join(BASE, theme_path)
     if os.path.exists(p):
         c = read(p)
         orig = c
-        # Remove DynamicColors to kill auto purple
-        c = c.replace(
-            'parent="Theme.Material3.DynamicColors.DayNight.NoActionBar"',
-            'parent="Theme.Material3.DayNight.NoActionBar"'
-        )
         # Add windowBackground to Theme.App if not present (was empty, replace did nothing)
         c = c.replace(
             '<style name="Theme.App" parent="Theme.Base" />',
@@ -89,6 +83,7 @@ print("menu_nav patched")
 
 # Remove icon tint so custom line-style icons show correctly
 # Also disable white pill indicator like Moying (app:itemActiveIndicatorStyle="@null")
+# Set ripple color darker and more visible
 p = os.path.join(MOBILE_RES, "layout/activity_home.xml")
 if os.path.exists(p):
     c = read(p)
@@ -97,10 +92,10 @@ if os.path.exists(p):
     if 'app:itemActiveIndicatorStyle' not in c:
         c = c.replace(
             'app:menu="@menu/menu_nav"',
-            'app:menu="@menu/menu_nav"\n        app:itemActiveIndicatorStyle="@null"'
+            'app:menu="@menu/menu_nav"\n        app:itemActiveIndicatorStyle="@null"\n        app:itemRippleColor="#4D000000"'
         )
     write(p, c)
-    print("Patched nav: tint removed, indicator disabled")
+    print("Patched nav: tint removed, indicator disabled, ripple set")
 
 p = os.path.join(MOBILE_RES, "values/strings.xml")
 c = read(p)
