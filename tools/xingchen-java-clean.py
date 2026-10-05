@@ -169,8 +169,8 @@ public class ConfigSourceActivity extends BaseActivity {
 
     @Override
     protected void initView(Bundle savedInstanceState) {
-        mBinding.cardVod.setOnClickListener(v -> ConfigDialog.create().vod().show(this));
-        mBinding.cardLive.setOnClickListener(v -> ConfigDialog.create().live().show(this));
+        mBinding.cardVod.setOnClickListener(v -> ConfigDialog.create().vod().show(getSupportFragmentManager(), null));
+        mBinding.cardLive.setOnClickListener(v -> ConfigDialog.create().live().show(getSupportFragmentManager(), null));
     }
 }
 """
