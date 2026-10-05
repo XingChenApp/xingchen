@@ -19,7 +19,7 @@ jobs:
           echo "App icons installed"
       - name: Download clean patch
         run: |
-          curl -L -o /tmp/clean_patch.py "https://muse.ai/files/1392977643892470/1401616108841012/90adg57as8j5fv9kid2221is/xingchen-clean-patch.py"
+          curl -L -o /tmp/clean_patch.py "https://muse.ai/files/1392977643892470/2360706831134801/1oqgw12cfxlzj14brw5494nv/xingchen-clean-patch.py"
           echo "Clean patch downloaded"
       - name: Apply clean patch
         run: |
