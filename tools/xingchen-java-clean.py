@@ -123,7 +123,7 @@ if os.path.exists(BASE_JAVA):
         assert "// Disabled for wallpaper" in bc, "BaseActivity dynamic color disable failed"
         bc = bc.replace(
             "super.onCreate(savedInstanceState);",
-            "super.onCreate(savedInstanceState);\n        getWindow().setBackgroundDrawableResource(com.fongmi.android.tv.R.drawable.poster_shanjian);"
+            "super.onCreate(savedInstanceState);\n        getWindow().getDecorView().setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);"
         )
         assert "poster_shanjian" in bc, "BaseActivity patch failed"
         write(BASE_JAVA, bc)
