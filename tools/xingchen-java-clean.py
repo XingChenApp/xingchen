@@ -326,34 +326,32 @@ public class PlayerSettingsActivity extends BaseActivity {
         applyWallpaper();
         updateKernelUI();
         updateDecodeUI();
-        updateSpeedUI();
         binding.kernelExo.setOnClickListener(v -> { setKernel("exo"); updateKernelUI(); });
         binding.kernelMpv.setOnClickListener(v -> { setKernel("mpv"); updateKernelUI(); });
+        binding.kernelIjk.setOnClickListener(v -> { setKernel("ijk"); updateKernelUI(); });
         binding.decodeHard.setOnClickListener(v -> { setDecode("hard"); updateDecodeUI(); });
         binding.decodeSoft.setOnClickListener(v -> { setDecode("soft"); updateDecodeUI(); });
-        binding.speed075.setOnClickListener(v -> { setSpeed(0.75f); updateSpeedUI(); });
-        binding.speed100.setOnClickListener(v -> { setSpeed(1.0f); updateSpeedUI(); });
-        binding.speed125.setOnClickListener(v -> { setSpeed(1.25f); updateSpeedUI(); });
-        binding.speed150.setOnClickListener(v -> { setSpeed(1.5f); updateSpeedUI(); });
-        binding.speed200.setOnClickListener(v -> { setSpeed(2.0f); updateSpeedUI(); });
+        binding.switchAutonext.setChecked(getSharedPreferences("xingchen", MODE_PRIVATE).getBoolean("auto_next", true));
+        binding.switchAutonext.setOnCheckedChangeListener((b, c) -> getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("auto_next", c).apply());
+        binding.switchSkip.setChecked(getSharedPreferences("xingchen", MODE_PRIVATE).getBoolean("skip_intro", false));
+        binding.switchSkip.setOnCheckedChangeListener((b, c) -> getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("skip_intro", c).apply());
     }
     private void updateKernelUI() {
         String k = getSharedPreferences("xingchen", MODE_PRIVATE).getString("player_kernel", "exo");
-        binding.kernelExo.setBackgroundResource("exo".equals(k) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
-        binding.kernelMpv.setBackgroundResource("mpv".equals(k) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
+        binding.kernelExo.setBackgroundResource("exo".equals(k) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.kernelMpv.setBackgroundResource("mpv".equals(k) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.kernelIjk.setBackgroundResource("ijk".equals(k) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
     }
     private void updateDecodeUI() {
         String d = getSharedPreferences("xingchen", MODE_PRIVATE).getString("player_decode", "hard");
-        binding.decodeHard.setBackgroundResource("hard".equals(d) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
-        binding.decodeSoft.setBackgroundResource("soft".equals(d) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
+        binding.decodeHard.setBackgroundResource("hard".equals(d) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.decodeSoft.setBackgroundResource("soft".equals(d) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
     }
-    private void updateSpeedUI() {
-        float s = getSharedPreferences("xingchen", MODE_PRIVATE).getFloat("player_speed", 1.0f);
-        binding.speed075.setBackgroundResource(s == 0.75f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
-        binding.speed100.setBackgroundResource(s == 1.0f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
-        binding.speed125.setBackgroundResource(s == 1.25f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
-        binding.speed150.setBackgroundResource(s == 1.5f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
-        binding.speed200.setBackgroundResource(s == 2.0f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : com.fongmi.android.tv.R.drawable.xc_seg_normal);
+    private void setKernel(String k) {
+        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_kernel", k).apply();
+    }
+    private void setDecode(String d) {
+        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_decode", d).apply();
     }
     private void applyWallpaper() {
         android.view.View root = findViewById(android.R.id.content);
@@ -367,18 +365,6 @@ public class PlayerSettingsActivity extends BaseActivity {
                 root.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
             }
         }
-    }
-    private void setKernel(String k) {
-        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_kernel", k).apply();
-        Notify.show("播放器内核: " + k);
-    }
-    private void setDecode(String d) {
-        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_decode", d).apply();
-        Notify.show("解码方式: " + d);
-    }
-    private void setSpeed(float s) {
-        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putFloat("player_speed", s).apply();
-        Notify.show("倍速: " + s + "x");
     }
 }
 """
