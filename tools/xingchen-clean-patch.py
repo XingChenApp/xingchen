@@ -52,27 +52,12 @@ def replace_once(path, old, new):
     assert n == 1, "expected 1, found %d for %s in %s" % (n, old[:40], path)
     write(path, c.replace(old, new, 1))
 
-# Set global wallpaper via theme windowBackground (默影视 style - one setting, all pages)
-# Also disable white pill indicator like Moying (itemActiveIndicatorStyle=@null)
+# Theme patches removed - do not touch theme per user request
+# Wallpaper via BaseActivity code, white pill via layout only
 for theme_path in ["app/src/main/res/values/styles.xml", "app/src/mobile/res/values/styles.xml"]:
     p = os.path.join(BASE, theme_path)
     if os.path.exists(p):
-        c = read(p)
-        orig = c
-        # Add windowBackground to Theme.App if not present (was empty, replace did nothing)
-        c = c.replace(
-            '<style name="Theme.App" parent="Theme.Base" />',
-            '<style name="Theme.App" parent="Theme.Base">\n        <item name="android:windowBackground">@drawable/poster_shanjian</item>\n        <item name="itemActiveIndicatorStyle">@null</item>\n    </style>'
-        )
-        # Also replace if it exists in other themes
-        c = re.sub(r'<item\s+name="android:windowBackground"[^>]*>.*?</item>', '<item name="android:windowBackground">@drawable/poster_shanjian</item>', c)
-        c = re.sub(r'<item\s+name="android:colorBackground"[^>]*>@color/white</item>', '<item name="android:colorBackground">@color/transparent</item>', c)
-        c = re.sub(r'<item\s+name="android:colorBackground"[^>]*>@color/black</item>', '<item name="android:colorBackground">@color/transparent</item>', c)
-        if c != orig:
-            write(p, c)
-            print("Set global wallpaper theme: " + theme_path)
-        else:
-            print("Theme wallpaper pattern not found in " + theme_path + ", skipping")
+        print("Skipping theme patch for " + theme_path)
 
 p = os.path.join(MOBILE_RES, "menu/menu_nav.xml")
 c = read(p)
