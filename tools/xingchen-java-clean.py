@@ -314,9 +314,11 @@ public class UiSettingsActivity extends BaseActivity {
     private void initGlassAlpha() {
         int a = getSharedPreferences("xingchen", MODE_PRIVATE).getInt("glass_alpha", 55);
         binding.glassAlpha.setProgress(a);
+        try { binding.glassAlphaText.setText(a + "%"); } catch (Exception e) {}
         binding.glassAlpha.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
             public void onProgressChanged(android.widget.SeekBar s, int p, boolean f) {
                 getSharedPreferences("xingchen", MODE_PRIVATE).edit().putInt("glass_alpha", p).apply();
+                try { binding.glassAlphaText.setText(p + "%"); } catch (Exception e) {}
             }
             public void onStartTrackingTouch(android.widget.SeekBar s) {}
             public void onStopTrackingTouch(android.widget.SeekBar s) {}
