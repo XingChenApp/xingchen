@@ -647,26 +647,6 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
             </LinearLayout>
         </LinearLayout>
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:background="@drawable/xc_setcard_v2"
-            android:orientation="horizontal"
-            android:padding="15dp"
-            android:gravity="center_vertical">
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="长按倍速" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="播放时长按屏幕快进倍速" android:textColor="#73787F" android:textSize="12sp" />
-            </LinearLayout>
-            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:background="@drawable/xc_seg_container" android:padding="4dp">
-                <TextView android:id="@+id/lp_off" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="关闭" android:textSize="13sp" android:clickable="true" android:focusable="true" />
-                <TextView android:id="@+id/lp_20" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="2.0x" android:textSize="13sp" android:clickable="true" android:focusable="true" />
-                <TextView android:id="@+id/lp_30" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="3.0x" android:textSize="13sp" android:background="@drawable/xc_seg_selected" android:clickable="true" android:focusable="true" />
-                <TextView android:id="@+id/lp_40" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="4.0x" android:textSize="13sp" android:clickable="true" android:focusable="true" />
-                <TextView android:id="@+id/lp_50" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="5.0x" android:textSize="13sp" android:clickable="true" android:focusable="true" />
-            </LinearLayout>
-        </LinearLayout>
-        <LinearLayout
             android:id="@+id/card_danmu"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
