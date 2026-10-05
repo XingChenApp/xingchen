@@ -218,6 +218,14 @@ public class UiSettingsActivity extends BaseActivity {
         binding.wpClay.setOnClickListener(v -> setWallpaperColor("#d29a7c"));
         binding.wpPurple.setOnClickListener(v -> setWallpaperColor("#b3a6d6"));
         binding.wpDark.setOnClickListener(v -> setWallpaperColor("#43484f"));
+        binding.themeLight.setOnClickListener(v -> setTheme("light"));
+        binding.themeDark.setOnClickListener(v -> setTheme("dark"));
+        binding.themeSystem.setOnClickListener(v -> setTheme("system"));
+    }
+    private void setTheme(String theme) {
+        SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
+        sp.edit().putString("theme", theme).apply();
+        com.fongmi.android.tv.utils.Notify.show("主题已切换: " + theme);
     }
     private void setWallpaper(String name) {
         SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
