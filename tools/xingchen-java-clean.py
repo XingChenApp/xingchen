@@ -167,7 +167,6 @@ import android.os.Bundle;
 import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivityConfigSourceBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
-import com.fongmi.android.tv.ui.dialog.ConfigDialog;
 public class ConfigSourceActivity extends BaseActivity {
     private ActivityConfigSourceBinding binding;
     public static void start(Activity activity) {
@@ -181,8 +180,28 @@ public class ConfigSourceActivity extends BaseActivity {
     @Override
     protected void initView(Bundle savedInstanceState) {
         applyWallpaper();
-        binding.cardVod.setOnClickListener(v -> ConfigDialog.create().vod().show(getSupportFragmentManager(), null));
-        binding.cardLive.setOnClickListener(v -> ConfigDialog.create().live().show(getSupportFragmentManager(), null));
+        binding.cardVod.setOnClickListener(v -> showConfigDialog("点播配置", true));
+        binding.cardLive.setOnClickListener(v -> showConfigDialog("直播配置", false));
+    }
+    private void showConfigDialog(String title, boolean isVod) {
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        android.view.View view = getLayoutInflater().inflate(com.fongmi.android.tv.R.layout.dialog_config_source, null);
+        dialog.setContentView(view);
+        android.view.Window w = dialog.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            android.view.WindowManager.LayoutParams p = w.getAttributes();
+            p.width = (int)(getResources().getDisplayMetrics().widthPixels * 0.85);
+            w.setAttributes(p);
+        }
+        android.widget.TextView tvTitle = view.findViewById(com.fongmi.android.tv.R.id.dlg_title);
+        tvTitle.setText(title);
+        view.findViewById(com.fongmi.android.tv.R.id.dlg_close).setOnClickListener(v -> dialog.dismiss());
+        view.findViewById(com.fongmi.android.tv.R.id.dlg_cancel).setOnClickListener(v -> dialog.dismiss());
+        view.findViewById(com.fongmi.android.tv.R.id.dlg_save).setOnClickListener(v -> {
+            dialog.dismiss();
+        });
+        dialog.show();
     }
     private void applyWallpaper() {
         android.view.View root = findViewById(android.R.id.content);
