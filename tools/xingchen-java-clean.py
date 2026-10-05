@@ -181,32 +181,8 @@ public class ConfigSourceActivity extends BaseActivity {
     @Override
     protected void initView(Bundle savedInstanceState) {
         applyWallpaper();
-        binding.cardVod.setOnClickListener(v -> com.fongmi.android.tv.ui.dialog.ConfigDialog.create().vod().show(getSupportFragmentManager(), null));
-        binding.cardLive.setOnClickListener(v -> com.fongmi.android.tv.ui.dialog.ConfigDialog.create().live().show(getSupportFragmentManager(), null));
-    }
-        android.widget.TextView tvTitle = view.findViewById(com.fongmi.android.tv.R.id.dlg_title);
-        tvTitle.setText(title);
-        view.findViewById(com.fongmi.android.tv.R.id.dlg_close).setOnClickListener(v -> dialog.dismiss());
-        view.findViewById(com.fongmi.android.tv.R.id.dlg_cancel).setOnClickListener(v -> dialog.dismiss());
-        view.findViewById(com.fongmi.android.tv.R.id.dlg_save).setOnClickListener(v -> {
-            dialog.dismiss();
-        });
-        dialog.show();
-    } else {
-            for (String item : hist.split("\|")) {
-                if (!item.isEmpty()) {
-                    android.widget.TextView tv = new android.widget.TextView(this);
-                    tv.setText(item);
-                    tv.setPadding(0, 16, 0, 16);
-                    tv.setTextSize(14);
-                    layout.addView(tv);
-                }
-            }
-        }
-        dialog.setContentView(layout);
-        dialog.show();
-    }
-        }
+        binding.cardVod.setOnClickListener(v -> ConfigDialog.create().vod().show(getSupportFragmentManager(), null));
+        binding.cardLive.setOnClickListener(v -> ConfigDialog.create().live().show(getSupportFragmentManager(), null));
     }
     private void applyWallpaper() {
         android.view.View root = findViewById(android.R.id.content);
@@ -255,7 +231,6 @@ import android.os.Bundle;
 import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivityUiSettingsBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
-import com.fongmi.android.tv.ui.dialog.ConfigDialog;
 public class UiSettingsActivity extends BaseActivity {
     private ActivityUiSettingsBinding binding;
     public static void start(Activity activity) {
@@ -274,7 +249,13 @@ public class UiSettingsActivity extends BaseActivity {
         binding.themeLight.setOnClickListener(v -> { setTheme("light"); updateThemeUI(); });
         binding.themeDark.setOnClickListener(v -> { setTheme("dark"); updateThemeUI(); });
         binding.themeSystem.setOnClickListener(v -> { setTheme("system"); updateThemeUI(); });
-        binding.wpShanjian.setOnClickListener(v -> { setWallpaper("shanjian"); });
+        binding.wpDefault.setOnClickListener(v -> { setWallpaper("shanjian"); updateWallpaperUI(); });
+        binding.wpShanjian.setOnClickListener(v -> { setWallpaper("shanjian"); updateWallpaperUI(); });
+        binding.wpBlue.setOnClickListener(v -> { setWallpaperColor("#8fb0d1"); updateWallpaperUI(); });
+        binding.wpGreen.setOnClickListener(v -> { setWallpaperColor("#8fb996"); updateWallpaperUI(); });
+        binding.wpClay.setOnClickListener(v -> { setWallpaperColor("#d29a7c"); updateWallpaperUI(); });
+        binding.wpPurple.setOnClickListener(v -> { setWallpaperColor("#b3a6d6"); updateWallpaperUI(); });
+        binding.wpDark.setOnClickListener(v -> { setWallpaperColor("#43484f"); updateWallpaperUI(); });
         initCoverSize();
         initOrientation();
         initRatio();
@@ -328,11 +309,9 @@ public class UiSettingsActivity extends BaseActivity {
     private void initGlassAlpha() {
         int a = getSharedPreferences("xingchen", MODE_PRIVATE).getInt("glass_alpha", 55);
         binding.glassAlpha.setProgress(a);
-        
         binding.glassAlpha.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
             public void onProgressChanged(android.widget.SeekBar s, int p, boolean f) {
                 getSharedPreferences("xingchen", MODE_PRIVATE).edit().putInt("glass_alpha", p).apply();
-                
             }
             public void onStartTrackingTouch(android.widget.SeekBar s) {}
             public void onStopTrackingTouch(android.widget.SeekBar s) {}
@@ -350,7 +329,10 @@ public class UiSettingsActivity extends BaseActivity {
         binding.themeDark.setBackgroundResource("dark".equals(t) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
         binding.themeSystem.setBackgroundResource("system".equals(t) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
     }
-        }
+    private void updateWallpaperUI() {
+        String wp = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper", "shanjian");
+        String c = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper_color", "");
+        binding.wpDefault.setBackgroundResource("shanjian".equals(wp) && "".equals(c) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
     }
     private void applyWallpaper() {
         android.view.View root = findViewById(android.R.id.content);
@@ -419,7 +401,6 @@ import android.os.Bundle;
 import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivityPlayerSettingsBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
-import com.fongmi.android.tv.ui.dialog.ConfigDialog;
 import com.fongmi.android.tv.utils.Notify;
 public class PlayerSettingsActivity extends BaseActivity {
     private ActivityPlayerSettingsBinding binding;
@@ -453,12 +434,7 @@ public class PlayerSettingsActivity extends BaseActivity {
         binding.speed200.setOnClickListener(v -> { setSpeed(2.0f); updateSpeedUI(); });
         binding.cardDanmu.setOnClickListener(v -> {});
         binding.cardSubtitle.setOnClickListener(v -> {});
-
-
-
-
     }
-
     private void updateSpeedUI() {
         float s = getSharedPreferences("xingchen", MODE_PRIVATE).getFloat("player_speed", 1.0f);
         binding.speed075.setBackgroundResource(s == 0.75f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
@@ -486,8 +462,6 @@ public class PlayerSettingsActivity extends BaseActivity {
     }
     private void setDecode(String d) {
         getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_decode", d).apply();
-    }
-        }
     }
     private void applyWallpaper() {
         android.view.View root = findViewById(android.R.id.content);
