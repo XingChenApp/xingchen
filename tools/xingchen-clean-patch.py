@@ -15,6 +15,12 @@ def write(path, content):
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
 
+# Change applicationId to com.xinhchen.tv
+p = os.path.join(BASE, "app/build.gradle")
+c = read(p)
+c = c.replace('applicationId "com.fongmi.android.tv"', 'applicationId "com.xinhchen.tv"')
+write(p, c)
+
 def replace_once(path, old, new):
     c = read(path)
     n = c.count(old)
