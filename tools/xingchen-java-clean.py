@@ -118,6 +118,10 @@ if os.path.exists(BASE_JAVA):
     if "poster_shanjian" not in bc:
         assert "super.onCreate(savedInstanceState);" in bc, "BaseActivity onCreate not found"
         bc = bc.replace(
+            "enableDynamicColor();",
+            "// enableDynamicColor(); // Disabled for wallpaper"
+        )
+        bc = bc.replace(
             "super.onCreate(savedInstanceState);",
             "super.onCreate(savedInstanceState);\n        getWindow().setBackgroundDrawableResource(com.fongmi.android.tv.R.drawable.poster_shanjian);"
         )
