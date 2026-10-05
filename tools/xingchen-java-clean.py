@@ -259,7 +259,14 @@ public class UiSettingsActivity extends BaseActivity {
     private void setTheme(String theme) {
         SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
         sp.edit().putString("theme", theme).apply();
-        com.fongmi.android.tv.utils.Notify.show("主题已切换: " + theme);
+        if ("dark".equals(theme)) {
+            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES);
+        } else if ("light".equals(theme)) {
+            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO);
+        } else {
+            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        }
+        recreate();
     }
     private void setWallpaper(String name) {
         SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
