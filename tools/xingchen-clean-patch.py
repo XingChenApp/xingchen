@@ -98,31 +98,9 @@ if '@+id/xc_bg_full' not in c:
         c = c[:m.end()] + bg + c[m.end():]
         write(p, c)
 
-# Add wallpaper to Search (FrameLayout root) via ImageView
-p = os.path.join(MOBILE_RES, "layout/activity_search.xml")
-if os.path.exists(p):
-    c = read(p)
-    if '@+id/xc_bg_full' not in c:
-        m = re.search(r'<FrameLayout[^>]*>', c)
-        if m:
-            bg = '\n    <ImageView android:id="@+id/xc_bg_full" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerCrop" android:src="@drawable/poster_shanjian" />'
-            c = c[:m.end()] + bg + c[m.end():]
-            write(p, c)
-            print("Added wallpaper to activity_search.xml")
-
-# Add wallpaper to History and Live (LinearLayout roots) via background attribute
-for layout_name in ["activity_history.xml", "activity_live.xml"]:
-    p = os.path.join(MOBILE_RES, "layout/" + layout_name)
-    if os.path.exists(p):
-        c = read(p)
-        if '@drawable/poster_shanjian' not in c:
-            m = re.search(r'<androidx\.appcompat\.widget\.LinearLayoutCompat[^>]*>', c)
-            if m:
-                old_tag = m.group(0)
-                new_tag = old_tag[:-1] + ' android:background="@drawable/poster_shanjian">'
-                c = c.replace(old_tag, new_tag, 1)
-                write(p, c)
-                print("Set wallpaper background on " + layout_name)
+# Wallpaper is set via BaseActivity code (setBackgroundResource on android.R.id.content)
+# No XML changes needed - keeps it dynamic for future user wallpaper switching
+# (Previous XML ImageView/background attempts removed to avoid hardcoding)
 
 p = os.path.join(MOBILE_RES, "color/selector_nav.xml")
 c = read(p)
@@ -193,9 +171,3 @@ c = c.replace(old_base, new_base, 1)
 write(p, c)
 
 print("xingchen-clean-patch: all done")
-
-# Create activity_config_source.xml - TEMP DISABLED (was causing build failures)
-# (layouts commented out for debugging)
-
-# Create activity_ui_settings.xml - TEMP DISABLED (was causing build failures)
-# (layouts commented out for debugging)
