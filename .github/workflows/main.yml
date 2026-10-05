@@ -33,7 +33,7 @@ jobs:
         run: |
           cp "$GITHUB_WORKSPACE/repo-tools/tools/xingchen-settings-write.py" /tmp/settings_write.py
           cp "$GITHUB_WORKSPACE/repo-tools/tools/xingchen-java-clean.py" /tmp/java_clean.py
-          cp "$GITHUB_WORKSPACE/repo-tools/tools/poster_shanjian_blur.jpg" /tmp/webhtv-src/app/src/mobile/res/drawable/poster_shanjian.jpg
+          cp "$GITHUB_WORKSPACE/repo-tools/tools/poster_shanjian.jpg" /tmp/webhtv-src/app/src/mobile/res/drawable/poster_shanjian.jpg
           python3 /tmp/settings_write.py
           python3 /tmp/java_clean.py
           echo "Settings redesign applied"
