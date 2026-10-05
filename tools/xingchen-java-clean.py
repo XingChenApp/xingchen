@@ -105,7 +105,7 @@ if os.path.exists(HOME_JAVA):
             assert "mBinding.navigation.setOnItemSelectedListener(this);" in hc, "HomeActivity listener not found"
             hc = hc.replace(
                 "mBinding.navigation.setOnItemSelectedListener(this);",
-                "mBinding.navigation.setOnItemSelectedListener(this);\\n        { android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable(); gd.setColor(0x57FFFFFF); gd.setStroke((int)(1 * getResources().getDisplayMetrics().density), 0x61FFFFFF); gd.setCornerRadius(10 * getResources().getDisplayMetrics().density); mBinding.navigation.setBackground(gd); mBinding.navigation.setItemActiveIndicatorColor(android.content.res.ColorStateList.valueOf(0x00000000)); }"
+                "mBinding.navigation.setOnItemSelectedListener(this);\\n        { android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable(); gd.setColor(0x57FFFFFF); gd.setStroke((int)(1 * getResources().getDisplayMetrics().density), 0x61FFFFFF); gd.setCornerRadius(10 * getResources().getDisplayMetrics().density); mBinding.navigation.setBackground(gd); }"
             )
             assert "GradientDrawable" in hc, "HomeActivity background patch failed"
         print("HomeActivity patched")
