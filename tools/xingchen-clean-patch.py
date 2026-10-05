@@ -1,6 +1,7 @@
 import os
 import glob
 import shutil
+import re
 
 BASE = "/tmp/webhtv-src"
 MOBILE_RES = os.path.join(BASE, "app/src/mobile/res")
@@ -57,7 +58,7 @@ for theme_path in ["app/src/main/res/values/styles.xml", "app/src/mobile/res/val
     if os.path.exists(p):
         c = read(p)
         orig = c
-        c = c.replace('<item name="android:colorBackground">@color/white</item>', '<item name="android:colorBackground">@color/transparent</item>')
+        c = re.sub(r'<item\s+name="android:colorBackground"[^>]*>@color/white</item>', '<item name="android:colorBackground">@color/transparent</item>', c)
         if c != orig:
             write(p, c)
             print("Deleted default background: " + theme_path)
