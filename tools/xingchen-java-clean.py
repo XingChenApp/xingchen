@@ -123,7 +123,7 @@ if os.path.exists(BASE_JAVA):
         assert "// Disabled for wallpaper" in bc, "BaseActivity dynamic color disable failed"
         bc = bc.replace(
             "super.onCreate(savedInstanceState);",
-            "super.onCreate(savedInstanceState);\n        { getWindow().setStatusBarColor(0x00000000); android.view.ViewGroup xc_decor = (android.view.ViewGroup) getWindow().getDecorView(); xc_decor.post(() -> { getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN); android.view.View xc_content = findViewById(android.R.id.content); if (xc_content != null) { xc_content.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian); } }); }"
+            "super.onCreate(savedInstanceState);\n        { getWindow().setStatusBarColor(0x00000000); android.view.ViewGroup xc_decor = (android.view.ViewGroup) getWindow().getDecorView(); xc_decor.post(() -> { getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN); android.view.View xc_content = findViewById(android.R.id.content); if (xc_content != null) { String xc_wp = getSharedPreferences(\"xingchen\", MODE_PRIVATE).getString(\"wallpaper\", \"shanjian\"); int xc_res = com.fongmi.android.tv.R.drawable.poster_shanjian; xc_content.setBackgroundResource(xc_res); } }); }"
         )
         assert "xc_content" in bc, "BaseActivity patch failed"
         write(BASE_JAVA, bc)
@@ -149,30 +149,28 @@ config_java_content = """package com.fongmi.android.tv.ui.activity;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
 
-import androidx.viewbinding.ViewBinding;
-
-import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.databinding.ActivityConfigSourceBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.ConfigDialog;
 
 public class ConfigSourceActivity extends BaseActivity {
+
+    private ActivityConfigSourceBinding mBinding;
 
     public static void start(Activity activity) {
         activity.startActivity(new Intent(activity, ConfigSourceActivity.class));
     }
 
     @Override
-    protected ViewBinding getBinding() {
-        return null;
+    protected androidx.viewbinding.ViewBinding getBinding() {
+        return mBinding = ActivityConfigSourceBinding.inflate(getLayoutInflater());
     }
 
     @Override
     protected void initView(Bundle savedInstanceState) {
-        setContentView(R.layout.activity_config_source);
-        findViewById(R.id.card_vod).setOnClickListener(v -> ConfigDialog.create().vod().show(this));
-        findViewById(R.id.card_live).setOnClickListener(v -> ConfigDialog.create().live().show(this));
+        mBinding.cardVod.setOnClickListener(v -> ConfigDialog.create().vod().show(this));
+        mBinding.cardLive.setOnClickListener(v -> ConfigDialog.create().live().show(this));
     }
 }
 """
@@ -188,29 +186,26 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 
-import androidx.viewbinding.ViewBinding;
-
-import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.databinding.ActivityUiSettingsBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 
 public class UiSettingsActivity extends BaseActivity {
+
+    private ActivityUiSettingsBinding mBinding;
 
     public static void start(Activity activity) {
         activity.startActivity(new Intent(activity, UiSettingsActivity.class));
     }
 
     @Override
-    protected ViewBinding getBinding() {
-        return null;
+    protected androidx.viewbinding.ViewBinding getBinding() {
+        return mBinding = ActivityUiSettingsBinding.inflate(getLayoutInflater());
     }
 
     @Override
     protected void initView(Bundle savedInstanceState) {
-        setContentView(R.layout.activity_ui_settings);
-        // Wallpaper picker
-        findViewById(R.id.wp_default).setOnClickListener(v -> setWallpaper("default"));
-        findViewById(R.id.wp_shanjian).setOnClickListener(v -> setWallpaper("shanjian"));
-        // TODO: Add more wallpaper options
+        mBinding.wpDefault.setOnClickListener(v -> setWallpaper("default"));
+        mBinding.wpShanjian.setOnClickListener(v -> setWallpaper("shanjian"));
     }
 
     private void setWallpaper(String name) {
