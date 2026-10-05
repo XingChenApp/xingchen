@@ -441,6 +441,14 @@ seg_normal = '''<?xml version="1.0" encoding="utf-8"?>
 '''
 write(os.path.join(MOBILE_RES, "drawable/xc_seg_normal.xml"), seg_normal)
 
+seg_container = '''<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="20dp" />
+    <solid android:color="#FFFFFF" />
+</shape>
+'''
+write(os.path.join(MOBILE_RES, "drawable/xc_seg_container.xml"), seg_container)
+
 player_layout = '''<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -467,28 +475,36 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             android:background="@drawable/xc_setcard_v2"
-            android:orientation="vertical"
-            android:padding="15dp">
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="播放器内核"
-                android:textColor="#171B23"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="切换视频解码播放核心"
-                android:textColor="#8A8F98"
-                android:textSize="12sp"
-                android:layout_marginBottom="8dp" />
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical">
             <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
-                <Button android:id="@+id/kernel_exo" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="ExoPlayer" android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
-                <Button android:id="@+id/kernel_mpv" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="mpv" android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="播放器内核"
+                    android:textColor="#171B23"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="切换视频解码播放核心，切换后立即生效"
+                    android:textColor="#8A8F98"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@drawable/xc_seg_container">
+                <TextView android:id="@+id/kernel_exo" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="ExoPlayer" android:textSize="14sp" android:background="@drawable/xc_seg_selected" />
+                <TextView android:id="@+id/kernel_mpv" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="mpv" android:textSize="14sp" />
+                <TextView android:id="@+id/kernel_ijk" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="ijk" android:textSize="14sp" />
             </LinearLayout>
         </LinearLayout>
         <LinearLayout
@@ -496,48 +512,100 @@ player_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             android:background="@drawable/xc_setcard_v2"
-            android:orientation="vertical"
-            android:padding="15dp">
-            <TextView
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="解码方式"
+                    android:textColor="#171B23"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="硬解兼容性更好，软解画质更稳"
+                    android:textColor="#8A8F98"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="解码方式"
-                android:textColor="#171B23"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-                <Button android:id="@+id/decode_hard" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="硬解"  android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
-                <Button android:id="@+id/decode_soft" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="软解"  android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
+                android:orientation="horizontal"
+                android:background="@drawable/xc_seg_container">
+                <TextView android:id="@+id/decode_hard" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="硬解" android:textSize="14sp" android:background="@drawable/xc_seg_selected" />
+                <TextView android:id="@+id/decode_soft" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="软解" android:textSize="14sp" />
             </LinearLayout>
         </LinearLayout>
         <LinearLayout
+            android:id="@+id/card_autonext"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             android:background="@drawable/xc_setcard_v2"
-            android:orientation="vertical"
-            android:padding="15dp">
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="默认倍速"
-                android:textColor="#171B23"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="8dp" />
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true">
             <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
-                <Button android:id="@+id/speed_075" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="0.75x"  android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
-                <Button android:id="@+id/speed_100" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="1.0x"  android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
-                <Button android:id="@+id/speed_125" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="1.25x"  android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
-                <Button android:id="@+id/speed_150" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="1.5x"  android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
-                <Button android:id="@+id/speed_200" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="2.0x"  android:background="@drawable/xc_seg_normal" android:textColor="#171B23" />
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="自动连播"
+                    android:textColor="#171B23"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="本集播完自动播放下一集"
+                    android:textColor="#8A8F98"
+                    android:textSize="12sp" />
             </LinearLayout>
+            <Switch android:id="@+id/switch_autonext" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/card_skip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="跳过片头片尾"
+                    android:textColor="#171B23"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="自动跳过已标记的片头与片尾片段"
+                    android:textColor="#8A8F98"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <Switch android:id="@+id/switch_skip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="false" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>
