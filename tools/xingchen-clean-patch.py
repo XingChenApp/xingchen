@@ -122,7 +122,8 @@ p = os.path.join(MOBILE_RES, "values/styles.xml")
 c = read(p)
 old_base = '<style name="Theme.Base" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">'
 assert c.count(old_base) == 1
-# windowBackground not used; background via ImageView instead
+new_base = old_base + '\n        <item name="android:windowBackground">@drawable/poster_shanjian</item>'
+c = c.replace(old_base, new_base, 1)
 write(p, c)
 
 print("xingchen-clean-patch: all done")
