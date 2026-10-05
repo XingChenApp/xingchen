@@ -113,3 +113,14 @@ if os.path.exists(HOME_JAVA):
                 'if (item.getItemId() == R.id.live) return openLive();\n        if (item.getItemId() == R.id.reading) { com.fongmi.android.tv.utils.Notify.show("Reading"); return true; }'
             )
         print("HomeActivity patched")
+
+BASE_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/base/BaseActivity.java")
+if os.path.exists(BASE_JAVA):
+    bc = read(BASE_JAVA)
+    if "poster_shanjian" not in bc:
+        bc = bc.replace(
+            "super.onCreate(savedInstanceState);",
+            "super.onCreate(savedInstanceState);\n        getWindow().setBackgroundDrawableResource(com.fongmi.android.tv.R.drawable.poster_shanjian);"
+        )
+        write(BASE_JAVA, bc)
+        print("BaseActivity patched")
