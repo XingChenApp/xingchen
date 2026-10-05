@@ -82,13 +82,19 @@ write(p, c)
 print("menu_nav patched")
 
 # Remove icon tint so custom line-style icons show correctly
+# Also disable white pill indicator like Moying (app:itemActiveIndicatorStyle="@null")
 p = os.path.join(MOBILE_RES, "layout/activity_home.xml")
 if os.path.exists(p):
     c = read(p)
     if 'app:itemIconTint' in c:
         c = re.sub(r'app:itemIconTint="[^"]*"', 'app:itemIconTint="@null"', c)
-        write(p, c)
-        print("Removed nav icon tint")
+    if 'app:itemActiveIndicatorStyle' not in c:
+        c = c.replace(
+            'app:menu="@menu/menu_nav"',
+            'app:menu="@menu/menu_nav"\n        app:itemActiveIndicatorStyle="@null"'
+        )
+    write(p, c)
+    print("Patched nav: tint removed, indicator disabled")
 
 p = os.path.join(MOBILE_RES, "values/strings.xml")
 c = read(p)
