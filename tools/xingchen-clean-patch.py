@@ -52,20 +52,20 @@ def replace_once(path, old, new):
     assert n == 1, "expected 1, found %d for %s in %s" % (n, old[:40], path)
     write(path, c.replace(old, new, 1))
 
-# Delete default purple background - make theme backgrounds transparent so wallpaper shows
+# Set global wallpaper via theme windowBackground (默影视 style - one setting, all pages)
 for theme_path in ["app/src/main/res/values/styles.xml", "app/src/mobile/res/values/styles.xml"]:
     p = os.path.join(BASE, theme_path)
     if os.path.exists(p):
         c = read(p)
         orig = c
+        c = re.sub(r'<item\s+name="android:windowBackground"[^>]*>.*?</item>', '<item name="android:windowBackground">@drawable/poster_shanjian</item>', c)
         c = re.sub(r'<item\s+name="android:colorBackground"[^>]*>@color/white</item>', '<item name="android:colorBackground">@color/transparent</item>', c)
         c = re.sub(r'<item\s+name="android:colorBackground"[^>]*>@color/black</item>', '<item name="android:colorBackground">@color/transparent</item>', c)
-        c = re.sub(r'<item\s+name="colorSurface"[^>]*>@color/white</item>', '<item name="colorSurface">@color/transparent</item>', c)
         if c != orig:
             write(p, c)
-            print("Deleted default background: " + theme_path)
+            print("Set global wallpaper theme: " + theme_path)
         else:
-            print("Theme background pattern not found in " + theme_path + ", skipping")
+            print("Theme wallpaper pattern not found in " + theme_path + ", skipping")
 
 p = os.path.join(MOBILE_RES, "menu/menu_nav.xml")
 c = read(p)
