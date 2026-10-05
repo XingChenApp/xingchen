@@ -453,20 +453,10 @@ public class PlayerSettingsActivity extends BaseActivity {
         binding.speed200.setOnClickListener(v -> { setSpeed(2.0f); updateSpeedUI(); });
         binding.cardDanmu.setOnClickListener(v -> {});
         binding.cardSubtitle.setOnClickListener(v -> {});
-        updateLpUI();
-        binding.lpOff.setOnClickListener(v -> { setPref("lp_speed", "off"); updateLpUI(); });
-        binding.lp20.setOnClickListener(v -> { setPref("lp_speed", "2.0x"); updateLpUI(); });
-        binding.lp30.setOnClickListener(v -> { setPref("lp_speed", "3.0x"); updateLpUI(); });
-        binding.lp40.setOnClickListener(v -> { setPref("lp_speed", "4.0x"); updateLpUI(); });
-        binding.lp50.setOnClickListener(v -> { setPref("lp_speed", "5.0x"); updateLpUI(); });
-    }
-    private void updateLpUI() {
-        String s = getSharedPreferences("xingchen", MODE_PRIVATE).getString("lp_speed", "3.0x");
-        binding.lpOff.setBackgroundResource("off".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.lp20.setBackgroundResource("2.0x".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.lp30.setBackgroundResource("3.0x".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.lp40.setBackgroundResource("4.0x".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.lp50.setBackgroundResource("5.0x".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+
+
+
+
     }
 
     private void updateSpeedUI() {
