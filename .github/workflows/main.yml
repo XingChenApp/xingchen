@@ -50,9 +50,10 @@ jobs:
               import shutil
               shutil.copy('$GITHUB_WORKSPACE/repo-tools/tools/poster_shanjian_blur.jpg', dst)
           "
-          for icon in ic_nav_home ic_nav_live ic_nav_reading ic_nav_setting; do
+          for icon in ic_nav_live ic_nav_reading ic_nav_setting; do
             cp "$GITHUB_WORKSPACE/repo-tools/tools/drawable/${icon}.xml" /tmp/webhtv-src/app/src/mobile/res/drawable/${icon}.xml
           done
+          cp "$GITHUB_WORKSPACE/repo-tools/tools/drawable/ic_nav_home.xml" /tmp/webhtv-src/app/src/mobile/res/drawable/ic_nav_vod.xml
           python3 /tmp/settings_write.py
           python3 /tmp/java_clean.py
           echo "Settings redesign applied"
