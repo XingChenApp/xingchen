@@ -33,7 +33,26 @@ jobs:
         run: |
           cp "$GITHUB_WORKSPACE/repo-tools/tools/xingchen-settings-write.py" /tmp/settings_write.py
           cp "$GITHUB_WORKSPACE/repo-tools/tools/xingchen-java-clean.py" /tmp/java_clean.py
-          cp "$GITHUB_WORKSPACE/repo-tools/tools/poster_shanjian_blur.jpg" /tmp/webhtv-src/app/src/mobile/res/drawable/poster_shanjian.jpg
+          # Auto-blur wallpaper during build
+          pip install Pillow -q
+          python3 -c "
+          from PIL import Image, ImageFilter
+          import sys
+          src = '$GITHUB_WORKSPACE/repo-tools/tools/poster_shanjian.jpg'
+          dst = '/tmp/webhtv-src/app/src/mobile/res/drawable/poster_shanjian.jpg'
+          try:
+              img = Image.open(src)
+              blurred = img.filter(ImageFilter.GaussianBlur(radius=25))
+              blurred.save(dst, 'JPEG', quality=85)
+              print('Wallpaper blurred')
+          except Exception as e:
+              print(f'Blur failed: {e}, using pre-blurred')
+              import shutil
+              shutil.copy('$GITHUB_WORKSPACE/repo-tools/tools/poster_shanjian_blur.jpg', dst)
+          "
+          for icon in ic_nav_home ic_nav_live ic_nav_reading ic_nav_setting; do
+            cp "$GITHUB_WORKSPACE/repo-tools/tools/drawable/${icon}.xml" /tmp/webhtv-src/app/src/mobile/res/drawable/${icon}.xml
+          done
           python3 /tmp/settings_write.py
           python3 /tmp/java_clean.py
           echo "Settings redesign applied"
