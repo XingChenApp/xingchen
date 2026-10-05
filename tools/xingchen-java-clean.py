@@ -106,12 +106,6 @@ if os.path.exists(HOME_JAVA):
                 "mBinding.navigation.setOnItemSelectedListener(this);",
                 "mBinding.navigation.setOnItemSelectedListener(this);\\n        { android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable(); gd.setColor(0x57FFFFFF); gd.setStroke((int)(1 * getResources().getDisplayMetrics().density), 0x61FFFFFF); gd.setCornerRadius(10 * getResources().getDisplayMetrics().density); mBinding.navigation.setBackground(gd); mBinding.navigation.setItemActiveIndicatorEnabled(false); }"
             )
-        # Handle reading tab (placeholder)
-        if "R.id.reading" not in hc:
-            hc = hc.replace(
-                "if (item.getItemId() == R.id.live) return openLive();",
-                'if (item.getItemId() == R.id.live) return openLive();\n        if (item.getItemId() == R.id.reading) { com.fongmi.android.tv.utils.Notify.show("Reading"); return true; }'
-            )
         print("HomeActivity patched")
 
 BASE_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/base/BaseActivity.java")
