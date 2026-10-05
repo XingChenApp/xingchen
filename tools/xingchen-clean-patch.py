@@ -58,6 +58,12 @@ for theme_path in ["app/src/main/res/values/styles.xml", "app/src/mobile/res/val
     if os.path.exists(p):
         c = read(p)
         orig = c
+        # Add windowBackground to Theme.App if not present (was empty, replace did nothing)
+        c = c.replace(
+            '<style name="Theme.App" parent="Theme.Base" />',
+            '<style name="Theme.App" parent="Theme.Base">\n        <item name="android:windowBackground">@drawable/poster_shanjian</item>\n    </style>'
+        )
+        # Also replace if it exists in other themes
         c = re.sub(r'<item\s+name="android:windowBackground"[^>]*>.*?</item>', '<item name="android:windowBackground">@drawable/poster_shanjian</item>', c)
         c = re.sub(r'<item\s+name="android:colorBackground"[^>]*>@color/white</item>', '<item name="android:colorBackground">@color/transparent</item>', c)
         c = re.sub(r'<item\s+name="android:colorBackground"[^>]*>@color/black</item>', '<item name="android:colorBackground">@color/transparent</item>', c)
