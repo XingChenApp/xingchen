@@ -256,6 +256,72 @@ public class UiSettingsActivity extends BaseActivity {
         binding.wpClay.setOnClickListener(v -> { setWallpaperColor("#d29a7c"); updateWallpaperUI(); });
         binding.wpPurple.setOnClickListener(v -> { setWallpaperColor("#b3a6d6"); updateWallpaperUI(); });
         binding.wpDark.setOnClickListener(v -> { setWallpaperColor("#43484f"); updateWallpaperUI(); });
+        initCoverSize();
+        initOrientation();
+        initRatio();
+        initUiStyle();
+        initGlassAlpha();
+    }
+    private void initCoverSize() {
+        updateCoverSizeUI();
+        binding.coverSmall.setOnClickListener(v -> { setPref("cover_size", "small"); updateCoverSizeUI(); });
+        binding.coverMedium.setOnClickListener(v -> { setPref("cover_size", "medium"); updateCoverSizeUI(); });
+        binding.coverLarge.setOnClickListener(v -> { setPref("cover_size", "large"); updateCoverSizeUI(); });
+    }
+    private void updateCoverSizeUI() {
+        String s = getPref("cover_size", "medium");
+        binding.coverSmall.setBackgroundResource("small".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.coverMedium.setBackgroundResource("medium".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.coverLarge.setBackgroundResource("large".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+    }
+    private void initOrientation() {
+        updateOrientationUI();
+        binding.orientPortrait.setOnClickListener(v -> { setPref("cover_orient", "portrait"); updateOrientationUI(); });
+        binding.orientLandscape.setOnClickListener(v -> { setPref("cover_orient", "landscape"); updateOrientationUI(); });
+    }
+    private void updateOrientationUI() {
+        String s = getPref("cover_orient", "portrait");
+        binding.orientPortrait.setBackgroundResource("portrait".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.orientLandscape.setBackgroundResource("landscape".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+    }
+    private void initRatio() {
+        updateRatioUI();
+        binding.ratio23.setOnClickListener(v -> { setPref("cover_ratio", "2:3"); updateRatioUI(); });
+        binding.ratio34.setOnClickListener(v -> { setPref("cover_ratio", "3:4"); updateRatioUI(); });
+        binding.ratio916.setOnClickListener(v -> { setPref("cover_ratio", "9:16"); updateRatioUI(); });
+    }
+    private void updateRatioUI() {
+        String s = getPref("cover_ratio", "2:3");
+        binding.ratio23.setBackgroundResource("2:3".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.ratio34.setBackgroundResource("3:4".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.ratio916.setBackgroundResource("9:16".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+    }
+    private void initUiStyle() {
+        updateUiStyleUI();
+        binding.styleNormal.setOnClickListener(v -> { setPref("ui_style", "normal"); updateUiStyleUI(); });
+        binding.styleGlass.setOnClickListener(v -> { setPref("ui_style", "glass"); updateUiStyleUI(); });
+    }
+    private void updateUiStyleUI() {
+        String s = getPref("ui_style", "glass");
+        binding.styleNormal.setBackgroundResource("normal".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.styleGlass.setBackgroundResource("glass".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+    }
+    private void initGlassAlpha() {
+        int a = getSharedPreferences("xingchen", MODE_PRIVATE).getInt("glass_alpha", 55);
+        binding.glassAlpha.setProgress(a);
+        binding.glassAlpha.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            public void onProgressChanged(android.widget.SeekBar s, int p, boolean f) {
+                getSharedPreferences("xingchen", MODE_PRIVATE).edit().putInt("glass_alpha", p).apply();
+            }
+            public void onStartTrackingTouch(android.widget.SeekBar s) {}
+            public void onStopTrackingTouch(android.widget.SeekBar s) {}
+        });
+    }
+    private String getPref(String k, String d) {
+        return getSharedPreferences("xingchen", MODE_PRIVATE).getString(k, d);
+    }
+    private void setPref(String k, String v) {
+        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString(k, v).apply();
     }
     private void updateThemeUI() {
         String t = getSharedPreferences("xingchen", MODE_PRIVATE).getString("theme", "light");
