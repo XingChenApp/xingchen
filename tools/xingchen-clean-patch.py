@@ -54,11 +54,17 @@ def replace_once(path, old, new):
 
 # Set global wallpaper via theme windowBackground (默影视 style - one setting, all pages)
 # Also disable white pill indicator like Moying (itemActiveIndicatorStyle=@null)
+# Change DynamicColors parent to regular to kill purple
 for theme_path in ["app/src/main/res/values/styles.xml", "app/src/mobile/res/values/styles.xml"]:
     p = os.path.join(BASE, theme_path)
     if os.path.exists(p):
         c = read(p)
         orig = c
+        # Remove DynamicColors to kill auto purple
+        c = c.replace(
+            'parent="Theme.Material3.DynamicColors.DayNight.NoActionBar"',
+            'parent="Theme.Material3.DayNight.NoActionBar"'
+        )
         # Add windowBackground to Theme.App if not present (was empty, replace did nothing)
         c = c.replace(
             '<style name="Theme.App" parent="Theme.Base" />',
