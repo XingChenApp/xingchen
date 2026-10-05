@@ -315,25 +315,49 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
                 android:textColor="#171B23"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:layout_marginBottom="8dp" />
+                android:layout_marginBottom="4dp" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="当前：默认壁纸，选预置壁纸"
+                android:textColor="#8A8F98"
+                android:textSize="12sp"
+                android:layout_marginBottom="12dp" />
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
-                <Button
+                <LinearLayout
                     android:id="@+id/wp_default"
                     android:layout_width="0dp"
-                    android:layout_height="60dp"
+                    android:layout_height="80dp"
                     android:layout_weight="1"
-                    android:layout_marginEnd="4dp"
-                    android:text="默认" />
-                <Button
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/xc_wp_thumb"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="默认"
+                        android:textColor="#171B23"
+                        android:textSize="14sp" />
+                </LinearLayout>
+                <ImageView
                     android:id="@+id/wp_shanjian"
                     android:layout_width="0dp"
-                    android:layout_height="60dp"
+                    android:layout_height="80dp"
                     android:layout_weight="1"
-                    android:layout_marginStart="4dp"
-                    android:text="山间" />
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/xc_wp_thumb"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/poster_shanjian" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
@@ -342,3 +366,14 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
 p = os.path.join(MOBILE_RES, "layout/activity_ui_settings.xml")
 write(p, ui_layout)
 print("Created activity_ui_settings.xml")
+
+# Create wallpaper thumbnail background drawable
+wp_thumb = '''<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="12dp" />
+    <stroke android:width="2dp" android:color="#E0E0E0" />
+</shape>
+'''
+p = os.path.join(MOBILE_RES, "drawable/xc_wp_thumb.xml")
+write(p, wp_thumb)
+print("Created xc_wp_thumb.xml")
