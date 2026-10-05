@@ -339,68 +339,77 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="12dp" />
-            <GridLayout
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:columnCount="3"
-                android:rowCount="3">
-                <ImageView
-                    android:id="@+id/wp_shanjian"
-                    android:layout_width="0dp"
-                    android:layout_height="80dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="@drawable/xc_wp_thumb"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:scaleType="centerCrop"
-                    android:src="@drawable/poster_shanjian" />
-                <View
-                    android:id="@+id/wp_blue"
-                    android:layout_width="0dp"
-                    android:layout_height="80dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="#8fb0d1"
-                    android:clickable="true"
-                    android:focusable="true" />
-                <View
-                    android:id="@+id/wp_green"
-                    android:layout_width="0dp"
-                    android:layout_height="80dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="#8fb996"
-                    android:clickable="true"
-                    android:focusable="true" />
-                <View
-                    android:id="@+id/wp_clay"
-                    android:layout_width="0dp"
-                    android:layout_height="80dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="#d29a7c"
-                    android:clickable="true"
-                    android:focusable="true" />
-                <View
-                    android:id="@+id/wp_purple"
-                    android:layout_width="0dp"
-                    android:layout_height="80dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="#b3a6d6"
-                    android:clickable="true"
-                    android:focusable="true" />
-                <View
-                    android:id="@+id/wp_dark"
-                    android:layout_width="0dp"
-                    android:layout_height="80dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    android:background="#43484f"
-                    android:clickable="true"
-                    android:focusable="true" />
-            </GridLayout>
+                android:orientation="vertical">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <ImageView
+                        android:id="@+id/wp_shanjian"
+                        android:layout_width="0dp"
+                        android:layout_height="80dp"
+                        android:layout_weight="1"
+                        android:layout_margin="4dp"
+                        android:background="@drawable/xc_wp_thumb"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/poster_shanjian" />
+                    <View
+                        android:id="@+id/wp_blue"
+                        android:layout_width="0dp"
+                        android:layout_height="80dp"
+                        android:layout_weight="1"
+                        android:layout_margin="4dp"
+                        android:background="#8fb0d1"
+                        android:clickable="true"
+                        android:focusable="true" />
+                    <View
+                        android:id="@+id/wp_green"
+                        android:layout_width="0dp"
+                        android:layout_height="80dp"
+                        android:layout_weight="1"
+                        android:layout_margin="4dp"
+                        android:background="#8fb996"
+                        android:clickable="true"
+                        android:focusable="true" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <View
+                        android:id="@+id/wp_clay"
+                        android:layout_width="0dp"
+                        android:layout_height="80dp"
+                        android:layout_weight="1"
+                        android:layout_margin="4dp"
+                        android:background="#d29a7c"
+                        android:clickable="true"
+                        android:focusable="true" />
+                    <View
+                        android:id="@+id/wp_purple"
+                        android:layout_width="0dp"
+                        android:layout_height="80dp"
+                        android:layout_weight="1"
+                        android:layout_margin="4dp"
+                        android:background="#b3a6d6"
+                        android:clickable="true"
+                        android:focusable="true" />
+                    <View
+                        android:id="@+id/wp_dark"
+                        android:layout_width="0dp"
+                        android:layout_height="80dp"
+                        android:layout_weight="1"
+                        android:layout_margin="4dp"
+                        android:background="#43484f"
+                        android:clickable="true"
+                        android:focusable="true" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </ScrollView>
