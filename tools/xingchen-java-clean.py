@@ -141,3 +141,52 @@ if os.path.exists(BASE_FRAG):
         assert "setBackgroundColor(0x00000000)" in fc, "BaseFragment patch failed"
         write(BASE_FRAG, fc)
         print("BaseFragment patched")
+
+CONFIG_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/ConfigSourceActivity.java")
+config_code = """package com.fongmi.android.tv.ui.activity;
+import android.app.Activity;
+import android.content.Intent;
+import android.os.Bundle;
+import androidx.viewbinding.ViewBinding;
+import com.fongmi.android.tv.databinding.ActivityConfigSourceBinding;
+import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.ui.dialog.ConfigDialog;
+public class ConfigSourceActivity extends BaseActivity {
+    private ActivityConfigSourceBinding binding;
+    public static void start(Activity activity) {
+        activity.startActivity(new Intent(activity, ConfigSourceActivity.class));
+    }
+    @Override
+    protected ViewBinding getBinding() {
+        binding = ActivityConfigSourceBinding.inflate(getLayoutInflater());
+        return binding;
+    }
+    @Override
+    protected void initView(Bundle savedInstanceState) {
+        binding.cardVod.setOnClickListener(v -> ConfigDialog.create().vod().show(getSupportFragmentManager(), null));
+        binding.cardLive.setOnClickListener(v -> ConfigDialog.create().live().show(getSupportFragmentManager(), null));
+    }
+}
+"""
+write(CONFIG_JAVA, config_code)
+print("ConfigSourceActivity created")
+
+MANIFEST = os.path.join(BASE, "app/src/mobile/AndroidManifest.xml")
+mc = read(MANIFEST)
+if "ConfigSourceActivity" not in mc:
+    mc = mc.replace(
+        '<activity\n            android:name=".ui.activity.HistoryActivity"',
+        '<activity\n            android:name=".ui.activity.ConfigSourceActivity"\n            android:configChanges="screenSize|smallestScreenSize|screenLayout"\n            android:screenOrientation="fullUser" />\n\n        <activity\n            android:name=".ui.activity.HistoryActivity"'
+    )
+    write(MANIFEST, mc)
+    print("Manifest updated")
+
+SF = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/fragment/SettingFragment.java")
+sc = read(SF)
+if "ConfigSourceActivity.start" not in sc:
+    sc = sc.replace(
+        "mBinding.cardConfig.setOnClickListener(v -> onVod(v));",
+        "mBinding.cardConfig.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.ConfigSourceActivity.start(getActivity()));"
+    )
+    write(SF, sc)
+    print("SettingFragment updated")
