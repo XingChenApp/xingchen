@@ -377,10 +377,7 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:padding="15dp">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="毛玻璃透明度" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" />
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="越往右越通透" android:textColor="#73787F" android:textSize="12sp" android:layout_marginBottom="8dp" />
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-                <SeekBar android:id="@+id/glass_alpha" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:max="100" android:progress="55" />
-                <TextView android:id="@+id/glass_alpha_text" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="55%" android:textColor="#171B23" android:textSize="14sp" android:layout_marginLeft="12dp" />
-            </LinearLayout>
+            <SeekBar android:id="@+id/glass_alpha" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="55" />
         </LinearLayout>
         <LinearLayout
             android:layout_width="match_parent"
@@ -390,10 +387,9 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
             android:orientation="vertical"
             android:padding="15dp">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="壁纸" android:textColor="#171B23" android:textSize="16sp" android:textStyle="bold" android:layout_marginBottom="4dp" />
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="选预置壁纸、纯色或上传自己的图片" android:textColor="#73787F" android:textSize="12sp" android:layout_marginBottom="12dp" />
-            <ImageView android:id="@+id/wp_shanjian" android:layout_width="90dp" android:layout_height="135dp" android:scaleType="fitCenter" android:src="@drawable/poster_shanjian" android:clickable="true" android:focusable="true" android:foreground="?attr/selectableItemBackground" android:layout_marginBottom="12dp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="选预置壁纸" android:textColor="#73787F" android:textSize="12sp" android:layout_marginBottom="12dp" />
+            <ImageView android:id="@+id/wp_shanjian" android:layout_width="90dp" android:layout_height="135dp" android:scaleType="fitCenter" android:src="@drawable/poster_shanjian" android:clickable="true" android:focusable="true" android:foreground="?attr/selectableItemBackground" />
         </LinearLayout>
-    </LinearLayout>
 </ScrollView>
 '''
 write(os.path.join(MOBILE_RES, "layout/activity_ui_settings.xml"), ui_layout)
