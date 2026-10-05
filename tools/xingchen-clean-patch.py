@@ -52,13 +52,15 @@ def replace_once(path, old, new):
     assert n == 1, "expected 1, found %d for %s in %s" % (n, old[:40], path)
     write(path, c.replace(old, new, 1))
 
-# Delete default purple background - make theme background transparent so wallpaper shows
+# Delete default purple background - make theme backgrounds transparent so wallpaper shows
 for theme_path in ["app/src/main/res/values/styles.xml", "app/src/mobile/res/values/styles.xml"]:
     p = os.path.join(BASE, theme_path)
     if os.path.exists(p):
         c = read(p)
         orig = c
         c = re.sub(r'<item\s+name="android:colorBackground"[^>]*>@color/white</item>', '<item name="android:colorBackground">@color/transparent</item>', c)
+        c = re.sub(r'<item\s+name="android:colorBackground"[^>]*>@color/black</item>', '<item name="android:colorBackground">@color/transparent</item>', c)
+        c = re.sub(r'<item\s+name="colorSurface"[^>]*>@color/white</item>', '<item name="colorSurface">@color/transparent</item>', c)
         if c != orig:
             write(p, c)
             print("Deleted default background: " + theme_path)
@@ -70,6 +72,16 @@ c = read(p)
 assert c.count('android:visible="false"') == 3
 c = c.replace('android:visible="false"', 'android:visible="true"')
 write(p, c)
+print("menu_nav patched")
+
+# Remove icon tint so custom line-style icons show correctly
+p = os.path.join(MOBILE_RES, "layout/activity_home.xml")
+if os.path.exists(p):
+    c = read(p)
+    if 'app:itemIconTint' in c:
+        c = re.sub(r'app:itemIconTint="[^"]*"', 'app:itemIconTint="@null"', c)
+        write(p, c)
+        print("Removed nav icon tint")
 
 p = os.path.join(MOBILE_RES, "values/strings.xml")
 c = read(p)
