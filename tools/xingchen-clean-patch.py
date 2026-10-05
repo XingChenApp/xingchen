@@ -6,6 +6,15 @@ import re
 BASE = "/tmp/webhtv-src"
 MOBILE_RES = os.path.join(BASE, "app/src/mobile/res")
 MOBILE_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv")
+_gw = os.environ.get("GITHUB_WORKSPACE", "/tmp")
+_tools = os.path.join(_gw, "repo-tools", "tools")
+_psrc = os.path.join(_tools, "poster_shanjian.jpg")
+_pdst = os.path.join(MOBILE_RES, "drawable", "poster_shanjian.jpg")
+if os.path.exists(_psrc):
+    shutil.copy(_psrc, _pdst)
+    print("poster_shanjian.jpg copied")
+else:
+    print("WARNING: poster_shanjian.jpg not found at " + _psrc)
 
 def read(path):
     assert os.path.exists(path), "missing: " + path
