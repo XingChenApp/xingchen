@@ -54,6 +54,10 @@ jobs:
             cp "$GITHUB_WORKSPACE/repo-tools/tools/drawable/${icon}.xml" /tmp/webhtv-src/app/src/mobile/res/drawable/${icon}.xml
           done
           cp "$GITHUB_WORKSPACE/repo-tools/tools/drawable/ic_nav_home.xml" /tmp/webhtv-src/app/src/mobile/res/drawable/ic_nav_vod.xml
+          ls /tmp/webhtv-src/app/src/mobile/res/drawable/ic_nav_vod.xml
+          ls /tmp/webhtv-src/app/src/mobile/res/drawable/ic_nav_live.xml
+          ls /tmp/webhtv-src/app/src/mobile/res/drawable/ic_nav_setting.xml
+          echo "Nav icons installed"
           python3 /tmp/settings_write.py
           python3 /tmp/java_clean.py
           echo "Settings redesign applied"
