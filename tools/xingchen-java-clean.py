@@ -366,6 +366,8 @@ public class ThemeManager {
             for (int i = 0; i < root.getChildCount(); i++) {
                 View child = root.getChildAt(i);
                 if ("xc_wallpaper".equals(child.getTag())) continue;
+                String cls = child.getClass().getName();
+                if (cls.contains("BottomNavigationView")) continue;
                 if (child instanceof ViewGroup) {
                     ViewGroup vg = (ViewGroup) child;
                     Drawable bg = vg.getBackground();
