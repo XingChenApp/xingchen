@@ -169,22 +169,10 @@ public class UiSettingsActivity extends BaseActivity {
         theme.wallpaperType = type;
         theme.wallpaperValue = value;
         theme.save(this);
-        
-        android.view.ViewGroup decor = (android.view.ViewGroup) getWindow().getDecorView();
-        android.view.View wallView = decor.findViewWithTag("xc_wallpaper");
-        if (wallView instanceof android.widget.ImageView) {
-            android.widget.ImageView iv = (android.widget.ImageView) wallView;
-            if (XingChenTheme.WP_BUILTIN.equals(type)) {
-                int resId = getResources().getIdentifier("poster_shanjian_blur", "drawable", getPackageName());
-                if (resId != 0) iv.setImageResource(resId);
-            } else if (XingChenTheme.WP_LOCAL.equals(type)) {
-                try {
-                    java.io.File f = new java.io.File(value);
-                    if (f.exists()) iv.setImageURI(android.net.Uri.fromFile(f));
-                    else iv.setImageURI(android.net.Uri.parse(value));
-                } catch (Exception e) {}
-            }
-        }
+        try {
+            com.xingchen.tv.theme.ThemeManager.get().setTheme(theme);
+            com.xingchen.tv.theme.ThemeManager.get().apply(this);
+        } catch (Exception e) {}
         updateWallpaperUI();
     }
 
