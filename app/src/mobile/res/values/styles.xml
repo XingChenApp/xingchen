@@ -14,7 +14,7 @@
 
     <style name="Theme.Crash" parent="Theme.XingChen">
         <item name="android:windowDisablePreview">true</item>
-        <item name="android:windowBackground">@color/grey_700</item>
+        <item name="android:windowBackground">@drawable/poster_shanjian_blur</item>
     </style>
 
     <style name="Control">
