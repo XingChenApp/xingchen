@@ -2,7 +2,7 @@
 
 ![Build](https://github.com/XingChenApp/xingchen/actions/workflows/main.yml/badge.svg)
 
-基于 webhtv 二次开发的手机版视频播放器，ExoPlayer + IJK + mpv 三内核。
+基于 webhtv 二次开发的安卓视频播放器，ExoPlayer + IJK + mpv 三内核。
 
 ## 特性
 
