@@ -35,7 +35,12 @@ public class XingChenApp extends Application {
                     if (resId != 0) wallView.setImageResource(resId);
                 } else if (XingChenTheme.WP_LOCAL.equals(type)) {
                     try {
-                        wallView.setImageURI(android.net.Uri.parse(value));
+                        java.io.File f = new java.io.File(value);
+                        if (f.exists()) {
+                            wallView.setImageURI(android.net.Uri.fromFile(f));
+                        } else {
+                            wallView.setImageURI(android.net.Uri.parse(value));
+                        }
                     } catch (Exception e) {}
                 } else if (XingChenTheme.WP_URL.equals(type)) {
                     // TODO: Load URL
