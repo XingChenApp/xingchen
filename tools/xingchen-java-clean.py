@@ -208,25 +208,36 @@ public class ThemeController {
 
     private static void doApply(Activity activity) {
         try {
+            android.content.SharedPreferences sp = activity.getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
+            String uiStyle = sp.getString("ui_style", "glass");
             View content = activity.findViewById(android.R.id.content);
             if (content == null) return;
-            android.content.SharedPreferences sp = activity.getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
-            String wp = sp.getString("wallpaper", "shanjian");
-            if ("color".equals(wp)) {
-                String c = sp.getString("wallpaper_color", "#8fb0d1");
-                try {
-                    content.setBackgroundColor(android.graphics.Color.parseColor(c));
-                } catch (Exception e) {
+
+            if ("glass".equals(uiStyle)) {
+                String wp = sp.getString("wallpaper", "shanjian");
+                if ("color".equals(wp)) {
+                    String c = sp.getString("wallpaper_color", "#8fb0d1");
+                    try {
+                        content.setBackgroundColor(android.graphics.Color.parseColor(c));
+                    } catch (Exception e) {
+                        content.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
+                    }
+                } else {
                     content.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
                 }
             } else {
-                content.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
+                content.setBackgroundColor(0xFFF5F0E8);
             }
+
             if (content instanceof ViewGroup) {
                 ViewGroup vg = (ViewGroup) content;
                 if (vg.getChildCount() > 0) {
                     View root = vg.getChildAt(0);
-                    if (root != null) root.setBackgroundColor(0x00000000);
+                    if (root != null) {
+                        if ("glass".equals(uiStyle)) {
+                            root.setBackgroundColor(0x00000000);
+                        }
+                    }
                 }
             }
         } catch (Exception e) {}
@@ -381,6 +392,24 @@ public class UiSettingsActivity extends BaseActivity {
         String s = getPref("ui_style", "glass");
         binding.styleNormal.setBackgroundResource("normal".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
         binding.styleGlass.setBackgroundResource("glass".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        boolean isGlass = "glass".equals(s);
+        try {
+            android.view.View wpView = binding.wpDefault;
+            if (wpView != null) {
+                android.view.ViewParent p1 = wpView.getParent();
+                if (p1 instanceof android.view.View) {
+                    android.view.ViewParent p2 = ((android.view.View) p1).getParent();
+                    if (p2 instanceof android.view.View) {
+                        android.view.ViewParent p3 = ((android.view.View) p2).getParent();
+                        if (p3 instanceof android.view.View) {
+                            ((android.view.View) p3).setVisibility(isGlass ? android.view.View.VISIBLE : android.view.View.GONE);
+                        } else {
+                            ((android.view.View) p2).setVisibility(isGlass ? android.view.View.VISIBLE : android.view.View.GONE);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {}
     }
     private void initGlassAlpha() {
         int a = getSharedPreferences("xingchen", MODE_PRIVATE).getInt("glass_alpha", 55);
