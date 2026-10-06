@@ -29,6 +29,9 @@ try {
 } catch (Exception ignored) { /* Source archives may not contain Git metadata. */ }
 
 android {
+    packagingOptions {
+        exclude '**/wl.webp'
+    }
     namespace = 'com.fongmi.android.tv'
 
     compileSdk libs.versions.compileSdk.get().toInteger()
