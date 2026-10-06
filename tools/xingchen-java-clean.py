@@ -123,7 +123,7 @@ if os.path.exists(BASE_JAVA):
         assert "// Disabled for wallpaper" in bc, "BaseActivity dynamic color disable failed"
         bc = bc.replace(
             "super.onCreate(savedInstanceState);",
-            "super.onCreate(savedInstanceState);\n        { getWindow().setStatusBarColor(0x00000000); getWindow().getDecorView().post(() -> { com.fongmi.android.tv.theme.ThemeController.apply(this); }); }",
+            "super.onCreate(savedInstanceState);\n        { getWindow().setStatusBarColor(0x00000000); getWindow().getDecorView().post(() -> { com.xingchen.tv.theme.ThemeManager.get().apply(this); }); }",
         )
         assert "ThemeController" in bc, "BaseActivity patch failed"
         # Add onResume to refresh wallpaper when returning - robust version
@@ -131,13 +131,13 @@ if os.path.exists(BASE_JAVA):
             if "protected void onResume()" in bc:
                 bc = bc.replace(
                     "protected void onResume() {",
-                    "protected void onResume() {\n        { com.fongmi.android.tv.theme.ThemeController.apply(this); } // xc_onResume",
+                    "protected void onResume() {\n        { com.xingchen.tv.theme.ThemeManager.get().apply(this); } // xc_onResume",
                     1
                 )
             else:
                 # No onResume exists, add one before the last closing brace of class
                 # Find the last } and insert before it
-                insert_code = "    @Override\n    protected void onResume() {\n        super.onResume();\n        { com.fongmi.android.tv.theme.ThemeController.apply(this); } // xc_onResume\n    }\n"
+                insert_code = "    @Override\n    protected void onResume() {\n        super.onResume();\n        { com.xingchen.tv.theme.ThemeManager.get().apply(this); } // xc_onResume\n    }\n"
                 # Simple: append before final }
                 bc = bc.rstrip()
                 if bc.endswith("}"):
@@ -152,7 +152,7 @@ if os.path.exists(APP_JAVA):
     if "ThemeController.init" not in ac:
         ac = ac.replace(
             "super.onCreate();",
-            "super.onCreate();\n        com.fongmi.android.tv.theme.ThemeController.init(this);"
+            "super.onCreate();\n        com.xingchen.tv.theme.ThemeManager.init(this);"
         )
         write(APP_JAVA, ac)
         print("App.java patched for global theme")
@@ -170,25 +170,78 @@ if os.path.exists(BASE_FRAG):
         write(BASE_FRAG, fc)
         print("BaseFragment patched")
 
-THEME_DIR = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/theme")
+THEME_DIR = os.path.join(BASE, "app/src/mobile/java/com/xingchen/tv/theme")
 os.makedirs(THEME_DIR, exist_ok=True)
-write(os.path.join(THEME_DIR, "ThemeController.java"), """package com.fongmi.android.tv.theme;
+write(os.path.join(THEME_DIR, "XingChenTheme.java"), """package com.xingchen.tv.theme;
+
+public class XingChenTheme {
+    public static final String UI_NORMAL = "normal";
+    public static final String UI_GLASS = "glass";
+
+    public static final String WP_BUILTIN = "builtin";
+    public static final String WP_LOCAL = "local";
+    public static final String WP_URL = "url";
+    public static final String WP_COLOR = "color";
+
+    public String uiStyle = UI_GLASS;
+    public String wallpaperType = WP_BUILTIN;
+    public String wallpaperValue = "shanjian";
+    public int glassAlpha = 55;
+
+    public static XingChenTheme load(android.content.Context ctx) {
+        XingChenTheme t = new XingChenTheme();
+        android.content.SharedPreferences sp = ctx.getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
+        t.uiStyle = sp.getString("ui_style", UI_GLASS);
+        t.wallpaperType = sp.getString("wallpaper_type", WP_BUILTIN);
+        t.wallpaperValue = sp.getString("wallpaper_value", "shanjian");
+        String oldWp = sp.getString("wallpaper", "shanjian");
+        if (!"shanjian".equals(oldWp) && WP_BUILTIN.equals(t.wallpaperType)) {
+            if ("color".equals(oldWp)) {
+                t.wallpaperType = WP_COLOR;
+                t.wallpaperValue = sp.getString("wallpaper_color", "#8fb0d1");
+            }
+        }
+        t.glassAlpha = sp.getInt("glass_alpha", 55);
+        return t;
+    }
+
+    public void save(android.content.Context ctx) {
+        android.content.SharedPreferences.Editor e = ctx.getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE).edit();
+        e.putString("ui_style", uiStyle);
+        e.putString("wallpaper_type", wallpaperType);
+        e.putString("wallpaper_value", wallpaperValue);
+        e.putInt("glass_alpha", glassAlpha);
+        e.apply();
+    }
+}
+""")
+write(os.path.join(THEME_DIR, "ThemeManager.java"), """package com.xingchen.tv.theme;
 
 import android.app.Activity;
 import android.app.Application;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 
-public class ThemeController {
+public class ThemeManager {
+    private static ThemeManager instance;
+    private XingChenTheme theme;
+
+    private ThemeManager() {}
+
+    public static synchronized ThemeManager get() {
+        if (instance == null) instance = new ThemeManager();
+        return instance;
+    }
 
     public static void init(Application app) {
+        get().theme = XingChenTheme.load(app);
         app.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
             @Override public void onActivityCreated(Activity a, Bundle b) {}
             @Override public void onActivityStarted(Activity a) {}
-            @Override public void onActivityResumed(Activity a) {
-                apply(a);
-            }
+            @Override public void onActivityResumed(Activity a) { get().apply(a); }
             @Override public void onActivityPaused(Activity a) {}
             @Override public void onActivityStopped(Activity a) {}
             @Override public void onActivitySaveInstanceState(Activity a, Bundle b) {}
@@ -196,7 +249,31 @@ public class ThemeController {
         });
     }
 
-    public static void apply(Activity activity) {
+    public XingChenTheme getTheme() {
+        return theme;
+    }
+
+    public void refresh(android.content.Context ctx) {
+        theme = XingChenTheme.load(ctx);
+    }
+
+    public void setUiStyle(android.content.Context ctx, String style) {
+        theme.uiStyle = style;
+        theme.save(ctx);
+        applyAll();
+    }
+
+    public void setWallpaper(android.content.Context ctx, String type, String value) {
+        theme.wallpaperType = type;
+        theme.wallpaperValue = value;
+        theme.save(ctx);
+        applyAll();
+    }
+
+    private void applyAll() {
+    }
+
+    public void apply(Activity activity) {
         try {
             activity.getWindow().getDecorView().post(new Runnable() {
                 @Override public void run() {
@@ -206,49 +283,99 @@ public class ThemeController {
         } catch (Exception e) {}
     }
 
-    private static void doApply(Activity activity) {
+    private void doApply(Activity activity) {
         try {
-            android.content.SharedPreferences sp = activity.getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
-            String uiStyle = sp.getString("ui_style", "glass");
-            View content = activity.findViewById(android.R.id.content);
-            if (content == null) return;
-
-            if ("glass".equals(uiStyle)) {
-                String wp = sp.getString("wallpaper", "shanjian");
-                if ("color".equals(wp)) {
-                    String c = sp.getString("wallpaper_color", "#8fb0d1");
-                    try {
-                        content.setBackgroundColor(android.graphics.Color.parseColor(c));
-                    } catch (Exception e) {
-                        content.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
-                    }
-                } else {
-                    content.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
-                }
-                clearFragmentBackgrounds(activity);
+            if (theme == null) theme = XingChenTheme.load(activity);
+            ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
+            ensureWallpaperLayer(activity, decor);
+            if (XingChenTheme.UI_GLASS.equals(theme.uiStyle)) {
+                makeTransparent(decor);
             } else {
-                content.setBackgroundColor(0xFFF5F0E8);
-            }
-
-            if (content instanceof ViewGroup) {
-                ViewGroup vg = (ViewGroup) content;
-                if (vg.getChildCount() > 0) {
-                    View root = vg.getChildAt(0);
-                    if (root != null && "glass".equals(uiStyle)) {
-                        root.setBackgroundColor(0x00000000);
-                    }
-                }
+                decor.setBackgroundColor(0xFFF5F0E8);
             }
         } catch (Exception e) {}
     }
 
-    private static void clearFragmentBackgrounds(Activity activity) {
+    private void ensureWallpaperLayer(Activity activity, ViewGroup decor) {
         try {
-            if (activity instanceof androidx.fragment.app.FragmentActivity) {
-                androidx.fragment.app.FragmentActivity fa = (androidx.fragment.app.FragmentActivity) activity;
-                for (androidx.fragment.app.Fragment f : fa.getSupportFragmentManager().getFragments()) {
-                    if (f != null && f.getView() != null) {
-                        f.getView().setBackgroundColor(0x00000000);
+            View existing = decor.findViewWithTag("xc_wallpaper");
+            ImageView iv;
+            if (existing instanceof ImageView) {
+                iv = (ImageView) existing;
+            } else {
+                iv = new ImageView(activity);
+                iv.setTag("xc_wallpaper");
+                iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                decor.addView(iv, 0, new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+            }
+            if (XingChenTheme.UI_GLASS.equals(theme.uiStyle)) {
+                iv.setVisibility(View.VISIBLE);
+                setWallpaperDrawable(activity, iv);
+            } else {
+                iv.setVisibility(View.GONE);
+            }
+        } catch (Exception e) {}
+    }
+
+    private void setWallpaperDrawable(Activity activity, ImageView iv) {
+        try {
+            String type = theme.wallpaperType;
+            String value = theme.wallpaperValue;
+            if (XingChenTheme.WP_COLOR.equals(type)) {
+                try {
+                    iv.setImageDrawable(null);
+                    iv.setBackgroundColor(android.graphics.Color.parseColor(value));
+                } catch (Exception e) {
+                    iv.setBackgroundColor(0x00000000);
+                    iv.setImageResource(getBuiltinRes(activity, "shanjian"));
+                }
+            } else if (XingChenTheme.WP_LOCAL.equals(type) || XingChenTheme.WP_URL.equals(type)) {
+                try {
+                    android.graphics.Bitmap bm = android.graphics.BitmapFactory.decodeFile(value);
+                    if (bm != null) {
+                        iv.setImageBitmap(bm);
+                        iv.setBackgroundColor(0x00000000);
+                    } else {
+                        iv.setImageResource(getBuiltinRes(activity, "shanjian"));
+                    }
+                } catch (Exception e) {
+                    iv.setImageResource(getBuiltinRes(activity, "shanjian"));
+                }
+            } else {
+                iv.setBackgroundColor(0x00000000);
+                iv.setImageResource(getBuiltinRes(activity, value));
+            }
+        } catch (Exception e) {}
+    }
+
+    private int getBuiltinRes(android.content.Context ctx, String name) {
+        try {
+            if ("shanjian".equals(name)) {
+                return ctx.getResources().getIdentifier("poster_shanjian", "drawable", ctx.getPackageName());
+            }
+            return ctx.getResources().getIdentifier(name, "drawable", ctx.getPackageName());
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private void makeTransparent(ViewGroup root) {
+        try {
+            for (int i = 0; i < root.getChildCount(); i++) {
+                View child = root.getChildAt(i);
+                if ("xc_wallpaper".equals(child.getTag())) continue;
+                if (child instanceof ViewGroup) {
+                    ViewGroup vg = (ViewGroup) child;
+                    Drawable bg = vg.getBackground();
+                    if (bg != null) {
+                        vg.setBackgroundColor(0x00000000);
+                    }
+                    if (vg.getChildCount() > 0 && !(child instanceof android.widget.ScrollView)
+                            && !(child instanceof androidx.recyclerview.widget.RecyclerView)
+                            && !(child instanceof android.widget.ListView)) {
+                        makeTransparent(vg);
                     }
                 }
             }
@@ -256,6 +383,7 @@ public class ThemeController {
     }
 }
 """)
+print("XingChen theme system created")
 print("Theme system created")
 
 CONFIG_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/ConfigSourceActivity.java")
