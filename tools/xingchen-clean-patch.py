@@ -168,20 +168,15 @@ new_theme = '\\n    <style name="Theme.XingChen" parent="Theme.MaterialComponent
 if 'Theme.XingChen' not in c:
     c = c.replace('</resources>', new_theme + '</resources>', 1)
     print("Theme.XingChen created")
-import re
-c, n = re.subn(r'<style name="Theme.Base"[^>]*>.*?</style>\\s*', '', c, flags=re.DOTALL)
-print(f"Deleted {n} Theme.Base definitions")
 c = c.replace('parent="Theme.Base"', 'parent="Theme.XingChen"')
-print("Updated Theme.App and Theme.Crash to use Theme.XingChen")
+print("Updated Theme.App and Theme.Crash to use Theme.XingChen (Theme.Base kept unused)")
 write(p, c)
 p27 = os.path.join(MOBILE_RES, "values-v27/styles.xml")
 if os.path.exists(p27):
     c27 = read(p27)
-    import re
-    c27, n27 = re.subn(r'<style name="Theme.Base"[^>]*>.*?</style>\\s*', '', c27, flags=re.DOTALL)
     c27 = c27.replace('parent="Theme.Base"', 'parent="Theme.XingChen"')
     write(p27, c27)
-    print(f"Updated values-v27/styles.xml")
+    print(f"Updated values-v27/styles.xml (Theme.Base kept)")
 m = os.path.join(BASE, "app/src/main/AndroidManifest.xml")
 mc = read(m)
 if '@style/Theme.Base' in mc:
