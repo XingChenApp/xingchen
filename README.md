@@ -2,7 +2,7 @@
 
 ![Build](https://github.com/XingChenApp/xingchen/actions/workflows/main.yml/badge.svg)
 
-基于 webhtv 二次开发的安卓空壳播放器，ExoPlayer + IJK + mpv 三内核。
+基于 webhtv 二次开发的安卓空壳播放器，本播放器不提供任何内容，仅供学习交流。
 
 ## 特性
 
