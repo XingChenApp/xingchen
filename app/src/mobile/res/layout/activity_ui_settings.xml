@@ -23,6 +23,7 @@
         android:orientation="vertical">
         <!-- Theme -->
         <LinearLayout
+            android:id="@+id/card_theme"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:background="@drawable/card_bg"
             android:padding="12dp" android:layout_marginBottom="8dp" android:gravity="center_vertical">
@@ -47,6 +48,7 @@
         </LinearLayout>
         <!-- Cover size -->
         <LinearLayout
+            android:id="@+id/card_cover"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:background="@drawable/card_bg"
             android:padding="12dp" android:layout_marginBottom="8dp" android:gravity="center_vertical">
@@ -71,6 +73,7 @@
         </LinearLayout>
         <!-- Cover orientation -->
         <LinearLayout
+            android:id="@+id/card_orient"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:background="@drawable/card_bg"
             android:padding="12dp" android:layout_marginBottom="8dp" android:gravity="center_vertical">
@@ -92,6 +95,7 @@
         </LinearLayout>
         <!-- Cover ratio -->
         <LinearLayout
+            android:id="@+id/card_ratio"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:background="@drawable/card_bg"
             android:padding="12dp" android:layout_marginBottom="8dp" android:gravity="center_vertical">
@@ -116,6 +120,7 @@
         </LinearLayout>
         <!-- UI Style -->
         <LinearLayout
+            android:id="@+id/card_style"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:background="@drawable/card_bg"
             android:padding="12dp" android:layout_marginBottom="8dp" android:gravity="center_vertical">
@@ -137,6 +142,7 @@
         </LinearLayout>
         <!-- Glass alpha -->
         <LinearLayout
+            android:id="@+id/card_glass"
             android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"
             android:background="@drawable/card_bg" android:padding="12dp" android:layout_marginBottom="8dp">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -155,6 +161,7 @@
         </LinearLayout>
         <!-- Wallpaper -->
         <LinearLayout
+            android:id="@+id/card_wp"
             android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"
             android:background="@drawable/card_bg" android:padding="12dp" android:layout_marginBottom="8dp">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
