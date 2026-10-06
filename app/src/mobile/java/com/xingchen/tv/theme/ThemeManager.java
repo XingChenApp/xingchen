@@ -7,10 +7,12 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.util.Log;
 
 public class ThemeManager {
     private static ThemeManager instance;
     private XingChenTheme theme;
+    private static final String TAG = "XC_WALLPAPER";
 
     private ThemeManager() {}
 
@@ -56,7 +58,7 @@ public class ThemeManager {
     private void applyAll() {
         try {
             if (currentActivity != null) apply(currentActivity);
-        } catch (Exception e) {}
+        } catch (Exception e) { Log.e(TAG, "applyAll failed", e); }
     }
     private static android.app.Activity currentActivity;
 
@@ -67,17 +69,18 @@ public class ThemeManager {
                     doApply(activity);
                 }
             });
-        } catch (Exception e) {}
+        } catch (Exception e) { Log.e(TAG, "apply failed", e); }
     }
 
     private void doApply(Activity activity) {
         try {
+            Log.d(TAG, "doApply: activity=" + activity.getClass().getSimpleName());
             if (theme == null) theme = XingChenTheme.load(activity);
             ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
             ensureWallpaperLayer(activity, decor);
             // Keep decor transparent so wallpaper shows, don't set beige
             makeTransparent(decor);
-        } catch (Exception e) {}
+        } catch (Exception e) { Log.e(TAG, "doApply failed", e); }
     }
 
     private void ensureWallpaperLayer(Activity activity, ViewGroup decor) {
@@ -85,24 +88,28 @@ public class ThemeManager {
             View existing = decor.findViewWithTag("xc_wallpaper");
             ImageView iv;
             if (existing instanceof ImageView) {
+                Log.d(TAG, "ensureWallpaperLayer: found existing ImageView");
                 iv = (ImageView) existing;
             } else {
+                Log.d(TAG, "ensureWallpaperLayer: creating new ImageView");
                 iv = new ImageView(activity);
                 iv.setTag("xc_wallpaper");
                 iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 decor.addView(iv, 0, new android.widget.FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT));
+                Log.d(TAG, "ensureWallpaperLayer: ImageView added to decor, childCount=" + decor.getChildCount());
             }
             iv.setVisibility(View.VISIBLE);
             setWallpaperDrawable(activity, iv);
-        } catch (Exception e) {}
+        } catch (Exception e) { Log.e(TAG, "ensureWallpaperLayer failed", e); }
     }
 
     private void setWallpaperDrawable(Activity activity, ImageView iv) {
         try {
             String type = theme.wallpaperType;
             String value = theme.wallpaperValue;
+            Log.d(TAG, "setWallpaperDrawable: type=" + type + ", value=" + value);
             if (XingChenTheme.WP_COLOR.equals(type)) {
                 try {
                     iv.setImageDrawable(null);
@@ -135,9 +142,11 @@ public class ThemeManager {
                 }
             } else {
                 iv.setBackgroundColor(0x00000000);
-                iv.setImageResource(getBuiltinRes(activity, value));
+                int resId = getBuiltinRes(activity, value);
+                Log.d(TAG, "setWallpaperDrawable: builtin resId=" + resId + " for value=" + value);
+                iv.setImageResource(resId);
             }
-        } catch (Exception e) {}
+        } catch (Exception e) { Log.e(TAG, "setWallpaperDrawable failed", e); }
     }
 
     private int getBuiltinRes(android.content.Context ctx, String name) {
@@ -147,6 +156,7 @@ public class ThemeManager {
             }
             return ctx.getResources().getIdentifier(name, "drawable", ctx.getPackageName());
         } catch (Exception e) {
+            Log.e(TAG, "getBuiltinRes failed for name", e);
             return 0;
         }
     }
@@ -171,6 +181,6 @@ public class ThemeManager {
                     }
                 }
             }
-        } catch (Exception e) {}
+        } catch (Exception e) { Log.e(TAG, "makeTransparent failed", e); }
     }
 }
