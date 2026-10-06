@@ -171,7 +171,17 @@ if 'Theme.XingChen' not in c:
 import re
 c, n = re.subn(r'<style name="Theme.Base"[^>]*>.*?</style>\\s*', '', c, flags=re.DOTALL)
 print(f"Deleted {n} Theme.Base definitions")
+c = c.replace('parent="Theme.Base"', 'parent="Theme.XingChen"')
+print("Updated Theme.App and Theme.Crash to use Theme.XingChen")
 write(p, c)
+p27 = os.path.join(MOBILE_RES, "values-v27/styles.xml")
+if os.path.exists(p27):
+    c27 = read(p27)
+    import re
+    c27, n27 = re.subn(r'<style name="Theme.Base"[^>]*>.*?</style>\\s*', '', c27, flags=re.DOTALL)
+    c27 = c27.replace('parent="Theme.Base"', 'parent="Theme.XingChen"')
+    write(p27, c27)
+    print(f"Updated values-v27/styles.xml")
 m = os.path.join(BASE, "app/src/main/AndroidManifest.xml")
 mc = read(m)
 if '@style/Theme.Base' in mc:
