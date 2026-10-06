@@ -90,7 +90,7 @@ public class ThemeManager {
                 iv = new ImageView(activity);
                 iv.setTag("xc_wallpaper");
                 iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                decor.addView(iv, 0, new FrameLayout.LayoutParams(
+                decor.addView(iv, 0, new android.widget.FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT));
             }
