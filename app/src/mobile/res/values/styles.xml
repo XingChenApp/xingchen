@@ -124,4 +124,10 @@
         <item name="colorPrimaryVariant">#c07f00</item>
         <item name="colorOnPrimary">@android:color/white</item>
     </style>
+
+    <style name="Theme.XingChen.Splash" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">#000000</item>
+        <item name="android:windowDisablePreview">false</item>
+    </style>
+
 </resources>
