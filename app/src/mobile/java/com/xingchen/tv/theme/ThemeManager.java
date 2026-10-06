@@ -112,6 +112,23 @@ public class ThemeManager {
             } catch (Exception e) {
                 flog("ERROR setting window bg: " + e);
             }
+            try {
+                android.view.View decor = activity.getWindow().getDecorView();
+                flog("DIAG DecorView: class=" + decor.getClass().getSimpleName() + ", bg=" + bgDesc(decor.getBackground()));
+                if (decor instanceof android.view.ViewGroup) {
+                    android.view.ViewGroup dg = (android.view.ViewGroup) decor;
+                    for (int i = 0; i < dg.getChildCount() && i < 3; i++) {
+                        android.view.View child = dg.getChildAt(i);
+                        flog("DIAG Decor child " + i + ": class=" + child.getClass().getSimpleName() + ", bg=" + bgDesc(child.getBackground()));
+                        if (child instanceof android.view.ViewGroup && ((android.view.ViewGroup) child).getChildCount() > 0) {
+                            android.view.View grandchild = ((android.view.ViewGroup) child).getChildAt(0);
+                            flog("DIAG   grandchild: class=" + grandchild.getClass().getSimpleName() + ", bg=" + bgDesc(grandchild.getBackground()));
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                flog("DIAG error: " + e);
+            }
         } catch (Exception e) { flog("ERROR doApply failed: " + e); }
     }
 
@@ -191,5 +208,15 @@ public class ThemeManager {
                 }
             }
         } catch (Exception e) { flog("ERROR makeTransparent failed: " + e); }
+    }
+
+    private String bgDesc(android.graphics.drawable.Drawable bg) {
+        if (bg == null) return "null";
+        String cls = bg.getClass().getSimpleName();
+        if (bg instanceof android.graphics.drawable.ColorDrawable) {
+            int c = ((android.graphics.drawable.ColorDrawable) bg).getColor();
+            return cls + "(color=#" + Integer.toHexString(c) + ")";
+        }
+        return cls;
     }
 }
