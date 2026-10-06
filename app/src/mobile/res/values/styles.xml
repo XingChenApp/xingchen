@@ -14,7 +14,7 @@
 
     <style name="Theme.Crash" parent="Theme.XingChen">
         <item name="android:windowDisablePreview">true</item>
-        <item name="android:windowBackground">@drawable/poster_shanjian_blur_v2</item>
+        <item name="android:windowBackground">@drawable/poster_shanjian_blur_v3</item>
     </style>
 
     <style name="Control">
@@ -118,7 +118,7 @@
 
 
     <style name="Theme.XingChen" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="android:windowBackground">@drawable/poster_shanjian_blur_v2</item>
+        <item name="android:windowBackground">@drawable/poster_shanjian_blur_v3</item>
               <item name="android:colorBackground">@android:color/transparent</item>
         <item name="colorPrimary">#f0a400</item>
         <item name="colorPrimaryVariant">#c07f00</item>
