@@ -150,6 +150,10 @@ public class App extends Application implements Application.ActivityLifecycleCal
     }
 
     @Override
+    public void onActivityPaused(@NonNull Activity activity) {
+    }
+
+    @Override
         public void onActivityCreated(@NonNull Activity activity, android.os.Bundle savedInstanceState) {
     }
 
