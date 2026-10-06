@@ -155,6 +155,9 @@ public class App extends Application implements Application.ActivityLifecycleCal
 
     @Override
     public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
+        try {
+            activity.getWindow().setBackgroundDrawableResource(R.drawable.poster_shanjian_blur);
+        } catch (Exception e) {}
     }
 
     @Override
