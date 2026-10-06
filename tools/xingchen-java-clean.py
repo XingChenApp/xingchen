@@ -407,22 +407,8 @@ public class ConfigSourceActivity extends BaseActivity {
     }
     @Override
     protected void initView(Bundle savedInstanceState) {
-        applyWallpaper();
         binding.cardVod.setOnClickListener(v -> ConfigDialog.create().vod().show(getSupportFragmentManager(), null));
         binding.cardLive.setOnClickListener(v -> ConfigDialog.create().live().show(getSupportFragmentManager(), null));
-    }
-    private void applyWallpaper() {
-        android.view.View root = findViewById(android.R.id.content);
-        if (root != null) {
-            String wp = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper", "shanjian");
-            if ("color".equals(wp)) {
-                String c = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper_color", "#8fb0d1");
-                try { root.setBackgroundColor(android.graphics.Color.parseColor(c)); }
-                catch (Exception e) { root.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian); }
-            } else {
-                root.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
-            }
-        }
     }
 }
 """
@@ -470,7 +456,6 @@ public class UiSettingsActivity extends BaseActivity {
     }
     @Override
     protected void initView(Bundle savedInstanceState) {
-        applyWallpaper();
         updateThemeUI();
         updateWallpaperUI();
         binding.themeLight.setOnClickListener(v -> { setTheme("light"); updateThemeUI(); });
@@ -561,19 +546,6 @@ public class UiSettingsActivity extends BaseActivity {
         String c = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper_color", "");
         binding.wpDefault.setBackgroundResource("shanjian".equals(wp) && "".equals(c) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
     }
-    private void applyWallpaper() {
-        android.view.View root = findViewById(android.R.id.content);
-        if (root != null) {
-            String wp = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper", "shanjian");
-            if ("color".equals(wp)) {
-                String c = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper_color", "#8fb0d1");
-                try { root.setBackgroundColor(android.graphics.Color.parseColor(c)); }
-                catch (Exception e) { root.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian); }
-            } else {
-                root.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
-            }
-        }
-    }
     private void setTheme(String theme) {
         SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
         sp.edit().putString("theme", theme).apply();
@@ -587,14 +559,12 @@ public class UiSettingsActivity extends BaseActivity {
         recreate();
     }
     private void setWallpaper(String name) {
-        SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
-        sp.edit().putString("wallpaper", name).putString("wallpaper_color", "").apply();
-        recreate();
+        com.xingchen.tv.theme.ThemeManager.get().setWallpaper(this, com.xingchen.tv.theme.XingChenTheme.WP_BUILTIN, name);
+        updateWallpaperUI();
     }
     private void setWallpaperColor(String color) {
-        SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
-        sp.edit().putString("wallpaper", "color").putString("wallpaper_color", color).apply();
-        recreate();
+        com.xingchen.tv.theme.ThemeManager.get().setWallpaper(this, com.xingchen.tv.theme.XingChenTheme.WP_COLOR, color);
+        updateWallpaperUI();
     }
 }
 """
@@ -641,7 +611,6 @@ public class PlayerSettingsActivity extends BaseActivity {
     }
     @Override
     protected void initView(Bundle savedInstanceState) {
-        applyWallpaper();
         updateKernelUI();
         updateDecodeUI();
         binding.kernelExo.setOnClickListener(v -> { setKernel("exo"); updateKernelUI(); });
@@ -689,19 +658,6 @@ public class PlayerSettingsActivity extends BaseActivity {
     }
     private void setDecode(String d) {
         getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_decode", d).apply();
-    }
-    private void applyWallpaper() {
-        android.view.View root = findViewById(android.R.id.content);
-        if (root != null) {
-            String wp = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper", "shanjian");
-            if ("color".equals(wp)) {
-                String c = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper_color", "#8fb0d1");
-                try { root.setBackgroundColor(android.graphics.Color.parseColor(c)); }
-                catch (Exception e) { root.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian); }
-            } else {
-                root.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
-            }
-        }
     }
 }
 """
