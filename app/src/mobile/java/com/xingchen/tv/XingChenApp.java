@@ -7,6 +7,8 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 
+import com.xingchen.tv.theme.XingChenTheme;
+
 public class XingChenApp extends Application {
 
     @Override
@@ -15,21 +17,30 @@ public class XingChenApp extends Application {
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
             @Override
             public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
-                // Add blurred mountain wallpaper to DecorView globally
                 ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
-                // Remove old if exists
                 android.view.View old = decor.findViewWithTag("xc_wallpaper");
                 if (old != null) decor.removeView(old);
                 
                 ImageView wallView = new ImageView(activity);
                 wallView.setTag("xc_wallpaper");
                 wallView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                try {
+                
+                // Read from XingChenTheme
+                XingChenTheme theme = XingChenTheme.load(activity);
+                String type = theme.wallpaperType;
+                String value = theme.wallpaperValue;
+                
+                if (XingChenTheme.WP_BUILTIN.equals(type)) {
                     int resId = activity.getResources().getIdentifier("poster_shanjian_blur", "drawable", activity.getPackageName());
                     if (resId != 0) wallView.setImageResource(resId);
-                } catch (Exception e) {
-                    // Ignore
+                } else if (XingChenTheme.WP_LOCAL.equals(type)) {
+                    try {
+                        wallView.setImageURI(android.net.Uri.parse(value));
+                    } catch (Exception e) {}
+                } else if (XingChenTheme.WP_URL.equals(type)) {
+                    // TODO: Load URL
                 }
+                
                 FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
