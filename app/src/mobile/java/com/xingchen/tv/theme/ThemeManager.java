@@ -125,7 +125,10 @@ public class ThemeManager {
                 }
             } else if (XingChenTheme.WP_URL.equals(type)) {
                 try {
-                    iv.setImageURI(android.net.Uri.parse(value));
+                    try {
+                        android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeFile(value);
+                        if (bmp != null) iv.setImageBitmap(bmp);
+                    } catch (Exception e) {};
                     iv.setBackgroundColor(0x00000000);
                 } catch (Exception e) {
                     iv.setImageResource(getBuiltinRes(activity, "shanjian"));
