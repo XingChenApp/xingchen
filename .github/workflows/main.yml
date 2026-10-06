@@ -4,6 +4,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -20,8 +22,12 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew :app:assembleMobileArm64_v8aRelease --no-daemon
-      - name: Upload APK
+      - name: Find APK
+        run: |
+          find app/build/outputs -name "*.apk" 2>/dev/null | head -20
+          ls -lh app/build/outputs/apk/ 2>/dev/null || echo "No apk folder"
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: XingChen-APK
-          path: app/build/outputs/apk/mobile/release/*.apk
+          path: app/build/outputs/apk/**/*.apk
