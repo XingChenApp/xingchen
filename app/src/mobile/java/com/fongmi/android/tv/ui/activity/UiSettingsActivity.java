@@ -134,16 +134,6 @@ public class UiSettingsActivity extends BaseActivity {
         boolean isNormal = XingChenTheme.UI_NORMAL.equals(style);
         setSegSelected(binding.segUiNormal, isNormal);
         setSegSelected(binding.segUiGlass, !isNormal);
-        // Switch card backgrounds: normal=white, glass=semi-transparent
-        int cardBg = isNormal ? R.drawable.card_bg : R.drawable.card_bg_glass;
-        int[] cardIds = {R.id.card_theme, R.id.card_cover, R.id.card_orient, R.id.card_ratio, R.id.card_style, R.id.card_glass, R.id.card_wp};
-        for (int id : cardIds) {
-            android.view.View card = findViewById(id);
-            if (card != null) card.setBackgroundResource(cardBg);
-        }
-        // Show/hide wallpaper card: only in glass mode
-        android.view.View cardWp = findViewById(R.id.card_wp);
-        if (cardWp != null) cardWp.setVisibility(isNormal ? android.view.View.GONE : android.view.View.VISIBLE);
     }
 
     private void initGlassSection() {
