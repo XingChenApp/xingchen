@@ -155,6 +155,17 @@ public class App extends Application implements Application.ActivityLifecycleCal
 
     @Override
     public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
+        try {
+            android.view.ViewGroup decor = (android.view.ViewGroup) activity.getWindow().getDecorView();
+            if (decor.findViewWithTag("xc_wall") == null) {
+                com.fongmi.android.tv.ui.custom.CustomWallView wallView = new com.fongmi.android.tv.ui.custom.CustomWallView(activity, null);
+                wallView.setTag("xc_wall");
+                android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT);
+                decor.addView(wallView, 0, params);
+            }
+        } catch (Exception e) {}
     }
 
     @Override
