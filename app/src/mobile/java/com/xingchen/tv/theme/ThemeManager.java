@@ -118,7 +118,9 @@ public class ThemeManager {
                 try {
                     android.graphics.Bitmap bm = android.graphics.BitmapFactory.decodeFile(value);
                     if (bm != null) {
-                        iv.setImageBitmap(bm);
+                        // Apply blur for glass mode
+                        android.graphics.Bitmap blurred = blurBitmap(activity, bm, 25f);
+                        iv.setImageBitmap(blurred != null ? blurred : bm);
                         iv.setBackgroundColor(0x00000000);
                     } else {
                         iv.setImageResource(getBuiltinRes(activity, "shanjian"));
@@ -131,6 +133,25 @@ public class ThemeManager {
                 iv.setImageResource(getBuiltinRes(activity, value));
             }
         } catch (Exception e) {}
+    }
+
+    private android.graphics.Bitmap blurBitmap(android.content.Context ctx, android.graphics.Bitmap input, float radius) {
+        try {
+            // Simple box blur using RenderScript (deprecated but works)
+            android.renderscript.RenderScript rs = android.renderscript.RenderScript.create(ctx);
+            android.renderscript.Allocation inAlloc = android.renderscript.Allocation.createFromBitmap(rs, input);
+            android.renderscript.Allocation outAlloc = android.renderscript.Allocation.createTyped(rs, inAlloc.getType());
+            android.renderscript.ScriptIntrinsicBlur blur = android.renderscript.ScriptIntrinsicBlur.create(rs, android.renderscript.Element.U8_4(rs));
+            blur.setRadius(radius);
+            blur.setInput(inAlloc);
+            blur.forEach(outAlloc);
+            android.graphics.Bitmap output = android.graphics.Bitmap.createBitmap(input.getWidth(), input.getHeight(), input.getConfig());
+            outAlloc.copyTo(output);
+            rs.destroy();
+            return output;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private int getBuiltinRes(android.content.Context ctx, String name) {
