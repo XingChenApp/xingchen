@@ -188,30 +188,6 @@ if '@style/Theme.Base' in mc:
     mc = mc.replace('@style/Theme.Base', '@style/Theme.XingChen')
     write(m, mc)
     print("Manifest updated to Theme.XingChen")
-import glob
-replacements = [
-    ("com.google.android.material.textview.MaterialTextView", "TextView"),
-    ("com.google.android.material.button.MaterialButton", "Button"),
-    ("com.google.android.material.textfield.TextInputEditText", "EditText"),
-    ("com.google.android.material.imageview.ShapeableImageView", "ImageView"),
-    
-    
-
-    ("com.google.android.material.appbar.MaterialToolbar", "androidx.appcompat.widget.Toolbar"),
-    ("com.google.android.material.appbar.AppBarLayout", "LinearLayout"),
-]
-for fp in glob.glob(os.path.join(MOBILE_RES, "layout/*.xml")):
-    lc = read(fp)
-    orig = lc
-    for old_cls, new_cls in replacements:
-        lc = lc.replace(old_cls, new_cls)
-    import re
-    lc = re.sub(r'<com\.google\.android\.material\.textfield\.TextInputLayout([^>]*)>', r'<LinearLayout\\1 android:orientation="vertical">', lc)
-    lc = lc.replace('</com.google.android.material.textfield.TextInputLayout>', '</LinearLayout>')
-    lc = lc.replace('com.google.android.material.tabs.TabLayout', 'LinearLayout')
-    if lc != orig:
-        write(fp, lc)
-        print(f"Material replaced in {os.path.basename(fp)}")
 config_layout = '''<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
