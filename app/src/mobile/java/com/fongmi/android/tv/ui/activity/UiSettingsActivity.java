@@ -165,25 +165,43 @@ public class UiSettingsActivity extends BaseActivity {
     }
 
     private void setWallpaper(String type, String value) {
-        // Save to XingChenTheme
         XingChenTheme theme = XingChenTheme.load(this);
         theme.wallpaperType = type;
-        theme.wallpaperValue = value;
-        theme.save(this);
-        // Update global wallpaper view
+        String saveValue = value;
+        
         android.view.ViewGroup decor = (android.view.ViewGroup) getWindow().getDecorView();
         android.view.View wallView = decor.findViewWithTag("xc_wallpaper");
-        if (wallView instanceof android.widget.ImageView) {
-            android.widget.ImageView iv = (android.widget.ImageView) wallView;
-            if (XingChenTheme.WP_BUILTIN.equals(type)) {
+        android.widget.ImageView iv = (wallView instanceof android.widget.ImageView) ? (android.widget.ImageView) wallView : null;
+        
+        if (XingChenTheme.WP_BUILTIN.equals(type)) {
+            // Default: use pre-blurred mountain
+            if (iv != null) {
                 int resId = getResources().getIdentifier("poster_shanjian_blur", "drawable", getPackageName());
                 if (resId != 0) iv.setImageResource(resId);
-            } else if (XingChenTheme.WP_LOCAL.equals(type)) {
-                iv.setImageURI(android.net.Uri.parse(value));
-            } else if (XingChenTheme.WP_URL.equals(type)) {
-                // TODO: Load URL with blur
+            }
+        } else if (XingChenTheme.WP_LOCAL.equals(type)) {
+            // Local: blur and save to cache
+            android.graphics.Bitmap blurred = com.xingchen.tv.theme.BlurHelper.loadAndBlur(this, value);
+            if (blurred != null) {
+                String cachePath = com.xingchen.tv.theme.BlurHelper.saveBlurred(this, blurred);
+                if (cachePath != null) {
+                    saveValue = cachePath; // Save blurred path
+                    if (iv != null) iv.setImageBitmap(blurred);
+                } else {
+                    if (iv != null) iv.setImageURI(android.net.Uri.parse(value));
+                }
+            } else {
+                if (iv != null) iv.setImageURI(android.net.Uri.parse(value));
+            }
+        } else if (XingChenTheme.WP_URL.equals(type)) {
+            // TODO: Download and blur URL
+            if (iv != null) {
+                // Placeholder
             }
         }
+        
+        theme.wallpaperValue = saveValue;
+        theme.save(this);
         updateWallpaperUI();
     }
 
