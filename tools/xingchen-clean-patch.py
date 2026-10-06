@@ -178,26 +178,6 @@ if '@style/Theme.Base' in mc:
     mc = mc.replace('@style/Theme.Base', '@style/Theme.XingChen')
     write(m, mc)
     print("Manifest updated to Theme.XingChen")
-import glob
-replacements = [
-    ("com.google.android.material.textview.MaterialTextView", "TextView"),
-    ("com.google.android.material.button.MaterialButton", "Button"),
-    ("com.google.android.material.textfield.TextInputEditText", "EditText"),
-    ("com.google.android.material.imageview.ShapeableImageView", "ImageView"),
-    ("com.google.android.material.progressindicator.LinearProgressIndicator", "ProgressBar"),
-    ("com.google.android.material.progressindicator.CircularProgressIndicator", "ProgressBar"),
-    ("com.google.android.material.slider.Slider", "SeekBar"),
-    ("com.google.android.material.floatingactionbutton.FloatingActionButton", "ImageButton"),
-]
-for fp in glob.glob(os.path.join(MOBILE_RES, "layout/*.xml")):
-    lc = read(fp)
-    orig = lc
-    for old_cls, new_cls in replacements:
-        lc = lc.replace(old_cls, new_cls)
-    if lc != orig:
-        write(fp, lc)
-        print(f"Material replaced in {os.path.basename(fp)}")
-
 config_layout = '''<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
