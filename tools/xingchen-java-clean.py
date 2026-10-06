@@ -225,6 +225,7 @@ public class ThemeController {
                 } else {
                     content.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
                 }
+                clearFragmentBackgrounds(activity);
             } else {
                 content.setBackgroundColor(0xFFF5F0E8);
             }
@@ -233,10 +234,21 @@ public class ThemeController {
                 ViewGroup vg = (ViewGroup) content;
                 if (vg.getChildCount() > 0) {
                     View root = vg.getChildAt(0);
-                    if (root != null) {
-                        if ("glass".equals(uiStyle)) {
-                            root.setBackgroundColor(0x00000000);
-                        }
+                    if (root != null && "glass".equals(uiStyle)) {
+                        root.setBackgroundColor(0x00000000);
+                    }
+                }
+            }
+        } catch (Exception e) {}
+    }
+
+    private static void clearFragmentBackgrounds(Activity activity) {
+        try {
+            if (activity instanceof androidx.fragment.app.FragmentActivity) {
+                androidx.fragment.app.FragmentActivity fa = (androidx.fragment.app.FragmentActivity) activity;
+                for (androidx.fragment.app.Fragment f : fa.getSupportFragmentManager().getFragments()) {
+                    if (f != null && f.getView() != null) {
+                        f.getView().setBackgroundColor(0x00000000);
                     }
                 }
             }
