@@ -389,10 +389,8 @@ ui_layout = '''<?xml version="1.0" encoding="utf-8"?>
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="选预置壁纸、纯色或上传自己的图片" android:textColor="#5A5F68" android:textSize="12sp" android:layout_marginBottom="12dp" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                        <ImageView android:id="@+id/wp_shanjian" android:layout_width="match_parent" android:layout_height="80dp" android:layout_margin="4dp" android:scaleType="centerCrop" android:src="@drawable/poster_shanjian" android:clickable="true" android:focusable="true" />
-                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="默认" android:textSize="11sp" android:textColor="#171B23" android:gravity="center" />
-                    </LinearLayout>
+                    <TextView android:id="@+id/wp_default" android:layout_width="0dp" android:layout_height="80dp" android:layout_weight="1" android:layout_margin="4dp" android:background="@drawable/xc_seg_selected" android:gravity="center" android:text="默认" android:textSize="14sp"  android:clickable="true" android:focusable="true" />
+                    <ImageView android:id="@+id/wp_shanjian" android:layout_width="0dp" android:layout_height="80dp" android:layout_weight="1" android:layout_margin="4dp" android:scaleType="centerCrop" android:src="@drawable/poster_shanjian"  android:clickable="true" android:focusable="true" />
                     <View android:id="@+id/wp_blue" android:layout_width="0dp" android:layout_height="80dp" android:layout_weight="1" android:layout_margin="4dp" android:background="#8fb0d1"  android:clickable="true" android:focusable="true" />
                     <View android:id="@+id/wp_green" android:layout_width="0dp" android:layout_height="80dp" android:layout_weight="1" android:layout_margin="4dp" android:background="#8fb996"  android:clickable="true" android:focusable="true" />
                 </LinearLayout>
