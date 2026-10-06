@@ -24,7 +24,7 @@ public class ThemeManager {
         app.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
             @Override public void onActivityCreated(Activity a, Bundle b) {}
             @Override public void onActivityStarted(Activity a) {}
-            @Override public void onActivityResumed(Activity a) { get().apply(a); }
+            @Override public void onActivityResumed(Activity a) { currentActivity = a; get().apply(a); }
             @Override public void onActivityPaused(Activity a) {}
             @Override public void onActivityStopped(Activity a) {}
             @Override public void onActivitySaveInstanceState(Activity a, Bundle b) {}
@@ -54,7 +54,11 @@ public class ThemeManager {
     }
 
     private void applyAll() {
+        try {
+            if (currentActivity != null) apply(currentActivity);
+        } catch (Exception e) {}
     }
+    private static android.app.Activity currentActivity;
 
     public void apply(Activity activity) {
         try {
@@ -71,11 +75,8 @@ public class ThemeManager {
             if (theme == null) theme = XingChenTheme.load(activity);
             ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
             ensureWallpaperLayer(activity, decor);
-            if (XingChenTheme.UI_GLASS.equals(theme.uiStyle)) {
-                makeTransparent(decor);
-            } else {
-                decor.setBackgroundColor(0xFFF5F0E8);
-            }
+            // Keep decor transparent so wallpaper shows, don't set beige
+            // makeTransparent(decor) can be called if needed for glass effect
         } catch (Exception e) {}
     }
 
@@ -93,12 +94,8 @@ public class ThemeManager {
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT));
             }
-            if (XingChenTheme.UI_GLASS.equals(theme.uiStyle)) {
-                iv.setVisibility(View.VISIBLE);
-                setWallpaperDrawable(activity, iv);
-            } else {
-                iv.setVisibility(View.GONE);
-            }
+            iv.setVisibility(View.VISIBLE);
+            setWallpaperDrawable(activity, iv);
         } catch (Exception e) {}
     }
 
@@ -114,7 +111,7 @@ public class ThemeManager {
                     iv.setBackgroundColor(0x00000000);
                     iv.setImageResource(getBuiltinRes(activity, "shanjian"));
                 }
-            } else if (XingChenTheme.WP_LOCAL.equals(type) || XingChenTheme.WP_URL.equals(type)) {
+            } else if (XingChenTheme.WP_LOCAL.equals(type)) {
                 try {
                     android.graphics.Bitmap bm = android.graphics.BitmapFactory.decodeFile(value);
                     if (bm != null) {
@@ -123,6 +120,13 @@ public class ThemeManager {
                     } else {
                         iv.setImageResource(getBuiltinRes(activity, "shanjian"));
                     }
+                } catch (Exception e) {
+                    iv.setImageResource(getBuiltinRes(activity, "shanjian"));
+                }
+            } else if (XingChenTheme.WP_URL.equals(type)) {
+                try {
+                    iv.setImageURI(android.net.Uri.parse(value));
+                    iv.setBackgroundColor(0x00000000);
                 } catch (Exception e) {
                     iv.setImageResource(getBuiltinRes(activity, "shanjian"));
                 }
