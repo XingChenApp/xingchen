@@ -7,6 +7,7 @@ import android.os.Looper;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
+import com.fongmi.android.tv.R;
 
 public class SplashActivity extends AppCompatActivity {
     @Override
