@@ -206,5 +206,4 @@ public class ThemeManager {
             }
         } catch (Exception e) { flog("ERROR makeTransparent failed: " + e); }
     }
-    }
 }
