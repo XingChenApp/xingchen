@@ -97,11 +97,11 @@ public class ThemeManager {
         try {
             flog("doApply: activity=" + activity.getClass().getSimpleName());
             if (theme == null) theme = XingChenTheme.load(activity);
-            int resId = getWallpaperResId(activity);
-            flog("doApply: setting window background to resId=" + resId);
+            android.graphics.drawable.Drawable dw = getWallpaperDrawable(activity);
+            flog("doApply: setting window background, drawable=" + (dw != null));
             try {
-                if (resId != 0) {
-                    activity.getWindow().setBackgroundDrawableResource(resId);
+                if (dw != null) {
+                    activity.getWindow().setBackgroundDrawable(dw);
                 } else {
                     activity.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0x00000000));
                 }
@@ -111,90 +111,48 @@ public class ThemeManager {
         } catch (Exception e) { flog("ERROR doApply failed: " + e); }
     }
 
-    private int getWallpaperResId(Activity activity) {
+    private android.graphics.drawable.Drawable getWallpaperDrawable(Activity activity) {
         try {
             String type = theme.wallpaperType;
             String value = theme.wallpaperValue;
-            flog("getWallpaperResId: type=" + type + ", value=" + value);
-            if (XingChenTheme.WP_COLOR.equals(type)) {
-                return 0;
-            } else if (XingChenTheme.WP_LOCAL.equals(type) || XingChenTheme.WP_URL.equals(type)) {
-                return 0;
-            } else {
-                int id = getBuiltinRes(activity, value);
-                flog("getWallpaperResId: builtin id=" + id);
-                return id;
-            }
-        } catch (Exception e) {
-            flog("ERROR getWallpaperResId: " + e);
-            return 0;
-        }
-    }
-
-    private void ensureWallpaperLayer(Activity activity, ViewGroup decor) {
-        try {
-            View existing = decor.findViewWithTag("xc_wallpaper");
-            ImageView iv;
-            if (existing instanceof ImageView) {
-                flog( "ensureWallpaperLayer: found existing ImageView");
-                iv = (ImageView) existing;
-            } else {
-                flog( "ensureWallpaperLayer: creating new ImageView");
-                iv = new ImageView(activity);
-                iv.setTag("xc_wallpaper");
-                iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                decor.addView(iv, 0, new android.widget.FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT));
-                flog( "ensureWallpaperLayer: ImageView added to decor, childCount=" + decor.getChildCount());
-            }
-            iv.setVisibility(View.VISIBLE);
-            setWallpaperDrawable(activity, iv);
-        } catch (Exception e) { flog("ERROR ensureWallpaperLayer failed: " + e); }
-    }
-
-    private void setWallpaperDrawable(Activity activity, ImageView iv) {
-        try {
-            String type = theme.wallpaperType;
-            String value = theme.wallpaperValue;
-            flog( "setWallpaperDrawable: type=" + type + ", value=" + value);
+            flog("getWallpaperDrawable: type=" + type + ", value=" + value);
             if (XingChenTheme.WP_COLOR.equals(type)) {
                 try {
-                    iv.setImageDrawable(null);
-                    iv.setBackgroundColor(android.graphics.Color.parseColor(value));
+                    int color = android.graphics.Color.parseColor(value);
+                    return new android.graphics.drawable.ColorDrawable(color);
                 } catch (Exception e) {
-                    iv.setBackgroundColor(0x00000000);
-                    iv.setImageResource(getBuiltinRes(activity, "shanjian"));
+                    return null;
                 }
             } else if (XingChenTheme.WP_LOCAL.equals(type)) {
                 try {
                     android.graphics.Bitmap bm = android.graphics.BitmapFactory.decodeFile(value);
                     if (bm != null) {
-                        iv.setImageBitmap(bm);
-                        iv.setBackgroundColor(0x00000000);
+                        flog("getWallpaperDrawable: local bitmap loaded, " + bm.getWidth() + "x" + bm.getHeight());
+                        return new android.graphics.drawable.BitmapDrawable(activity.getResources(), bm);
                     } else {
-                        iv.setImageResource(getBuiltinRes(activity, "shanjian"));
+                        flog("getWallpaperDrawable: local decode failed, fallback to builtin");
                     }
                 } catch (Exception e) {
-                    iv.setImageResource(getBuiltinRes(activity, "shanjian"));
+                    flog("ERROR local decode: " + e);
                 }
             } else if (XingChenTheme.WP_URL.equals(type)) {
                 try {
-                    try {
-                        android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeFile(value);
-                        if (bmp != null) iv.setImageBitmap(bmp);
-                    } catch (Exception e) {};
-                    iv.setBackgroundColor(0x00000000);
-                } catch (Exception e) {
-                    iv.setImageResource(getBuiltinRes(activity, "shanjian"));
-                }
-            } else {
-                iv.setBackgroundColor(0x00000000);
-                int resId = getBuiltinRes(activity, value);
-                flog( "setWallpaperDrawable: builtin resId=" + resId + " for value=" + value);
-                iv.setImageResource(resId);
+                    android.graphics.Bitmap bm = android.graphics.BitmapFactory.decodeFile(value);
+                    if (bm != null) {
+                        return new android.graphics.drawable.BitmapDrawable(activity.getResources(), bm);
+                    }
+                } catch (Exception e) {}
             }
-        } catch (Exception e) { flog("ERROR setWallpaperDrawable failed: " + e); }
+            int id = getBuiltinRes(activity, value);
+            flog("getWallpaperDrawable: builtin id=" + id);
+            if (id != 0) {
+                return activity.getResources().getDrawable(id, null);
+            }
+            return null;
+        } catch (Exception e) {
+            flog("ERROR getWallpaperDrawable: " + e);
+            return null;
+        }
     }
 
     private int getBuiltinRes(android.content.Context ctx, String name) {
