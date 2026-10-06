@@ -125,7 +125,7 @@ if os.path.exists(BASE_JAVA):
             "super.onCreate(savedInstanceState);",
             "super.onCreate(savedInstanceState);\\n        { getWindow().setStatusBarColor(0x00000000); }",
         )
-        assert "ThemeController" in bc, "BaseActivity patch failed"
+        assert "setStatusBarColor" in bc, "BaseActivity patch failed"
         # Add onResume to refresh wallpaper when returning - robust version
         if "xc_onResume" not in bc:
             if "protected void onResume()" in bc:
