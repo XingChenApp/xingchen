@@ -146,6 +146,18 @@ public class App extends Application implements Application.ActivityLifecycleCal
     @Override
     public void onActivityResumed(@NonNull Activity activity) {
         if (activity != activity()) this.activity = activity;
+        try {
+            android.view.ViewGroup decor = (android.view.ViewGroup) activity.getWindow().getDecorView();
+            android.view.View old = decor.findViewWithTag("xc_wallpaper");
+            if (old != null) decor.removeView(old);
+            android.widget.ImageView iv = new android.widget.ImageView(activity);
+            iv.setTag("xc_wallpaper");
+            iv.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+            iv.setImageResource(R.drawable.poster_shanjian_blur);
+            decor.addView(iv, 0, new android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+        } catch (Exception e) {}
     }
 
     @Override
