@@ -439,139 +439,372 @@ if "ConfigSourceActivity.start" not in sc:
 
 UI_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/activity/UiSettingsActivity.java")
 ui_code = """package com.fongmi.android.tv.ui.activity;
+
 import android.app.Activity;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
-import androidx.viewbinding.ViewBinding;
+import android.view.View;
+import android.widget.LinearLayout;
+import android.widget.SeekBar;
+import android.widget.TextView;
+
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.databinding.ActivityUiSettingsBinding;
-import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.ui.activity.BaseActivity;
+import com.xingchen.tv.theme.ThemeManager;
+import com.xingchen.tv.theme.XingChenTheme;
+
 public class UiSettingsActivity extends BaseActivity {
     private ActivityUiSettingsBinding binding;
+
     public static void start(Activity activity) {
         activity.startActivity(new Intent(activity, UiSettingsActivity.class));
     }
+
     @Override
-    protected ViewBinding getBinding() {
-        binding = ActivityUiSettingsBinding.inflate(getLayoutInflater());
-        return binding;
+    protected int getLayoutResId() {
+        return R.layout.activity_ui_settings;
     }
+
     @Override
     protected void initView(Bundle savedInstanceState) {
+        binding = ActivityUiSettingsBinding.bind(findViewById(android.R.id.content));
+        initThemeSection();
+        initUiStyleSection();
+        initGlassSection();
+        initWallpaperSection();
+        updateVisibility();
+    }
+
+    private void initThemeSection() {
+        binding.themeLight.setOnClickListener(v -> setTheme("light"));
+        binding.themeDark.setOnClickListener(v -> setTheme("dark"));
+        binding.themeSystem.setOnClickListener(v -> setTheme("system"));
         updateThemeUI();
-        updateWallpaperUI();
-        binding.themeLight.setOnClickListener(v -> { setTheme("light"); updateThemeUI(); });
-        binding.themeDark.setOnClickListener(v -> { setTheme("dark"); updateThemeUI(); });
-        binding.themeSystem.setOnClickListener(v -> { setTheme("system"); updateThemeUI(); });
-        binding.wpDefault.setOnClickListener(v -> { setWallpaper("shanjian"); updateWallpaperUI(); });
-        binding.wpShanjian.setOnClickListener(v -> { setWallpaper("shanjian"); updateWallpaperUI(); });
-        binding.wpBlue.setOnClickListener(v -> { setWallpaperColor("#8fb0d1"); updateWallpaperUI(); });
-        binding.wpGreen.setOnClickListener(v -> { setWallpaperColor("#8fb996"); updateWallpaperUI(); });
-        binding.wpClay.setOnClickListener(v -> { setWallpaperColor("#d29a7c"); updateWallpaperUI(); });
-        binding.wpPurple.setOnClickListener(v -> { setWallpaperColor("#b3a6d6"); updateWallpaperUI(); });
-        binding.wpDark.setOnClickListener(v -> { setWallpaperColor("#43484f"); updateWallpaperUI(); });
-        initCoverSize();
-        initOrientation();
-        initRatio();
-        initUiStyle();
-        initGlassAlpha();
     }
-    private void initCoverSize() {
-        updateCoverSizeUI();
-        binding.coverSmall.setOnClickListener(v -> { setPref("cover_size", "small"); updateCoverSizeUI(); });
-        binding.coverMedium.setOnClickListener(v -> { setPref("cover_size", "medium"); updateCoverSizeUI(); });
-        binding.coverLarge.setOnClickListener(v -> { setPref("cover_size", "large"); updateCoverSizeUI(); });
+
+    private void setTheme(String theme) {
+        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("theme_mode", theme).apply();
+        updateThemeUI();
     }
-    private void updateCoverSizeUI() {
-        String s = getPref("cover_size", "medium");
-        binding.coverSmall.setBackgroundResource("small".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.coverMedium.setBackgroundResource("medium".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.coverLarge.setBackgroundResource("large".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+
+    private void updateThemeUI() {
+        String theme = getSharedPreferences("xingchen", MODE_PRIVATE).getString("theme_mode", "light");
+        binding.themeLight.setSelected("light".equals(theme));
+        binding.themeDark.setSelected("dark".equals(theme));
+        binding.themeSystem.setSelected("system".equals(theme));
     }
-    private void initOrientation() {
-        updateOrientationUI();
-        binding.orientPortrait.setOnClickListener(v -> { setPref("cover_orient", "portrait"); updateOrientationUI(); });
-        binding.orientLandscape.setOnClickListener(v -> { setPref("cover_orient", "landscape"); updateOrientationUI(); });
-    }
-    private void updateOrientationUI() {
-        String s = getPref("cover_orient", "portrait");
-        binding.orientPortrait.setBackgroundResource("portrait".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.orientLandscape.setBackgroundResource("landscape".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-    }
-    private void initRatio() {
-        updateRatioUI();
-        binding.ratio23.setOnClickListener(v -> { setPref("cover_ratio", "2:3"); updateRatioUI(); });
-        binding.ratio34.setOnClickListener(v -> { setPref("cover_ratio", "3:4"); updateRatioUI(); });
-        binding.ratio916.setOnClickListener(v -> { setPref("cover_ratio", "9:16"); updateRatioUI(); });
-    }
-    private void updateRatioUI() {
-        String s = getPref("cover_ratio", "2:3");
-        binding.ratio23.setBackgroundResource("2:3".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.ratio34.setBackgroundResource("3:4".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.ratio916.setBackgroundResource("9:16".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-    }
-    private void initUiStyle() {
+
+    private void initUiStyleSection() {
+        binding.uiNormal.setOnClickListener(v -> setUiStyle(XingChenTheme.UI_NORMAL));
+        binding.uiGlass.setOnClickListener(v -> setUiStyle(XingChenTheme.UI_GLASS));
         updateUiStyleUI();
-        binding.styleNormal.setOnClickListener(v -> { setPref("ui_style", "normal"); updateUiStyleUI(); });
-        binding.styleGlass.setOnClickListener(v -> { setPref("ui_style", "glass"); updateUiStyleUI(); });
     }
+
+    private void setUiStyle(String style) {
+        ThemeManager.get().setUiStyle(this, style);
+        updateUiStyleUI();
+        updateVisibility();
+    }
+
     private void updateUiStyleUI() {
-        String s = getPref("ui_style", "glass");
-        binding.styleNormal.setBackgroundResource("normal".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.styleGlass.setBackgroundResource("glass".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        String style = ThemeManager.get().getTheme().uiStyle;
+        binding.uiNormal.setSelected(XingChenTheme.UI_NORMAL.equals(style));
+        binding.uiGlass.setSelected(XingChenTheme.UI_GLASS.equals(style));
     }
-    private void initGlassAlpha() {
-        int a = getSharedPreferences("xingchen", MODE_PRIVATE).getInt("glass_alpha", 55);
-        binding.glassAlpha.setProgress(a);
-        binding.glassAlpha.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
-            public void onProgressChanged(android.widget.SeekBar s, int p, boolean f) {
-                getSharedPreferences("xingchen", MODE_PRIVATE).edit().putInt("glass_alpha", p).apply();
+
+    private void initGlassSection() {
+        int alpha = ThemeManager.get().getTheme().glassAlpha;
+        binding.glassSeek.setProgress(alpha);
+        binding.glassValue.setText(alpha + "%");
+        binding.glassSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                binding.glassValue.setText(progress + "%");
+                if (fromUser) {
+                    ThemeManager.get().getTheme().glassAlpha = progress;
+                    ThemeManager.get().getTheme().save(UiSettingsActivity.this);
+                    ThemeManager.get().apply(UiSettingsActivity.this);
+                }
             }
-            public void onStartTrackingTouch(android.widget.SeekBar s) {}
-            public void onStopTrackingTouch(android.widget.SeekBar s) {}
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
     }
-    private String getPref(String k, String d) {
-        return getSharedPreferences("xingchen", MODE_PRIVATE).getString(k, d);
-    }
-    private void setPref(String k, String v) {
-        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString(k, v).apply();
-    }
-    private void updateThemeUI() {
-        String t = getSharedPreferences("xingchen", MODE_PRIVATE).getString("theme", "light");
-        binding.themeLight.setBackgroundResource("light".equals(t) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.themeDark.setBackgroundResource("dark".equals(t) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.themeSystem.setBackgroundResource("system".equals(t) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-    }
-    private void updateWallpaperUI() {
-        String wp = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper", "shanjian");
-        String c = getSharedPreferences("xingchen", MODE_PRIVATE).getString("wallpaper_color", "");
-        binding.wpDefault.setBackgroundResource("shanjian".equals(wp) && "".equals(c) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-    }
-    private void setTheme(String theme) {
-        SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
-        sp.edit().putString("theme", theme).apply();
-        if ("dark".equals(theme)) {
-            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES);
-        } else if ("light".equals(theme)) {
-            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO);
-        } else {
-            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
-        }
-        recreate();
-    }
-    private void setWallpaper(String name) {
-        com.xingchen.tv.theme.ThemeManager.get().setWallpaper(this, com.xingchen.tv.theme.XingChenTheme.WP_BUILTIN, name);
+
+    private void initWallpaperSection() {
+        binding.wpDefault.setOnClickListener(v -> setWallpaper(XingChenTheme.WP_BUILTIN, "shanjian"));
+        binding.wpLocal.setOnClickListener(v -> pickLocalWallpaper());
+        binding.wpUrl.setOnClickListener(v -> inputUrlWallpaper());
         updateWallpaperUI();
     }
-    private void setWallpaperColor(String color) {
-        com.xingchen.tv.theme.ThemeManager.get().setWallpaper(this, com.xingchen.tv.theme.XingChenTheme.WP_COLOR, color);
+
+    private void setWallpaper(String type, String value) {
+        ThemeManager.get().setWallpaper(this, type, value);
+        updateWallpaperUI();
+    }
+
+    private void pickLocalWallpaper() {
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("image/*");
+        startActivityForResult(intent, 1001);
+    }
+
+    private void inputUrlWallpaper() {
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        builder.setTitle("输入图片URL");
+        final android.widget.EditText input = new android.widget.EditText(this);
+        builder.setView(input);
+        builder.setPositiveButton("确定", (d, w) -> {
+            String url = input.getText().toString().trim();
+            if (!url.isEmpty()) {
+                downloadAndSetWallpaper(url);
+            }
+        });
+        builder.setNegativeButton("取消", null);
+        builder.show();
+    }
+
+    private void downloadAndSetWallpaper(String url) {
+        new Thread(() -> {
+            try {
+                java.net.URL u = new java.net.URL(url);
+                java.io.InputStream in = u.openStream();
+                java.io.File outFile = new java.io.File(getFilesDir(), "wallpaper_url.jpg");
+                java.io.FileOutputStream out = new java.io.FileOutputStream(outFile);
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
+                out.close();
+                in.close();
+                runOnUiThread(() -> setWallpaper(XingChenTheme.WP_URL, outFile.getAbsolutePath()));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1001 && resultCode == RESULT_OK && data != null) {
+            try {
+                android.net.Uri uri = data.getData();
+                java.io.InputStream in = getContentResolver().openInputStream(uri);
+                java.io.File outFile = new java.io.File(getFilesDir(), "wallpaper_local.jpg");
+                java.io.FileOutputStream out = new java.io.FileOutputStream(outFile);
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
+                out.close();
+                in.close();
+                setWallpaper(XingChenTheme.WP_LOCAL, outFile.getAbsolutePath());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void updateWallpaperUI() {
+        String type = ThemeManager.get().getTheme().wallpaperType;
+        String value = ThemeManager.get().getTheme().wallpaperValue;
+        binding.wpDefault.setSelected(XingChenTheme.WP_BUILTIN.equals(type));
+        binding.wpLocal.setSelected(XingChenTheme.WP_LOCAL.equals(type));
+        binding.wpUrl.setSelected(XingChenTheme.WP_URL.equals(type));
+    }
+
+    private void updateVisibility() {
+        String style = ThemeManager.get().getTheme().uiStyle;
+        boolean isGlass = XingChenTheme.UI_GLASS.equals(style);
+        binding.themeSection.setVisibility(isGlass ? View.GONE : View.VISIBLE);
+        binding.wallpaperSection.setVisibility(isGlass ? View.VISIBLE : View.GONE);
+        binding.glassSection.setVisibility(isGlass ? View.VISIBLE : View.GONE);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateVisibility();
+        updateUiStyleUI();
         updateWallpaperUI();
     }
 }
 """
 write(UI_JAVA, ui_code)
-print("UiSettingsActivity created")
+UI_XML = os.path.join(BASE, "app/src/mobile/res/layout/activity_ui_settings.xml")
+ui_xml = """<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:id="@+id/themeSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="主题"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp">
+
+                <Button
+                    android:id="@+id/themeLight"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="浅色" />
+
+                <Button
+                    android:id="@+id/themeDark"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="深色" />
+
+                <Button
+                    android:id="@+id/themeSystem"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="跟随系统" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="UI 风格"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp">
+
+                <Button
+                    android:id="@+id/uiNormal"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="普通" />
+
+                <Button
+                    android:id="@+id/uiGlass"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="毛玻璃" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/glassSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="毛玻璃透明度"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp">
+
+                <SeekBar
+                    android:id="@+id/glassSeek"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:max="100" />
+
+                <TextView
+                    android:id="@+id/glassValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="55%"
+                    android:layout_marginStart="8dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/wallpaperSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="壁纸"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp">
+
+                <Button
+                    android:id="@+id/wpDefault"
+                    android:layout_width="0dp"
+                    android:layout_height="80dp"
+                    android:layout_weight="1"
+                    android:text="默认" />
+
+                <Button
+                    android:id="@+id/wpLocal"
+                    android:layout_width="0dp"
+                    android:layout_height="80dp"
+                    android:layout_weight="1"
+                    android:text="本地" />
+
+                <Button
+                    android:id="@+id/wpUrl"
+                    android:layout_width="0dp"
+                    android:layout_height="80dp"
+                    android:layout_weight="1"
+                    android:text="URL" />
+            </LinearLayout>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
+"""
+write(UI_XML, ui_xml)
+print("UiSettingsActivity created (new theme UI)")
+
 
 mc = read(MANIFEST)
 if "UiSettingsActivity" not in mc:
