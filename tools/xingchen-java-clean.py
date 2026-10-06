@@ -224,7 +224,7 @@ public class ThemeController {
             try {
                 decor.setBackgroundColor(Color.parseColor(profile.background.color));
             } catch (Exception e) {
-                decor.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
+                decor.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian_blur);
             }
         } else {
             decor.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
