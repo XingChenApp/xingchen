@@ -64,7 +64,7 @@ public class UiSettingsActivity extends BaseActivity {
         if (theme.equals("light")) binding.tvThemeDesc.setText("当前为浅色主题，界面明亮清爽");
         else if (theme.equals("dark")) binding.tvThemeDesc.setText("当前为深色主题，夜间观看更护眼");
         else binding.tvThemeDesc.setText("跟随系统主题自动切换");
-        String theme = getPref("theme_mode", "light");
+        theme = getPref("theme_mode", "light");
         setSegSelected(binding.segThemeLight, "light".equals(theme));
         setSegSelected(binding.segThemeDark, "dark".equals(theme));
         setSegSelected(binding.segThemeSystem, "system".equals(theme));
@@ -82,7 +82,7 @@ public class UiSettingsActivity extends BaseActivity {
         if (size.equals("small")) binding.tvCoverDesc.setText("小封面：一行显示 4 个海报");
         else if (size.equals("medium")) binding.tvCoverDesc.setText("中封面：一行显示 3 个海报");
         else binding.tvCoverDesc.setText("大封面：一行显示 2 个海报");
-        String size = getPref("cover_size", "medium");
+        size = getPref("cover_size", "medium");
         setSegSelected(binding.segCoverSmall, "small".equals(size));
         setSegSelected(binding.segCoverMedium, "medium".equals(size));
         setSegSelected(binding.segCoverLarge, "large".equals(size));
@@ -113,7 +113,7 @@ public class UiSettingsActivity extends BaseActivity {
     private void updateRatioUI() {
         String ratio = getPref("cover_ratio", "2:3");
         binding.tvCoverRatioDesc.setText("当前比例 " + ratio);
-        String ratio = getPref("cover_ratio", "2:3");
+        ratio = getPref("cover_ratio", "2:3");
         setSegSelected(binding.segRatio23, "2:3".equals(ratio));
         setSegSelected(binding.segRatio34, "3:4".equals(ratio));
         setSegSelected(binding.segRatio916, "9:16".equals(ratio));
