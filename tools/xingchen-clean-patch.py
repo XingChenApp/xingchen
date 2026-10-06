@@ -164,11 +164,17 @@ write(p, c)
 
 p = os.path.join(MOBILE_RES, "values/styles.xml")
 c = read(p)
-pattern = r'<style name="Theme.Base" parent="[^"]*">.*?</style>'
-new_style = '<style name="Theme.Base" parent="android:Theme.Material.Light.NoActionBar">\\n        <item name="android:windowBackground">@drawable/poster_shanjian</item>\\n        <item name="android:colorBackground">@android:color/transparent</item>\\n    </style>'
-c_new, n = re.subn(pattern, new_style, c, flags=re.DOTALL)
-assert n == 1, f"Expected 1 replacement, got {n}"
-write(p, c_new)
+new_theme = '\\n    <style name="Theme.XingChen" parent="android:Theme.Material.Light.NoActionBar">\\n        <item name="android:windowBackground">@drawable/poster_shanjian</item>\\n        <item name="android:colorBackground">@android:color/transparent</item>\\n    </style>\\n'
+if 'Theme.XingChen' not in c:
+    c = c.replace('</resources>', new_theme + '</resources>', 1)
+    write(p, c)
+    print("Theme.XingChen created")
+m = os.path.join(BASE, "app/src/main/AndroidManifest.xml")
+mc = read(m)
+if '@style/Theme.Base' in mc:
+    mc = mc.replace('@style/Theme.Base', '@style/Theme.XingChen')
+    write(m, mc)
+    print("Manifest updated to Theme.XingChen")
 
 config_layout = '''<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
