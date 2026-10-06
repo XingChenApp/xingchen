@@ -16,7 +16,7 @@
         android:smallScreens="true"
         android:xlargeScreens="true" />
 
-    <application android:name="com.xingchen.tv.XingChenApp">
+    <application>
 
         <activity
             android:name=".ui.activity.HomeActivity"
