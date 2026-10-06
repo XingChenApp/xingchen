@@ -154,9 +154,9 @@ public class App extends Application implements Application.ActivityLifecycleCal
             iv.setTag("xc_wallpaper");
             iv.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
             iv.setImageResource(R.drawable.poster_shanjian_blur);
-            decor.addView(iv, 0, new android.view.ViewGroup.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+            decor.addView(iv, 0, new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
         } catch (Exception e) {}
     }
 
