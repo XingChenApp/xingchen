@@ -95,6 +95,7 @@ public class App extends Application implements Application.ActivityLifecycleCal
     @Override
     public void onCreate() {
         super.onCreate();
+        try { com.xingchen.tv.theme.ThemeManager.init(this); } catch (Exception e) {}
         if (PlaybackRecoveryMonitor.isRecoveryProcess(this)) return;
         PlaybackMemoryMonitor.process().initialize(this);
         PlaybackSystemConditionMonitor.process().initialize(this);
