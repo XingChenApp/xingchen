@@ -167,6 +167,17 @@ public class ThemeManager {
             int id = getBuiltinRes(activity, value);
             flog("getWallpaperDrawable: builtin id=" + id);
             if (id != 0) {
+                try {
+                    android.graphics.Bitmap bm = android.graphics.BitmapFactory.decodeResource(activity.getResources(), id);
+                    if (bm != null) {
+                        android.graphics.drawable.BitmapDrawable bd = new android.graphics.drawable.BitmapDrawable(activity.getResources(), bm);
+                        bd.setTintList(null);
+                        flog("getWallpaperDrawable: builtin bitmap decoded, " + bm.getWidth() + "x" + bm.getHeight());
+                        return bd;
+                    }
+                } catch (Exception e) {
+                    flog("ERROR builtin decode: " + e);
+                }
                 return activity.getResources().getDrawable(id, null);
             }
             return null;
