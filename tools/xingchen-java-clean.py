@@ -146,6 +146,17 @@ if os.path.exists(BASE_JAVA):
         write(BASE_JAVA, bc)
         print("BaseActivity patched")
 
+APP_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/App.java")
+if os.path.exists(APP_JAVA):
+    ac = read(APP_JAVA)
+    if "ThemeController.init" not in ac:
+        ac = ac.replace(
+            "super.onCreate();",
+            "super.onCreate();\n        com.fongmi.android.tv.theme.ThemeController.init(this);"
+        )
+        write(APP_JAVA, ac)
+        print("App.java patched for global theme")
+
 BASE_FRAG = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/ui/base/BaseFragment.java")
 if os.path.exists(BASE_FRAG):
     fc = read(BASE_FRAG)
@@ -257,6 +268,23 @@ public class ThemeController {
         p.background.color = color;
         p.save(activity);
     }
+
+    public static void init(android.app.Application app) {
+        app.registerActivityLifecycleCallbacks(new android.app.Application.ActivityLifecycleCallbacks() {
+            @Override public void onActivityCreated(android.app.Activity a, android.os.Bundle b) {
+                apply(a);
+            }
+            @Override public void onActivityResumed(android.app.Activity a) {
+                apply(a);
+            }
+            @Override public void onActivityStarted(android.app.Activity a) {}
+            @Override public void onActivityPaused(android.app.Activity a) {}
+            @Override public void onActivityStopped(android.app.Activity a) {}
+            @Override public void onActivitySaveInstanceState(android.app.Activity a, android.os.Bundle b) {}
+            @Override public void onActivityDestroyed(android.app.Activity a) {}
+        });
+    }
+
 }
 """)
 print("Theme system created")
