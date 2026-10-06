@@ -167,8 +167,11 @@ c = read(p)
 new_theme = '\\n    <style name="Theme.XingChen" parent="android:Theme.Material.Light.NoActionBar">\\n        <item name="android:windowBackground">@drawable/poster_shanjian</item>\\n        <item name="android:colorBackground">@android:color/transparent</item>\\n    </style>\\n'
 if 'Theme.XingChen' not in c:
     c = c.replace('</resources>', new_theme + '</resources>', 1)
-    write(p, c)
     print("Theme.XingChen created")
+import re
+c, n = re.subn(r'<style name="Theme.Base"[^>]*>.*?</style>\\s*', '', c, flags=re.DOTALL)
+print(f"Deleted {n} Theme.Base definitions")
+write(p, c)
 m = os.path.join(BASE, "app/src/main/AndroidManifest.xml")
 mc = read(m)
 if '@style/Theme.Base' in mc:
