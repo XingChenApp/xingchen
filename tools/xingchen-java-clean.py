@@ -172,119 +172,65 @@ if os.path.exists(BASE_FRAG):
 
 THEME_DIR = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/theme")
 os.makedirs(THEME_DIR, exist_ok=True)
-write(os.path.join(THEME_DIR, "ThemeProfile.java"), """package com.fongmi.android.tv.theme;
-
-public class ThemeProfile {
-    public Background background = new Background();
-
-    public static class Background {
-        public String type = "wallpaper";
-        public String color = "";
-        public float scrimAlpha = 0f;
-    }
-
-    public static ThemeProfile load(android.content.Context ctx) {
-        ThemeProfile p = new ThemeProfile();
-        android.content.SharedPreferences sp = ctx.getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
-        String wp = sp.getString("wallpaper", "shanjian");
-        if ("color".equals(wp)) {
-            p.background.type = "color";
-            p.background.color = sp.getString("wallpaper_color", "#8fb0d1");
-        } else {
-            p.background.type = "wallpaper";
-        }
-        return p;
-    }
-
-    public void save(android.content.Context ctx) {
-        android.content.SharedPreferences.Editor e = ctx.getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE).edit();
-        if ("color".equals(background.type)) {
-            e.putString("wallpaper", "color");
-            e.putString("wallpaper_color", background.color);
-        } else {
-            e.putString("wallpaper", "shanjian");
-            e.putString("wallpaper_color", "");
-        }
-        e.apply();
-    }
-}
-""")
 write(os.path.join(THEME_DIR, "ThemeController.java"), """package com.fongmi.android.tv.theme;
 
 import android.app.Activity;
-import android.graphics.Color;
+import android.app.Application;
+import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 
 public class ThemeController {
 
+    public static void init(Application app) {
+        app.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
+            @Override public void onActivityCreated(Activity a, Bundle b) {}
+            @Override public void onActivityStarted(Activity a) {}
+            @Override public void onActivityResumed(Activity a) {
+                apply(a);
+            }
+            @Override public void onActivityPaused(Activity a) {}
+            @Override public void onActivityStopped(Activity a) {}
+            @Override public void onActivitySaveInstanceState(Activity a, Bundle b) {}
+            @Override public void onActivityDestroyed(Activity a) {}
+        });
+    }
+
     public static void apply(Activity activity) {
         try {
-            ThemeProfile profile = ThemeProfile.load(activity);
-            View decor = activity.getWindow().getDecorView();
-            applyBackground(decor, profile);
-            makeRootTransparent(activity);
-        } catch (Exception e) {
-        }
+            activity.getWindow().getDecorView().post(new Runnable() {
+                @Override public void run() {
+                    doApply(activity);
+                }
+            });
+        } catch (Exception e) {}
     }
 
-    private static void applyBackground(View decor, ThemeProfile profile) {
-        if (decor == null || profile == null || profile.background == null) return;
-        String type = profile.background.type;
-        if ("color".equals(type)) {
-            try {
-                decor.setBackgroundColor(Color.parseColor(profile.background.color));
-            } catch (Exception e) {
-                decor.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
-            }
-        } else {
-            decor.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
-        }
-    }
-
-    private static void makeRootTransparent(Activity activity) {
+    private static void doApply(Activity activity) {
         try {
             View content = activity.findViewById(android.R.id.content);
+            if (content == null) return;
+            android.content.SharedPreferences sp = activity.getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
+            String wp = sp.getString("wallpaper", "shanjian");
+            if ("color".equals(wp)) {
+                String c = sp.getString("wallpaper_color", "#8fb0d1");
+                try {
+                    content.setBackgroundColor(android.graphics.Color.parseColor(c));
+                } catch (Exception e) {
+                    content.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
+                }
+            } else {
+                content.setBackgroundResource(com.fongmi.android.tv.R.drawable.poster_shanjian);
+            }
             if (content instanceof ViewGroup) {
                 ViewGroup vg = (ViewGroup) content;
                 if (vg.getChildCount() > 0) {
                     View root = vg.getChildAt(0);
-                    if (root != null) root.setBackgroundColor(Color.TRANSPARENT);
+                    if (root != null) root.setBackgroundColor(0x00000000);
                 }
             }
-        } catch (Exception e) {
-        }
+        } catch (Exception e) {}
     }
-
-    public static void setWallpaper(Activity activity, String name) {
-        ThemeProfile p = ThemeProfile.load(activity);
-        p.background.type = "wallpaper";
-        p.save(activity);
-    }
-
-    public static void setWallpaperColor(Activity activity, String color) {
-        ThemeProfile p = ThemeProfile.load(activity);
-        p.background.type = "color";
-        p.background.color = color;
-        p.save(activity);
-    }
-
-    public static void init(android.app.Application app) {
-        app.registerActivityLifecycleCallbacks(new android.app.Application.ActivityLifecycleCallbacks() {
-            @Override public void onActivityCreated(android.app.Activity a, android.os.Bundle b) {
-                apply(a);
-            }
-            @Override public void onActivityResumed(android.app.Activity a) {
-                apply(a);
-            }
-            @Override public void onActivityStarted(android.app.Activity a) {}
-            @Override public void onActivityPaused(android.app.Activity a) {}
-            @Override public void onActivityStopped(android.app.Activity a) {}
-            @Override public void onActivitySaveInstanceState(android.app.Activity a, android.os.Bundle b) {}
-            @Override public void onActivityDestroyed(android.app.Activity a) {}
-        });
-    }
-
 }
 """)
 print("Theme system created")
