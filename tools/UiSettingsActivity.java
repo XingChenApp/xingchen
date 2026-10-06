@@ -29,10 +29,81 @@ public class UiSettingsActivity extends BaseActivity {
 
     @Override
     protected void initView(Bundle savedInstanceState) {
+        initThemeSection();
+        initCoverSizeSection();
+        initOrientSection();
+        initRatioSection();
         initUiStyleSection();
         initGlassSection();
         initWallpaperSection();
         updateVisibility();
+    }
+
+    private String getPref(String key, String def) {
+        return getSharedPreferences("xingchen", MODE_PRIVATE).getString(key, def);
+    }
+
+    private void setPref(String key, String value) {
+        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString(key, value).apply();
+    }
+
+    private void initThemeSection() {
+        binding.segThemeLight.setOnClickListener(v -> setPrefAndUpdate("theme_mode", "light", this::updateThemeUI));
+        binding.segThemeDark.setOnClickListener(v -> setPrefAndUpdate("theme_mode", "dark", this::updateThemeUI));
+        binding.segThemeSystem.setOnClickListener(v -> setPrefAndUpdate("theme_mode", "system", this::updateThemeUI));
+        updateThemeUI();
+    }
+
+    private void setPrefAndUpdate(String key, String value, Runnable update) {
+        setPref(key, value);
+        update.run();
+    }
+
+    private void updateThemeUI() {
+        String theme = getPref("theme_mode", "light");
+        setSegSelected(binding.segThemeLight, "light".equals(theme));
+        setSegSelected(binding.segThemeDark, "dark".equals(theme));
+        setSegSelected(binding.segThemeSystem, "system".equals(theme));
+    }
+
+    private void initCoverSizeSection() {
+        binding.segCoverSmall.setOnClickListener(v -> setPrefAndUpdate("cover_size", "small", this::updateCoverSizeUI));
+        binding.segCoverMedium.setOnClickListener(v -> setPrefAndUpdate("cover_size", "medium", this::updateCoverSizeUI));
+        binding.segCoverLarge.setOnClickListener(v -> setPrefAndUpdate("cover_size", "large", this::updateCoverSizeUI));
+        updateCoverSizeUI();
+    }
+
+    private void updateCoverSizeUI() {
+        String size = getPref("cover_size", "medium");
+        setSegSelected(binding.segCoverSmall, "small".equals(size));
+        setSegSelected(binding.segCoverMedium, "medium".equals(size));
+        setSegSelected(binding.segCoverLarge, "large".equals(size));
+    }
+
+    private void initOrientSection() {
+        binding.segOrientPortrait.setOnClickListener(v -> setPrefAndUpdate("cover_orient", "portrait", this::updateOrientUI));
+        binding.segOrientLandscape.setOnClickListener(v -> setPrefAndUpdate("cover_orient", "landscape", this::updateOrientUI));
+        updateOrientUI();
+    }
+
+    private void updateOrientUI() {
+        String orient = getPref("cover_orient", "portrait");
+        setSegSelected(binding.segOrientPortrait, "portrait".equals(orient));
+        setSegSelected(binding.segOrientLandscape, "landscape".equals(orient));
+    }
+
+    private void initRatioSection() {
+        binding.segRatio23.setOnClickListener(v -> setPrefAndUpdate("cover_ratio", "2:3", this::updateRatioUI));
+        binding.segRatio34.setOnClickListener(v -> setPrefAndUpdate("cover_ratio", "3:4", this::updateRatioUI));
+        binding.segRatio916.setOnClickListener(v -> setPrefAndUpdate("cover_ratio", "9:16", this::updateRatioUI));
+        updateRatioUI();
+    }
+
+    private void updateRatioUI() {
+        String ratio = getPref("cover_ratio", "2:3");
+        setSegSelected(binding.segRatio23, "2:3".equals(ratio));
+        setSegSelected(binding.segRatio34, "3:4".equals(ratio));
+        setSegSelected(binding.segRatio916, "9:16".equals(ratio));
     }
 
     private void setSegSelected(TextView tv, boolean selected) {
@@ -178,6 +249,10 @@ public class UiSettingsActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        updateThemeUI();
+        updateCoverSizeUI();
+        updateOrientUI();
+        updateRatioUI();
         updateUiStyleUI();
         updateWallpaperUI();
     }
