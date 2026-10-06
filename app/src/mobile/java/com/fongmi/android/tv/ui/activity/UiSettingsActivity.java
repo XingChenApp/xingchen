@@ -134,6 +134,11 @@ public class UiSettingsActivity extends BaseActivity {
         boolean isNormal = XingChenTheme.UI_NORMAL.equals(style);
         setSegSelected(binding.segUiNormal, isNormal);
         setSegSelected(binding.segUiGlass, !isNormal);
+        // Hide wallpaper card in normal mode, show in glass mode
+        android.view.View wpCard = findViewById(R.id.card_wallpaper);
+        if (wpCard != null) {
+            wpCard.setVisibility(isNormal ? android.view.View.GONE : android.view.View.VISIBLE);
+        }
     }
 
     private void initGlassSection() {
