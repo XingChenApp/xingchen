@@ -155,20 +155,6 @@ public class App extends Application implements Application.ActivityLifecycleCal
 
     @Override
     public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
-        try {
-            android.view.ViewGroup decor = (android.view.ViewGroup) activity.getWindow().getDecorView();
-            if (decor.findViewWithTag("xc_wallpaper") == null) {
-                android.widget.ImageView wallView = new android.widget.ImageView(activity);
-                wallView.setTag("xc_wallpaper");
-                wallView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-                int resId = activity.getResources().getIdentifier("poster_shanjian_blur", "drawable", activity.getPackageName());
-                if (resId != 0) wallView.setImageResource(resId);
-                android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
-                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT);
-                decor.addView(wallView, 0, params);
-            }
-        } catch (Exception e) {}
     }
 
     @Override
