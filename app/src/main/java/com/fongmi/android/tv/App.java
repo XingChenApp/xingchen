@@ -109,7 +109,6 @@ public class App extends Application implements Application.ActivityLifecycleCal
         ProxySetting.apply();
         DanmakuSearchListFocusFixer.start();
         registerActivityLifecycleCallbacks(this);
-        try { com.xingchen.tv.theme.ThemeManager.init(this); } catch (Exception e) {}
         post(this::startBackgroundServices, 1200);
     }
 
@@ -147,11 +146,7 @@ public class App extends Application implements Application.ActivityLifecycleCal
     @Override
     public void onActivityResumed(@NonNull Activity activity) {
         if (activity != activity()) this.activity = activity;
-    }
-
-    @Override
-    public void onActivityPaused(@NonNull Activity activity) {
-        if (activity == activity()) this.activity = null;
+    
     }
 
     @Override
