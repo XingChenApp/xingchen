@@ -1,4 +1,4 @@
-# 星辰视频播放器
+# 星辰播放器
 
 ![Build](https://github.com/XingChenApp/xingchen/actions/workflows/main.yml/badge.svg)
 
