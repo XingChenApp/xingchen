@@ -449,6 +449,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 
 import com.fongmi.android.tv.R;
+import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivityUiSettingsBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.xingchen.tv.theme.ThemeManager;
@@ -462,13 +463,13 @@ public class UiSettingsActivity extends BaseActivity {
     }
 
     @Override
-    protected int getLayoutResId() {
-        return R.layout.activity_ui_settings;
+    protected ViewBinding getBinding() {
+        binding = ActivityUiSettingsBinding.inflate(getLayoutInflater());
+        return binding;
     }
 
     @Override
     protected void initView(Bundle savedInstanceState) {
-        binding = ActivityUiSettingsBinding.bind(findViewById(android.R.id.content));
         initThemeSection();
         initUiStyleSection();
         initGlassSection();
