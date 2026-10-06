@@ -178,6 +178,13 @@ if os.path.exists(wallpaper_src):
     os.makedirs(os.path.dirname(wallpaper_dst), exist_ok=True)
     shutil.copy2(wallpaper_src, wallpaper_dst)
     print("Wallpaper poster_shanjian.jpg installed")
+for drawable_name in ["card_bg.xml", "seg_container.xml", "seg_selected.xml", "seg_unselected.xml"]:
+    drawable_src = os.path.join(BASE, "tools/" + drawable_name)
+    drawable_dst = os.path.join(MOBILE_RES, "drawable/" + drawable_name)
+    if os.path.exists(drawable_src):
+        os.makedirs(os.path.dirname(drawable_dst), exist_ok=True)
+        shutil.copy2(drawable_src, drawable_dst)
+        print("Drawable " + drawable_name + " installed")
 p27 = os.path.join(MOBILE_RES, "values-v27/styles.xml")
 if os.path.exists(p27):
     c27 = read(p27)
