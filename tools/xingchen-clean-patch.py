@@ -171,6 +171,13 @@ if 'Theme.XingChen' not in c:
 c = c.replace('parent="Theme.Base"', 'parent="Theme.XingChen"')
 print("Updated Theme.App and Theme.Crash to use Theme.XingChen (Theme.Base kept unused)")
 write(p, c)
+import shutil
+wallpaper_src = os.path.join(BASE, "tools/poster_shanjian.jpg")
+wallpaper_dst = os.path.join(MOBILE_RES, "drawable/poster_shanjian.jpg")
+if os.path.exists(wallpaper_src):
+    os.makedirs(os.path.dirname(wallpaper_dst), exist_ok=True)
+    shutil.copy2(wallpaper_src, wallpaper_dst)
+    print("Wallpaper poster_shanjian.jpg installed")
 p27 = os.path.join(MOBILE_RES, "values-v27/styles.xml")
 if os.path.exists(p27):
     c27 = read(p27)
