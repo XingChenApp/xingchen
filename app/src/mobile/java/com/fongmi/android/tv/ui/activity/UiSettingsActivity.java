@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
@@ -30,99 +31,34 @@ public class UiSettingsActivity extends BaseActivity {
     @Override
     protected void initView(Bundle savedInstanceState) {
         initThemeSection();
-        initCoverSizeSection();
-        initOrientSection();
-        initRatioSection();
         initUiStyleSection();
         initGlassSection();
         initWallpaperSection();
         updateVisibility();
     }
 
-    private String getPref(String key, String def) {
-        return getSharedPreferences("xingchen", MODE_PRIVATE).getString(key, def);
-    }
-
-    private void setPref(String key, String value) {
-        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString(key, value).apply();
-    }
-
     private void initThemeSection() {
-        binding.segThemeLight.setOnClickListener(v -> setPrefAndUpdate("theme_mode", "light", this::updateThemeUI));
-        binding.segThemeDark.setOnClickListener(v -> setPrefAndUpdate("theme_mode", "dark", this::updateThemeUI));
-        binding.segThemeSystem.setOnClickListener(v -> setPrefAndUpdate("theme_mode", "system", this::updateThemeUI));
+        binding.themeLight.setOnClickListener(v -> setTheme("light"));
+        binding.themeDark.setOnClickListener(v -> setTheme("dark"));
+        binding.themeSystem.setOnClickListener(v -> setTheme("system"));
         updateThemeUI();
     }
 
-    private void setPrefAndUpdate(String key, String value, Runnable update) {
-        setPref(key, value);
-        update.run();
+    private void setTheme(String theme) {
+        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("theme_mode", theme).apply();
+        updateThemeUI();
     }
 
     private void updateThemeUI() {
-        String theme = getPref("theme_mode", "light");
-        theme = getPref("theme_mode", "light");
-        setSegSelected(binding.segThemeLight, "light".equals(theme));
-        setSegSelected(binding.segThemeDark, "dark".equals(theme));
-        setSegSelected(binding.segThemeSystem, "system".equals(theme));
-    }
-
-    private void initCoverSizeSection() {
-        binding.segCoverSmall.setOnClickListener(v -> setPrefAndUpdate("cover_size", "small", this::updateCoverSizeUI));
-        binding.segCoverMedium.setOnClickListener(v -> setPrefAndUpdate("cover_size", "medium", this::updateCoverSizeUI));
-        binding.segCoverLarge.setOnClickListener(v -> setPrefAndUpdate("cover_size", "large", this::updateCoverSizeUI));
-        updateCoverSizeUI();
-    }
-
-    private void updateCoverSizeUI() {
-        String size = getPref("cover_size", "medium");
-        size = getPref("cover_size", "medium");
-        setSegSelected(binding.segCoverSmall, "small".equals(size));
-        setSegSelected(binding.segCoverMedium, "medium".equals(size));
-        setSegSelected(binding.segCoverLarge, "large".equals(size));
-    }
-
-    private void initOrientSection() {
-        binding.segOrientVertical.setOnClickListener(v -> setPrefAndUpdate("cover_orient", "portrait", this::updateOrientUI));
-        binding.segOrientHorizontal.setOnClickListener(v -> setPrefAndUpdate("cover_orient", "landscape", this::updateOrientUI));
-        updateOrientUI();
-    }
-
-    private void updateOrientUI() {
-        String dir = getPref("cover_dir", "vertical");
-        String orient = getPref("cover_orient", "portrait");
-        setSegSelected(binding.segOrientVertical, "portrait".equals(orient));
-        setSegSelected(binding.segOrientHorizontal, "landscape".equals(orient));
-    }
-
-    private void initRatioSection() {
-        binding.segRatio23.setOnClickListener(v -> setPrefAndUpdate("cover_ratio", "2:3", this::updateRatioUI));
-        binding.segRatio34.setOnClickListener(v -> setPrefAndUpdate("cover_ratio", "3:4", this::updateRatioUI));
-        binding.segRatio916.setOnClickListener(v -> setPrefAndUpdate("cover_ratio", "9:16", this::updateRatioUI));
-        updateRatioUI();
-    }
-
-    private void updateRatioUI() {
-        String ratio = getPref("cover_ratio", "2:3");
-        ratio = getPref("cover_ratio", "2:3");
-        setSegSelected(binding.segRatio23, "2:3".equals(ratio));
-        setSegSelected(binding.segRatio34, "3:4".equals(ratio));
-        setSegSelected(binding.segRatio916, "9:16".equals(ratio));
-    }
-
-    private void setSegSelected(TextView tv, boolean selected) {
-        if (selected) {
-            tv.setBackgroundResource(R.drawable.seg_selected);
-            tv.setTextColor(0xFFFFFFFF);
-        } else {
-            tv.setBackgroundResource(R.drawable.seg_unselected);
-            tv.setTextColor(0xFF333333);
-        }
+        String theme = getSharedPreferences("xingchen", MODE_PRIVATE).getString("theme_mode", "light");
+        binding.themeLight.setSelected("light".equals(theme));
+        binding.themeDark.setSelected("dark".equals(theme));
+        binding.themeSystem.setSelected("system".equals(theme));
     }
 
     private void initUiStyleSection() {
-        binding.segStyleNormal.setOnClickListener(v -> setUiStyle(XingChenTheme.UI_NORMAL));
-        binding.segStyleGlass.setOnClickListener(v -> setUiStyle(XingChenTheme.UI_GLASS));
+        binding.uiNormal.setOnClickListener(v -> setUiStyle(XingChenTheme.UI_NORMAL));
+        binding.uiGlass.setOnClickListener(v -> setUiStyle(XingChenTheme.UI_GLASS));
         updateUiStyleUI();
     }
 
@@ -134,20 +70,18 @@ public class UiSettingsActivity extends BaseActivity {
     }
 
     private void updateUiStyleUI() {
-        String style = getPref("ui_style", "glass");
         String style = ThemeManager.get().getTheme().uiStyle;
-        boolean isNormal = XingChenTheme.UI_NORMAL.equals(style);
-        setSegSelected(binding.segStyleNormal, isNormal);
-        setSegSelected(binding.segStyleGlass, !isNormal);
+        binding.uiNormal.setSelected(XingChenTheme.UI_NORMAL.equals(style));
+        binding.uiGlass.setSelected(XingChenTheme.UI_GLASS.equals(style));
     }
 
     private void initGlassSection() {
         int alpha = ThemeManager.get().getTheme().glassAlpha;
-        binding.seekGlass.setProgress(alpha);
-        binding.tvGlassValue.setText(alpha + "%");
-        binding.seekGlass.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        binding.glassSeek.setProgress(alpha);
+        binding.glassValue.setText(alpha + "%");
+        binding.glassSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                binding.tvGlassValue.setText(progress + "%");
+                binding.glassValue.setText(progress + "%");
                 if (fromUser) {
                     ThemeManager.get().getTheme().glassAlpha = progress;
                     ThemeManager.get().getTheme().save(UiSettingsActivity.this);
@@ -160,9 +94,9 @@ public class UiSettingsActivity extends BaseActivity {
     }
 
     private void initWallpaperSection() {
-        binding.segWpDefault.setOnClickListener(v -> setWallpaper(XingChenTheme.WP_BUILTIN, "shanjian"));
-        binding.segWpLocal.setOnClickListener(v -> pickLocalWallpaper());
-        binding.segWpUrl.setOnClickListener(v -> inputUrlWallpaper());
+        binding.wpDefault.setOnClickListener(v -> setWallpaper(XingChenTheme.WP_BUILTIN, "shanjian"));
+        binding.wpLocal.setOnClickListener(v -> pickLocalWallpaper());
+        binding.wpUrl.setOnClickListener(v -> inputUrlWallpaper());
         updateWallpaperUI();
     }
 
@@ -234,28 +168,25 @@ public class UiSettingsActivity extends BaseActivity {
     }
 
     private void updateWallpaperUI() {
-        String wp = getPref("wallpaper", "default");
         String type = ThemeManager.get().getTheme().wallpaperType;
-        setSegSelected(binding.segWpDefault, XingChenTheme.WP_BUILTIN.equals(type));
-        setSegSelected(binding.segWpLocal, XingChenTheme.WP_LOCAL.equals(type));
-        setSegSelected(binding.segWpUrl, XingChenTheme.WP_URL.equals(type));
-        String desc = "当前：";
-        if (XingChenTheme.WP_BUILTIN.equals(type)) desc += "默认壁纸";
-        else if (XingChenTheme.WP_LOCAL.equals(type)) desc += "本地壁纸";
-        else if (XingChenTheme.WP_URL.equals(type)) desc += "网络壁纸";
-        else desc += "默认壁纸";
+        String value = ThemeManager.get().getTheme().wallpaperValue;
+        binding.wpDefault.setSelected(XingChenTheme.WP_BUILTIN.equals(type));
+        binding.wpLocal.setSelected(XingChenTheme.WP_LOCAL.equals(type));
+        binding.wpUrl.setSelected(XingChenTheme.WP_URL.equals(type));
     }
 
     private void updateVisibility() {
+        String style = ThemeManager.get().getTheme().uiStyle;
+        boolean isGlass = XingChenTheme.UI_GLASS.equals(style);
+        binding.themeSection.setVisibility(isGlass ? View.GONE : View.VISIBLE);
+        binding.wallpaperSection.setVisibility(isGlass ? View.VISIBLE : View.GONE);
+        binding.glassSection.setVisibility(isGlass ? View.VISIBLE : View.GONE);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        updateThemeUI();
-        updateCoverSizeUI();
-        updateOrientUI();
-        updateRatioUI();
+        updateVisibility();
         updateUiStyleUI();
         updateWallpaperUI();
     }
