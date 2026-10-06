@@ -83,6 +83,10 @@ public class ThemeManager {
     }
     private static android.app.Activity currentActivity;
 
+    public void setTheme(XingChenTheme theme) {
+        this.theme = theme;
+    }
+
     public void apply(Activity activity) {
         try {
             activity.getWindow().getDecorView().post(new Runnable() {
