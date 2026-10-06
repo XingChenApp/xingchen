@@ -184,9 +184,9 @@ replacements = [
     ("com.google.android.material.button.MaterialButton", "Button"),
     ("com.google.android.material.textfield.TextInputEditText", "EditText"),
     ("com.google.android.material.imageview.ShapeableImageView", "ImageView"),
-    ("com.google.android.material.progressindicator.LinearProgressIndicator", "ProgressBar"),
-    ("com.google.android.material.progressindicator.CircularProgressIndicator", "ProgressBar"),
-    ("com.google.android.material.floatingactionbutton.FloatingActionButton", "ImageButton"),
+    
+    
+
     ("com.google.android.material.appbar.MaterialToolbar", "androidx.appcompat.widget.Toolbar"),
     ("com.google.android.material.appbar.AppBarLayout", "LinearLayout"),
 ]
