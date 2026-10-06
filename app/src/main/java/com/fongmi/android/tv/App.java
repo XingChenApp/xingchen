@@ -109,6 +109,7 @@ public class App extends Application implements Application.ActivityLifecycleCal
         ProxySetting.apply();
         DanmakuSearchListFocusFixer.start();
         registerActivityLifecycleCallbacks(this);
+        try { com.xingchen.tv.theme.ThemeManager.init(this); } catch (Exception e) {}
         post(this::startBackgroundServices, 1200);
     }
 
