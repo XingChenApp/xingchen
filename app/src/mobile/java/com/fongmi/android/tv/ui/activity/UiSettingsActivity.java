@@ -150,6 +150,10 @@ public class UiSettingsActivity extends BaseActivity {
             if (isNormal) binding.ivWallpaper.setImageResource(R.drawable.poster_shanjian);
             else binding.ivWallpaper.setImageResource(R.drawable.poster_shanjian_blur);
         } catch (Exception e) { /* no wallpaper view */ }
+        // Show/hide wallpaper card: only in glass mode
+        try {
+            binding.cardWp.setVisibility(isNormal ? android.view.View.GONE : android.view.View.VISIBLE);
+        } catch (Exception e) { /* no card */ }
     }
 
     private void initGlassSection() {
