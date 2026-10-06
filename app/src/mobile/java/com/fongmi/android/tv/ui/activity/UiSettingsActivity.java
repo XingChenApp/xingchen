@@ -89,8 +89,8 @@ public class UiSettingsActivity extends BaseActivity {
     }
 
     private void initOrientSection() {
-        binding.segOrientPortrait.setOnClickListener(v -> setPrefAndUpdate("cover_orient", "portrait", this::updateOrientUI));
-        binding.segOrientLandscape.setOnClickListener(v -> setPrefAndUpdate("cover_orient", "landscape", this::updateOrientUI));
+        binding.segOrientVertical.setOnClickListener(v -> setPrefAndUpdate("cover_orient", "portrait", this::updateOrientUI));
+        binding.segOrientHorizontal.setOnClickListener(v -> setPrefAndUpdate("cover_orient", "landscape", this::updateOrientUI));
         updateOrientUI();
     }
 
@@ -99,8 +99,8 @@ public class UiSettingsActivity extends BaseActivity {
         if (dir.equals("vertical")) binding.tvCoverDirDesc.setText("竖屏封面：海报按竖版显示");
         else binding.tvCoverDirDesc.setText("横屏封面：海报按横版显示");
         String orient = getPref("cover_orient", "portrait");
-        setSegSelected(binding.segOrientPortrait, "portrait".equals(orient));
-        setSegSelected(binding.segOrientLandscape, "landscape".equals(orient));
+        setSegSelected(binding.segOrientVertical, "portrait".equals(orient));
+        setSegSelected(binding.segOrientHorizontal, "landscape".equals(orient));
     }
 
     private void initRatioSection() {
@@ -130,8 +130,8 @@ public class UiSettingsActivity extends BaseActivity {
     }
 
     private void initUiStyleSection() {
-        binding.segUiNormal.setOnClickListener(v -> setUiStyle(XingChenTheme.UI_NORMAL));
-        binding.segUiGlass.setOnClickListener(v -> setUiStyle(XingChenTheme.UI_GLASS));
+        binding.segStyleNormal.setOnClickListener(v -> setUiStyle(XingChenTheme.UI_NORMAL));
+        binding.segStyleGlass.setOnClickListener(v -> setUiStyle(XingChenTheme.UI_GLASS));
         updateUiStyleUI();
     }
 
@@ -148,19 +148,19 @@ public class UiSettingsActivity extends BaseActivity {
         else binding.tvUiStyleDesc.setText("普通：面板纯色不透明");
         String style = ThemeManager.get().getTheme().uiStyle;
         boolean isNormal = XingChenTheme.UI_NORMAL.equals(style);
-        setSegSelected(binding.segUiNormal, isNormal);
-        setSegSelected(binding.segUiGlass, !isNormal);
+        setSegSelected(binding.segStyleNormal, isNormal);
+        setSegSelected(binding.segStyleGlass, !isNormal);
     }
 
     private void initGlassSection() {
         int alpha = ThemeManager.get().getTheme().glassAlpha;
-        binding.seekAlpha.setProgress(alpha);
-        binding.tvAlphaValue.setText(alpha + "%");
-        binding.tvAlphaDesc.setText("当前 " + alpha + "%，越往右越通透");
-        binding.seekAlpha.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        binding.seekGlass.setProgress(alpha);
+        binding.tvGlassValue.setText(alpha + "%");
+        binding.tvGlassDesc.setText("当前 " + alpha + "%，越往右越通透");
+        binding.seekGlass.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                binding.tvAlphaValue.setText(progress + "%");
-                binding.tvAlphaDesc.setText("当前 " + progress + "%，越往右越通透");
+                binding.tvGlassValue.setText(progress + "%");
+                binding.tvGlassDesc.setText("当前 " + progress + "%，越往右越通透");
                 if (fromUser) {
                     ThemeManager.get().getTheme().glassAlpha = progress;
                     ThemeManager.get().getTheme().save(UiSettingsActivity.this);
