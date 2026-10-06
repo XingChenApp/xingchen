@@ -13,7 +13,7 @@
 
 ## 下载
 
-到 [Releases](https://github.com/XingChenApp/xingchen/releases) 下载最新 APK，或到 [Actions](https://github.com/XingChenApp/xingchen/actions) 下载构建产物。
+到 [Releases](https://github.com/XingChenApp/xingchen/releases) 下载最新 APK
 
 ## 构建
 
