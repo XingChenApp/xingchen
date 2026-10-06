@@ -77,10 +77,6 @@ android {
             dimension "abi"
             ndk { abiFilters "armeabi-v7a" }
         }
-        x86_64 {
-            dimension "abi"
-            ndk { abiFilters "x86_64" }
-        }
     }
 
     buildFeatures {
