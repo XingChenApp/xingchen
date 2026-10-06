@@ -123,7 +123,7 @@ if os.path.exists(BASE_JAVA):
         assert "// Disabled for wallpaper" in bc, "BaseActivity dynamic color disable failed"
         bc = bc.replace(
             "super.onCreate(savedInstanceState);",
-            "super.onCreate(savedInstanceState);\\n        { getWindow().setStatusBarColor(0x00000000); }",
+            "super.onCreate(savedInstanceState);\n        { getWindow().setStatusBarColor(0x00000000); }",
         )
         assert "setStatusBarColor" in bc, "BaseActivity patch failed"
         # Add onResume to refresh wallpaper when returning - robust version
@@ -131,13 +131,13 @@ if os.path.exists(BASE_JAVA):
             if "protected void onResume()" in bc:
                 bc = bc.replace(
                     "protected void onResume() {",
-                    "protected void onResume() {\\n        { } // xc_onResume",
+                    "protected void onResume() {\n        { } // xc_onResume",
                     1
                 )
             else:
                 # No onResume exists, add one before the last closing brace of class
                 # Find the last } and insert before it
-                insert_code = "    @Override\\n    protected void onResume() {\\n        super.onResume();\\n        { } // xc_onResume\\n    }\\n"
+                insert_code = "    @Override\n    protected void onResume() {\n        super.onResume();\n        { } // xc_onResume\n    }\n"
                 # Simple: append before final }
                 bc = bc.rstrip()
                 if bc.endswith("}"):
