@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
-    android:background="@drawable/poster_shanjian"
+    android:background="@drawable/poster_shanjian_blur"
     android:clipToPadding="false"
     android:paddingTop="48dp"
     android:paddingLeft="16dp"
