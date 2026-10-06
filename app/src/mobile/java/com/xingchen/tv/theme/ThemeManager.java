@@ -184,24 +184,26 @@ public class ThemeManager {
 
     private void makeTransparent(ViewGroup root) {
         try {
+            int cleared = 0;
             for (int i = 0; i < root.getChildCount(); i++) {
                 View child = root.getChildAt(i);
                 if ("xc_wallpaper".equals(child.getTag())) continue;
                 String cls = child.getClass().getName();
                 if (cls.contains("BottomNavigationView")) continue;
-                if (child instanceof ViewGroup) {
-                    ViewGroup vg = (ViewGroup) child;
-                    Drawable bg = vg.getBackground();
+                // Clear background for ALL views, not just ViewGroups
+                try {
+                    Drawable bg = child.getBackground();
                     if (bg != null) {
-                        vg.setBackgroundColor(0x00000000);
+                        child.setBackgroundColor(0x00000000);
+                        cleared++;
                     }
-                    if (vg.getChildCount() > 0 && !(child instanceof android.widget.ScrollView)
-                            && !(child instanceof androidx.recyclerview.widget.RecyclerView)
-                            && !(child instanceof android.widget.ListView)) {
-                        makeTransparent(vg);
-                    }
+                } catch (Exception e) {}
+                // Recurse into ALL ViewGroups (including ScrollView, RecyclerView, ListView)
+                if (child instanceof ViewGroup) {
+                    makeTransparent((ViewGroup) child);
                 }
             }
+            if (cleared > 0) flog("makeTransparent: cleared " + cleared + " backgrounds in " + root.getClass().getSimpleName());
         } catch (Exception e) { flog("ERROR makeTransparent failed: " + e); }
     }
 }
