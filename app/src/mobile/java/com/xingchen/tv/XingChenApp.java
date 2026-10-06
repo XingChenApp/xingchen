@@ -5,8 +5,7 @@ import android.app.Application;
 import android.os.Bundle;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-
-import com.fongmi.android.tv.ui.custom.CustomWallView;
+import android.widget.ImageView;
 
 public class XingChenApp extends Application {
 
@@ -16,10 +15,21 @@ public class XingChenApp extends Application {
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
             @Override
             public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
-                // Add CustomWallView to DecorView for global wallpaper
+                // Add blurred mountain wallpaper to DecorView globally
                 ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
-                CustomWallView wallView = new CustomWallView(activity, null);
+                // Remove old if exists
+                android.view.View old = decor.findViewWithTag("xc_wallpaper");
+                if (old != null) decor.removeView(old);
+                
+                ImageView wallView = new ImageView(activity);
                 wallView.setTag("xc_wallpaper");
+                wallView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                try {
+                    int resId = activity.getResources().getIdentifier("poster_shanjian_blur", "drawable", activity.getPackageName());
+                    if (resId != 0) wallView.setImageResource(resId);
+                } catch (Exception e) {
+                    // Ignore
+                }
                 FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
