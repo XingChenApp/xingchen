@@ -164,7 +164,7 @@ write(p, c)
 
 p = os.path.join(MOBILE_RES, "values/styles.xml")
 c = read(p)
-new_theme = '\n    <style name="Theme.XingChen" parent="Theme.MaterialComponents.DayNight.NoActionBar">\n        <item name="android:windowBackground">@drawable/poster_shanjian</item>\n        <item name="android:colorBackground">@android:color/transparent</item>\n    </style>\n'
+new_theme = '\n    <style name="Theme.XingChen" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">\n        <item name="android:windowBackground">@drawable/poster_shanjian</item>\n        <item name="android:colorBackground">@android:color/transparent</item>\n    </style>\n'
 if 'Theme.XingChen' not in c:
     c = c.replace('</resources>', new_theme + '</resources>', 1)
     print("Theme.XingChen created")
