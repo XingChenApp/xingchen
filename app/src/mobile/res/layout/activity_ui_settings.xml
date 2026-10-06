@@ -10,465 +10,459 @@
     android:paddingRight="16dp"
     android:paddingBottom="16dp">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
 
-        <!-- 1. Theme -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:background="@drawable/card_bg"
-            android:padding="12dp"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
+<!-- Theme Card -->
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/card_bg"
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="主题"
+    android:textSize="18sp"
+    android:textStyle="bold"
+    android:textColor="#222222"/>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="主题"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="#222222"/>
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="浅色/深色/跟随系统"
+    android:textSize="12sp"
+    android:textColor="#666666"
+    android:layout_marginTop="2dp"
+    android:layout_marginBottom="8dp"/>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="浅色/深色/跟随系统"
-                    android:textSize="12sp"
-                    android:textColor="#666666"
-                    android:layout_marginTop="2dp"/>
-            </LinearLayout>
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/seg_container"
+    android:padding="3dp">
 
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:background="@drawable/seg_container"
-                android:padding="3dp">
+<TextView
+    android:id="@+id/seg_theme_light"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="浅色"
+    android:textSize="15sp"
+    android:background="@drawable/seg_selected"
+    android:textColor="#FFFFFF"/>
 
-                <TextView
-                    android:id="@+id/seg_theme_light"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="浅色"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_selected"
-                    android:textColor="#FFFFFF"/>
+<TextView
+    android:id="@+id/seg_theme_dark"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="深色"
+    android:textSize="15sp"
+    android:background="@drawable/seg_unselected"
+    android:textColor="#333333"/>
 
-                <TextView
-                    android:id="@+id/seg_theme_dark"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="深色"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_unselected"
-                    android:textColor="#333333"/>
+<TextView
+    android:id="@+id/seg_theme_system"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="跟随系统"
+    android:textSize="15sp"
+    android:background="@drawable/seg_unselected"
+    android:textColor="#333333"/>
 
-                <TextView
-                    android:id="@+id/seg_theme_system"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="跟随系统"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_unselected"
-                    android:textColor="#333333"/>
-            </LinearLayout>
-        </LinearLayout>
+</LinearLayout>
+</LinearLayout>
 
-        <!-- 2. Home Cover -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:background="@drawable/card_bg"
-            android:padding="12dp"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
+<!-- Home Cover Size Card -->
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/card_bg"
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="首页封面"
+    android:textSize="18sp"
+    android:textStyle="bold"
+    android:textColor="#222222"/>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="首页封面"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="#222222"/>
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="封面大小"
+    android:textSize="12sp"
+    android:textColor="#666666"
+    android:layout_marginTop="2dp"
+    android:layout_marginBottom="8dp"/>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="封面大小"
-                    android:textSize="12sp"
-                    android:textColor="#666666"
-                    android:layout_marginTop="2dp"/>
-            </LinearLayout>
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/seg_container"
+    android:padding="3dp">
 
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:background="@drawable/seg_container"
-                android:padding="3dp">
+<TextView
+    android:id="@+id/seg_cover_small"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="小"
+    android:textSize="15sp"
+    android:background="@drawable/seg_unselected"
+    android:textColor="#333333"/>
 
-                <TextView
-                    android:id="@+id/seg_cover_small"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="小"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_unselected"
-                    android:textColor="#333333"/>
+<TextView
+    android:id="@+id/seg_cover_medium"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="中"
+    android:textSize="15sp"
+    android:background="@drawable/seg_selected"
+    android:textColor="#FFFFFF"/>
 
-                <TextView
-                    android:id="@+id/seg_cover_medium"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="中"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_selected"
-                    android:textColor="#FFFFFF"/>
+<TextView
+    android:id="@+id/seg_cover_large"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="大"
+    android:textSize="15sp"
+    android:background="@drawable/seg_unselected"
+    android:textColor="#333333"/>
 
-                <TextView
-                    android:id="@+id/seg_cover_large"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="大"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_unselected"
-                    android:textColor="#333333"/>
-            </LinearLayout>
-        </LinearLayout>
+</LinearLayout>
+</LinearLayout>
 
-        <!-- 3. Cover Orientation -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:background="@drawable/card_bg"
-            android:padding="12dp"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
+<!-- Cover Orientation Card -->
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/card_bg"
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="封面方向"
+    android:textSize="18sp"
+    android:textStyle="bold"
+    android:textColor="#222222"/>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="封面方向"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="#222222"/>
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="竖屏/横屏"
+    android:textSize="12sp"
+    android:textColor="#666666"
+    android:layout_marginTop="2dp"
+    android:layout_marginBottom="8dp"/>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="横版/竖版封面"
-                    android:textSize="12sp"
-                    android:textColor="#666666"
-                    android:layout_marginTop="2dp"/>
-            </LinearLayout>
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/seg_container"
+    android:padding="3dp">
 
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:background="@drawable/seg_container"
-                android:padding="3dp">
+<TextView
+    android:id="@+id/seg_orient_portrait"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="竖屏"
+    android:textSize="15sp"
+    android:background="@drawable/seg_selected"
+    android:textColor="#FFFFFF"/>
 
-                <TextView
-                    android:id="@+id/seg_orient_land"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="横版"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_unselected"
-                    android:textColor="#333333"/>
+<TextView
+    android:id="@+id/seg_orient_landscape"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="横屏"
+    android:textSize="15sp"
+    android:background="@drawable/seg_unselected"
+    android:textColor="#333333"/>
 
-                <TextView
-                    android:id="@+id/seg_orient_port"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="竖版"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_selected"
-                    android:textColor="#FFFFFF"/>
-            </LinearLayout>
-        </LinearLayout>
+</LinearLayout>
+</LinearLayout>
 
-        <!-- 4. Cover Ratio -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:background="@drawable/card_bg"
-            android:padding="12dp"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
+<!-- Cover Ratio Card -->
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/card_bg"
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="封面比例"
+    android:textSize="18sp"
+    android:textStyle="bold"
+    android:textColor="#222222"/>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="封面比例"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="#222222"/>
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="封面宽高比"
+    android:textSize="12sp"
+    android:textColor="#666666"
+    android:layout_marginTop="2dp"
+    android:layout_marginBottom="8dp"/>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="2:3 / 16:9 / 1:1"
-                    android:textSize="12sp"
-                    android:textColor="#666666"
-                    android:layout_marginTop="2dp"/>
-            </LinearLayout>
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/seg_container"
+    android:padding="3dp">
 
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:background="@drawable/seg_container"
-                android:padding="3dp">
+<TextView
+    android:id="@+id/seg_ratio_23"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="2:3"
+    android:textSize="15sp"
+    android:background="@drawable/seg_selected"
+    android:textColor="#FFFFFF"/>
 
-                <TextView
-                    android:id="@+id/seg_ratio_23"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="2:3"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_selected"
-                    android:textColor="#FFFFFF"/>
+<TextView
+    android:id="@+id/seg_ratio_34"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="3:4"
+    android:textSize="15sp"
+    android:background="@drawable/seg_unselected"
+    android:textColor="#333333"/>
 
-                <TextView
-                    android:id="@+id/seg_ratio_169"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="16:9"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_unselected"
-                    android:textColor="#333333"/>
+<TextView
+    android:id="@+id/seg_ratio_916"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="9:16"
+    android:textSize="15sp"
+    android:background="@drawable/seg_unselected"
+    android:textColor="#333333"/>
 
-                <TextView
-                    android:id="@+id/seg_ratio_11"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="1:1"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_unselected"
-                    android:textColor="#333333"/>
-            </LinearLayout>
-        </LinearLayout>
+</LinearLayout>
+</LinearLayout>
 
-        <!-- 5. UI Style -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:background="@drawable/card_bg"
-            android:padding="12dp"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+<!-- UI Style Card -->
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/card_bg"
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="UI 风格"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="#222222"/>
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="UI 风格"
+    android:textSize="18sp"
+    android:textStyle="bold"
+    android:textColor="#222222"/>
 
-                <TextView
-                    android:id="@+id/tv_ui_style_desc"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="毛玻璃：面板半透明，透出壁纸"
-                    android:textSize="12sp"
-                    android:textColor="#666666"
-                    android:layout_marginTop="2dp"/>
-            </LinearLayout>
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="毛玻璃：面板半透明，透出壁纸"
+    android:textSize="12sp"
+    android:textColor="#666666"
+    android:layout_marginTop="2dp"
+    android:layout_marginBottom="8dp"/>
 
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:background="@drawable/seg_container"
-                android:padding="3dp">
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/seg_container"
+    android:padding="3dp">
 
-                <TextView
-                    android:id="@+id/seg_ui_normal"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="普通"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_unselected"
-                    android:textColor="#333333"/>
+<TextView
+    android:id="@+id/seg_ui_normal"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="普通"
+    android:textSize="15sp"
+    android:background="@drawable/seg_unselected"
+    android:textColor="#333333"/>
 
-                <TextView
-                    android:id="@+id/seg_ui_glass"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="毛玻璃"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_selected"
-                    android:textColor="#FFFFFF"/>
-            </LinearLayout>
-        </LinearLayout>
+<TextView
+    android:id="@+id/seg_ui_glass"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="毛玻璃"
+    android:textSize="15sp"
+    android:background="@drawable/seg_selected"
+    android:textColor="#FFFFFF"/>
 
-        <!-- 6. Glass Opacity -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:background="@drawable/card_bg"
-            android:padding="12dp"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
+</LinearLayout>
+</LinearLayout>
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+<!-- Transparency Card -->
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/card_bg"
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="毛玻璃透明度"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="#222222"/>
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="毛玻璃透明度"
+    android:textSize="18sp"
+    android:textStyle="bold"
+    android:textColor="#222222"/>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="拖动调节"
-                    android:textSize="12sp"
-                    android:textColor="#666666"
-                    android:layout_marginTop="2dp"/>
-            </LinearLayout>
+<TextView
+    android:id="@+id/tv_alpha_desc"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="当前 55%，越往右越通透"
+    android:textSize="12sp"
+    android:textColor="#666666"
+    android:layout_marginTop="2dp"
+    android:layout_marginBottom="8dp"/>
 
-            <SeekBar
-                android:id="@+id/sb_glass"
-                android:layout_width="180dp"
-                android:layout_height="wrap_content"
-                android:max="100"
-                android:progress="34"/>
-        </LinearLayout>
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical">
 
-        <!-- 7. Wallpaper -->
-        <LinearLayout
-            android:id="@+id/card_wallpaper"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:background="@drawable/card_bg"
-            android:padding="12dp"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical">
+<SeekBar
+    android:id="@+id/seek_alpha"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:max="100"
+    android:progress="55"/>
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+<TextView
+    android:id="@+id/tv_alpha_value"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="55%"
+    android:textSize="14sp"
+    android:textColor="#666666"
+    android:layout_marginStart="12dp"
+    android:minWidth="48dp"
+    android:gravity="end"/>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="壁纸"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="#222222"/>
+</LinearLayout>
+</LinearLayout>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="默认/本地/URL"
-                    android:textSize="12sp"
-                    android:textColor="#666666"
-                    android:layout_marginTop="2dp"/>
-            </LinearLayout>
+<!-- Wallpaper Card -->
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/card_bg"
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
 
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:background="@drawable/seg_container"
-                android:padding="3dp">
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="壁纸"
+    android:textSize="18sp"
+    android:textStyle="bold"
+    android:textColor="#222222"/>
 
-                <TextView
-                    android:id="@+id/seg_wp_default"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="默认"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_selected"
-                    android:textColor="#FFFFFF"/>
+<TextView
+    android:id="@+id/tv_wp_desc"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="当前：默认壁纸"
+    android:textSize="12sp"
+    android:textColor="#666666"
+    android:layout_marginTop="2dp"
+    android:layout_marginBottom="8dp"/>
 
-                <TextView
-                    android:id="@+id/seg_wp_local"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="本地"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_unselected"
-                    android:textColor="#333333"/>
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/seg_container"
+    android:padding="3dp">
 
-                <TextView
-                    android:id="@+id/seg_wp_url"
-                    android:layout_width="64dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:text="URL"
-                    android:textSize="15sp"
-                    android:background="@drawable/seg_unselected"
-                    android:textColor="#333333"/>
-            </LinearLayout>
-        </LinearLayout>
+<TextView
+    android:id="@+id/seg_wp_default"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="默认"
+    android:textSize="15sp"
+    android:background="@drawable/seg_selected"
+    android:textColor="#FFFFFF"/>
 
-    </LinearLayout>
+<TextView
+    android:id="@+id/seg_wp_local"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="本地"
+    android:textSize="15sp"
+    android:background="@drawable/seg_unselected"
+    android:textColor="#333333"/>
+
+<TextView
+    android:id="@+id/seg_wp_url"
+    android:layout_width="0dp"
+    android:layout_height="40dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="URL"
+    android:textSize="15sp"
+    android:background="@drawable/seg_unselected"
+    android:textColor="#333333"/>
+
+</LinearLayout>
+</LinearLayout>
+
+</LinearLayout>
 </ScrollView>
