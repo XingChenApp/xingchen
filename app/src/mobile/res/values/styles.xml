@@ -128,6 +128,8 @@
     <style name="Theme.XingChen.Splash" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:windowBackground">#000000</item>
         <item name="android:windowDisablePreview">false</item>
+        <item name="android:statusBarColor">#000000</item>
+        <item name="android:navigationBarColor">#000000</item>
     </style>
 
 </resources>
