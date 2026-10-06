@@ -134,6 +134,22 @@ public class UiSettingsActivity extends BaseActivity {
         boolean isNormal = XingChenTheme.UI_NORMAL.equals(style);
         setSegSelected(binding.segUiNormal, isNormal);
         setSegSelected(binding.segUiGlass, !isNormal);
+        // Switch card backgrounds: normal=white, glass=semi-transparent
+        int cardBg = isNormal ? R.drawable.card_bg : R.drawable.card_bg_glass;
+        try {
+            binding.cardTheme.setBackgroundResource(cardBg);
+            binding.cardCover.setBackgroundResource(cardBg);
+            binding.cardOrient.setBackgroundResource(cardBg);
+            binding.cardRatio.setBackgroundResource(cardBg);
+            binding.cardStyle.setBackgroundResource(cardBg);
+            binding.cardGlass.setBackgroundResource(cardBg);
+            binding.cardWp.setBackgroundResource(cardBg);
+        } catch (Exception e) { /* cards may not have IDs in old layout */ }
+        // Switch wallpaper: blurred for glass mode
+        try {
+            if (isNormal) binding.ivWallpaper.setImageResource(R.drawable.poster_shanjian);
+            else binding.ivWallpaper.setImageResource(R.drawable.poster_shanjian_blur);
+        } catch (Exception e) { /* no wallpaper view */ }
     }
 
     private void initGlassSection() {
