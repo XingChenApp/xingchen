@@ -20,8 +20,8 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@drawable/card_bg"
-    android:padding="16dp"
-    android:layout_marginBottom="12dp">
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
 
 <TextView
     android:layout_width="wrap_content"
@@ -35,22 +35,22 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="浅色/深色/跟随系统"
-    android:textSize="13sp"
+    android:textSize="12sp"
     android:textColor="#666666"
-    android:layout_marginTop="4dp"
-    android:layout_marginBottom="12dp"/>
+    android:layout_marginTop="2dp"
+    android:layout_marginBottom="8dp"/>
 
 <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:background="@drawable/seg_container"
-    android:padding="4dp">
+    android:padding="3dp">
 
 <TextView
     android:id="@+id/seg_theme_light"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="浅色"
@@ -61,7 +61,7 @@
 <TextView
     android:id="@+id/seg_theme_dark"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="深色"
@@ -72,7 +72,7 @@
 <TextView
     android:id="@+id/seg_theme_system"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="跟随系统"
@@ -89,8 +89,8 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@drawable/card_bg"
-    android:padding="16dp"
-    android:layout_marginBottom="12dp">
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
 
 <TextView
     android:layout_width="wrap_content"
@@ -104,22 +104,22 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="封面大小"
-    android:textSize="13sp"
+    android:textSize="12sp"
     android:textColor="#666666"
-    android:layout_marginTop="4dp"
-    android:layout_marginBottom="12dp"/>
+    android:layout_marginTop="2dp"
+    android:layout_marginBottom="8dp"/>
 
 <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:background="@drawable/seg_container"
-    android:padding="4dp">
+    android:padding="3dp">
 
 <TextView
     android:id="@+id/seg_cover_small"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="小"
@@ -130,7 +130,7 @@
 <TextView
     android:id="@+id/seg_cover_medium"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="中"
@@ -141,7 +141,7 @@
 <TextView
     android:id="@+id/seg_cover_large"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="大"
@@ -158,8 +158,8 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@drawable/card_bg"
-    android:padding="16dp"
-    android:layout_marginBottom="12dp">
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
 
 <TextView
     android:layout_width="wrap_content"
@@ -173,22 +173,22 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="竖屏/横屏"
-    android:textSize="13sp"
+    android:textSize="12sp"
     android:textColor="#666666"
-    android:layout_marginTop="4dp"
-    android:layout_marginBottom="12dp"/>
+    android:layout_marginTop="2dp"
+    android:layout_marginBottom="8dp"/>
 
 <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:background="@drawable/seg_container"
-    android:padding="4dp">
+    android:padding="3dp">
 
 <TextView
     android:id="@+id/seg_orient_portrait"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="竖屏"
@@ -199,7 +199,7 @@
 <TextView
     android:id="@+id/seg_orient_landscape"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="横屏"
@@ -216,8 +216,8 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@drawable/card_bg"
-    android:padding="16dp"
-    android:layout_marginBottom="12dp">
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
 
 <TextView
     android:layout_width="wrap_content"
@@ -231,22 +231,22 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="封面宽高比"
-    android:textSize="13sp"
+    android:textSize="12sp"
     android:textColor="#666666"
-    android:layout_marginTop="4dp"
-    android:layout_marginBottom="12dp"/>
+    android:layout_marginTop="2dp"
+    android:layout_marginBottom="8dp"/>
 
 <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:background="@drawable/seg_container"
-    android:padding="4dp">
+    android:padding="3dp">
 
 <TextView
     android:id="@+id/seg_ratio_23"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="2:3"
@@ -257,7 +257,7 @@
 <TextView
     android:id="@+id/seg_ratio_34"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="3:4"
@@ -268,7 +268,7 @@
 <TextView
     android:id="@+id/seg_ratio_916"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="9:16"
@@ -286,8 +286,8 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@drawable/card_bg"
-    android:padding="16dp"
-    android:layout_marginBottom="12dp">
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
 
 <TextView
     android:layout_width="wrap_content"
@@ -301,22 +301,22 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="毛玻璃：面板半透明，透出壁纸"
-    android:textSize="13sp"
+    android:textSize="12sp"
     android:textColor="#666666"
-    android:layout_marginTop="4dp"
-    android:layout_marginBottom="12dp"/>
+    android:layout_marginTop="2dp"
+    android:layout_marginBottom="8dp"/>
 
 <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:background="@drawable/seg_container"
-    android:padding="4dp">
+    android:padding="3dp">
 
 <TextView
     android:id="@+id/seg_ui_normal"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="普通"
@@ -327,7 +327,7 @@
 <TextView
     android:id="@+id/seg_ui_glass"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="毛玻璃"
@@ -344,8 +344,8 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@drawable/card_bg"
-    android:padding="16dp"
-    android:layout_marginBottom="12dp">
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
 
 <TextView
     android:layout_width="wrap_content"
@@ -360,9 +360,9 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="当前 55%，越往右越通透"
-    android:textSize="13sp"
+    android:textSize="12sp"
     android:textColor="#666666"
-    android:layout_marginTop="4dp"
+    android:layout_marginTop="2dp"
     android:layout_marginBottom="8dp"/>
 
 <LinearLayout
@@ -399,8 +399,8 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@drawable/card_bg"
-    android:padding="16dp"
-    android:layout_marginBottom="12dp">
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
 
 <TextView
     android:layout_width="wrap_content"
@@ -415,22 +415,22 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="当前：默认壁纸"
-    android:textSize="13sp"
+    android:textSize="12sp"
     android:textColor="#666666"
-    android:layout_marginTop="4dp"
-    android:layout_marginBottom="12dp"/>
+    android:layout_marginTop="2dp"
+    android:layout_marginBottom="8dp"/>
 
 <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:background="@drawable/seg_container"
-    android:padding="4dp">
+    android:padding="3dp">
 
 <TextView
     android:id="@+id/seg_wp_default"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="默认"
@@ -441,7 +441,7 @@
 <TextView
     android:id="@+id/seg_wp_local"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="本地"
@@ -452,7 +452,7 @@
 <TextView
     android:id="@+id/seg_wp_url"
     android:layout_width="0dp"
-    android:layout_height="48dp"
+    android:layout_height="40dp"
     android:layout_weight="1"
     android:gravity="center"
     android:text="URL"
