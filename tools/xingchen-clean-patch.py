@@ -164,11 +164,11 @@ write(p, c)
 
 p = os.path.join(MOBILE_RES, "values/styles.xml")
 c = read(p)
-old_base = '<style name="Theme.Base" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">'
-assert c.count(old_base) == 1
-new_base = '<style name="Theme.Base" parent="android:Theme.Material.Light.NoActionBar">\\n        <item name="android:windowBackground">@drawable/poster_shanjian</item>\\n        <item name="android:colorBackground">@android:color/transparent</item>'
-c = c.replace(old_base, new_base, 1)
-write(p, c)
+pattern = r'<style name="Theme.Base" parent="[^"]*">.*?</style>'
+new_style = '<style name="Theme.Base" parent="android:Theme.Material.Light.NoActionBar">\\n        <item name="android:windowBackground">@drawable/poster_shanjian</item>\\n        <item name="android:colorBackground">@android:color/transparent</item>\\n    </style>'
+c_new, n = re.subn(pattern, new_style, c, flags=re.DOTALL)
+assert n == 1, f"Expected 1 replacement, got {n}"
+write(p, c_new)
 
 config_layout = '''<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
