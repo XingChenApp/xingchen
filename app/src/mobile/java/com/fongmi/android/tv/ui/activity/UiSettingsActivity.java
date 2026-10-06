@@ -61,9 +61,6 @@ public class UiSettingsActivity extends BaseActivity {
 
     private void updateThemeUI() {
         String theme = getPref("theme_mode", "light");
-        if (theme.equals("light")) binding.tvThemeDesc.setText("当前为浅色主题，界面明亮清爽");
-        else if (theme.equals("dark")) binding.tvThemeDesc.setText("当前为深色主题，夜间观看更护眼");
-        else binding.tvThemeDesc.setText("跟随系统主题自动切换");
         theme = getPref("theme_mode", "light");
         setSegSelected(binding.segThemeLight, "light".equals(theme));
         setSegSelected(binding.segThemeDark, "dark".equals(theme));
@@ -79,9 +76,6 @@ public class UiSettingsActivity extends BaseActivity {
 
     private void updateCoverSizeUI() {
         String size = getPref("cover_size", "medium");
-        if (size.equals("small")) binding.tvCoverDesc.setText("小封面：一行显示 4 个海报");
-        else if (size.equals("medium")) binding.tvCoverDesc.setText("中封面：一行显示 3 个海报");
-        else binding.tvCoverDesc.setText("大封面：一行显示 2 个海报");
         size = getPref("cover_size", "medium");
         setSegSelected(binding.segCoverSmall, "small".equals(size));
         setSegSelected(binding.segCoverMedium, "medium".equals(size));
@@ -96,8 +90,6 @@ public class UiSettingsActivity extends BaseActivity {
 
     private void updateOrientUI() {
         String dir = getPref("cover_dir", "vertical");
-        if (dir.equals("vertical")) binding.tvCoverDirDesc.setText("竖屏封面：海报按竖版显示");
-        else binding.tvCoverDirDesc.setText("横屏封面：海报按横版显示");
         String orient = getPref("cover_orient", "portrait");
         setSegSelected(binding.segOrientVertical, "portrait".equals(orient));
         setSegSelected(binding.segOrientHorizontal, "landscape".equals(orient));
@@ -112,7 +104,6 @@ public class UiSettingsActivity extends BaseActivity {
 
     private void updateRatioUI() {
         String ratio = getPref("cover_ratio", "2:3");
-        binding.tvCoverRatioDesc.setText("当前比例 " + ratio);
         ratio = getPref("cover_ratio", "2:3");
         setSegSelected(binding.segRatio23, "2:3".equals(ratio));
         setSegSelected(binding.segRatio34, "3:4".equals(ratio));
@@ -144,8 +135,6 @@ public class UiSettingsActivity extends BaseActivity {
 
     private void updateUiStyleUI() {
         String style = getPref("ui_style", "glass");
-        if (style.equals("glass")) binding.tvUiStyleDesc.setText("毛玻璃：面板半透明，透出壁纸");
-        else binding.tvUiStyleDesc.setText("普通：面板纯色不透明");
         String style = ThemeManager.get().getTheme().uiStyle;
         boolean isNormal = XingChenTheme.UI_NORMAL.equals(style);
         setSegSelected(binding.segStyleNormal, isNormal);
@@ -156,11 +145,9 @@ public class UiSettingsActivity extends BaseActivity {
         int alpha = ThemeManager.get().getTheme().glassAlpha;
         binding.seekGlass.setProgress(alpha);
         binding.tvGlassValue.setText(alpha + "%");
-        binding.tvGlassDesc.setText("当前 " + alpha + "%，越往右越通透");
         binding.seekGlass.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 binding.tvGlassValue.setText(progress + "%");
-                binding.tvGlassDesc.setText("当前 " + progress + "%，越往右越通透");
                 if (fromUser) {
                     ThemeManager.get().getTheme().glassAlpha = progress;
                     ThemeManager.get().getTheme().save(UiSettingsActivity.this);
@@ -248,9 +235,6 @@ public class UiSettingsActivity extends BaseActivity {
 
     private void updateWallpaperUI() {
         String wp = getPref("wallpaper", "default");
-        if (wp.equals("default")) binding.tvWpDesc.setText("当前：默认壁纸");
-        else if (wp.equals("local")) binding.tvWpDesc.setText("当前：本地壁纸");
-        else binding.tvWpDesc.setText("当前：URL 壁纸");
         String type = ThemeManager.get().getTheme().wallpaperType;
         setSegSelected(binding.segWpDefault, XingChenTheme.WP_BUILTIN.equals(type));
         setSegSelected(binding.segWpLocal, XingChenTheme.WP_LOCAL.equals(type));
@@ -260,7 +244,6 @@ public class UiSettingsActivity extends BaseActivity {
         else if (XingChenTheme.WP_LOCAL.equals(type)) desc += "本地壁纸";
         else if (XingChenTheme.WP_URL.equals(type)) desc += "网络壁纸";
         else desc += "默认壁纸";
-        binding.tvWpDesc.setText(desc);
     }
 
     private void updateVisibility() {
