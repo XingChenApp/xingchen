@@ -76,7 +76,7 @@ public class ThemeManager {
             ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
             ensureWallpaperLayer(activity, decor);
             // Keep decor transparent so wallpaper shows, don't set beige
-            // makeTransparent(decor) can be called if needed for glass effect
+            makeTransparent(decor) can be called if needed for glass effect
         } catch (Exception e) {}
     }
 
@@ -90,7 +90,7 @@ public class ThemeManager {
                 iv = new ImageView(activity);
                 iv.setTag("xc_wallpaper");
                 iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                decor.addView(iv, 0, new ViewGroup.LayoutParams(
+                decor.addView(iv, 0, new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT));
             }
