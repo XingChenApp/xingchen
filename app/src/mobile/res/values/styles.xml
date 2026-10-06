@@ -10,9 +10,7 @@
         <item name="android:windowBackground">@drawable/mobile_startup_window_background</item>
     </style>
 
-    <style name="Theme.App" parent="Theme.XingChen">
-        <item name="android:windowBackground">#FF7560CA</item>
-    </style>
+    <style name="Theme.App" parent="Theme.XingChen" />
 
     <style name="Theme.Crash" parent="Theme.XingChen">
         <item name="android:windowDisablePreview">true</item>
