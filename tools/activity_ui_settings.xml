@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:clipToPadding="false"
+    android:paddingTop="48dp"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
+    android:paddingBottom="16dp">
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+<!-- UI Style Card -->
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/card_bg"
+    android:padding="16dp"
+    android:layout_marginBottom="12dp">
+
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="UI 风格"
+    android:textSize="18sp"
+    android:textStyle="bold"
+    android:textColor="#222222"/>
+
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="毛玻璃：面板半透明，透出壁纸"
+    android:textSize="13sp"
+    android:textColor="#666666"
+    android:layout_marginTop="4dp"
+    android:layout_marginBottom="12dp"/>
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/seg_container"
+    android:padding="4dp">
+
+<TextView
+    android:id="@+id/seg_ui_normal"
+    android:layout_width="0dp"
+    android:layout_height="48dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="普通"
+    android:textSize="15sp"
+    android:background="@drawable/seg_unselected"
+    android:textColor="#333333"/>
+
+<TextView
+    android:id="@+id/seg_ui_glass"
+    android:layout_width="0dp"
+    android:layout_height="48dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="毛玻璃"
+    android:textSize="15sp"
+    android:background="@drawable/seg_selected"
+    android:textColor="#FFFFFF"/>
+
+</LinearLayout>
+</LinearLayout>
+
+<!-- Transparency Card -->
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/card_bg"
+    android:padding="16dp"
+    android:layout_marginBottom="12dp">
+
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="毛玻璃透明度"
+    android:textSize="18sp"
+    android:textStyle="bold"
+    android:textColor="#222222"/>
+
+<TextView
+    android:id="@+id/tv_alpha_desc"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="当前 55%，越往右越通透"
+    android:textSize="13sp"
+    android:textColor="#666666"
+    android:layout_marginTop="4dp"
+    android:layout_marginBottom="8dp"/>
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical">
+
+<SeekBar
+    android:id="@+id/seek_alpha"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:max="100"
+    android:progress="55"/>
+
+<TextView
+    android:id="@+id/tv_alpha_value"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="55%"
+    android:textSize="14sp"
+    android:textColor="#666666"
+    android:layout_marginStart="12dp"
+    android:minWidth="48dp"
+    android:gravity="end"/>
+
+</LinearLayout>
+</LinearLayout>
+
+<!-- Wallpaper Card -->
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/card_bg"
+    android:padding="16dp"
+    android:layout_marginBottom="12dp">
+
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="壁纸"
+    android:textSize="18sp"
+    android:textStyle="bold"
+    android:textColor="#222222"/>
+
+<TextView
+    android:id="@+id/tv_wp_desc"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="当前：默认壁纸"
+    android:textSize="13sp"
+    android:textColor="#666666"
+    android:layout_marginTop="4dp"
+    android:layout_marginBottom="12dp"/>
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/seg_container"
+    android:padding="4dp">
+
+<TextView
+    android:id="@+id/seg_wp_default"
+    android:layout_width="0dp"
+    android:layout_height="48dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="默认"
+    android:textSize="15sp"
+    android:background="@drawable/seg_selected"
+    android:textColor="#FFFFFF"/>
+
+<TextView
+    android:id="@+id/seg_wp_local"
+    android:layout_width="0dp"
+    android:layout_height="48dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="本地"
+    android:textSize="15sp"
+    android:background="@drawable/seg_unselected"
+    android:textColor="#333333"/>
+
+<TextView
+    android:id="@+id/seg_wp_url"
+    android:layout_width="0dp"
+    android:layout_height="48dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:text="URL"
+    android:textSize="15sp"
+    android:background="@drawable/seg_unselected"
+    android:textColor="#333333"/>
+
+</LinearLayout>
+</LinearLayout>
+
+</LinearLayout>
+</ScrollView>
