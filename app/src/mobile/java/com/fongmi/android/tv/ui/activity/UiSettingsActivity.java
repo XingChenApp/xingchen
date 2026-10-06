@@ -165,8 +165,22 @@ public class UiSettingsActivity extends BaseActivity {
     }
 
     private void setWallpaper(String type, String value) {
-        ThemeManager.get().setWallpaper(this, type, value);
-        ThemeManager.get().apply(this);
+        // Save to XingChenTheme
+        com.xingchen.tv.theme.XingChenTheme.setWallpaper(type, value);
+        // Update global wallpaper view
+        android.view.ViewGroup decor = (android.view.ViewGroup) getWindow().getDecorView();
+        android.view.View wallView = decor.findViewWithTag("xc_wallpaper");
+        if (wallView instanceof android.widget.ImageView) {
+            android.widget.ImageView iv = (android.widget.ImageView) wallView;
+            if (com.xingchen.tv.theme.XingChenTheme.WP_BUILTIN.equals(type)) {
+                int resId = getResources().getIdentifier("poster_shanjian_blur", "drawable", getPackageName());
+                if (resId != 0) iv.setImageResource(resId);
+            } else if (com.xingchen.tv.theme.XingChenTheme.WP_LOCAL.equals(type)) {
+                iv.setImageURI(android.net.Uri.parse(value));
+            } else if (com.xingchen.tv.theme.XingChenTheme.WP_URL.equals(type)) {
+                // TODO: Load URL with blur
+            }
+        }
         updateWallpaperUI();
     }
 
