@@ -125,7 +125,7 @@ if os.path.exists(BASE_JAVA):
             "super.onCreate(savedInstanceState);",
             "super.onCreate(savedInstanceState);\n        { getWindow().setStatusBarColor(0x00000000); getWindow().getDecorView().post(() -> { com.xingchen.tv.theme.ThemeManager.get().apply(this); }); }",
         )
-        assert "ThemeController" in bc, "BaseActivity patch failed"
+        assert "ThemeManager" in bc, "BaseActivity patch failed"
         # Add onResume to refresh wallpaper when returning - robust version
         if "xc_onResume" not in bc:
             if "protected void onResume()" in bc:
@@ -149,7 +149,7 @@ if os.path.exists(BASE_JAVA):
 APP_JAVA = os.path.join(BASE, "app/src/mobile/java/com/fongmi/android/tv/App.java")
 if os.path.exists(APP_JAVA):
     ac = read(APP_JAVA)
-    if "ThemeController.init" not in ac:
+    if "ThemeManager.init" not in ac:
         ac = ac.replace(
             "super.onCreate();",
             "super.onCreate();\n        com.xingchen.tv.theme.ThemeManager.init(this);"
