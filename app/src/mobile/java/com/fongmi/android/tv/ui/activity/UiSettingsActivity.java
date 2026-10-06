@@ -145,11 +145,6 @@ public class UiSettingsActivity extends BaseActivity {
             binding.cardGlass.setBackgroundResource(cardBg);
             binding.cardWp.setBackgroundResource(cardBg);
         } catch (Exception e) { /* cards may not have IDs in old layout */ }
-        // Switch wallpaper: blurred for glass mode
-        try {
-            if (isNormal) binding.ivWallpaper.setImageResource(R.drawable.poster_shanjian);
-            else binding.ivWallpaper.setImageResource(R.drawable.poster_shanjian_blur);
-        } catch (Exception e) { /* no wallpaper view */ }
         // Show/hide wallpaper card: only in glass mode
         try {
             binding.cardWp.setVisibility(isNormal ? android.view.View.GONE : android.view.View.VISIBLE);
