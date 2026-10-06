@@ -155,6 +155,16 @@ public class App extends Application implements Application.ActivityLifecycleCal
 
     @Override
     public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
+        try {
+            android.view.ViewGroup decor = (android.view.ViewGroup) activity.getWindow().getDecorView();
+            android.widget.ImageView iv = new android.widget.ImageView(activity);
+            iv.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+            iv.setImageResource(R.drawable.poster_shanjian_blur);
+            android.widget.FrameLayout.LayoutParams p = new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT);
+            decor.addView(iv, 0, p);
+        } catch (Exception e) {}
     }
 
     @Override
