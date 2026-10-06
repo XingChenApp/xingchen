@@ -21,7 +21,7 @@ jobs:
       - name: Build APK
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleMobileArm64_v8aRelease :app:assembleMobileX86_64Release --no-daemon
+          ./gradlew :app:assembleMobileArm64_v8aRelease --no-daemon
       - name: Find APK
         run: |
           find app/build/outputs -name "*.apk" 2>/dev/null | head -20
