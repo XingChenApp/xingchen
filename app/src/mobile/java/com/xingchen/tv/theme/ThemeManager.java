@@ -20,7 +20,7 @@ public class ThemeManager {
     private XingChenTheme theme;
     private static final String TAG = "XC_WALLPAPER";
     private static void flog(String msg) {
-        flog( msg);
+        Log.d(TAG, msg);
         try {
             File dir = new File("/sdcard/XingChen");
             if (!dir.exists()) dir.mkdirs();
@@ -31,7 +31,7 @@ public class ThemeManager {
             w.write(line);
             w.close();
         } catch (IOException e) {
-            flog("ERROR flog failed: " + e);
+            Log.e(TAG, "flog failed", e);
         }
     }
 
