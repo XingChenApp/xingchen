@@ -97,6 +97,9 @@ public class ThemeManager {
         try {
             flog( "doApply: activity=" + activity.getClass().getSimpleName());
             if (theme == null) theme = XingChenTheme.load(activity);
+            try {
+                activity.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0x00000000));
+            } catch (Exception e) {}
             ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
             ensureWallpaperLayer(activity, decor);
             // Keep decor transparent so wallpaper shows, don't set beige
