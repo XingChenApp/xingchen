@@ -450,7 +450,7 @@ import android.widget.TextView;
 
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.databinding.ActivityUiSettingsBinding;
-import com.fongmi.android.tv.ui.activity.BaseActivity;
+import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.xingchen.tv.theme.ThemeManager;
 import com.xingchen.tv.theme.XingChenTheme;
 
