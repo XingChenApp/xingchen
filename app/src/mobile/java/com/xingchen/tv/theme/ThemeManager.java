@@ -76,7 +76,7 @@ public class ThemeManager {
             ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
             ensureWallpaperLayer(activity, decor);
             // Keep decor transparent so wallpaper shows, don't set beige
-            makeTransparent(decor) can be called if needed for glass effect
+            makeTransparent(decor);
         } catch (Exception e) {}
     }
 
