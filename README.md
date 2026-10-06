@@ -7,7 +7,7 @@
 ## 特性
 
 - 📱 手机竖屏触控，不做 TV
-- 🎬 ExoPlayer + mpv 双内核
+- 🎬 ExoPlayer + IJK + mpv 三内核
 - 🎨 全新主题系统：普通 / 毛玻璃，壁纸自定义
 - 🚫 去 Material 紫，星辰金主题色
 
