@@ -95,16 +95,40 @@ public class ThemeManager {
 
     private void doApply(Activity activity) {
         try {
-            flog( "doApply: activity=" + activity.getClass().getSimpleName());
+            flog("doApply: activity=" + activity.getClass().getSimpleName());
             if (theme == null) theme = XingChenTheme.load(activity);
+            int resId = getWallpaperResId(activity);
+            flog("doApply: setting window background to resId=" + resId);
             try {
-                activity.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0x00000000));
-            } catch (Exception e) {}
-            ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
-            ensureWallpaperLayer(activity, decor);
-            // Keep decor transparent so wallpaper shows, don't set beige
-            makeTransparent(decor);
+                if (resId != 0) {
+                    activity.getWindow().setBackgroundDrawableResource(resId);
+                } else {
+                    activity.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0x00000000));
+                }
+            } catch (Exception e) {
+                flog("ERROR setting window bg: " + e);
+            }
         } catch (Exception e) { flog("ERROR doApply failed: " + e); }
+    }
+
+    private int getWallpaperResId(Activity activity) {
+        try {
+            String type = theme.wallpaperType;
+            String value = theme.wallpaperValue;
+            flog("getWallpaperResId: type=" + type + ", value=" + value);
+            if (XingChenTheme.WP_COLOR.equals(type)) {
+                return 0;
+            } else if (XingChenTheme.WP_LOCAL.equals(type) || XingChenTheme.WP_URL.equals(type)) {
+                return 0;
+            } else {
+                int id = getBuiltinRes(activity, value);
+                flog("getWallpaperResId: builtin id=" + id);
+                return id;
+            }
+        } catch (Exception e) {
+            flog("ERROR getWallpaperResId: " + e);
+            return 0;
+        }
     }
 
     private void ensureWallpaperLayer(Activity activity, ViewGroup decor) {
