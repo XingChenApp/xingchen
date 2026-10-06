@@ -156,14 +156,8 @@ public class App extends Application implements Application.ActivityLifecycleCal
     @Override
         public void onActivityCreated(@NonNull Activity activity, android.os.Bundle savedInstanceState) {
         try {
-            android.view.ViewGroup content = activity.findViewById(android.R.id.content);
-            if (content != null && content.findViewWithTag("xc_wp") == null) {
-                android.widget.ImageView iv = new android.widget.ImageView(activity);
-                iv.setTag("xc_wp");
-                iv.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-                try { iv.setImageResource(activity.getResources().getIdentifier("poster_shanjian_blur", "drawable", activity.getPackageName())); } catch (Exception e) {}
-                content.addView(iv, 0, new android.widget.FrameLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT));
-            }
+            android.view.View v = activity.findViewById(android.R.id.content);
+            if (v != null) v.setBackgroundColor(android.graphics.Color.TRANSPARENT);
         } catch (Exception e) {}
     }
 
