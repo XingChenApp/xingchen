@@ -504,6 +504,7 @@ public class UiSettingsActivity extends BaseActivity {
 
     private void setUiStyle(String style) {
         ThemeManager.get().setUiStyle(this, style);
+        ThemeManager.get().apply(this);
         updateUiStyleUI();
         updateVisibility();
     }
@@ -541,6 +542,7 @@ public class UiSettingsActivity extends BaseActivity {
 
     private void setWallpaper(String type, String value) {
         ThemeManager.get().setWallpaper(this, type, value);
+        ThemeManager.get().apply(this);
         updateWallpaperUI();
     }
 
