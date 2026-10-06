@@ -392,39 +392,6 @@ public class UiSettingsActivity extends BaseActivity {
         String s = getPref("ui_style", "glass");
         binding.styleNormal.setBackgroundResource("normal".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
         binding.styleGlass.setBackgroundResource("glass".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        boolean isGlass = "glass".equals(s);
-        try {
-            android.view.View themeView = binding.themeLight;
-            if (themeView != null) {
-                android.view.ViewParent tp1 = themeView.getParent();
-                if (tp1 instanceof android.view.View) {
-                    android.view.ViewParent tp2 = ((android.view.View) tp1).getParent();
-                    if (tp2 instanceof android.view.View) {
-                        android.view.ViewParent tp3 = ((android.view.View) tp2).getParent();
-                        if (tp3 instanceof android.view.View) {
-                            ((android.view.View) tp3).setVisibility(isGlass ? android.view.View.GONE : android.view.View.VISIBLE);
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {}
-        try {
-            android.view.View wpView = binding.wpDefault;
-            if (wpView != null) {
-                android.view.ViewParent p1 = wpView.getParent();
-                if (p1 instanceof android.view.View) {
-                    android.view.ViewParent p2 = ((android.view.View) p1).getParent();
-                    if (p2 instanceof android.view.View) {
-                        android.view.ViewParent p3 = ((android.view.View) p2).getParent();
-                        if (p3 instanceof android.view.View) {
-                            ((android.view.View) p3).setVisibility(isGlass ? android.view.View.VISIBLE : android.view.View.GONE);
-                        } else {
-                            ((android.view.View) p2).setVisibility(isGlass ? android.view.View.VISIBLE : android.view.View.GONE);
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {}
     }
     private void initGlassAlpha() {
         int a = getSharedPreferences("xingchen", MODE_PRIVATE).getInt("glass_alpha", 55);
