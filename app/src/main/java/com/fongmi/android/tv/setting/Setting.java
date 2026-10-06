@@ -220,7 +220,7 @@ public class Setting {
         if (wall == WALL_NEON_CYBER) return 0xFF4B2BD8;
         if (wall == WALL_WARM_MOON_GLASS) return 0xFF9E7568;
         if (wall == WALL_CRYSTAL_SKY) return 0xFF7890C5;
-        if (wall == WALL_DREAM_PURPLE) return 0x00000000; // Transparent, show mountain theme
+        if (wall == WALL_DREAM_PURPLE) return 0xFF7560CA;
         if (wall == WALL_SKY_MINT) return 0xFF6DA6B1;
         if (wall == WALL_FOREST_MIST) return 0xFF4E8750;
         if (wall == WALL_DAYLIGHT_MINIMAL) return 0xFF7B8D9C;
