@@ -136,19 +136,14 @@ public class UiSettingsActivity extends BaseActivity {
         setSegSelected(binding.segUiGlass, !isNormal);
         // Switch card backgrounds: normal=white, glass=semi-transparent
         int cardBg = isNormal ? R.drawable.card_bg : R.drawable.card_bg_glass;
-        try {
-            binding.cardTheme.setBackgroundResource(cardBg);
-            binding.cardCover.setBackgroundResource(cardBg);
-            binding.cardOrient.setBackgroundResource(cardBg);
-            binding.cardRatio.setBackgroundResource(cardBg);
-            binding.cardStyle.setBackgroundResource(cardBg);
-            binding.cardGlass.setBackgroundResource(cardBg);
-            binding.cardWp.setBackgroundResource(cardBg);
-        } catch (Exception e) { /* cards may not have IDs in old layout */ }
+        int[] cardIds = {R.id.card_theme, R.id.card_cover, R.id.card_orient, R.id.card_ratio, R.id.card_style, R.id.card_glass, R.id.card_wp};
+        for (int id : cardIds) {
+            android.view.View card = findViewById(id);
+            if (card != null) card.setBackgroundResource(cardBg);
+        }
         // Show/hide wallpaper card: only in glass mode
-        try {
-            binding.cardWp.setVisibility(isNormal ? android.view.View.GONE : android.view.View.VISIBLE);
-        } catch (Exception e) { /* no card */ }
+        android.view.View cardWp = findViewById(R.id.card_wp);
+        if (cardWp != null) cardWp.setVisibility(isNormal ? android.view.View.GONE : android.view.View.VISIBLE);
     }
 
     private void initGlassSection() {
