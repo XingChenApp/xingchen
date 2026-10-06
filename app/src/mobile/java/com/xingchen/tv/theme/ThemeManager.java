@@ -22,7 +22,31 @@ public class ThemeManager {
     public static void init(Application app) {
         get().theme = XingChenTheme.load(app);
         app.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
-            @Override public void onActivityCreated(Activity a, Bundle b) {}
+            @Override public void onActivityCreated(Activity a, Bundle b) {
+                // Add global wallpaper
+                try {
+                    android.view.ViewGroup decor = (android.view.ViewGroup) a.getWindow().getDecorView();
+                    android.view.View old = decor.findViewWithTag("xc_wallpaper");
+                    if (old != null) decor.removeView(old);
+                    android.widget.ImageView wallView = new android.widget.ImageView(a);
+                    wallView.setTag("xc_wallpaper");
+                    wallView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+                    XingChenTheme theme = XingChenTheme.load(a);
+                    if (XingChenTheme.WP_BUILTIN.equals(theme.wallpaperType)) {
+                        int resId = a.getResources().getIdentifier("poster_shanjian_blur", "drawable", a.getPackageName());
+                        if (resId != 0) wallView.setImageResource(resId);
+                    } else if (XingChenTheme.WP_LOCAL.equals(theme.wallpaperType)) {
+                        try {
+                            java.io.File f = new java.io.File(theme.wallpaperValue);
+                            if (f.exists()) wallView.setImageURI(android.net.Uri.fromFile(f));
+                        } catch (Exception e) {}
+                    }
+                    android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT);
+                    decor.addView(wallView, 0, params);
+                } catch (Exception e) {}
+            }
             @Override public void onActivityStarted(Activity a) {}
             @Override public void onActivityResumed(Activity a) { get().apply(a); }
             @Override public void onActivityPaused(Activity a) {}
