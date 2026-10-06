@@ -394,6 +394,21 @@ public class UiSettingsActivity extends BaseActivity {
         binding.styleGlass.setBackgroundResource("glass".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
         boolean isGlass = "glass".equals(s);
         try {
+            android.view.View themeView = binding.themeLight;
+            if (themeView != null) {
+                android.view.ViewParent tp1 = themeView.getParent();
+                if (tp1 instanceof android.view.View) {
+                    android.view.ViewParent tp2 = ((android.view.View) tp1).getParent();
+                    if (tp2 instanceof android.view.View) {
+                        android.view.ViewParent tp3 = ((android.view.View) tp2).getParent();
+                        if (tp3 instanceof android.view.View) {
+                            ((android.view.View) tp3).setVisibility(isGlass ? android.view.View.GONE : android.view.View.VISIBLE);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {}
+        try {
             android.view.View wpView = binding.wpDefault;
             if (wpView != null) {
                 android.view.ViewParent p1 = wpView.getParent();
