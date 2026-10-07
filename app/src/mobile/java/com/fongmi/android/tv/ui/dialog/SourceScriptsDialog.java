@@ -25,6 +25,8 @@ public class SourceScriptsDialog extends Dialog {
     public SourceScriptsDialog(@NonNull Context context, OnScriptSelectListener listener) {
         super(context, android.R.style.Theme_Translucent_NoTitleBar);
         this.listener = listener;
+        setCanceledOnTouchOutside(true);
+        setCancelable(true);
     }
 
     @Override
@@ -37,9 +39,13 @@ public class SourceScriptsDialog extends Dialog {
                 getWindow().setGravity(android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL);
                 android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
                 lp.width = android.view.WindowManager.LayoutParams.MATCH_PARENT;
-                lp.height = android.view.WindowManager.LayoutParams.WRAP_CONTENT;
-                lp.y = (int) (120 * getContext().getResources().getDisplayMetrics().density);
+                lp.height = android.view.WindowManager.LayoutParams.MATCH_PARENT;
                 getWindow().setAttributes(lp);
+                // Add top margin to the content view
+                android.view.View content = findViewById(android.R.id.content);
+                if (content != null) {
+                    content.setPadding(0, (int) (100 * getContext().getResources().getDisplayMetrics().density), 0, 0);
+                }
             }
         } catch (Exception e) { e.printStackTrace(); }
 
