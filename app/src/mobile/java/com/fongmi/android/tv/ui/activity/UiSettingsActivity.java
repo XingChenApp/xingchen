@@ -29,7 +29,6 @@ public class UiSettingsActivity extends BaseActivity {
 
     @Override
     protected void initView(Bundle savedInstanceState) {
-        initThemeSection();
         initCoverSizeSection();
         initOrientSection();
         initRatioSection();
@@ -46,23 +45,9 @@ public class UiSettingsActivity extends BaseActivity {
         getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString(key, value).apply();
     }
 
-    private void initThemeSection() {
-        binding.segThemeLight.setOnClickListener(v -> setPrefAndUpdate("theme_mode", "light", this::updateThemeUI));
-        binding.segThemeDark.setOnClickListener(v -> setPrefAndUpdate("theme_mode", "dark", this::updateThemeUI));
-        binding.segThemeSystem.setOnClickListener(v -> setPrefAndUpdate("theme_mode", "system", this::updateThemeUI));
-        updateThemeUI();
-    }
-
     private void setPrefAndUpdate(String key, String value, Runnable update) {
         setPref(key, value);
         update.run();
-    }
-
-    private void updateThemeUI() {
-        String theme = getPref("theme_mode", "light");
-        setSegSelected(binding.segThemeLight, "light".equals(theme));
-        setSegSelected(binding.segThemeDark, "dark".equals(theme));
-        setSegSelected(binding.segThemeSystem, "system".equals(theme));
     }
 
     private void initCoverSizeSection() {
