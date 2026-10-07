@@ -133,11 +133,8 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         mBinding.typeMore.setOnClickListener(this::onTypeMore);
         mBinding.filter.setOnClickListener(this::onFilter);
         mBinding.filter.setOnLongClickListener(this::onLink);
-        // New homepage buttons
-        mBinding.btnSearch.setOnClickListener(v -> onSearch());
-        mBinding.btnFav.setOnClickListener(v -> onFav());
-        mBinding.btnHistory.setOnClickListener(v -> onHistory());
-        mBinding.btnMore.setOnClickListener(v -> onMore());
+        mBinding.toolbar.setOnMenuItemClickListener(this::onMenuItemClick);
+        mBinding.toolbar.post(this::setSearchLongClick);
         mBinding.appBar.addOnOffsetChangedListener((appBarLayout, verticalOffset) -> {
             int range = appBarLayout.getTotalScrollRange();
             if (range <= 0) return;
@@ -339,28 +336,6 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         // TODO(next): True PY/JS spider loading via FongMi Spider kernel
         String type = isPy ? "PY" : "JS";
         android.widget.Toast.makeText(requireActivity(), "正在加载" + type + ": " + file.getName(), android.widget.Toast.LENGTH_SHORT).show();
-    }
-
-    private void onSearch() {
-        SearchActivity.start(requireActivity());
-    }
-
-    private void onFav() {
-        KeepActivity.start(requireActivity());
-    }
-
-    private void onHistory() {
-        HistoryActivity.start(requireActivity());
-    }
-
-    private void onMore() {
-        try {
-            new com.fongmi.android.tv.ui.dialog.SourceScriptsDialog(requireActivity(), (file, isPy) -> {
-                try { onScriptSelected(file, isPy); } catch (Exception e) { e.printStackTrace(); }
-            }).show();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     private void onApkSelected(Uri uri) {
