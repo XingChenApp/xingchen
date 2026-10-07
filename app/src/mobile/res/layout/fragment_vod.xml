@@ -70,7 +70,7 @@
                 android:scaleType="center"
                 android:translationY="-4dp"
                 android:visibility="gone"
-                app:srcCompat="@drawable/ic_action_menu"
+                app:srcCompat="@drawable/ic_grid_9"
                 tools:visibility="visible" />
 
         </androidx.appcompat.widget.LinearLayoutCompat>
