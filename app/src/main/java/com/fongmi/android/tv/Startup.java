@@ -5,7 +5,6 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.startup.Initializer;
 
-import com.fongmi.android.tv.event.EventIndex;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.player.mpv.PlaybackRecoveryMonitor;
 import com.fongmi.android.tv.ui.activity.CrashActivity;
@@ -31,8 +30,7 @@ public class Startup implements Initializer<Void> {
         CaocConfig.Builder.create().trackActivities(true).backgroundMode(CaocConfig.BACKGROUND_MODE_SILENT).errorActivity(CrashActivity.class).apply();
         Logger.addLogAdapter(new AndroidLogAdapter(PrettyFormatStrategy.newBuilder().methodCount(0).showThreadInfo(false).tag("TV").build()));
         try {
-            EventBus.builder().addIndex(new EventIndex()).installDefaultEventBus();
-        } catch (Throwable t) {
+            } catch (Throwable t) {
             EventBus.builder().installDefaultEventBus();
         }
         OkHttp.dns().setDoh(() -> Doh.objectFrom(Setting.getDoh()));
