@@ -1,7 +1,6 @@
 package com.fongmi.android.tv.ui.dialog;
 
 import android.app.Activity;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.text.InputFilter;
 import android.text.TextUtils;
@@ -36,7 +35,7 @@ public class LinkDialog extends BaseAlertDialog {
 
     @Override
     protected MaterialAlertDialogBuilder getBuilder() {
-        return builder().setTitle(R.string.play).setView(getBinding().getRoot()).setPositiveButton(R.string.dialog_positive, this::onPositive).setNegativeButton(R.string.dialog_negative, null);
+        return builder().setView(getBinding().getRoot());
     }
 
     @Override
@@ -50,11 +49,13 @@ public class LinkDialog extends BaseAlertDialog {
     @Override
     protected void initEvent() {
         binding.input.setEndIconOnClickListener(this::onChoose);
+        binding.positive.setOnClickListener(v -> onPositive());
+        binding.negative.setOnClickListener(v -> dismiss());
         binding.text.setOnEditorActionListener((textView, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_DONE) onPositive(null, 0);
+            if (actionId == EditorInfo.IME_ACTION_DONE) onPositive();
             return true;
         });
-        }
+    }
 
     @Override
     public void onStart() {
@@ -68,7 +69,7 @@ public class LinkDialog extends BaseAlertDialog {
         FileChooser.from(launcher).show();
     }
 
-    private void onPositive(DialogInterface dialog, int which) {
+    private void onPositive() {
         String text = binding.text.getText().toString().trim();
         if (!text.isEmpty()) VideoActivity.start(requireActivity(), text);
         dismiss();
