@@ -27,7 +27,7 @@ import okhttp3.Response;
 
 public class PushPlayUrlDialog extends BaseAlertDialog {
 
-    private final Device device;
+    private Device device;
     private final okhttp3.OkHttpClient client = OkHttp.client(Constant.TIMEOUT_SYNC);
     private DialogRemoteTrustTextCommandBinding binding;
     private Call call;
