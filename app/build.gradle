@@ -29,8 +29,10 @@ try {
 } catch (Exception ignored) { /* Source archives may not contain Git metadata. */ }
 
 android {
-    packagingOptions {
-        exclude '**/wl.webp'
+    packaging {
+        resources {
+            excludes += '**/wl.webp'
+        }
     }
     namespace = 'com.fongmi.android.tv'
 
