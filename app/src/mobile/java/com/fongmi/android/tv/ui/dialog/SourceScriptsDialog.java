@@ -31,13 +31,14 @@ public class SourceScriptsDialog extends Dialog {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.dialog_source_scripts);
-        // Center the dialog (translucent theme defaults to top)
+        // Position like design: upper-middle, below top bar
         try {
             if (getWindow() != null) {
-                getWindow().setGravity(android.view.Gravity.CENTER);
+                getWindow().setGravity(android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL);
                 android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
                 lp.width = android.view.WindowManager.LayoutParams.MATCH_PARENT;
                 lp.height = android.view.WindowManager.LayoutParams.WRAP_CONTENT;
+                lp.y = (int) (120 * getContext().getResources().getDisplayMetrics().density);
                 getWindow().setAttributes(lp);
             }
         } catch (Exception e) { e.printStackTrace(); }
