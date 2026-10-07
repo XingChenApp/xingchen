@@ -1,66 +1,49 @@
 package com.fongmi.android.tv.ui.fragment;
 
-import static androidx.fragment.app.FragmentTransaction.TRANSIT_FRAGMENT_OPEN;
-
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.view.MenuProvider;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
-import androidx.lifecycle.Lifecycle;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
+
+import static androidx.fragment.app.FragmentTransaction.TRANSIT_FRAGMENT_OPEN;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.bean.Word;
 import com.fongmi.android.tv.databinding.FragmentSearchBinding;
 import com.fongmi.android.tv.impl.Callback;
-import com.fongmi.android.tv.setting.Setting;
-import com.fongmi.android.tv.ui.adapter.HotWordAdapter;
 import com.fongmi.android.tv.ui.adapter.RecordAdapter;
 import com.fongmi.android.tv.ui.adapter.WordAdapter;
 import com.fongmi.android.tv.ui.base.BaseFragment;
 import com.fongmi.android.tv.ui.custom.CustomTextListener;
-import com.fongmi.android.tv.ui.dialog.SiteDialog;
+import com.fongmi.android.tv.ui.dialog.SearchSourceDialog;
 import com.fongmi.android.tv.utils.SearchSuggest;
 import com.fongmi.android.tv.utils.Util;
 import com.github.catvod.net.OkHttp;
-import com.google.android.flexbox.FlexDirection;
-import com.google.android.flexbox.FlexboxLayoutManager;
-import com.google.common.net.HttpHeaders;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import okhttp3.Call;
 import okhttp3.Response;
 
-public class SearchFragment extends BaseFragment implements MenuProvider, WordAdapter.OnClickListener, RecordAdapter.OnClickListener {
-
-    private static final int HOT_LIMIT = 10;
+public class SearchFragment extends BaseFragment implements WordAdapter.OnClickListener, RecordAdapter.OnClickListener {
 
     private FragmentSearchBinding mBinding;
     private RecordAdapter mRecordAdapter;
     private WordAdapter mWordAdapter;
-    private HotWordAdapter mHotTvAdapter;
-    private HotWordAdapter mHotMovieAdapter;
-    private HotWordAdapter mHotVarietyAdapter;
     private List<Word.Data> mIqiyiWords = new ArrayList<>();
     private List<Word.Data> mTencentWords = new ArrayList<>();
     private int mSuggestSeq;
@@ -110,46 +93,25 @@ public class SearchFragment extends BaseFragment implements MenuProvider, WordAd
     }
 
     @Override
-    protected void initMenu() {
-        if (isHidden()) return;
-        AppCompatActivity activity = (AppCompatActivity) requireActivity();
-        activity.setSupportActionBar(mBinding.toolbar);
-        activity.getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        activity.addMenuProvider(this, getViewLifecycleOwner(), Lifecycle.State.RESUMED);
-        activity.setTitle("");
-    }
-
-    @Override
     protected void initView() {
         setRecyclerView();
         checkKeyword();
-        search();
     }
 
     private void setRecyclerView() {
-        setWordRecycler(mBinding.wordRecycler, mWordAdapter = new WordAdapter(this));
-        setHotRecycler(mBinding.hotTvRecycler, mHotTvAdapter = new HotWordAdapter(this));
-        setHotRecycler(mBinding.hotMovieRecycler, mHotMovieAdapter = new HotWordAdapter(this));
-        setHotRecycler(mBinding.hotVarietyRecycler, mHotVarietyAdapter = new HotWordAdapter(this));
+        mBinding.wordRecycler.setHasFixedSize(false);
+        mBinding.wordRecycler.setAdapter(mWordAdapter = new WordAdapter(this));
+        mBinding.wordRecycler.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(getContext()));
         mBinding.recordRecycler.setHasFixedSize(false);
         mBinding.recordRecycler.setAdapter(mRecordAdapter = new RecordAdapter(this));
-        mBinding.recordRecycler.setLayoutManager(new FlexboxLayoutManager(getContext(), FlexDirection.ROW));
-    }
-
-    private void setWordRecycler(RecyclerView recyclerView, WordAdapter adapter) {
-        recyclerView.setHasFixedSize(false);
-        recyclerView.setAdapter(adapter);
-        recyclerView.setLayoutManager(new FlexboxLayoutManager(getContext(), FlexDirection.ROW));
-    }
-
-    private void setHotRecycler(RecyclerView recyclerView, HotWordAdapter adapter) {
-        recyclerView.setHasFixedSize(false);
-        recyclerView.setAdapter(adapter);
-        recyclerView.setLayoutManager(new FlexboxLayoutManager(getContext(), FlexDirection.ROW));
+        mBinding.recordRecycler.setLayoutManager(new com.google.android.flexbox.FlexboxLayoutManager(getContext(), com.google.android.flexbox.FlexDirection.ROW));
     }
 
     @Override
     protected void initEvent() {
+        mBinding.back.setOnClickListener(v -> requireActivity().getOnBackPressedDispatcher().onBackPressed());
+        mBinding.sourceSettings.setOnClickListener(v -> onSourceSettings());
+        mBinding.clearHistory.setOnClickListener(v -> onClearHistory());
         mBinding.keyword.setOnEditorActionListener((textView, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) search();
             return true;
@@ -157,13 +119,18 @@ public class SearchFragment extends BaseFragment implements MenuProvider, WordAd
         mBinding.keyword.addTextChangedListener(new CustomTextListener() {
             @Override
             public void afterTextChanged(Editable s) {
-                requireActivity().invalidateOptionsMenu();
                 getWord(s.toString());
             }
         });
-        getParentFragmentManager().setFragmentResultListener("result", getViewLifecycleOwner(), (requestKey, bundle) -> {
-            if (bundle.getBoolean("edit", false)) Util.showKeyboard(mBinding.keyword);
-        });
+    }
+
+    private void onSourceSettings() {
+        Util.hideKeyboard(mBinding.keyword);
+        SearchSourceDialog.show(this);
+    }
+
+    private void onClearHistory() {
+        mRecordAdapter.clear();
     }
 
     private void checkKeyword() {
@@ -175,7 +142,7 @@ public class SearchFragment extends BaseFragment implements MenuProvider, WordAd
 
     private void setKeyword(String text) {
         mBinding.keyword.setText(text);
-        mBinding.keyword.setSelection(text.length());
+        if (text != null) mBinding.keyword.setSelection(text.length());
     }
 
     private void search() {
@@ -198,24 +165,16 @@ public class SearchFragment extends BaseFragment implements MenuProvider, WordAd
     }
 
     private void getWord(String text) {
-        if (text.isEmpty()) getHot();
-        else getSuggest(text);
-    }
-
-    private void getHot() {
-        mSuggestSeq++;
-        showHot(true);
-        mHotTvAdapter.setItems(hotItems(Setting.getHotTv()));
-        mHotMovieAdapter.setItems(hotItems(Setting.getHotMovie()));
-        mHotVarietyAdapter.setItems(hotItems(Setting.getHotVariety()));
-        OkHttp.newCall(rankUrl(3), Map.of(HttpHeaders.REFERER, "https://www.360kan.com/rank/general")).enqueue(getHotCallback(mHotTvAdapter, Setting::putHotTv));
-        OkHttp.newCall(rankUrl(2), Map.of(HttpHeaders.REFERER, "https://www.360kan.com/rank/general")).enqueue(getHotCallback(mHotMovieAdapter, Setting::putHotMovie));
-        OkHttp.newCall(rankUrl(4), Map.of(HttpHeaders.REFERER, "https://www.360kan.com/rank/general")).enqueue(getHotCallback(mHotVarietyAdapter, Setting::putHotVariety));
+        if (text == null) text = "";
+        if (text.isEmpty()) {
+            showSuggest(false);
+        } else {
+            getSuggest(text);
+        }
     }
 
     private void getSuggest(String text) {
-        showHot(false);
-        mBinding.word.setText(R.string.search_suggest);
+        showSuggest(true);
         int seq = ++mSuggestSeq;
         mIqiyiWords = new ArrayList<>();
         mTencentWords = new ArrayList<>();
@@ -223,36 +182,9 @@ public class SearchFragment extends BaseFragment implements MenuProvider, WordAd
         OkHttp.newCall(SearchSuggest.tencentUrl(text)).enqueue(getSuggestCallback(seq, true));
     }
 
-    private String rankUrl(int cat) {
-        return "https://api.web.360kan.com/v1/rank?cat=" + cat;
-    }
-
-    private void showHot(boolean show) {
-        mBinding.word.setVisibility(show ? View.GONE : View.VISIBLE);
-        mBinding.wordRecycler.setVisibility(show ? View.GONE : View.VISIBLE);
-        mBinding.hotGroup.setVisibility(show ? View.VISIBLE : View.GONE);
-    }
-
-    private List<Word.Data> hotItems(String result) {
-        List<Word.Data> data = Word.objectFrom(result).getData();
-        return new ArrayList<>(data.subList(0, Math.min(data.size(), HOT_LIMIT)));
-    }
-
-    private Callback getHotCallback(HotWordAdapter adapter, HotSaver saver) {
-        return new Callback() {
-            @Override
-            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-                String result = response.body().string();
-                if (TextUtils.isEmpty(result)) return;
-                App.post(() -> setHotAdapter(adapter, saver, result));
-            }
-        };
-    }
-
-    private void setHotAdapter(HotWordAdapter adapter, HotSaver saver, String result) {
-        if (!mBinding.keyword.getText().toString().trim().isEmpty()) return;
-        saver.save(result);
-        adapter.setItems(hotItems(result));
+    private void showSuggest(boolean show) {
+        mBinding.word.setVisibility(show ? View.VISIBLE : View.GONE);
+        mBinding.wordRecycler.setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
     private Callback getSuggestCallback(int seq, boolean tencent) {
@@ -273,21 +205,6 @@ public class SearchFragment extends BaseFragment implements MenuProvider, WordAd
         mWordAdapter.setItems(SearchSuggest.merge(mIqiyiWords, mTencentWords));
     }
 
-    private void onReset() {
-        mBinding.keyword.setText("");
-        requireActivity().invalidateOptionsMenu();
-    }
-
-    private void onSite() {
-        Util.hideKeyboard(mBinding.keyword);
-        mBinding.keyword.post(() -> SiteDialog.create().search().show(this));
-    }
-
-    private interface HotSaver {
-
-        void save(String result);
-    }
-
     @Override
     public void onItemClick(String text) {
         setKeyword(text);
@@ -296,38 +213,9 @@ public class SearchFragment extends BaseFragment implements MenuProvider, WordAd
 
     @Override
     public void onDataChanged(int size) {
-        mBinding.record.setVisibility(size == 0 ? View.GONE : View.VISIBLE);
-        mBinding.recordRecycler.setVisibility(size == 0 ? View.GONE : View.VISIBLE);
-        mBinding.recordRecycler.postDelayed(() -> mBinding.recordRecycler.requestLayout(), 250);
-    }
-
-    @Override
-    public void onCreateMenu(@NonNull Menu menu, @NonNull MenuInflater menuInflater) {
-        menuInflater.inflate(R.menu.menu_search, menu);
-    }
-
-    @Override
-    public void onPrepareMenu(@NonNull Menu menu) {
-        menu.findItem(R.id.action_reset).setVisible(!empty());
-    }
-
-    @Override
-    public boolean onMenuItemSelected(@NonNull MenuItem menuItem) {
-        if (menuItem.getItemId() == android.R.id.home) requireActivity().getOnBackPressedDispatcher().onBackPressed();
-        if (menuItem.getItemId() == R.id.action_reset) onReset();
-        if (menuItem.getItemId() == R.id.action_site) onSite();
-        return true;
-    }
-
-    @Override
-    public void onHiddenChanged(boolean hidden) {
-        if (hidden) requireActivity().removeMenuProvider(this);
-        else initMenu();
-    }
-
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        requireActivity().removeMenuProvider(this);
+        boolean has = size > 0;
+        mBinding.record.setVisibility(has ? View.VISIBLE : View.GONE);
+        mBinding.clearHistory.setVisibility(has ? View.VISIBLE : View.GONE);
+        mBinding.recordRecycler.setVisibility(has ? View.VISIBLE : View.GONE);
     }
 }
