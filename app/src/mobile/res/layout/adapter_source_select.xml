@@ -9,6 +9,7 @@
     android:padding="12dp">
 
     <androidx.appcompat.widget.AppCompatTextView
+        android:gravity="center"
         android:id="@+id/name"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
