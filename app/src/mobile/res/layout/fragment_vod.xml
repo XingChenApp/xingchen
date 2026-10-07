@@ -14,24 +14,73 @@
         app:elevation="0dp"
         app:liftOnScrollColor="@color/transparent">
 
-        <com.google.android.material.appbar.MaterialToolbar
+        <LinearLayout
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:menu="@menu/menu_vod"
-            
-            app:popupTheme="@style/ToolbarPopupTheme">
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
 
-            <com.google.android.material.textview.MaterialTextView
+            <TextView
                 android:id="@+id/title"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/xc_capsule_glass"
                 android:ellipsize="marquee"
+                android:paddingStart="16dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="8dp"
                 android:singleLine="true"
-                android:text="@string/app_name"
-                android:textAppearance="@style/ToolbarTextAppearance" />
+                android:text="星辰"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold" />
 
-        </com.google.android.material.appbar.MaterialToolbar>
+            <ImageButton
+                android:id="@+id/btnSearch"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/xc_circle_glass"
+                android:padding="10dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_action_search" />
+
+            <ImageButton
+                android:id="@+id/btnFav"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/xc_circle_glass"
+                android:padding="10dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_action_keep" />
+
+            <ImageButton
+                android:id="@+id/btnHistory"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/xc_circle_glass"
+                android:padding="10dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_popup_history" />
+
+            <ImageButton
+                android:id="@+id/btnMore"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/xc_circle_glass"
+                android:padding="10dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_action_more_vert" />
+
+        </LinearLayout>
 
         <androidx.appcompat.widget.LinearLayoutCompat
             android:id="@+id/typeBar"
