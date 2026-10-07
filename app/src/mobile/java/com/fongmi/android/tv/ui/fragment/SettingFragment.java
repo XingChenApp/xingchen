@@ -88,7 +88,6 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
             getActivity().getWindow().setStatusBarColor(0xFFF5E3B8);
         }
         mBinding.textAboutSub.setText(com.fongmi.android.tv.utils.AppVersion.fullName());
-        updateSubtitles();
         mBinding.cardConfig.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.ConfigSourceActivity.start(getActivity()));
         mBinding.cardPlayer.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.PlayerSettingsActivity.start(getActivity()));
         mBinding.cardAppearance.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.UiSettingsActivity.start(getActivity()));
@@ -99,48 +98,6 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
     }
 
     @Override
-    @Override
-    public void onResume() {
-        super.onResume();
-        try { updateSubtitles(); } catch (Exception e) {}
-    }
-
-    private void updateSubtitles() {
-        try {
-            android.content.SharedPreferences sp = requireContext().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
-            String k = sp.getString("player_kernel", "exo");
-            String d = sp.getString("player_decode", "hard");
-            float s = sp.getFloat("player_speed", 1.0f);
-            String kn = "exo".equals(k) ? "ExoPlayer" : "ijk".equals(k) ? "IJK" : "mpv";
-            String dn = "hard".equals(d) ? "硬解" : "软解";
-            mBinding.textPlayerSub.setText(kn + " · " + dn + " · " + s + "x");
-        } catch (Exception e) {
-            mBinding.textPlayerSub.setText("ExoPlayer · 硬解 · 1.0x");
-        }
-        try {
-            // Appearance: 浅色主题 · 中封面 · 竖屏 2:3 · 默认壁纸
-            android.content.SharedPreferences sp = requireContext().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
-            String theme = sp.getString("theme_mode", "浅色");
-            String cover = sp.getString("cover_size", "中");
-            String orient = sp.getString("cover_orient", "竖屏");
-            String ratio = sp.getString("cover_ratio", "2:3");
-            String wp = sp.getString("wallpaper", "默认壁纸");
-            mBinding.textAppearanceSub.setText(theme + "主题 · " + cover + "封面 · " + orient + " " + ratio + " · " + wp);
-        } catch (Exception e) {}
-        try {
-            // Plugin: count from files
-            java.io.File dir = new java.io.File(requireContext().getFilesDir(), "plugins");
-            int count = 0;
-            if (dir.exists()) {
-                java.io.File py = new java.io.File(dir, "py");
-                java.io.File js = new java.io.File(dir, "js");
-                if (py.exists() && py.listFiles() != null) count += py.listFiles().length;
-                if (js.exists() && js.listFiles() != null) count += js.listFiles().length;
-            }
-            mBinding.textPluginSub.setText("已安装 " + count + " 个插件，点进去管理开关、删除和导入");
-        } catch (Exception e) {}
-    }
-
     private void setOtherText() {
     }
 
