@@ -56,12 +56,8 @@ public abstract class BaseActivity extends AppCompatActivity {
     public void setContentView(View view) {
         super.setContentView(view);
         if (!customWall()) return;
-        addCustomWall();
     }
 
-    private void addCustomWall() {
-        ((ViewGroup) findViewById(android.R.id.content)).addView(new CustomWallView(this, null).setMotionEnabled(customWallMotion()), 0, new ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT));
-    }
 
     protected FragmentActivity getActivity() {
         return this;
