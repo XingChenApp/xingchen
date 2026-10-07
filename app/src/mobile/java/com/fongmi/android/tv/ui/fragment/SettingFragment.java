@@ -346,8 +346,8 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
     }
 
     private void updateSubtitles() {
+        // Player subtitles - isolated
         try {
-            // Player subtitles
             android.content.SharedPreferences sp = requireActivity().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
             String kernel = sp.getString("player_kernel", "ExoPlayer");
             String decode = sp.getString("player_decode", "硬解");
@@ -355,27 +355,36 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
             if (mBinding.textPlayerSub != null) {
                 mBinding.textPlayerSub.setText(kernel + " · " + decode + " · " + speed);
             }
-            
-            // UI subtitles
-            int size = com.fongmi.android.tv.setting.PlayerSetting.getSize();
+        } catch (Exception e) { e.printStackTrace(); }
+        // UI subtitles - isolated
+        try {
+            android.content.SharedPreferences sp = requireActivity().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
+            int size = 2;
+            try { size = com.fongmi.android.tv.setting.PlayerSetting.getSize(); } catch (Exception e) { e.printStackTrace(); }
             String sizeStr = size == 1 ? "小" : size == 3 ? "大" : "中";
             String orient = sp.getString("cover_orient", "portrait");
             String orientStr = "landscape".equals(orient) ? "横屏" : "竖屏";
             if (mBinding.textAppearanceSub != null) {
                 mBinding.textAppearanceSub.setText(sizeStr + "封面 · " + orientStr);
             }
-            
-            // Plugin subtitles
+        } catch (Exception e) { e.printStackTrace(); }
+        // Plugin subtitles - isolated
+        try {
             java.io.File pyDir = new java.io.File(requireActivity().getFilesDir(), "plugins/py");
             java.io.File jsDir = new java.io.File(requireActivity().getFilesDir(), "plugins/js");
-            int pyCount = pyDir.exists() ? pyDir.listFiles((d, n) -> n.endsWith(".py")).length : 0;
-            int jsCount = jsDir.exists() ? jsDir.listFiles((d, n) -> n.endsWith(".js")).length : 0;
+            int pyCount = 0, jsCount = 0;
+            try {
+                java.io.File[] pyFiles = pyDir.exists() ? pyDir.listFiles((d, n) -> n.endsWith(".py")) : null;
+                if (pyFiles != null) pyCount = pyFiles.length;
+            } catch (Exception e) { e.printStackTrace(); }
+            try {
+                java.io.File[] jsFiles = jsDir.exists() ? jsDir.listFiles((d, n) -> n.endsWith(".js")) : null;
+                if (jsFiles != null) jsCount = jsFiles.length;
+            } catch (Exception e) { e.printStackTrace(); }
             if (mBinding.textPluginSub != null) {
                 mBinding.textPluginSub.setText("PY " + pyCount + " · JS " + jsCount);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
 }
