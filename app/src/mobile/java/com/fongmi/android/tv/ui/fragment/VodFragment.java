@@ -134,6 +134,17 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         mBinding.filter.setOnClickListener(this::onFilter);
         mBinding.filter.setOnLongClickListener(this::onLink);
         mBinding.toolbar.setOnMenuItemClickListener(this::onMenuItemClick);
+        try {
+            mBinding.btnTopSearch.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.SearchActivity.start(requireActivity()));
+            mBinding.btnTopKeep.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.KeepActivity.start(requireActivity()));
+            mBinding.btnTopHistory.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.HistoryActivity.start(requireActivity()));
+            mBinding.btnTopMore.setOnClickListener(v -> {
+                try {
+                    com.fongmi.android.tv.ui.dialog.SourceScriptsDialog dialog = new com.fongmi.android.tv.ui.dialog.SourceScriptsDialog();
+                    dialog.show(getParentFragmentManager(), "scripts");
+                } catch (Exception e) { e.printStackTrace(); }
+            });
+        } catch (Exception e) { e.printStackTrace(); }
         mBinding.toolbar.post(this::setSearchLongClick);
         mBinding.appBar.addOnOffsetChangedListener((appBarLayout, verticalOffset) -> {
             int range = appBarLayout.getTotalScrollRange();
