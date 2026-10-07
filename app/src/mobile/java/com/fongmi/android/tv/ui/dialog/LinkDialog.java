@@ -53,6 +53,13 @@ public class LinkDialog extends BaseAlertDialog {
             if (actionId == EditorInfo.IME_ACTION_DONE) onPositive(null, 0);
             return true;
         });
+            if (binding.btnMore != null) {
+            binding.btnMore.setOnClickListener(v -> {
+                // Open push dialog with current URL
+                String url = binding.text.getText() == null ? "" : binding.text.getText().toString().trim();
+                // TODO: Open push device selector
+            });
+        }
     }
 
     @Override
