@@ -61,7 +61,26 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
     }
 
     private Style getStyle() {
-        return isFolder() ? Style.list() : getSite().getStyle(getArguments().getParcelable("style"));
+        Style base = isFolder() ? Style.list() : getSite().getStyle(getArguments().getParcelable("style"));
+        try {
+            if (base == null || base.isList()) return base;
+            android.content.SharedPreferences sp = requireActivity().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
+            String orient = sp.getString("cover_orient", "portrait");
+            String ratioStr = sp.getString("cover_ratio", "3:4");
+            float ratio = parseCoverRatio(ratioStr);
+            if ("landscape".equals(orient) && ratio < 1.0f && ratio > 0) ratio = 1.0f / ratio;
+            if ("portrait".equals(orient) && ratio > 1.0f) ratio = 1.0f / ratio;
+            if (ratio > 0) return new Style("rect", ratio);
+        } catch (Exception e) { e.printStackTrace(); }
+        return base;
+    }
+
+    private float parseCoverRatio(String s) {
+        try {
+            String[] parts = s.split(":");
+            if (parts.length == 2) return Float.parseFloat(parts[0]) / Float.parseFloat(parts[1]);
+        } catch (Exception e) { e.printStackTrace(); }
+        return 0.75f;
     }
 
     private HashMap<String, String> getExtend() {
