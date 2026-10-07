@@ -39,7 +39,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="12dp"
-        android:background="@drawable/button_glass"
+        android:background="@drawable/dialog_glass"
         android:paddingHorizontal="16dp"
         android:paddingVertical="8dp"
         android:text="使用"
