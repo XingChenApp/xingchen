@@ -64,7 +64,7 @@ public class ConfigDialog extends BaseAlertDialog {
     }
 
     public void show(Fragment fragment) {
-        show(fragment.getChildFragmentManager(), null);
+        show(fragment.getParentFragmentManager(), null);
     }
 
     @Override
