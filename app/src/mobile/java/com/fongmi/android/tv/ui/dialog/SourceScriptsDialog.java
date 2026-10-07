@@ -41,10 +41,11 @@ public class SourceScriptsDialog extends Dialog {
                 lp.width = android.view.WindowManager.LayoutParams.MATCH_PARENT;
                 lp.height = android.view.WindowManager.LayoutParams.MATCH_PARENT;
                 getWindow().setAttributes(lp);
-                // Add top margin to the content view
+                // Position: higher top, left margin larger than right (per design)
                 android.view.View content = findViewById(android.R.id.content);
                 if (content != null) {
-                    content.setPadding(0, (int) (100 * getContext().getResources().getDisplayMetrics().density), 0, 0);
+                    float d = getContext().getResources().getDisplayMetrics().density;
+                    content.setPadding((int)(24*d), (int)(60*d), (int)(12*d), 0);
                 }
             }
         } catch (Exception e) { e.printStackTrace(); }
