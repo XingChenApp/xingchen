@@ -98,6 +98,12 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
         mBinding.cardAbout.setOnClickListener(v -> onVersion(v));
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        try { updateSubtitles(); } catch (Exception e) {}
+    }
+
     private void updateSubtitles() {
         try {
             // Player: ExoPlayer · 硬解 · 1.0x
