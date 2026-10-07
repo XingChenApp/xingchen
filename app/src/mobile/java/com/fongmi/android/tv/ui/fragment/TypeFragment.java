@@ -61,7 +61,41 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
     }
 
     private Style getStyle() {
-        return isFolder() ? Style.list() : getSite().getStyle(getArguments().getParcelable("style"));
+        if (isFolder()) return Style.list();
+        Style siteStyle = getSite().getStyle(getArguments().getParcelable("style"));
+        return applyUserCoverStyle(siteStyle);
+    }
+
+    private Style applyUserCoverStyle(Style siteStyle) {
+        try {
+            android.content.SharedPreferences sp = requireActivity().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
+            String orient = sp.getString("cover_orient", "portrait");
+            String ratioStr = sp.getString("cover_ratio", "2:3");
+            float ratio = parseRatio(ratioStr);
+            if ("landscape".equals(orient)) {
+                // Landscape: ratio > 1.0, use 16:9 or inverse of portrait ratio
+                float landRatio = ratio > 0 && ratio < 1.0f ? 1.0f / ratio : 1.33f;
+                return new Style("rect", landRatio);
+            } else {
+                // Portrait: use user's ratio, never OVAL
+                return new Style("rect", ratio > 0 ? ratio : 0.75f);
+            }
+        } catch (Exception e) {
+            return siteStyle;
+        }
+    }
+
+    private float parseRatio(String ratioStr) {
+        try {
+            if (ratioStr == null) return 0.75f;
+            String[] parts = ratioStr.split(":");
+            if (parts.length == 2) {
+                float w = Float.parseFloat(parts[0].trim());
+                float h = Float.parseFloat(parts[1].trim());
+                if (h > 0) return w / h;
+            }
+        } catch (Exception e) { /* ignore */ }
+        return 0.75f;
     }
 
     private HashMap<String, String> getExtend() {
