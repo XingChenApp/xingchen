@@ -35,7 +35,7 @@ public class UiSettingsActivity extends BaseActivity {
         initUiStyleSection();
         initWallpaperSection();
         
-        updateSizeUI();
+        updateCoverSizeUI();
         updateOrientUI();
         updateRatioUI();updateVisibility();
     }
