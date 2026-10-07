@@ -26,6 +26,8 @@ public class ConfigSourceActivity extends BaseActivity implements ConfigListener
 
     @Override
     public void setConfig(Config config) {
+        com.fongmi.android.tv.api.config.VodConfig.load(config, null);
+        setResult(RESULT_OK);
         finish();
     }
 }
