@@ -200,7 +200,6 @@ public class ConfigDialog extends BaseAlertDialog {
         });
         }
         dismiss();
-        dismiss();
     }
 
     private Config saveConfig(String url, String name) {
@@ -254,7 +253,6 @@ public class ConfigDialog extends BaseAlertDialog {
             }
         });
         }
-        dismiss();
         dismiss();
     });
 
