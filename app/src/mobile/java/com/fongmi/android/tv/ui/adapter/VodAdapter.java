@@ -19,7 +19,7 @@ import com.fongmi.android.tv.ui.holder.VodRectHolder;
 public class VodAdapter extends BaseDiffAdapter<Vod, BaseVodHolder> {
 
     private final OnClickListener listener;
-    private final Style style;
+    private Style style;
     private final int[] size;
 
     public VodAdapter(OnClickListener listener, Style style, int[] size) {
@@ -37,6 +37,10 @@ public class VodAdapter extends BaseDiffAdapter<Vod, BaseVodHolder> {
 
     public Style getStyle() {
         return style;
+    }
+
+    public void setStyle(Style style) {
+        this.style = style;
     }
 
     @Override
