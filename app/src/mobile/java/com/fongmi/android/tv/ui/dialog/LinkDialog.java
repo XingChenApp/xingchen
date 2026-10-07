@@ -44,7 +44,7 @@ public class LinkDialog extends BaseAlertDialog {
         CharSequence text = Util.getClipText();
         binding.text.setFilters(new InputFilter[]{new InputFilter.LengthFilter(Integer.MAX_VALUE)});
         if (!TextUtils.isEmpty(text)) binding.text.setText(Sniffer.getUrl(text.toString()));
-        setWidth(0.87f);
+        setWidth(0.83f);
     }
 
     @Override
