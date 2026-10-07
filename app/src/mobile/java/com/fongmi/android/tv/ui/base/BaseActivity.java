@@ -43,8 +43,8 @@ public abstract class BaseActivity extends AppCompatActivity {
         enableEdgeToEdge();
         // // enableDynamicColor(); // Disabled for wallpaper // Disabled for wallpaper
         super.onCreate(savedInstanceState);
-        { getWindow().setStatusBarColor(0x00000000); getWindow().getDecorView().post(() -> { com.xingchen.tv.theme.ThemeManager.get().apply(this); }); }
-        { getWindow().setStatusBarColor(0x00000000); getWindow().getDecorView().post(() -> { com.xingchen.tv.theme.ThemeManager.get().apply(this); }); }
+        { getWindow().setStatusBarColor(0x00000000); com.xingchen.tv.theme.ThemeManager.get().apply(this); }
+        { getWindow().setStatusBarColor(0x00000000); com.xingchen.tv.theme.ThemeManager.get().apply(this); }
         setContentView(getBinding().getRoot());
         EventBus.getDefault().register(this);
         initView(savedInstanceState);
