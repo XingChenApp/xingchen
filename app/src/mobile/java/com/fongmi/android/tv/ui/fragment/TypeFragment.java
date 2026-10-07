@@ -116,7 +116,7 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
     }
 
     private void setStyle(Style style) {
-        mBinding.recycler.setAdapter(mAdapter = new VodAdapter(this, style, Product.getSpec(requireActivity(), style)));
+        mBinding.recycler.setAdapter(mAdapter = new VodAdapter(this, style, Product.getSpec(requireActivity(, getUserOrient()), style)));
         mBinding.recycler.setLayoutManager(style.isList() ? new LinearLayoutManager(requireActivity()) : new GridLayoutManager(getContext(), Product.getColumn(requireActivity(), style)));
     }
 
@@ -206,4 +206,14 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
         SearchActivity.start(requireActivity(), item.getName());
         return true;
     }
+
+    private String getUserOrient() {
+        try {
+            return requireActivity().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE)
+                .getString("cover_orient", "portrait");
+        } catch (Exception e) {
+            return "portrait";
+        }
+    }
+
 }
