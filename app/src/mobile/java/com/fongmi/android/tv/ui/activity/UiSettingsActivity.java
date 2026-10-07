@@ -58,10 +58,10 @@ public class UiSettingsActivity extends BaseActivity {
     }
 
     private void updateCoverSizeUI() {
-        String size = getPref("cover_size", "medium");
-        setSegSelected(binding.segCoverSmall, "small".equals(size));
-        setSegSelected(binding.segCoverMedium, "medium".equals(size));
-        setSegSelected(binding.segCoverLarge, "large".equals(size));
+        int size = com.fongmi.android.tv.setting.PlayerSetting.getSize();
+        setSegSelected(binding.segCoverSmall, size == 1);
+        setSegSelected(binding.segCoverMedium, size == 2);
+        setSegSelected(binding.segCoverLarge, size == 3);
     }
 
     private void initOrientSection() {
