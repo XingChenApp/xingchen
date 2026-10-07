@@ -354,58 +354,6 @@
     </LinearLayout>
 </LinearLayout>
 
-<!-- 6. Glass Opacity Card -->
-<LinearLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:background="@drawable/dialog_glass"
-    android:padding="20dp"
-    android:layout_marginBottom="12dp">
-
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="毛玻璃透明度"
-            android:textSize="17sp"
-            android:textStyle="bold"
-            android:textColor="#171B23"/>
-
-        <TextView
-            android:id="@+id/tv_alpha_desc"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="当前 55%，越往右越通透"
-            android:textSize="12sp"
-            android:textColor="#5A5F69"
-            android:layout_marginTop="4dp"/>
-    </LinearLayout>
-
-    <SeekBar
-        android:id="@+id/seek_alpha"
-        android:layout_width="160dp"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="12dp"
-        android:max="100"
-        android:progress="55"/>
-
-    <TextView
-        android:id="@+id/tv_alpha_value"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="55%"
-        android:textSize="15sp"
-        android:textStyle="bold"
-        android:textColor="#171B23"/>
-</LinearLayout>
-
 <!-- 7. Wallpaper Card -->
 <LinearLayout
     android:layout_width="match_parent"
