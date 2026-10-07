@@ -292,8 +292,9 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         else if (item.getItemId() == R.id.web_home_fullscreen) onWebHomeFullscreen();
         else if (item.getItemId() == R.id.more_actions) {
             try {
-                com.fongmi.android.tv.ui.dialog.SourceScriptsDialog dialog = new com.fongmi.android.tv.ui.dialog.SourceScriptsDialog();
-                dialog.show(getParentFragmentManager(), "scripts");
+                new com.fongmi.android.tv.ui.dialog.SourceScriptsDialog(requireActivity(), (file, isPy) -> {
+                    try { onScriptSelected(file, isPy); } catch (Exception e) { e.printStackTrace(); }
+                }).show();
             } catch (Exception e) {
                 e.printStackTrace();
             }
