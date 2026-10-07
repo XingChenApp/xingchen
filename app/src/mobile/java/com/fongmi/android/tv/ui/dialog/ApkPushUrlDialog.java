@@ -87,6 +87,13 @@ public class ApkPushUrlDialog extends BaseAlertDialog {
             send();
             return true;
         });
+        if (binding.btnMore != null) {
+            binding.btnMore.setOnClickListener(v -> selectDevice());
+        }
+    }
+
+    private void selectDevice() {
+        // TODO: Select push device
     }
 
     private void send() {
