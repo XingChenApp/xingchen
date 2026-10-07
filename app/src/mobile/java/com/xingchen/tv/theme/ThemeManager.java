@@ -1,4 +1,5 @@
 package com.xingchen.tv.theme;
+import com.fongmi.android.tv.R;
 
 import android.app.Activity;
 import android.app.Application;
