@@ -155,6 +155,20 @@ public class ConfigDialog extends BaseAlertDialog {
     }
 
     private void onChoose(View view) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            if (!android.os.Environment.isExternalStorageManager()) {
+                try {
+                    android.content.Intent intent = new android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                    intent.setData(android.net.Uri.parse("package:" + requireContext().getPackageName()));
+                    startActivity(intent);
+                    com.fongmi.android.tv.utils.Notify.show("请授予所有文件访问权限后重试");
+                } catch (Exception e) {
+                    android.content.Intent intent = new android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                    startActivity(intent);
+                }
+                return;
+            }
+        }
         FileChooser.from(launcher).show();
     }
 
