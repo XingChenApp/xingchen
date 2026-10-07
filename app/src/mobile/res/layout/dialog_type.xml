@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/shape_dialog_control_glass_panel"
+    android:background="@drawable/xc_setcard_v2"
     android:clipChildren="false"
     android:clipToPadding="false"
     android:orientation="vertical"
