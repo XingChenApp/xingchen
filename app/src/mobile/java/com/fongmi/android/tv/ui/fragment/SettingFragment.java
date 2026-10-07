@@ -97,7 +97,6 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
         mBinding.cardAbout.setOnClickListener(v -> onVersion(v));
     }
 
-    @Override
     private void setOtherText() {
     }
 
