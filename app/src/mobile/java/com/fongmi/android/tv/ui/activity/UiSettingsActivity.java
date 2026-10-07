@@ -34,7 +34,6 @@ public class UiSettingsActivity extends BaseActivity {
         initOrientSection();
         initRatioSection();
         initUiStyleSection();
-        initGlassSection();
         initWallpaperSection();
         updateVisibility();
     }
@@ -135,26 +134,6 @@ public class UiSettingsActivity extends BaseActivity {
         setSegSelected(binding.segUiCapsule, isNormal);
         setSegSelected(binding.segUiGlass, !isNormal);
 
-    }
-
-    private void initGlassSection() {
-        int alpha = ThemeManager.get().getTheme().glassAlpha;
-        binding.seekAlpha.setProgress(alpha);
-        binding.tvAlphaValue.setText(alpha + "%");
-        binding.tvAlphaDesc.setText("当前 " + alpha + "%，越往右越通透");
-        binding.seekAlpha.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                binding.tvAlphaValue.setText(progress + "%");
-                binding.tvAlphaDesc.setText("当前 " + progress + "%，越往右越通透");
-                if (fromUser) {
-                    ThemeManager.get().getTheme().glassAlpha = progress;
-                    ThemeManager.get().getTheme().save(UiSettingsActivity.this);
-                    ThemeManager.get().apply(UiSettingsActivity.this);
-                }
-            }
-            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
-            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
-        });
     }
 
     private void initWallpaperSection() {
