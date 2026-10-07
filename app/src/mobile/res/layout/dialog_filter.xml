@@ -4,10 +4,11 @@
     android:id="@+id/recycler"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/shape_dialog_control_glass_panel"
+    android:background="@drawable/xc_dialog_light"
     android:clipChildren="false"
     android:clipToPadding="false"
     android:overScrollMode="never"
     android:paddingHorizontal="20dp"
     android:paddingVertical="20dp"
-    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+    app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+    app:spanCount="4" />
