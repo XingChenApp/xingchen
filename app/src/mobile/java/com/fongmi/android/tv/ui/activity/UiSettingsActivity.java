@@ -125,7 +125,40 @@ public class UiSettingsActivity extends BaseActivity {
         binding.segWpDefault.setOnClickListener(v -> setWallpaper(XingChenTheme.WP_BUILTIN, "shanjian"));
         binding.segWpLocal.setOnClickListener(v -> pickLocalWallpaper());
         binding.segWpUrl.setOnClickListener(v -> inputUrlWallpaper());
+        // Thumbnails click to select
+        binding.thumbDefault.setOnClickListener(v -> setWallpaper(XingChenTheme.WP_BUILTIN, "shanjian"));
+        binding.thumbLocal.setOnClickListener(v -> pickLocalWallpaper());
+        binding.thumbUrl.setOnClickListener(v -> inputUrlWallpaper());
+        // Blur switch
+        boolean blur = getSharedPreferences("xingchen", MODE_PRIVATE).getBoolean("wallpaper_blur", false);
+        binding.switchBlur.setChecked(blur);
+        binding.switchBlur.setOnCheckedChangeListener((btn, isChecked) -> {
+            getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("wallpaper_blur", isChecked).apply();
+            try {
+                XingChenTheme theme = XingChenTheme.load(this);
+                theme.wallpaperBlur = isChecked;
+                theme.save(this);
+                com.xingchen.tv.theme.ThemeManager.get().setTheme(theme);
+                com.xingchen.tv.theme.ThemeManager.get().apply(this);
+            } catch (Exception e) {}
+        });
         updateWallpaperUI();
+        updateThumbnails();
+    }
+
+    private void updateThumbnails() {
+        try {
+            XingChenTheme theme = XingChenTheme.load(this);
+            // Default thumbnail: always show builtin
+            // Local thumbnail: show if wallpaperType is local
+            if (XingChenTheme.WP_LOCAL.equals(theme.wallpaperType) && theme.wallpaperValue != null) {
+                com.bumptech.glide.Glide.with(this).load(theme.wallpaperValue).into(binding.thumbLocal);
+            }
+            // URL thumbnail: show if wallpaperType is url
+            if (XingChenTheme.WP_URL.equals(theme.wallpaperType) && theme.wallpaperValue != null) {
+                com.bumptech.glide.Glide.with(this).load(theme.wallpaperValue).into(binding.thumbUrl);
+            }
+        } catch (Exception e) {}
     }
 
     private void setWallpaper(String type, String value) {
@@ -138,6 +171,7 @@ public class UiSettingsActivity extends BaseActivity {
             com.xingchen.tv.theme.ThemeManager.get().apply(this);
         } catch (Exception e) {}
         updateWallpaperUI();
+        updateThumbnails();
     }
 
     private void pickLocalWallpaper() {
