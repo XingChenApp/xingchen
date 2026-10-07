@@ -105,8 +105,17 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
     }
 
     private void updateSubtitles() {
-        // Player subtitle: static for now (Setting methods not found)
-        mBinding.textPlayerSub.setText("ExoPlayer · 硬解 · 1.0x");
+        try {
+            android.content.SharedPreferences sp = requireContext().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
+            String k = sp.getString("player_kernel", "exo");
+            String d = sp.getString("player_decode", "hard");
+            float s = sp.getFloat("player_speed", 1.0f);
+            String kn = "exo".equals(k) ? "ExoPlayer" : "ijk".equals(k) ? "IJK" : "mpv";
+            String dn = "hard".equals(d) ? "硬解" : "软解";
+            mBinding.textPlayerSub.setText(kn + " · " + dn + " · " + s + "x");
+        } catch (Exception e) {
+            mBinding.textPlayerSub.setText("ExoPlayer · 硬解 · 1.0x");
+        }
         try {
             // Appearance: 浅色主题 · 中封面 · 竖屏 2:3 · 默认壁纸
             android.content.SharedPreferences sp = requireContext().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
