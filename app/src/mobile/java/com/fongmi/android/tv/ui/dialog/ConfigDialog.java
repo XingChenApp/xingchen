@@ -188,14 +188,14 @@ public class ConfigDialog extends BaseAlertDialog {
             com.fongmi.android.tv.api.config.LiveConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                Notify.show(msg);
+                Notify.show(getFriendlyError(msg));
             }
         });
         } else {
             com.fongmi.android.tv.api.config.VodConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                Notify.show(msg);
+                Notify.show(getFriendlyError(msg));
             }
         });
         }
@@ -243,14 +243,14 @@ public class ConfigDialog extends BaseAlertDialog {
             com.fongmi.android.tv.api.config.LiveConfig.load(saveConfig(url, name), new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                Notify.show(msg);
+                Notify.show(getFriendlyError(msg));
             }
         });
         } else {
             com.fongmi.android.tv.api.config.VodConfig.load(saveConfig(url, name), new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                Notify.show(msg);
+                Notify.show(getFriendlyError(msg));
             }
         });
         }
