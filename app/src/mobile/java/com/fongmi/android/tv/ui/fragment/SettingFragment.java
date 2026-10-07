@@ -99,7 +99,8 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
     }
 
     @Override
-    protected void onResume() {
+    @Override
+    public void onResume() {
         super.onResume();
         try { updateSubtitles(); } catch (Exception e) {}
     }
