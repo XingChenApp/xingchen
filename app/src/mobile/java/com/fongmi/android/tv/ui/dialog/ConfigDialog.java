@@ -115,6 +115,11 @@ public class ConfigDialog extends BaseAlertDialog {
         super.onStart();
         configureWindow();
         binding.url.requestFocus();
+        if (binding != null && binding.getRoot() != null) {
+            try {
+                binding.getRoot().setBackground(requireActivity().getDrawable(R.drawable.dialog_glass));
+            } catch (Exception e) {}
+        }
     }
 
     private Config getConfig() {
@@ -255,6 +260,10 @@ public class ConfigDialog extends BaseAlertDialog {
 
 
     private void showErrorDialog(String msg) {
+        if (!isAdded() || getActivity() == null) {
+            Notify.show(getFriendlyError(msg));
+            return;
+        }
         new MaterialAlertDialogBuilder(requireActivity(), R.style.ThemeOverlay_WebHTV_LightDialog)
             .setMessage(getFriendlyError(msg))
             .setPositiveButton(R.string.dialog_positive, (d, w) -> d.dismiss())
