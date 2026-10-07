@@ -178,9 +178,19 @@ public class ConfigDialog extends BaseAlertDialog {
             return;
         }
         if (type == 1) {
-            com.fongmi.android.tv.api.config.LiveConfig.load(config, new com.fongmi.android.tv.impl.Callback());
+            com.fongmi.android.tv.api.config.LiveConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
+            @Override
+            public void error(String msg) {
+                Notify.show(msg);
+            }
+        });
         } else {
-            com.fongmi.android.tv.api.config.VodConfig.load(config, new com.fongmi.android.tv.impl.Callback());
+            com.fongmi.android.tv.api.config.VodConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
+            @Override
+            public void error(String msg) {
+                Notify.show(msg);
+            }
+        });
         }
         dismiss();
         dismiss();
@@ -223,9 +233,19 @@ public class ConfigDialog extends BaseAlertDialog {
         if (TextUtils.isEmpty(path)) return;
         String url = "file:/" + path.replace(Path.rootPath(), "");
         if (type == 1) {
-            com.fongmi.android.tv.api.config.LiveConfig.load(saveConfig(url, name), new com.fongmi.android.tv.impl.Callback());
+            com.fongmi.android.tv.api.config.LiveConfig.load(saveConfig(url, name), new com.fongmi.android.tv.impl.Callback() {
+            @Override
+            public void error(String msg) {
+                Notify.show(msg);
+            }
+        });
         } else {
-            com.fongmi.android.tv.api.config.VodConfig.load(saveConfig(url, name), new com.fongmi.android.tv.impl.Callback());
+            com.fongmi.android.tv.api.config.VodConfig.load(saveConfig(url, name), new com.fongmi.android.tv.impl.Callback() {
+            @Override
+            public void error(String msg) {
+                Notify.show(msg);
+            }
+        });
         }
         dismiss();
         dismiss();
