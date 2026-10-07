@@ -33,7 +33,7 @@ public class ApkPushUrlDialog extends BaseAlertDialog {
     private static final String TAG = "apk_push_url";
 
     private final okhttp3.OkHttpClient client = OkHttp.client(Constant.TIMEOUT_SYNC);
-    private final Device device;
+    private Device device;
     private DialogRemoteTrustTextCommandBinding binding;
     private Call call;
 
