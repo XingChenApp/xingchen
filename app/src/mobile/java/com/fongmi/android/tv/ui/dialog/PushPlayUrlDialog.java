@@ -87,9 +87,8 @@ public class PushPlayUrlDialog extends BaseAlertDialog {
     }
 
     private void selectDevice() {
-        PushPlayDialog.create().setListener(device -> {
+        PushPlayDialog.create().listener(device -> {
             this.device = device;
-            Notify.show(R.string.push_device_selected);
         }).show(getActivity());
     }
 
