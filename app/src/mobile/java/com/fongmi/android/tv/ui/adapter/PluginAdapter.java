@@ -4,84 +4,54 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
-import android.widget.ImageButton;
 import android.widget.Switch;
 import android.widget.TextView;
-
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.bean.Plugin;
-
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 public class PluginAdapter extends RecyclerView.Adapter<PluginAdapter.ViewHolder> {
+    private final List<Plugin> plugins;
+    private final Runnable onChanged;
 
-    private List<Plugin> plugins = new ArrayList<>();
-    private OnPluginListener listener;
-
-    public interface OnPluginListener {
-        void onToggle(Plugin plugin, boolean enabled);
-        void onDelete(Plugin plugin);
-        void onSelectChanged();
-    }
-
-    public void setListener(OnPluginListener listener) {
-        this.listener = listener;
-    }
-
-    public void setPlugins(List<Plugin> plugins) {
-        this.plugins = plugins != null ? plugins : new ArrayList<>();
-        notifyDataSetChanged();
-    }
-
-    public List<Plugin> getPlugins() {
-        return plugins;
-    }
-
-    public List<Plugin> getSelected() {
-        List<Plugin> selected = new ArrayList<>();
-        for (Plugin p : plugins) {
-            if (p.isSelected()) selected.add(p);
-        }
-        return selected;
-    }
-
-    public void selectAll(boolean select) {
-        for (Plugin p : plugins) p.setSelected(select);
-        notifyDataSetChanged();
-        if (listener != null) listener.onSelectChanged();
+    public PluginAdapter(List<Plugin> plugins, Runnable onChanged) {
+        this.plugins = plugins;
+        this.onChanged = onChanged;
     }
 
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_plugin, parent, false);
-        return new ViewHolder(view);
+        View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_plugin, parent, false);
+        return new ViewHolder(v);
     }
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        Plugin plugin = plugins.get(position);
-        holder.tvName.setText(plugin.getName());
-        holder.tvPath.setText(plugin.getPath());
-        holder.cbSelect.setChecked(plugin.isSelected());
-        holder.swEnable.setChecked(plugin.isEnabled());
-
-        holder.cbSelect.setOnCheckedChangeListener((v, checked) -> {
-            plugin.setSelected(checked);
-            if (listener != null) listener.onSelectChanged();
+        Plugin p = plugins.get(position);
+        holder.tvName.setText(p.getName());
+        holder.tvVersion.setText("版本 v1.0.0 · " + (p.isEnabled() ? "已启用" : "已停用"));
+        holder.cbSelect.setChecked(p.isSelected());
+        holder.switchEnable.setChecked(p.isEnabled());
+        
+        holder.cbSelect.setOnCheckedChangeListener((btn, checked) -> {
+            p.setSelected(checked);
         });
-
-        holder.swEnable.setOnCheckedChangeListener((v, checked) -> {
-            plugin.setEnabled(checked);
-            if (listener != null) listener.onToggle(plugin, checked);
+        
+        holder.switchEnable.setOnCheckedChangeListener((btn, checked) -> {
+            p.setEnabled(checked);
+            holder.tvVersion.setText("版本 v1.0.0 · " + (checked ? "已启用" : "已停用"));
         });
-
-        holder.btnDelete.setOnClickListener(v -> {
-            if (listener != null) listener.onDelete(plugin);
+        
+        holder.tvDelete.setOnClickListener(v -> {
+            new File(p.getPath()).delete();
+            plugins.remove(position);
+            notifyItemRemoved(position);
+            if (onChanged != null) onChanged.run();
         });
     }
 
@@ -90,19 +60,28 @@ public class PluginAdapter extends RecyclerView.Adapter<PluginAdapter.ViewHolder
         return plugins.size();
     }
 
+    public void selectAll(boolean checked) {
+        for (Plugin p : plugins) p.setSelected(checked);
+        notifyDataSetChanged();
+    }
+
+    public List<Plugin> getSelected() {
+        List<Plugin> result = new ArrayList<>();
+        for (Plugin p : plugins) if (p.isSelected()) result.add(p);
+        return result;
+    }
+
     static class ViewHolder extends RecyclerView.ViewHolder {
         CheckBox cbSelect;
-        TextView tvName, tvPath;
-        Switch swEnable;
-        ImageButton btnDelete;
-
-        ViewHolder(View view) {
-            super(view);
-            cbSelect = view.findViewById(R.id.cbSelect);
-            tvName = view.findViewById(R.id.tvName);
-            tvPath = view.findViewById(R.id.tvPath);
-            swEnable = view.findViewById(R.id.swEnable);
-            btnDelete = view.findViewById(R.id.btnDelete);
+        TextView tvName, tvVersion, tvDelete;
+        Switch switchEnable;
+        ViewHolder(View itemView) {
+            super(itemView);
+            cbSelect = itemView.findViewById(R.id.cb_select);
+            tvName = itemView.findViewById(R.id.tv_name);
+            tvVersion = itemView.findViewById(R.id.tv_version);
+            tvDelete = itemView.findViewById(R.id.tv_delete);
+            switchEnable = itemView.findViewById(R.id.switch_enable);
         }
     }
 }
