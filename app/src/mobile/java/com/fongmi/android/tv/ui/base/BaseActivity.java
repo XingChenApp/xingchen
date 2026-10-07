@@ -20,7 +20,7 @@ import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.Updater;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.setting.Setting;
-import com.fongmi.android.tv.ui.custom.CustomWallView;
+
 import com.fongmi.android.tv.utils.ResUtil;
 import com.google.android.material.color.DynamicColors;
 import com.google.android.material.color.DynamicColorsOptions;
