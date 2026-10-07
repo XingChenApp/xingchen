@@ -104,18 +104,22 @@ public class ConfigHistoryDialog extends DialogFragment {
     }
 
     private void onClear() {
-        ConfirmDialog.create()
-            .title("清空历史")
-            .message("确定要清空全部历史记录吗？")
-            .onPositive(() -> {
-                AppDatabase.get().getConfigDao().deleteByType(type);
+        androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("清空历史")
+            .setMessage("确定要清空全部历史记录吗？")
+            .setPositiveButton("确定", (d, w) -> {
+                java.util.List<Config> items = AppDatabase.get().getConfigDao().findByType(type);
+                for (Config c : items) AppDatabase.get().getConfigDao().delete(c.getUrl(), type);
                 adapter = new ConfigHistoryAdapter(java.util.Collections.emptyList(), this::onUse);
                 binding.recycler.setAdapter(adapter);
                 binding.empty.setVisibility(View.VISIBLE);
                 binding.recycler.setVisibility(View.GONE);
                 Notify.show("已清空");
             })
-            .show(getParentFragmentManager(), "confirm");
+            .setNegativeButton("取消", null)
+            .create();
+        dialog.show();
+        if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawableResource(R.drawable.dialog_glass);
     }
 
     @Override
