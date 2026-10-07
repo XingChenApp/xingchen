@@ -254,7 +254,6 @@ public class ConfigDialog extends BaseAlertDialog {
         });
         }
         dismiss();
-        dismiss();
     });
 
 
