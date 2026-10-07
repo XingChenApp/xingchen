@@ -291,7 +291,6 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         else if (item.getItemId() == R.id.sync) OneKeySyncDialog.create().show(requireActivity());
         else if (item.getItemId() == R.id.push_apk) ApkPushDialog.create().listener(this::onApkDeviceSelected).show(requireActivity());
         else if (item.getItemId() == R.id.push_play) PushPlayDialog.create().listener(this::onPushPlayDeviceSelected).show(requireActivity());
-        else if (item.getItemId() == R.id.enhance && homeActivity() != null) homeActivity().openEnhanceFromVod();
         else if (item.getItemId() == R.id.web_home_fullscreen) onWebHomeFullscreen();
         else if (item.getItemId() == R.id.more_actions) {
             try {
