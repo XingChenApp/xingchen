@@ -55,7 +55,6 @@ public abstract class BaseActivity extends AppCompatActivity {
     @Override
     public void setContentView(View view) {
         super.setContentView(view);
-        if (!customWall()) return;
     }
 
 
@@ -63,13 +62,7 @@ public abstract class BaseActivity extends AppCompatActivity {
         return this;
     }
 
-    protected boolean customWall() {
-        return true;
-    }
 
-    protected boolean customWallMotion() {
-        return true;
-    }
 
     protected void initView(Bundle savedInstanceState) {
     }
