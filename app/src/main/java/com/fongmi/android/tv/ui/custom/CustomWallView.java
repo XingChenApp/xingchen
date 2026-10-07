@@ -193,7 +193,6 @@ public class CustomWallView extends FrameLayout implements DefaultLifecycleObser
             case Setting.WALL_NEON_CYBER -> R.drawable.wallpaper_design_19_neon_cyber;
             case Setting.WALL_WARM_MOON_GLASS -> R.drawable.wallpaper_design_20_warm_moon_glass;
             case Setting.WALL_CRYSTAL_SKY -> R.drawable.wallpaper_design_21_crystal_sky;
-            case Setting.WALL_DREAM_PURPLE -> R.drawable.wallpaper_design_22_dream_purple;
             case Setting.WALL_SKY_MINT -> R.drawable.wallpaper_design_23_sky_mint;
             case Setting.WALL_FOREST_MIST -> R.drawable.wallpaper_design_24_forest_mist;
             case Setting.WALL_DAYLIGHT_MINIMAL -> R.drawable.wallpaper_design_25_daylight_minimal;
