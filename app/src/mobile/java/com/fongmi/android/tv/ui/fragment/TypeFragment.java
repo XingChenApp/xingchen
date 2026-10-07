@@ -216,17 +216,5 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
         }
     }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-        try {
-            // Refresh adapter when returning from settings (cover orient/size may have changed)
-            if (mAdapter != null && getStyle() != null) {
-                setStyle(getStyle());
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
 }
