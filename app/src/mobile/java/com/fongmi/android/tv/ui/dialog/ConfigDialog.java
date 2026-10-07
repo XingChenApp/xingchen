@@ -188,14 +188,14 @@ public class ConfigDialog extends BaseAlertDialog {
             com.fongmi.android.tv.api.config.LiveConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                Notify.show(getFriendlyError(msg));
+                Notify.show(msg);
             }
         });
         } else {
             com.fongmi.android.tv.api.config.VodConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                Notify.show(getFriendlyError(msg));
+                Notify.show(msg);
             }
         });
         }
@@ -243,14 +243,14 @@ public class ConfigDialog extends BaseAlertDialog {
             com.fongmi.android.tv.api.config.LiveConfig.load(saveConfig(url, name), new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                Notify.show(getFriendlyError(msg));
+                Notify.show(msg);
             }
         });
         } else {
             com.fongmi.android.tv.api.config.VodConfig.load(saveConfig(url, name), new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                Notify.show(getFriendlyError(msg));
+                Notify.show(msg);
             }
         });
         }
@@ -258,15 +258,5 @@ public class ConfigDialog extends BaseAlertDialog {
         dismiss();
     });
 
-
-    private String getFriendlyError(String msg) {
-        if (msg == null) return "配置加载失败，请检查配置是否正确";
-        if (msg.contains("MalformedJsonException")) return "配置文件格式错误，请检查 JSON 格式是否正确";
-        if (msg.contains("UnknownHostException") || msg.contains("ConnectException")) return "网络连接失败，请检查网络设置";
-        if (msg.contains("FileNotFoundException")) return "文件不存在，请检查路径是否正确";
-        if (msg.contains("SocketTimeoutException")) return "连接超时，请稍后重试";
-        if (msg.contains("JsonSyntaxException")) return "配置文件格式错误，请检查 JSON 格式是否正确";
-        return "配置加载失败，请检查配置是否正确";
-    }
 
 }
