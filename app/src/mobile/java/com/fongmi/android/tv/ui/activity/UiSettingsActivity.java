@@ -117,7 +117,7 @@ public class UiSettingsActivity extends BaseActivity {
     }
 
     private void initUiStyleSection() {
-        binding.segUiNormal.setOnClickListener(v -> setUiStyle(XingChenTheme.UI_NORMAL));
+        binding.segUiCapsule.setOnClickListener(v -> setUiStyle(XingChenTheme.UI_NORMAL));
         binding.segUiGlass.setOnClickListener(v -> setUiStyle(XingChenTheme.UI_GLASS));
         updateUiStyleUI();
     }
@@ -132,7 +132,7 @@ public class UiSettingsActivity extends BaseActivity {
     private void updateUiStyleUI() {
         String style = ThemeManager.get().getTheme().uiStyle;
         boolean isNormal = XingChenTheme.UI_NORMAL.equals(style);
-        setSegSelected(binding.segUiNormal, isNormal);
+        setSegSelected(binding.segUiCapsule, isNormal);
         setSegSelected(binding.segUiGlass, !isNormal);
 
     }
