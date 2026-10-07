@@ -51,9 +51,9 @@ public class UiSettingsActivity extends BaseActivity {
     }
 
     private void initCoverSizeSection() {
-        binding.segCoverSmall.setOnClickListener(v -> setPrefAndUpdate("cover_size", "small", this::updateCoverSizeUI));
-        binding.segCoverMedium.setOnClickListener(v -> setPrefAndUpdate("cover_size", "medium", this::updateCoverSizeUI));
-        binding.segCoverLarge.setOnClickListener(v -> setPrefAndUpdate("cover_size", "large", this::updateCoverSizeUI));
+        binding.segCoverSmall.setOnClickListener(v -> setCoverSize(1, this::updateCoverSizeUI);
+        binding.segCoverMedium.setOnClickListener(v -> setCoverSize(2, this::updateCoverSizeUI);
+        binding.segCoverLarge.setOnClickListener(v -> setCoverSize(3, this::updateCoverSizeUI);
         updateCoverSizeUI();
     }
 
@@ -262,4 +262,10 @@ public class UiSettingsActivity extends BaseActivity {
         updateUiStyleUI();
         updateWallpaperUI();
     }
+
+    private void setCoverSize(int size, Runnable updateUI) {
+        com.fongmi.android.tv.setting.PlayerSetting.putSize(size);
+        if (updateUI != null) updateUI.run();
+    }
+
 }
