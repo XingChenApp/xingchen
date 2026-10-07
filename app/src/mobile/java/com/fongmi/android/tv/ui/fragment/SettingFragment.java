@@ -352,8 +352,8 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
             String kernel = sp.getString("player_kernel", "ExoPlayer");
             String decode = sp.getString("player_decode", "硬解");
             String speed = sp.getString("player_speed", "1.0x");
-            if (binding.textPlayerSub != null) {
-                binding.textPlayerSub.setText(kernel + " · " + decode + " · " + speed);
+            if (mBinding.textPlayerSub != null) {
+                mBinding.textPlayerSub.setText(kernel + " · " + decode + " · " + speed);
             }
             
             // UI subtitles
@@ -361,8 +361,8 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
             String sizeStr = size == 1 ? "小" : size == 3 ? "大" : "中";
             String orient = sp.getString("cover_orient", "portrait");
             String orientStr = "landscape".equals(orient) ? "横屏" : "竖屏";
-            if (binding.textAppearanceSub != null) {
-                binding.textAppearanceSub.setText(sizeStr + "封面 · " + orientStr);
+            if (mBinding.textAppearanceSub != null) {
+                mBinding.textAppearanceSub.setText(sizeStr + "封面 · " + orientStr);
             }
             
             // Plugin subtitles
@@ -370,8 +370,8 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
             java.io.File jsDir = new java.io.File(requireActivity().getFilesDir(), "plugins/js");
             int pyCount = pyDir.exists() ? pyDir.listFiles((d, n) -> n.endsWith(".py")).length : 0;
             int jsCount = jsDir.exists() ? jsDir.listFiles((d, n) -> n.endsWith(".js")).length : 0;
-            if (binding.textPluginSub != null) {
-                binding.textPluginSub.setText("PY " + pyCount + " · JS " + jsCount);
+            if (mBinding.textPluginSub != null) {
+                mBinding.textPluginSub.setText("PY " + pyCount + " · JS " + jsCount);
             }
         } catch (Exception e) {
             e.printStackTrace();
