@@ -119,11 +119,7 @@ public class ConfigDialog extends BaseAlertDialog {
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-        configureWindow();
-        binding.url.requestFocus();
-    }
+    
 
     private Config getConfig() {
         return switch (type) {
