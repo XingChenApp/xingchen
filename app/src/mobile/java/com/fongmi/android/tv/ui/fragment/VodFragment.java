@@ -134,8 +134,14 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         mBinding.typeMore.setOnClickListener(this::onTypeMore);
         mBinding.filter.setOnClickListener(this::onFilter);
         mBinding.filter.setOnLongClickListener(this::onLink);
-        mBinding.toolbar.setOnMenuItemClickListener(this::onMenuItemClick);
-        mBinding.toolbar.post(this::setSearchLongClick);
+        mBinding.btnSearch.setOnClickListener(v -> SearchActivity.start(requireActivity()));
+        mBinding.btnSearch.setOnLongClickListener(v -> {
+            SearchActivity.start(requireActivity(), "", getHome().getKey());
+            return true;
+        });
+        mBinding.btnFav.setOnClickListener(v -> KeepActivity.start(requireActivity()));
+        mBinding.btnHistory.setOnClickListener(v -> HistoryActivity.start(requireActivity()));
+        mBinding.btnMore.setOnClickListener(v -> onMoreActions());
         mBinding.appBar.addOnOffsetChangedListener((appBarLayout, verticalOffset) -> {
             int range = appBarLayout.getTotalScrollRange();
             if (range <= 0) return;
@@ -293,6 +299,16 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         if (mAdapter.getItemCount() > 0) FilterDialog.create().filter(mAdapter.get(mBinding.pager.getCurrentItem()).getFilters()).show(this);
     }
 
+    private void onMoreActions() {
+        try {
+            new com.fongmi.android.tv.ui.dialog.SourceScriptsDialog(requireActivity(), (file, isPy) -> {
+                try { onScriptSelected(file, isPy); } catch (Exception e) { e.printStackTrace(); }
+            }).show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private boolean onMenuItemClick(MenuItem item) {
         if (item.getItemId() == R.id.refresh) {
             if (mWeb != null && mWeb.isVisible()) mWeb.reload();
@@ -366,19 +382,9 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     }
 
     private void updateToolbarMenu() {
-        Menu menu = mBinding.toolbar.getMenu();
-        MenuItem fullscreen = menu.findItem(R.id.web_home_fullscreen);
-        if (fullscreen != null) fullscreen.setVisible(Setting.isWebHomeFullscreen() && mWeb != null && mWeb.isVisible());
+        // Fullscreen menu item removed in new design (no toolbar menu)
     }
 
-    private void setSearchLongClick() {
-        View search = mBinding.toolbar.findViewById(R.id.search);
-        if (search == null) return;
-        search.setOnLongClickListener(view -> {
-            SearchActivity.start(requireActivity(), "", getHome().getKey());
-            return true;
-        });
-    }
 
     private void showProgress() {
         mBinding.progress.getRoot().setVisibility(View.VISIBLE);
