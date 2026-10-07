@@ -51,7 +51,7 @@
             android:layout_marginStart="8dp"
             android:background="@drawable/xc_circle_glass"
             android:padding="10dp"
-            android:src="@drawable/ic_action_more_vert" />
+            android:src="@drawable/ic_four_dots" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 
