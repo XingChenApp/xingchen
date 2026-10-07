@@ -53,24 +53,7 @@ public class LinkDialog extends BaseAlertDialog {
             if (actionId == EditorInfo.IME_ACTION_DONE) onPositive(null, 0);
             return true;
         });
-            if (binding.btnMore != null) {
-            binding.btnMore.setOnClickListener(v -> {
-                String url = binding.text.getText() == null ? "" : binding.text.getText().toString().trim();
-                if (android.text.TextUtils.isEmpty(url)) {
-                    com.fongmi.android.tv.utils.Notify.show("请先输入地址");
-                    return;
-                }
-                // Open device selector, then push
-                PushPlayDialog.create().listener(device -> {
-                    if (getActivity() instanceof androidx.fragment.app.FragmentActivity) {
-                        PushPlayUrlDialog.create(device).show((androidx.fragment.app.FragmentActivity) getActivity());
-                        // Pre-fill the URL
-                    }
-                }).show((androidx.fragment.app.FragmentActivity) getActivity());
-                dismiss();
-            });
         }
-    }
 
     @Override
     public void onStart() {
