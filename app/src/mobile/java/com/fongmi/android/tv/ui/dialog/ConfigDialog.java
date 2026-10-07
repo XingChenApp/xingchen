@@ -64,7 +64,7 @@ public class ConfigDialog extends BaseAlertDialog {
     }
 
     public void show(Fragment fragment) {
-        show(fragment.getParentFragmentManager(), null);
+        show(fragment.getChildFragmentManager(), null);
     }
 
     @Override
@@ -177,7 +177,7 @@ public class ConfigDialog extends BaseAlertDialog {
             binding.url.requestFocus();
             return;
         }
-        ((ConfigListener) requireParentFragment()).setConfig(config);
+        callback(config);
         dismiss();
     }
 
@@ -217,7 +217,16 @@ public class ConfigDialog extends BaseAlertDialog {
         String path = FileChooser.getPathFromUri(result.getData().getData());
         if (TextUtils.isEmpty(path)) return;
         String url = "file:/" + path.replace(Path.rootPath(), "");
-        ((ConfigListener) requireParentFragment()).setConfig(saveConfig(url, name));
+        callback(saveConfig(url, name));
         dismiss();
     });
+
+    private void callback(Config config) {
+        if (getParentFragment() instanceof ConfigListener listener) {
+            listener.setConfig(config);
+        } else if (getActivity() instanceof ConfigListener listener) {
+            listener.setConfig(config);
+        }
+        dismiss();
+    }
 }
