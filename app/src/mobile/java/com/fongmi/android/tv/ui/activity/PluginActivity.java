@@ -66,7 +66,7 @@ public class PluginActivity extends BaseActivity {
             File[] files = dir.listFiles((d, name) -> name.endsWith(ext));
             if (files != null) {
                 for (File f : files) {
-                    plugins.add(new Plugin(f.getName(), f.getAbsolutePath(), "py"));
+                    plugins.add(new Plugin(f.getName(), f.getAbsolutePath(), isPy ? "py" : "js"));
                 }
             }
         }
