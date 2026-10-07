@@ -34,7 +34,10 @@ public class UiSettingsActivity extends BaseActivity {
         initRatioSection();
         initUiStyleSection();
         initWallpaperSection();
-        updateVisibility();
+        
+        updateSizeUI();
+        updateOrientUI();
+        updateRatioUI();updateVisibility();
     }
 
     private String getPref(String key, String def) {
