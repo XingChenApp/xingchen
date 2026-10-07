@@ -82,6 +82,10 @@ public class ConfigDialog extends BaseAlertDialog {
         if (getDialog() != null && getDialog().getWindow() != null) {
             getDialog().getWindow().setBackgroundDrawable(requireActivity().getDrawable(R.drawable.dialog_glass));
         }
+    
+        if (getDialog() != null && getDialog().getWindow() != null) {
+            getDialog().getWindow().setBackgroundDrawable(requireActivity().getDrawable(R.drawable.dialog_glass));
+        }
     }
 
     @Override
@@ -109,8 +113,7 @@ public class ConfigDialog extends BaseAlertDialog {
             if (actionId == EditorInfo.IME_ACTION_DONE) onPositive();
             return true;
         });
-        binding.name.setOnEditorActionListener((textView, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_DONE) onPositive();
+        bind_DONE) onPositive();
             return true;
         });
     }
