@@ -40,7 +40,7 @@ public class SourceSelectAdapter extends RecyclerView.Adapter<SourceSelectAdapte
         boolean isCurrent = site.getKey() != null && site.getKey().equals(currentKey);
         holder.binding.badge.setVisibility(View.GONE);
         if (isCurrent) {
-            holder.binding.getRoot().setBackgroundResource(R.drawable.xc_capsule_yellow);
+            holder.binding.getRoot().setBackgroundResource(R.drawable.xc_capsule_orange);
         } else {
             holder.binding.getRoot().setBackgroundResource(R.drawable.xc_capsule_light);
         }
