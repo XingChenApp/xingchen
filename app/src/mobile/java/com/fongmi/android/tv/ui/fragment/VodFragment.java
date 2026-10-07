@@ -303,6 +303,11 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         return true;
     }
 
+    private void onScriptSelected(java.io.File file, boolean isPy) {
+        // TODO: Load the selected script
+        android.widget.Toast.makeText(requireActivity(), file.getName(), android.widget.Toast.LENGTH_SHORT).show();
+    }
+
     private void onApkSelected(Uri uri) {
         Device device = pendingApkDevice;
         pendingApkDevice = null;
