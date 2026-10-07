@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.databinding.AdapterSourceSelectBinding;
 
@@ -37,7 +38,12 @@ public class SourceSelectAdapter extends RecyclerView.Adapter<SourceSelectAdapte
         Site site = sites.get(position);
         holder.binding.name.setText(site.getName());
         boolean isCurrent = site.getKey() != null && site.getKey().equals(currentKey);
-        holder.binding.badge.setVisibility(isCurrent ? View.VISIBLE : View.GONE);
+        holder.binding.badge.setVisibility(View.GONE);
+        if (isCurrent) {
+            holder.binding.getRoot().setBackgroundResource(R.drawable.xc_capsule_yellow);
+        } else {
+            holder.binding.getRoot().setBackgroundResource(R.drawable.xc_capsule_light);
+        }
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) listener.onClick(site);
         });
