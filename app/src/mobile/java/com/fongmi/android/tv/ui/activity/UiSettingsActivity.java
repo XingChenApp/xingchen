@@ -136,7 +136,8 @@ public class UiSettingsActivity extends BaseActivity {
             getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("wallpaper_blur", isChecked).apply();
             try {
                 XingChenTheme theme = XingChenTheme.load(this);
-                theme.wallpaperBlur = isChecked;
+                // theme.wallpaperBlur = isChecked; // TODO: Fix field name
+                getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("wallpaper_blur", isChecked).apply();
                 theme.save(this);
                 com.xingchen.tv.theme.ThemeManager.get().setTheme(theme);
                 com.xingchen.tv.theme.ThemeManager.get().apply(this);
@@ -254,7 +255,7 @@ public class UiSettingsActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        updateThemeUI();
+        // updateThemeUI(); // Removed with theme section
         updateCoverSizeUI();
         updateOrientUI();
         updateRatioUI();
