@@ -74,7 +74,7 @@ public class ConfigDialog extends BaseAlertDialog {
 
     @Override
     protected MaterialAlertDialogBuilder getBuilder() {
-        return new MaterialAlertDialogBuilder(requireActivity(), R.style.ThemeOverlay_XingChen_GlassDialog).setView(getBinding().getRoot());
+        return new MaterialAlertDialogBuilder(requireActivity(), R.style.ThemeOverlay_WebHTV_LightDialog).setView(getBinding().getRoot());
     }
 
     @Override
@@ -222,7 +222,7 @@ public class ConfigDialog extends BaseAlertDialog {
         params.width = Math.max(width, ResUtil.dp2px(320));
         params.height = WindowManager.LayoutParams.WRAP_CONTENT;
         params.gravity = Gravity.CENTER;
-        // Background is set by ThemeOverlay_XingChen_GlassDialog, do not override here
+        // Background is set by ThemeOverlay_WebHTV_LightDialog, do not override here
         window.getDecorView().setPadding(0, 0, 0, 0);
         window.setAttributes(params);
         window.setLayout(params.width, WindowManager.LayoutParams.WRAP_CONTENT);
@@ -255,7 +255,7 @@ public class ConfigDialog extends BaseAlertDialog {
 
 
     private void showErrorDialog(String msg) {
-        new MaterialAlertDialogBuilder(requireActivity(), R.style.ThemeOverlay_XingChen_GlassDialog)
+        new MaterialAlertDialogBuilder(requireActivity(), R.style.ThemeOverlay_WebHTV_LightDialog)
             .setMessage(getFriendlyError(msg))
             .setPositiveButton(R.string.dialog_positive, (d, w) -> d.dismiss())
             .show();
