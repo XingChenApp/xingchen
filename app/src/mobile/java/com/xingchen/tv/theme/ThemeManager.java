@@ -194,7 +194,7 @@ public class ThemeManager {
     private int getBuiltinRes(android.content.Context ctx, String name) {
         try {
             if ("shanjian".equals(name)) {
-                return ctx.getResources().getIdentifier("poster_shanjian_blur_v3", "drawable", ctx.getPackageName());
+                return R.drawable.poster_shanjian_blur_v3;
             }
             return ctx.getResources().getIdentifier(name, "drawable", ctx.getPackageName());
         } catch (Exception e) {
