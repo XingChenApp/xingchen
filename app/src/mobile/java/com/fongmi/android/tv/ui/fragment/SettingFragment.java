@@ -92,7 +92,7 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
         mBinding.cardConfig.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.ConfigSourceActivity.start(getActivity()));
         mBinding.cardPlayer.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.PlayerSettingsActivity.start(getActivity()));
         mBinding.cardAppearance.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.UiSettingsActivity.start(getActivity()));
-        mBinding.cardPlugin.setOnClickListener(v -> com.fongmi.android.tv.utils.Notify.show("插件管理"));
+        mBinding.cardPlugin.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.PluginActivity.start(getActivity()));
         mBinding.cardFeatures.setOnClickListener(v -> com.fongmi.android.tv.utils.Notify.show("个性功能"));
         mBinding.cardHealth.setOnClickListener(v -> com.fongmi.android.tv.utils.Notify.show("源健康检测"));
         mBinding.cardAbout.setOnClickListener(v -> onVersion(v));
