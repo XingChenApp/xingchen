@@ -18,7 +18,7 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:menu="@menu/menu_vod"
+            
             app:popupTheme="@style/ToolbarPopupTheme">
 
             <com.google.android.material.textview.MaterialTextView
@@ -34,6 +34,49 @@
                 android:paddingRight="16dp"
                 android:paddingTop="8dp"
                 android:paddingBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:id="@+id/btn_top_search"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/xc_circle_glass"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_action_search" />
+
+                <ImageView
+                    android:id="@+id/btn_top_keep"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/xc_circle_glass"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_popup_keep" />
+
+                <ImageView
+                    android:id="@+id/btn_top_history"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/xc_circle_glass"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_popup_history" />
+
+                <ImageView
+                    android:id="@+id/btn_top_more"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/xc_circle_glass"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_action_more_vert" />
+            </LinearLayout>
 
         </com.google.android.material.appbar.MaterialToolbar>
 
