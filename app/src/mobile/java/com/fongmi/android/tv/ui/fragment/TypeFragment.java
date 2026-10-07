@@ -262,10 +262,7 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
             Style newStyle = getStyle();
             if (!newStyle.equals(mAdapter.getStyle())) {
                 // Recreate adapter with new style, keep existing data
-                java.util.List<com.fongmi.android.tv.bean.Vod> data = new java.util.ArrayList<>();
-                for (int i = 0; i < mAdapter.getItemCount(); i++) {
-                    data.add(mAdapter.get(i));
-                }
+                java.util.List<com.fongmi.android.tv.bean.Vod> data = new java.util.ArrayList<>(mAdapter.getItems());
                 mAdapter = new VodAdapter(this, newStyle, com.fongmi.android.tv.Product.getSpec(requireActivity(), newStyle));
                 mAdapter.setItems(data);
                 mBinding.recycler.setAdapter(mAdapter);
