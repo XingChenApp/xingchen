@@ -119,7 +119,7 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
         try {
             // Appearance: 浅色主题 · 中封面 · 竖屏 2:3 · 默认壁纸
             android.content.SharedPreferences sp = requireContext().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
-            String theme = sp.getString("theme", "浅色");
+            String theme = sp.getString("theme_mode", "浅色");
             String cover = sp.getString("cover_size", "中");
             String orient = sp.getString("cover_orient", "竖屏");
             String ratio = sp.getString("cover_ratio", "2:3");
