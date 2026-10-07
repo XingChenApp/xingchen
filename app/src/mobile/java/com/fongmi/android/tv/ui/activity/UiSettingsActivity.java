@@ -51,9 +51,9 @@ public class UiSettingsActivity extends BaseActivity {
     }
 
     private void initCoverSizeSection() {
-        binding.segCoverSmall.setOnClickListener(v -> setCoverSize(1, this::updateCoverSizeUI);
-        binding.segCoverMedium.setOnClickListener(v -> setCoverSize(2, this::updateCoverSizeUI);
-        binding.segCoverLarge.setOnClickListener(v -> setCoverSize(3, this::updateCoverSizeUI);
+        binding.segCoverSmall.setOnClickListener(v -> setCoverSize(1, this::updateCoverSizeUI));
+        binding.segCoverMedium.setOnClickListener(v -> setCoverSize(2, this::updateCoverSizeUI));
+        binding.segCoverLarge.setOnClickListener(v -> setCoverSize(3, this::updateCoverSizeUI));
         updateCoverSizeUI();
     }
 
