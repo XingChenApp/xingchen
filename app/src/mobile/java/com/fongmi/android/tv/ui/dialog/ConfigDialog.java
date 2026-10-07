@@ -177,7 +177,8 @@ public class ConfigDialog extends BaseAlertDialog {
             binding.url.requestFocus();
             return;
         }
-        callback(config);
+        com.fongmi.android.tv.api.config.VodConfig.load(config, null);
+        dismiss();
         dismiss();
     }
 
@@ -217,16 +218,9 @@ public class ConfigDialog extends BaseAlertDialog {
         String path = FileChooser.getPathFromUri(result.getData().getData());
         if (TextUtils.isEmpty(path)) return;
         String url = "file:/" + path.replace(Path.rootPath(), "");
-        callback(saveConfig(url, name));
+        com.fongmi.android.tv.api.config.VodConfig.load(saveConfig(url, name), null);
+        dismiss();
         dismiss();
     });
 
-    private void callback(Config config) {
-        if (getParentFragment() instanceof ConfigListener listener) {
-            listener.setConfig(config);
-        } else if (getActivity() instanceof ConfigListener listener) {
-            listener.setConfig(config);
-        }
-        dismiss();
-    }
 }
