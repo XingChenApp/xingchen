@@ -46,6 +46,7 @@
 
         <androidx.appcompat.widget.AppCompatImageButton
             android:id="@+id/btnToggle"
+            app:tint="#333333"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_marginStart="8dp"
