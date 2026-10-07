@@ -55,6 +55,14 @@ public class LinkDialog extends BaseAlertDialog {
         });
     }
 
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (getDialog() != null && getDialog().getWindow() != null) {
+            getDialog().getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+    }
+
     private void onChoose(View view) {
         FileChooser.from(launcher).show();
     }
