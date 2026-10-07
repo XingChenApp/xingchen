@@ -97,8 +97,48 @@ public class PluginActivity extends BaseActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 1001 && resultCode == RESULT_OK && data != null) {
-            // Handle file import - simplified
+            try {
+                if (data.getClipData() != null) {
+                    int count = data.getClipData().getItemCount();
+                    for (int i = 0; i < count; i++) {
+                        copyPluginFile(data.getClipData().getItemAt(i).getUri());
+                    }
+                } else if (data.getData() != null) {
+                    copyPluginFile(data.getData());
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             loadPlugins();
         }
+    }
+
+    private void copyPluginFile(android.net.Uri uri) throws Exception {
+        String fileName = getFileName(uri);
+        if (fileName == null) return;
+        if (!fileName.endsWith(".py") && !fileName.endsWith(".js")) return;
+        java.io.File dir = new java.io.File(getFilesDir(), isPy ? "plugins/py" : "plugins/js");
+        if (!dir.exists()) dir.mkdirs();
+        java.io.File dest = new java.io.File(dir, fileName);
+        try (java.io.InputStream in = getContentResolver().openInputStream(uri);
+             java.io.OutputStream out = new java.io.FileOutputStream(dest)) {
+            byte[] buf = new byte[8192];
+            int len;
+            while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
+        }
+    }
+
+    private String getFileName(android.net.Uri uri) {
+        String result = null;
+        if ("content".equals(uri.getScheme())) {
+            try (android.database.Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                    if (idx >= 0) result = cursor.getString(idx);
+                }
+            } catch (Exception e) {}
+        }
+        if (result == null) result = uri.getLastPathSegment();
+        return result;
     }
 }
