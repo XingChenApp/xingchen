@@ -32,7 +32,6 @@ public class PluginActivity extends BaseActivity {
 
     @Override
     protected void initView(Bundle savedInstanceState) {
-        binding.btnBack.setOnClickListener(v -> finish());
         binding.tabPy.setOnClickListener(v -> switchTab(true));
         binding.tabJs.setOnClickListener(v -> switchTab(false));
         binding.btnImport.setOnClickListener(v -> importPlugins());
