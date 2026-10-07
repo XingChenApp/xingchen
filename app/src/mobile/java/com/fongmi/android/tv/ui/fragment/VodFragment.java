@@ -120,14 +120,12 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         setViewModel();
         showProgress();
         setTitle();
-        setLogo();
         updateToolbarMenu();
     }
 
     @Override
     protected void initEvent() {
         mBinding.top.setOnClickListener(this::onTop);
-        mBinding.logo.setOnClickListener(this::onLogo);
         mBinding.link.setOnClickListener(this::onLink);
         mBinding.title.setOnClickListener(this::onSite);
         mBinding.title.setOnLongClickListener(this::reloadConfig);
@@ -249,9 +247,6 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         return false;
     }
 
-    private void onLogo(View view) {
-        HistoryDialog.create().vod().readOnly().show(this);
-    }
 
     private void onSite(View view) {
         SiteDialog.create().change().show(this);
@@ -421,13 +416,9 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         return mResult == null ? new Result() : mResult;
     }
 
-    private void setLogo() {
-        ImgUtil.logo(mBinding.logo);
-    }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onConfigEvent(ConfigEvent event) {
-        if (event.type() == ConfigEvent.Type.VOD) setLogo();
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
@@ -483,7 +474,6 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
                 showProgress();
                 hideContent();
                 setTitle();
-                setLogo();
             }
 
             @Override
