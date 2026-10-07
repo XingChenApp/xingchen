@@ -259,26 +259,8 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     }
 
 
-    private void onSite(View view) {
-        try {
-            java.util.List<com.fongmi.android.tv.bean.Site> sites = com.fongmi.android.tv.api.config.VodConfig.get().getSites();
-            String currentKey = getHome() != null ? getHome().getKey() : "";
-            com.fongmi.android.tv.ui.dialog.SourceSelectDialog dialog = 
-                new com.fongmi.android.tv.ui.dialog.SourceSelectDialog(requireActivity(), sites, currentKey);
-            dialog.setOnSelectListener(site -> {
-                // Switch to selected site
-                try {
-                    com.fongmi.android.tv.api.config.VodConfig.get().setHome(site);
-                    setTitle();
-                    homeContent();
-                } catch (Exception e) { e.printStackTrace(); }
-            });
-            dialog.show();
-        } catch (Exception e) {
-            e.printStackTrace();
-            // Fallback to old dialog
-            SiteDialog.create().change().show(this);
-        }
+        private void onSite(View view) {
+        SiteDialog.create(this).show();
     }
 
     private boolean reloadConfig(View view) {
