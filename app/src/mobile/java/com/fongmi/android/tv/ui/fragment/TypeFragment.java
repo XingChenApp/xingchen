@@ -207,6 +207,18 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
         return true;
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        try {
+            android.content.SharedPreferences sp = requireActivity().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
+            if (sp.getBoolean("cover_changed", false)) {
+                sp.edit().putBoolean("cover_changed", false).apply();
+                onRefresh();
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
     private String getUserOrient() {
         try {
             return requireActivity().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE)
