@@ -113,7 +113,7 @@
                 android:layout_height="wrap_content"
                 android:text="全选"
                 android:textColor="#171B23"
-                android:textSize="14sp" />
+                android:textSize="14sp"  android:background="@drawable/xc_capsule_btn" android:paddingLeft="12dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" />
             <TextView
                 android:id="@+id/tv_count"
                 android:layout_width="0dp"
