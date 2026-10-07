@@ -134,6 +134,33 @@ public class ThemeManager {
             } catch (Exception e) {
                 flog("DIAG error: " + e);
             }
+            // Clear opaque ColorDrawable cover views sitting directly in the DecorView
+            // (e.g. a solid beige View that hides the window wallpaper). Only plain
+            // Views are touched: ViewGroups (content) and ImageViews (wallpaper
+            // layer) are left alone.
+            try {
+                android.view.View decor2 = activity.getWindow().getDecorView();
+                if (decor2 instanceof android.view.ViewGroup) {
+                    android.view.ViewGroup dg2 = (android.view.ViewGroup) decor2;
+                    for (int i = 0; i < dg2.getChildCount(); i++) {
+                        android.view.View child = dg2.getChildAt(i);
+                        if (child == null) continue;
+                        if (child instanceof android.view.ViewGroup) continue;
+                        if (child instanceof android.widget.ImageView) continue;
+                        if ("xc_wallpaper".equals(child.getTag())) continue;
+                        android.graphics.drawable.Drawable bg = child.getBackground();
+                        if (bg instanceof android.graphics.drawable.ColorDrawable) {
+                            int color = ((android.graphics.drawable.ColorDrawable) bg).getColor();
+                            if (android.graphics.Color.alpha(color) == 255) {
+                                child.setBackground(null);
+                                flog("Cleared opaque cover view: child " + i + " (" + child.getClass().getSimpleName() + ")");
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                flog("ERROR clearing cover views: " + e);
+            }
         } catch (Exception e) { flog("ERROR doApply failed: " + e); }
     }
 
