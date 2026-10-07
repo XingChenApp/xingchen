@@ -265,6 +265,7 @@ public class UiSettingsActivity extends BaseActivity {
 
     private void setCoverSize(int size, Runnable updateUI) {
         com.fongmi.android.tv.setting.PlayerSetting.putSize(size);
+        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("cover_changed", true).apply();
         if (updateUI != null) updateUI.run();
     }
 
