@@ -353,8 +353,8 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
             String kernel = "mpv".equals(kernelRaw) ? "MPV" : "ijk".equals(kernelRaw) ? "IJK" : "ExoPlayer";
             String decodeRaw = sp.getString("player_decode", "hard");
             String decode = "soft".equals(decodeRaw) ? "软解" : "硬解";
-            String speedStr = "1.0x";
-            try { speedStr = com.fongmi.android.tv.setting.PlayerSetting.getSpeed() + "x"; } catch (Exception e) { e.printStackTrace(); }
+            float speedVal = sp.getFloat("player_speed", 1.0f);
+            String speedStr = speedVal + "x";
             if (mBinding.textPlayerSub != null) {
                 mBinding.textPlayerSub.setText(kernel + " · " + decode + " · " + speedStr);
             }
