@@ -133,4 +133,12 @@
         <item name="android:navigationBarColor">#000000</item>
     </style>
 
+
+    <style name="ThemeOverlay.XingChen.GlassDialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="dialogCornerRadius">16dp</item>
+        <item name="background">@drawable/dialog_glass</item>
+        <item name="android:background">@drawable/dialog_glass</item>
+        <item name="android:windowBackground">@drawable/dialog_glass</item>
+    </style>
+
 </resources>
