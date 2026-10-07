@@ -293,6 +293,14 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         else if (item.getItemId() == R.id.push_play) PushPlayDialog.create().listener(this::onPushPlayDeviceSelected).show(requireActivity());
         else if (item.getItemId() == R.id.enhance && homeActivity() != null) homeActivity().openEnhanceFromVod();
         else if (item.getItemId() == R.id.web_home_fullscreen) onWebHomeFullscreen();
+        else if (item.getItemId() == R.id.more_actions) {
+            try {
+                com.fongmi.android.tv.ui.dialog.SourceScriptsDialog dialog = new com.fongmi.android.tv.ui.dialog.SourceScriptsDialog();
+                dialog.show(getParentFragmentManager(), "scripts");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
         else return false;
         return true;
     }
