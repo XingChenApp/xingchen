@@ -6,7 +6,9 @@ import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivityConfigSourceBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.ConfigDialog;
-public class ConfigSourceActivity extends BaseActivity {
+import com.fongmi.android.tv.impl.ConfigListener;
+import com.fongmi.android.tv.bean.Config;
+public class ConfigSourceActivity extends BaseActivity implements ConfigListener {
     private ActivityConfigSourceBinding binding;
     public static void start(Activity activity) {
         activity.startActivity(new Intent(activity, ConfigSourceActivity.class));
@@ -20,5 +22,10 @@ public class ConfigSourceActivity extends BaseActivity {
     protected void initView(Bundle savedInstanceState) {
         binding.cardVod.setOnClickListener(v -> ConfigDialog.create().vod().show(getSupportFragmentManager(), null));
         binding.cardLive.setOnClickListener(v -> ConfigDialog.create().live().show(getSupportFragmentManager(), null));
+    }
+
+    @Override
+    public void setConfig(Config config) {
+        finish();
     }
 }
