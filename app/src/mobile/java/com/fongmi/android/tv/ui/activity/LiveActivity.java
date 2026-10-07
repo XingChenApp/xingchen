@@ -160,20 +160,12 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
         return LiveConfig.get().getHome();
     }
 
-    @Override
-    protected boolean customWall() {
-        return true;
-    }
 
     @Override
     protected boolean isLutAllowed() {
         return false;
     }
 
-    @Override
-    protected boolean customWallMotion() {
-        return false;
-    }
 
     @Override
     protected ViewBinding getBinding() {
