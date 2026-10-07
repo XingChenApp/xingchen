@@ -43,6 +43,7 @@ public class UiSettingsActivity extends BaseActivity {
 
     private void setPref(String key, String value) {
         getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString(key, value).apply();
+        if (key.startsWith("cover_")) getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("cover_changed", true).apply();
     }
 
     private void setPrefAndUpdate(String key, String value, Runnable update) {
