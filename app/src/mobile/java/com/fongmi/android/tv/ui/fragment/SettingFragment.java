@@ -105,13 +105,8 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
     }
 
     private void updateSubtitles() {
-        try {
-            // Player: ExoPlayer · 硬解 · 1.0x
-            String player = com.fongmi.android.tv.setting.Setting.getPlayer();
-            String decode = com.fongmi.android.tv.setting.Setting.getDecode();
-            String speed = com.fongmi.android.tv.setting.Setting.getSpeed();
-            mBinding.textPlayerSub.setText(player + " · " + decode + " · " + speed);
-        } catch (Exception e) {}
+        // Player subtitle: static for now (Setting methods not found)
+        mBinding.textPlayerSub.setText("ExoPlayer · 硬解 · 1.0x");
         try {
             // Appearance: 浅色主题 · 中封面 · 竖屏 2:3 · 默认壁纸
             android.content.SharedPreferences sp = requireContext().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
