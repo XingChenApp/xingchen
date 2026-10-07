@@ -30,7 +30,7 @@ public class ConfigSourceActivity extends BaseActivity {
         super.onResume();
         updateCards();
     }
-    private void updateCards() {
+    public void updateCards() {
         updateVodCard();
         updateLiveCard();
     }
@@ -38,13 +38,7 @@ public class ConfigSourceActivity extends BaseActivity {
         try {
             Config config = VodConfig.get().getConfig();
             String url = config == null ? "" : config.getUrl();
-            // Query DB directly for latest name (cache may be stale after edit)
-            String name = "";
-            if (url != null && !url.isEmpty()) {
-                Config dbConfig = com.fongmi.android.tv.db.AppDatabase.get().getConfigDao().find(url, 0);
-                if (dbConfig != null && dbConfig.getName() != null) name = dbConfig.getName();
-            }
-            if (name.isEmpty() && config != null && config.getName() != null) name = config.getName();
+            String name = config == null ? "" : config.getName();
             if (url == null || url.isEmpty()) {
                 binding.tvVodEmpty.setVisibility(View.VISIBLE);
                 binding.tvVodName.setVisibility(View.GONE);
@@ -70,13 +64,7 @@ public class ConfigSourceActivity extends BaseActivity {
         try {
             Config config = LiveConfig.get().getConfig();
             String url = config == null ? "" : config.getUrl();
-            // Query DB directly for latest name (cache may be stale after edit)
-            String name = "";
-            if (url != null && !url.isEmpty()) {
-                Config dbConfig = com.fongmi.android.tv.db.AppDatabase.get().getConfigDao().find(url, 1);
-                if (dbConfig != null && dbConfig.getName() != null) name = dbConfig.getName();
-            }
-            if (name.isEmpty() && config != null && config.getName() != null) name = config.getName();
+            String name = config == null ? "" : config.getName();
             if (url == null || url.isEmpty()) {
                 binding.tvLiveEmpty.setVisibility(View.VISIBLE);
                 binding.tvLiveName.setVisibility(View.GONE);
