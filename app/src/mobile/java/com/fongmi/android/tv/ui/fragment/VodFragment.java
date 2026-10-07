@@ -133,8 +133,11 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         mBinding.typeMore.setOnClickListener(this::onTypeMore);
         mBinding.filter.setOnClickListener(this::onFilter);
         mBinding.filter.setOnLongClickListener(this::onLink);
-        mBinding.toolbar.setOnMenuItemClickListener(this::onMenuItemClick);
-        mBinding.toolbar.post(this::setSearchLongClick);
+        // New homepage buttons
+        mBinding.btnSearch.setOnClickListener(v -> onSearch());
+        mBinding.btnFav.setOnClickListener(v -> onFav());
+        mBinding.btnHistory.setOnClickListener(v -> onHistory());
+        mBinding.btnMore.setOnClickListener(v -> onMore());
         mBinding.appBar.addOnOffsetChangedListener((appBarLayout, verticalOffset) -> {
             int range = appBarLayout.getTotalScrollRange();
             if (range <= 0) return;
@@ -215,9 +218,20 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     }
 
     private void setTitle() {
-        List<String> items = Arrays.asList(getHome().getName(), getConfig().getName(), getString(R.string.app_name));
-        Optional<String> optional = items.stream().filter(s -> !TextUtils.isEmpty(s)).findFirst();
-        optional.ifPresent(s -> mBinding.title.setText(s));
+        // Title capsule: "星辰 · 源名" or just "星辰"
+        String sourceName = "";
+        try {
+            if (getHome() != null && !TextUtils.isEmpty(getHome().getName())) {
+                sourceName = getHome().getName();
+            } else if (getConfig() != null && !TextUtils.isEmpty(getConfig().getName())) {
+                sourceName = getConfig().getName();
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        String title = "星辰";
+        if (!TextUtils.isEmpty(sourceName) && !"星辰".equals(sourceName)) {
+            title = "星辰 · " + sourceName;
+        }
+        mBinding.title.setText(title);
     }
 
     private void onTop(View view) {
@@ -307,6 +321,28 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         // TODO(next): True PY/JS spider loading via FongMi Spider kernel
         String type = isPy ? "PY" : "JS";
         android.widget.Toast.makeText(requireActivity(), "正在加载" + type + ": " + file.getName(), android.widget.Toast.LENGTH_SHORT).show();
+    }
+
+    private void onSearch() {
+        SearchActivity.start(requireActivity());
+    }
+
+    private void onFav() {
+        KeepActivity.start(requireActivity());
+    }
+
+    private void onHistory() {
+        HistoryActivity.start(requireActivity());
+    }
+
+    private void onMore() {
+        try {
+            new com.fongmi.android.tv.ui.dialog.SourceScriptsDialog(requireActivity(), (file, isPy) -> {
+                try { onScriptSelected(file, isPy); } catch (Exception e) { e.printStackTrace(); }
+            }).show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void onApkSelected(Uri uri) {
