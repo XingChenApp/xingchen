@@ -484,6 +484,88 @@
         </LinearLayout>
     </LinearLayout>
 
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginEnd="12dp">
+
+                <ImageView
+                    android:id="@+id/thumb_default"
+                    android:layout_width="80dp"
+                    android:layout_height="120dp"
+                    android:scaleType="centerCrop"
+                    android:background="@drawable/dialog_glass"
+                    android:src="@drawable/poster_shanjian_blur_v3"/>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="默认"
+                    android:textSize="11sp"
+                    android:textColor="#5A5F69"
+                    android:gravity="center"
+                    android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginEnd="12dp">
+
+                <ImageView
+                    android:id="@+id/thumb_local"
+                    android:layout_width="80dp"
+                    android:layout_height="120dp"
+                    android:scaleType="centerCrop"
+                    android:background="@drawable/dialog_glass"/>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="本地"
+                    android:textSize="11sp"
+                    android:textColor="#5A5F69"
+                    android:gravity="center"
+                    android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:id="@+id/thumb_url"
+                    android:layout_width="80dp"
+                    android:layout_height="120dp"
+                    android:scaleType="centerCrop"
+                    android:background="@drawable/dialog_glass"/>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="URL"
+                    android:textSize="11sp"
+                    android:textColor="#5A5F69"
+                    android:gravity="center"
+                    android:layout_marginTop="4dp"/>
+            </LinearLayout>
+        </LinearLayout>
+    </HorizontalScrollView>
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
