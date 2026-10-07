@@ -168,11 +168,21 @@ public class ThemeManager {
         try {
             String type = theme.wallpaperType;
             String value = theme.wallpaperValue;
+            String cacheKey = type + ":" + value;
+            // Check cache first - avoids re-decoding on every page switch (black flash fix)
+            if (cacheKey.equals(sCachedKey) && sCachedWallpaper != null) {
+                flog("getWallpaperDrawable: cache HIT for " + cacheKey);
+                return sCachedWallpaper;
+            }
+            flog("getWallpaperDrawable: cache MISS for " + cacheKey + ", decoding...");
             flog("getWallpaperDrawable: type=" + type + ", value=" + value);
             if (XingChenTheme.WP_COLOR.equals(type)) {
                 try {
                     int color = android.graphics.Color.parseColor(value);
-                    return new android.graphics.drawable.ColorDrawable(color);
+                    android.graphics.drawable.ColorDrawable cd = new android.graphics.drawable.ColorDrawable(color);
+                    sCachedWallpaper = cd;
+                    sCachedKey = cacheKey;
+                    return cd;
                 } catch (Exception e) {
                     return null;
                 }
@@ -200,17 +210,35 @@ public class ThemeManager {
             flog("getWallpaperDrawable: builtin id=" + id);
             if (id != 0) {
                 try {
-                    android.graphics.Bitmap bm = android.graphics.BitmapFactory.decodeResource(activity.getResources(), id);
+                    // Decode with sampling to avoid 89MB full-size bitmap (black flash fix)
+                    android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
+                    opts.inJustDecodeBounds = true;
+                    android.graphics.BitmapFactory.decodeResource(activity.getResources(), id, opts);
+                    int screenW = activity.getResources().getDisplayMetrics().widthPixels;
+                    int screenH = activity.getResources().getDisplayMetrics().heightPixels;
+                    int sample = 1;
+                    while ((opts.outWidth / sample) > screenW * 2 || (opts.outHeight / sample) > screenH * 2) {
+                        sample *= 2;
+                    }
+                    opts.inJustDecodeBounds = false;
+                    opts.inSampleSize = sample;
+                    flog("getWallpaperDrawable: decoding with sample=" + sample + " for " + opts.outWidth + "x" + opts.outHeight);
+                    android.graphics.Bitmap bm = android.graphics.BitmapFactory.decodeResource(activity.getResources(), id, opts);
                     if (bm != null) {
                         android.graphics.drawable.BitmapDrawable bd = new android.graphics.drawable.BitmapDrawable(activity.getResources(), bm);
                         bd.setTintList(null);
-                        flog("getWallpaperDrawable: builtin bitmap decoded, " + bm.getWidth() + "x" + bm.getHeight());
+                        flog("getWallpaperDrawable: builtin bitmap decoded, " + bm.getWidth() + "x" + bm.getHeight() + ", caching");
+                        sCachedWallpaper = bd;
+                        sCachedKey = cacheKey;
                         return bd;
                     }
                 } catch (Exception e) {
                     flog("ERROR builtin decode: " + e);
                 }
-                return activity.getResources().getDrawable(id, null);
+                android.graphics.drawable.Drawable fallback = activity.getResources().getDrawable(id, null);
+                sCachedWallpaper = fallback;
+                sCachedKey = cacheKey;
+                return fallback;
             }
             return null;
         } catch (Exception e) {
