@@ -46,19 +46,16 @@
 
         <androidx.appcompat.widget.AppCompatImageButton
             android:id="@+id/btnToggle"
-            app:tint="#333333"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_marginStart="8dp"
             android:background="@drawable/xc_circle_glass"
             android:padding="10dp"
-            android:src="@drawable/ic_four_dots" />
+            android:src="@drawable/ic_action_more_vert" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 
     <androidx.recyclerview.widget.RecyclerView
-        android:maxHeight="360dp"
-        android:scrollbars="vertical"
         android:id="@+id/recycler"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
