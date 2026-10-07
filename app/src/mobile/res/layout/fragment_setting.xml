@@ -264,7 +264,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:text="刚刚"
-                android:textColor="#4D5665"
+                android:textColor="#2E3A4E"
                 android:textSize="13sp" />
             <ImageView
                 android:layout_width="18dp"
@@ -319,7 +319,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:text="已是最新"
-                android:textColor="#4D5665"
+                android:textColor="#2E3A4E"
                 android:textSize="13sp" />
             <ImageView
                 android:layout_width="18dp"
