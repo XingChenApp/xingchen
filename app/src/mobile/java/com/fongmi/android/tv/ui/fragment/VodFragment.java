@@ -217,7 +217,7 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     private void setTitle() {
         List<String> items = Arrays.asList(getHome().getName(), getConfig().getName(), getString(R.string.app_name));
         Optional<String> optional = items.stream().filter(s -> !TextUtils.isEmpty(s)).findFirst();
-        optional.ifPresent(s -> mBinding.title.setText(s));
+        optional.ifPresent(s -> mBinding.title.setText("星辰 · " + s));
     }
 
     private void onTop(View view) {
