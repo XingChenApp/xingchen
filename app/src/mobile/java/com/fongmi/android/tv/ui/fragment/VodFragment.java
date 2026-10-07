@@ -261,7 +261,7 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
 
 
         private void onSite(View view) {
-        SiteDialog.create(this).show();
+        SiteDialog.create().show(this);
     }
 
     private boolean reloadConfig(View view) {
