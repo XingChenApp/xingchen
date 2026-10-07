@@ -10,6 +10,11 @@ import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.databinding.ActivityConfigSourceBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.ConfigDialog;
+import com.fongmi.android.tv.ui.adapter.ConfigHistoryAdapter;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.ItemTouchHelper;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.annotation.NonNull;
 public class ConfigSourceActivity extends BaseActivity {
     private ActivityConfigSourceBinding binding;
     public static void start(Activity activity) {
@@ -29,6 +34,7 @@ public class ConfigSourceActivity extends BaseActivity {
     protected void onResume() {
         super.onResume();
         updateCards();
+        updateHistory();
     }
     public void updateCards() {
         updateVodCard();
@@ -86,4 +92,68 @@ public class ConfigSourceActivity extends BaseActivity {
             binding.tvLiveUrl.setVisibility(View.GONE);
         }
     }
+
+    private ConfigHistoryAdapter historyAdapter;
+
+    private void updateHistory() {
+        try {
+            android.content.Context ctx = this;
+            java.util.List<com.fongmi.android.tv.bean.Config> items = com.fongmi.android.tv.db.AppDatabase.get().getConfigDao().findByType(0);
+            if (binding.rvHistory == null) return;
+            if (historyAdapter == null) {
+                historyAdapter = new ConfigHistoryAdapter(items, config -> {
+                    // Use: set as current VOD config
+                    com.fongmi.android.tv.api.config.VodConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
+                        @Override
+                        public void error(String msg) {}
+                    });
+                    updateCards();
+                    updateHistory();
+                });
+                binding.rvHistory.setLayoutManager(new LinearLayoutManager(ctx));
+                binding.rvHistory.setAdapter(historyAdapter);
+                ItemTouchHelper helper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
+                    @Override
+                    public boolean onMove(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh, @NonNull RecyclerView.ViewHolder target) {
+                        return false;
+                    }
+                    @Override
+                    public void onSwiped(@NonNull RecyclerView.ViewHolder vh, int direction) {
+                        int pos = vh.getAdapterPosition();
+                        com.fongmi.android.tv.bean.Config c = historyAdapter.getItem(pos);
+                        com.fongmi.android.tv.db.AppDatabase.get().getConfigDao().delete(c.getUrl(), 0);
+                        historyAdapter.remove(pos);
+                    }
+                });
+                helper.attachToRecyclerView(binding.rvHistory);
+                binding.tvHistoryClear.setOnClickListener(v -> {
+                    new androidx.appcompat.app.AlertDialog.Builder(ctx)
+                        .setTitle("清空历史")
+                        .setMessage("确定要清空全部历史记录吗？")
+                        .setPositiveButton("确定", (d, w) -> {
+                            for (com.fongmi.android.tv.bean.Config c : com.fongmi.android.tv.db.AppDatabase.get().getConfigDao().findByType(0)) {
+                                com.fongmi.android.tv.db.AppDatabase.get().getConfigDao().delete(c.getUrl(), 0);
+                            }
+                            updateHistory();
+                        })
+                        .setNegativeButton("取消", null)
+                        .show();
+                });
+            } else {
+                // Refresh data
+                historyAdapter = new ConfigHistoryAdapter(items, config -> {
+                    com.fongmi.android.tv.api.config.VodConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
+                        @Override
+                        public void error(String msg) {}
+                    });
+                    updateCards();
+                    updateHistory();
+                });
+                binding.rvHistory.setAdapter(historyAdapter);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 }
