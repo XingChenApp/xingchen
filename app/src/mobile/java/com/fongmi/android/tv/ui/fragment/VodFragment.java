@@ -304,8 +304,9 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     }
 
     private void onScriptSelected(java.io.File file, boolean isPy) {
-        // TODO: Load the selected script
-        android.widget.Toast.makeText(requireActivity(), file.getName(), android.widget.Toast.LENGTH_SHORT).show();
+        // TODO(next): True PY/JS spider loading via FongMi Spider kernel
+        String type = isPy ? "PY" : "JS";
+        android.widget.Toast.makeText(requireActivity(), "正在加载" + type + ": " + file.getName(), android.widget.Toast.LENGTH_SHORT).show();
     }
 
     private void onApkSelected(Uri uri) {
