@@ -43,6 +43,11 @@ public class PushPlayDialog extends BaseBottomSheetDialog implements SyncDeviceA
     }
 
     @Override
+    protected boolean transparent() {
+        return true;
+    }
+
+    @Override
     protected ViewBinding getBinding(@NonNull LayoutInflater inflater, @Nullable ViewGroup container) {
         return binding = DialogDeviceBinding.inflate(inflater, container, false);
     }
