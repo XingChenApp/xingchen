@@ -46,6 +46,7 @@ public class SourceSelectDialog extends Dialog {
         Window window = getWindow();
         if (window != null) {
             window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
         }
 
         adapter = new SourceSelectAdapter(filteredSites, currentKey, site -> {
