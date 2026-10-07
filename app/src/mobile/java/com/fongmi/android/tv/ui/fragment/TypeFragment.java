@@ -116,7 +116,7 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
     }
 
     private void setStyle(Style style) {
-        mBinding.recycler.setAdapter(mAdapter = new VodAdapter(this, style, Product.getSpec(requireActivity(, getUserOrient()), style)));
+        mBinding.recycler.setAdapter(mAdapter = new VodAdapter(this, style, Product.getSpec(requireActivity(), style), getUserOrient()), style)));
         mBinding.recycler.setLayoutManager(style.isList() ? new LinearLayoutManager(requireActivity()) : new GridLayoutManager(getContext(), Product.getColumn(requireActivity(), style)));
     }
 
