@@ -21,10 +21,12 @@ public class VodAdapter extends BaseDiffAdapter<Vod, BaseVodHolder> {
     private final OnClickListener listener;
     private final Style style;
     private final int[] size;
+    private final String userOrient;
 
-    public VodAdapter(OnClickListener listener, Style style, int[] size) {
+    public VodAdapter(OnClickListener listener, Style style, int[] size, String userOrient) {
         this.listener = listener;
         this.style = style;
+        this.userOrient = userOrient;
         this.size = size;
     }
 
@@ -41,6 +43,9 @@ public class VodAdapter extends BaseDiffAdapter<Vod, BaseVodHolder> {
 
     @Override
     public int getItemViewType(int position) {
+        // User override for cover orientation
+        if ("landscape".equals(userOrient)) return com.fongmi.android.tv.ui.base.ViewType.RECT;
+        if ("portrait".equals(userOrient)) return com.fongmi.android.tv.ui.base.ViewType.OVAL;
         return style.getViewType();
     }
 
