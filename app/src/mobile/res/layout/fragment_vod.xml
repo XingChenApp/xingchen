@@ -28,7 +28,12 @@
                 android:ellipsize="marquee"
                 android:singleLine="true"
                 android:text="@string/app_name"
-                android:textAppearance="@style/ToolbarTextAppearance" />
+                android:textAppearance="@style/ToolbarTextAppearance"
+                android:background="@drawable/xc_capsule_btn"
+                android:paddingLeft="16dp"
+                android:paddingRight="16dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp" />
 
         </com.google.android.material.appbar.MaterialToolbar>
 
