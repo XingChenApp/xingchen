@@ -93,7 +93,9 @@ public class ApkPushUrlDialog extends BaseAlertDialog {
     }
 
     private void selectDevice() {
-        // TODO: Select push device
+        PushPlayDialog.create().listener(selected -> {
+            this.device = selected;
+        }).show(getActivity());
     }
 
     private void send() {
