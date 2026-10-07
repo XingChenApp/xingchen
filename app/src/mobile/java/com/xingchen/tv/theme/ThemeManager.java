@@ -110,10 +110,7 @@ public class ThemeManager {
                 } else {
                     activity.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0x00000000));
                 }
-                try {
-                    android.view.View decor = activity.getWindow().getDecorView();
-                    if (decor != null) decor.setBackground(null);
-                } catch (Exception e) {}
+                
             } catch (Exception e) {
                 flog("ERROR setting window bg: " + e);
             }
