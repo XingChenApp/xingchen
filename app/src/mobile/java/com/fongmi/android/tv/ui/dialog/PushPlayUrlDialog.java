@@ -74,6 +74,9 @@ public class PushPlayUrlDialog extends BaseAlertDialog {
     protected void initEvent() {
         binding.negative.setOnClickListener(v -> dismiss());
         binding.positive.setOnClickListener(v -> send());
+        if (binding.btnMore != null) {
+            binding.btnMore.setOnClickListener(v -> selectDevice());
+        }
         binding.input.setOnEditorActionListener((textView, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE) {
                 send();
@@ -81,6 +84,13 @@ public class PushPlayUrlDialog extends BaseAlertDialog {
             }
             return false;
         });
+    }
+
+    private void selectDevice() {
+        PushPlayDialog.create().setListener(device -> {
+            this.device = device;
+            Notify.show(R.string.push_device_selected);
+        }).show(getActivity());
     }
 
     private void send() {
