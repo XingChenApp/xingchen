@@ -17,6 +17,9 @@ import java.util.Date;
 import java.util.Locale;
 
 public class ThemeManager {
+    private static android.graphics.drawable.Drawable sCachedWallpaper = null;
+    private static String sCachedKey = "";
+
     private static ThemeManager instance;
     private XingChenTheme theme;
     private static final String TAG = "XC_WALLPAPER";
