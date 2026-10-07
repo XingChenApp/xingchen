@@ -349,7 +349,8 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
         // Player subtitles - isolated
         try {
             android.content.SharedPreferences sp = requireActivity().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
-            String kernel = sp.getString("player_kernel", "ExoPlayer");
+            String kernelRaw = sp.getString("player_kernel", "exo");
+            String kernel = "mpv".equals(kernelRaw) ? "MPV" : "ijk".equals(kernelRaw) ? "IJK" : "ExoPlayer";
             String decodeRaw = sp.getString("player_decode", "hard");
             String decode = "soft".equals(decodeRaw) ? "软解" : "硬解";
             String speedStr = "1.0x";
