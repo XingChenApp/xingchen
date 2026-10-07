@@ -74,9 +74,7 @@ public class ConfigDialog extends BaseAlertDialog {
 
     @Override
     protected MaterialAlertDialogBuilder getBuilder() {
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireActivity(), R.style.ThemeOverlay_WebHTV_LightDialog).setView(getBinding().getRoot());
-        builder.setBackground(requireActivity().getDrawable(R.drawable.dialog_glass));
-        return builder;
+        return new MaterialAlertDialogBuilder(requireActivity(), R.style.ThemeOverlay_XingChen_GlassDialog).setView(getBinding().getRoot());
     }
 
     @Override
@@ -84,8 +82,10 @@ public class ConfigDialog extends BaseAlertDialog {
         Config config = getConfig();
         binding.title.setText(getDialogTitle());
         binding.positive.setText(edit ? R.string.dialog_edit : R.string.dialog_positive);
-        binding.name.setText(edit ? config.getName() : "");
-        binding.url.setText(ori = config.getUrl());
+        String name = (edit && config != null && config.getName() != null) ? config.getName() : "";
+        binding.name.setText(name);
+        String url = (config != null && config.getUrl() != null) ? config.getUrl() : "";
+        binding.url.setText(ori = url);
         binding.url.setSelection(TextUtils.isEmpty(ori) ? 0 : ori.length());
     }
 
@@ -115,9 +115,6 @@ public class ConfigDialog extends BaseAlertDialog {
         super.onStart();
         configureWindow();
         binding.url.requestFocus();
-        if (getDialog() != null && getDialog().getWindow() != null) {
-            getDialog().getWindow().setBackgroundDrawable(requireActivity().getDrawable(R.drawable.dialog_glass));
-        }
     }
 
     private Config getConfig() {
@@ -186,14 +183,14 @@ public class ConfigDialog extends BaseAlertDialog {
             com.fongmi.android.tv.api.config.LiveConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                Notify.show(getFriendlyError(msg));
+                showErrorDialog(msg);
             }
         });
         } else {
             com.fongmi.android.tv.api.config.VodConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                Notify.show(getFriendlyError(msg));
+                showErrorDialog(msg);
             }
         });
         }
@@ -225,7 +222,7 @@ public class ConfigDialog extends BaseAlertDialog {
         params.width = Math.max(width, ResUtil.dp2px(320));
         params.height = WindowManager.LayoutParams.WRAP_CONTENT;
         params.gravity = Gravity.CENTER;
-        window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        // Background is set by ThemeOverlay_XingChen_GlassDialog, do not override here
         window.getDecorView().setPadding(0, 0, 0, 0);
         window.setAttributes(params);
         window.setLayout(params.width, WindowManager.LayoutParams.WRAP_CONTENT);
@@ -241,14 +238,14 @@ public class ConfigDialog extends BaseAlertDialog {
             com.fongmi.android.tv.api.config.LiveConfig.load(saveConfig(url, name), new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                Notify.show(getFriendlyError(msg));
+                showErrorDialog(msg);
             }
         });
         } else {
             com.fongmi.android.tv.api.config.VodConfig.load(saveConfig(url, name), new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                Notify.show(getFriendlyError(msg));
+                showErrorDialog(msg);
             }
         });
         }
@@ -256,6 +253,13 @@ public class ConfigDialog extends BaseAlertDialog {
         dismiss();
     });
 
+
+    private void showErrorDialog(String msg) {
+        new MaterialAlertDialogBuilder(requireActivity(), R.style.ThemeOverlay_XingChen_GlassDialog)
+            .setMessage(getFriendlyError(msg))
+            .setPositiveButton(R.string.dialog_positive, (d, w) -> d.dismiss())
+            .show();
+    }
 
     private String getFriendlyError(String msg) {
         if (msg == null) return "配置加载失败，请检查配置是否正确";
