@@ -350,7 +350,8 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
         try {
             android.content.SharedPreferences sp = requireActivity().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
             String kernel = sp.getString("player_kernel", "ExoPlayer");
-            String decode = sp.getString("player_decode", "硬解");
+            String decodeRaw = sp.getString("player_decode", "hard");
+            String decode = "soft".equals(decodeRaw) ? "软解" : "硬解";
             String speedStr = "1.0x";
             try { speedStr = com.fongmi.android.tv.setting.PlayerSetting.getSpeed() + "x"; } catch (Exception e) { e.printStackTrace(); }
             if (mBinding.textPlayerSub != null) {
