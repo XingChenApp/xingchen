@@ -188,14 +188,14 @@ public class ConfigDialog extends BaseAlertDialog {
             com.fongmi.android.tv.api.config.LiveConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                showErrorDialog(msg);
+                Notify.show(getFriendlyError(msg));
             }
         });
         } else {
             com.fongmi.android.tv.api.config.VodConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                showErrorDialog(msg);
+                Notify.show(getFriendlyError(msg));
             }
         });
         }
@@ -227,7 +227,7 @@ public class ConfigDialog extends BaseAlertDialog {
         params.width = Math.max(width, ResUtil.dp2px(320));
         params.height = WindowManager.LayoutParams.WRAP_CONTENT;
         params.gravity = Gravity.CENTER;
-        // Background is set by ThemeOverlay_WebHTV_LightDialog, do not override here
+        window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         window.getDecorView().setPadding(0, 0, 0, 0);
         window.setAttributes(params);
         window.setLayout(params.width, WindowManager.LayoutParams.WRAP_CONTENT);
@@ -243,14 +243,14 @@ public class ConfigDialog extends BaseAlertDialog {
             com.fongmi.android.tv.api.config.LiveConfig.load(saveConfig(url, name), new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                showErrorDialog(msg);
+                Notify.show(getFriendlyError(msg));
             }
         });
         } else {
             com.fongmi.android.tv.api.config.VodConfig.load(saveConfig(url, name), new com.fongmi.android.tv.impl.Callback() {
             @Override
             public void error(String msg) {
-                showErrorDialog(msg);
+                Notify.show(getFriendlyError(msg));
             }
         });
         }
@@ -258,17 +258,6 @@ public class ConfigDialog extends BaseAlertDialog {
         dismiss();
     });
 
-
-    private void showErrorDialog(String msg) {
-        if (!isAdded() || getActivity() == null) {
-            Notify.show(getFriendlyError(msg));
-            return;
-        }
-        new MaterialAlertDialogBuilder(requireActivity(), R.style.ThemeOverlay_WebHTV_LightDialog)
-            .setMessage(getFriendlyError(msg))
-            .setPositiveButton(R.string.dialog_positive, (d, w) -> d.dismiss())
-            .show();
-    }
 
     private String getFriendlyError(String msg) {
         if (msg == null) return "配置加载失败，请检查配置是否正确";
