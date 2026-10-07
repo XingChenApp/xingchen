@@ -74,9 +74,14 @@ public class ConfigDialog extends BaseAlertDialog {
 
     @Override
     protected MaterialAlertDialogBuilder getBuilder() {
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireActivity(), R.style.ThemeOverlay_WebHTV_LightDialog).setView(getBinding().getRoot());
-        builder.setBackground(requireActivity().getDrawable(R.drawable.dialog_glass));
-        return builder;
+        return new MaterialAlertDialogBuilder(requireActivity(), R.style.ThemeOverlay_WebHTV_LightDialog).setView(getBinding().getRoot());
+    }
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (getDialog() != null && getDialog().getWindow() != null) {
+            getDialog().getWindow().setBackgroundDrawable(requireActivity().getDrawable(R.drawable.dialog_glass));
+        }
     }
 
     @Override
@@ -208,7 +213,7 @@ public class ConfigDialog extends BaseAlertDialog {
             config = Config.find(ori, type).url(url).name(name).update();
         } else {
             Config exists = AppDatabase.get().getConfigDao().find(url, type);
-            config = exists != null ? exists : Config.create(type).url(url).name(name).update();
+            config = exists != null ? exists.name(name).update() : Config.create(type).url(url).name(name).update();
         }
         return config;
     }
