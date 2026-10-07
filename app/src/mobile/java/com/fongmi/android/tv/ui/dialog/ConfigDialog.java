@@ -199,6 +199,9 @@ public class ConfigDialog extends BaseAlertDialog {
             }
         });
         }
+        if (getActivity() instanceof com.fongmi.android.tv.ui.activity.ConfigSourceActivity) {
+            ((com.fongmi.android.tv.ui.activity.ConfigSourceActivity) getActivity()).updateCards();
+        }
         dismiss();
     }
 
