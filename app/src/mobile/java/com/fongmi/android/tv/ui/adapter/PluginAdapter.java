@@ -34,7 +34,7 @@ public class PluginAdapter extends RecyclerView.Adapter<PluginAdapter.ViewHolder
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Plugin p = plugins.get(position);
         holder.tvName.setText(p.getName());
-        holder.tvVersion.setText("版本 v1.0.0 · " + (p.isEnabled() ? "已启用" : "已停用"));
+        holder.tvVersion.setText(p.isEnabled() ? "已启用" : "已停用");
         holder.cbSelect.setChecked(p.isSelected());
         holder.switchEnable.setChecked(p.isEnabled());
         
@@ -44,7 +44,7 @@ public class PluginAdapter extends RecyclerView.Adapter<PluginAdapter.ViewHolder
         
         holder.switchEnable.setOnCheckedChangeListener((btn, checked) -> {
             p.setEnabled(checked);
-            holder.tvVersion.setText("版本 v1.0.0 · " + (checked ? "已启用" : "已停用"));
+            holder.tvVersion.setText(checked ? "已启用" : "已停用");
         });
         
         holder.tvDelete.setOnClickListener(v -> {
