@@ -89,11 +89,13 @@ public class SearchSourceDialog extends BaseAlertDialog {
         List<String> result = new ArrayList<>();
         File folder = new File(requireContext().getFilesDir(), "plugins/" + dir);
         if (folder.exists() && folder.isDirectory()) {
-            File[] files = folder.listFiles((d, name) -> name.endsWith(ext));
+            File[] files = folder.listFiles((d, name) -> name.endsWith(ext) || ("js".equals(dir) && name.endsWith(".wv")));
             if (files != null) {
                 for (File f : files) {
                     String name = f.getName();
-                    result.add(name.substring(0, name.length() - ext.length()));
+                    // Strip extension (.js or .wv)
+                    int dot = name.lastIndexOf('.');
+                    result.add(dot > 0 ? name.substring(0, dot) : name);
                 }
             }
         }
