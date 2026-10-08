@@ -37,6 +37,14 @@ public class PlayerSettingsActivity extends BaseActivity {
         binding.speed125.setOnClickListener(v -> { setSpeed(1.25f); updateSpeedUI(); });
         binding.speed150.setOnClickListener(v -> { setSpeed(1.5f); updateSpeedUI(); });
         binding.speed200.setOnClickListener(v -> { setSpeed(2.0f); updateSpeedUI(); });
+        updateLongPressUI();
+        binding.lpOff.setOnClickListener(v -> { setLongPress(0f); updateLongPressUI(); });
+        binding.lp3x.setOnClickListener(v -> { setLongPress(3f); updateLongPressUI(); });
+        binding.lp5x.setOnClickListener(v -> { setLongPress(5f); updateLongPressUI(); });
+        updateBgPipUI();
+        binding.bpOff.setOnClickListener(v -> { setBgPip("off"); updateBgPipUI(); });
+        binding.bpBg.setOnClickListener(v -> { setBgPip("bg"); updateBgPipUI(); });
+        binding.bpPip.setOnClickListener(v -> { setBgPip("pip"); updateBgPipUI(); });
         binding.cardDanmu.setOnClickListener(v -> {});
         binding.cardSubtitle.setOnClickListener(v -> {});
     }
@@ -71,5 +79,24 @@ public class PlayerSettingsActivity extends BaseActivity {
     private void setDecode(String d) {
         getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_decode", d).apply();
         PlayerSetting.putVideoPrefer("hard".equals(d));
+    }
+
+    private void updateLongPressUI() {
+        float s = getSharedPreferences("xingchen", MODE_PRIVATE).getFloat("longpress_speed", 0f);
+        binding.lpOff.setBackgroundResource(s == 0f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.lp3x.setBackgroundResource(s == 3f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.lp5x.setBackgroundResource(s == 5f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+    }
+    private void setLongPress(float s) {
+        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putFloat("longpress_speed", s).apply();
+    }
+    private void updateBgPipUI() {
+        String m = getSharedPreferences("xingchen", MODE_PRIVATE).getString("bg_pip_mode", "off");
+        binding.bpOff.setBackgroundResource("off".equals(m) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.bpBg.setBackgroundResource("bg".equals(m) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.bpPip.setBackgroundResource("pip".equals(m) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+    }
+    private void setBgPip(String m) {
+        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("bg_pip_mode", m).apply();
     }
 }
