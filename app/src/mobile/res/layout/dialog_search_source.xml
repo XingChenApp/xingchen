@@ -54,20 +54,26 @@
                 android:orientation="horizontal">
 
                 <androidx.appcompat.widget.AppCompatTextView
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:minWidth="48dp"
                     android:text="点播源"
                     android:textColor="#5F6368"
-                    android:textSize="12sp"
+                    android:textSize="13sp"
                     android:textStyle="bold" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
 
                 <androidx.appcompat.widget.AppCompatCheckBox
                     android:id="@+id/vodSelectAll"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="全选"
-                    android:textSize="11sp" />
+                    android:textSize="11sp"
+                    android:textColor="#5F6368" />
 
             </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -96,20 +102,26 @@
                 android:orientation="horizontal">
 
                 <androidx.appcompat.widget.AppCompatTextView
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:minWidth="48dp"
                     android:text="PY"
                     android:textColor="#5F6368"
-                    android:textSize="12sp"
+                    android:textSize="13sp"
                     android:textStyle="bold" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
 
                 <androidx.appcompat.widget.AppCompatCheckBox
                     android:id="@+id/pySelectAll"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="全选"
-                    android:textSize="11sp" />
+                    android:textSize="11sp"
+                    android:textColor="#5F6368" />
 
             </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -138,20 +150,26 @@
                 android:orientation="horizontal">
 
                 <androidx.appcompat.widget.AppCompatTextView
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:minWidth="48dp"
                     android:text="JS"
                     android:textColor="#5F6368"
-                    android:textSize="12sp"
+                    android:textSize="13sp"
                     android:textStyle="bold" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
 
                 <androidx.appcompat.widget.AppCompatCheckBox
                     android:id="@+id/jsSelectAll"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="全选"
-                    android:textSize="11sp" />
+                    android:textSize="11sp"
+                    android:textColor="#5F6368" />
 
             </androidx.appcompat.widget.LinearLayoutCompat>
 
