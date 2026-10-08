@@ -4,6 +4,9 @@ import requests
 import json
 import textwrap
 
+for _k in ('http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY'):
+    os.environ.pop(_k, None)
+
 
 _file_hashes = {}
 
