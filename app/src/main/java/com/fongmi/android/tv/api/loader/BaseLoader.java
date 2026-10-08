@@ -36,7 +36,7 @@ public class BaseLoader {
     }
 
     private static boolean isJs(String api) {
-        return api.contains(".js");
+        return api.contains(".js") || api.contains(".wv");
     }
 
     private static boolean isPy(String api) {
