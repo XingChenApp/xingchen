@@ -36,7 +36,17 @@ public class Loader {
     }
 
     private String source(String api, String name) {
-        if (!api.startsWith("http")) return api;
+        if (!api.startsWith("http")) {
+            try {
+                java.io.File f = new java.io.File(api);
+                if (f.exists() && f.isFile()) {
+                    return new String(java.nio.file.Files.readAllBytes(f.toPath()), java.nio.charset.StandardCharsets.UTF_8);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return api;
+        }
         File cache = Path.py(name);
         try (Response response = OkHttp.newCall(OkHttp.client(15000), api).execute()) {
             if (!response.isSuccessful()) throw new IllegalStateException("HTTP " + response.code());
