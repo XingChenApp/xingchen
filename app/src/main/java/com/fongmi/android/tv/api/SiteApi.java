@@ -8,6 +8,7 @@ import androidx.collection.ArrayMap;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.VodConfig;
+import com.fongmi.android.tv.api.loader.BaseLoader;
 import com.fongmi.android.tv.bean.Class;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Site;
@@ -72,6 +73,18 @@ public class SiteApi {
             String line = timestamp + " key=" + key + " site=" + siteName + " flag=" + flag + " id=" + id + " parse=" + parse + " url=" + url + " header=" + header + "\n";
             FileWriter writer = new FileWriter(logFile, true);
             writer.write(line);
+            writer.close();
+        } catch (Exception ignored) {}
+    }
+
+    private static void logPyLine(String line) {
+        try {
+            File dir = App.get().getExternalFilesDir(null);
+            if (dir == null) dir = App.get().getFilesDir();
+            File logFile = new File(dir, "py_play.log");
+            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
+            FileWriter writer = new FileWriter(logFile, true);
+            writer.write(timestamp + " " + line + "\n");
             writer.close();
         } catch (Exception ignored) {}
     }
@@ -154,6 +167,11 @@ public class SiteApi {
             String detailContent = site.recent().spider().detailContent(Arrays.asList(id));
             SpiderDebug.log("detail", detailContent);
             Result result = Result.fromJson(detailContent);
+            Vod vod = result.getVod();
+            if (vod == null || vod.getPlayFrom().isEmpty() || vod.getPlayUrl().isEmpty()) {
+                BaseLoader.get().removePySpider(key);
+                logPyLine("DETAIL_CACHE_SKIP vid=" + id + " reason=empty_play_url");
+            }
             Source.get().parse(result.getVod().setFlags());
             return result;
         } else {
