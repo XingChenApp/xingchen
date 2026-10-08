@@ -68,7 +68,8 @@ public class PyLoader {
 
     private static void logDiag(String msg) {
         try {
-            java.io.File dir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS);
+            java.io.File dir = App.get().getExternalFilesDir(null);
+            if (dir == null) dir = App.get().getFilesDir();
             java.io.File logFile = new java.io.File(dir, "py_diag.log");
             java.io.FileWriter fw = new java.io.FileWriter(logFile, true);
             fw.write(System.currentTimeMillis() + " " + msg + "\n");
