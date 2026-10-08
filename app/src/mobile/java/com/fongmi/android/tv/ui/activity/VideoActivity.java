@@ -6638,4 +6638,9 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private void dismissKaraokeResultDialogForRecreation() {
         if (!isChangingConfigurations() || mKaraokeResultDialog == null) return;
         mSuppressKaraokeResultAction = true;
-        mKaraokeResultDialog.d
+        mKaraokeResultDialog.dismiss();
+        mSuppressKaraokeResultAction = false;
+        mKaraokeResultDialog = null;
+        SpiderDebug.log("karaoke-result", "dismiss old window for configuration change");
+    }
+}
