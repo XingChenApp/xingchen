@@ -119,7 +119,7 @@ public class SourceScriptsDialog extends Dialog {
     private List<File> listScripts(File dir, String ext) {
         List<File> result = new ArrayList<>();
         if (dir.exists() && dir.isDirectory()) {
-            File[] files = dir.listFiles((d, name) -> name.endsWith(ext));
+            File[] files = dir.listFiles((d, name) -> name.endsWith(ext) || (".js".equals(ext) && name.endsWith(".wv")));
             if (files != null) {
                 for (File f : files) result.add(f);
             }
