@@ -342,9 +342,21 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     }
 
     private void onScriptSelected(java.io.File file, boolean isPy) {
-        // TODO(next): True PY/JS spider loading via FongMi Spider kernel
-        String type = isPy ? "PY" : "JS";
-        android.widget.Toast.makeText(requireActivity(), "正在加载" + type + ": " + file.getName(), android.widget.Toast.LENGTH_SHORT).show();
+        try {
+            String name = file.getName();
+            String baseName = name.contains(".") ? name.substring(0, name.lastIndexOf('.')) : name;
+            String prefix = isPy ? "py_" : "js_";
+            com.fongmi.android.tv.bean.Site site = new com.fongmi.android.tv.bean.Site();
+            site.setKey(prefix + baseName);
+            site.setName(baseName);
+            site.setApi(file.getAbsolutePath());
+            site.setExt("{}");
+            site.setJar("");
+            com.fongmi.android.tv.api.config.VodConfig.get().setHome(site);
+        } catch (Exception e) {
+            e.printStackTrace();
+            android.widget.Toast.makeText(requireActivity(), "加载失败: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void onApkSelected(Uri uri) {
