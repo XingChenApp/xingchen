@@ -35,8 +35,8 @@ public class PyLoader {
         return spiders.computeIfAbsent(key, k -> {
             try {
                 String resolvedApi = api;
-                if (api.startsWith("plugins/")) {
-                    resolvedApi = new java.io.File(App.get().getFilesDir(), api).getAbsolutePath();
+                if (api.startsWith("plugins/") && App.get() != null && App.get().getFilesDir() != null) {
+                    java.io.File _f = new java.io.File(App.get().getFilesDir(), api); if (_f.exists()) resolvedApi = _f.getAbsolutePath();
                 }
                 Spider spider = loader.spider(resolvedApi);
                 spider.siteKey = key;
