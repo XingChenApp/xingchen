@@ -4,8 +4,11 @@ import android.app.Dialog;
 import android.content.Context;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.text.Editable;
+import android.text.TextWatcher;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -100,16 +103,46 @@ public class SourceScriptsDialog extends Dialog {
             }
 
             rvPy.setLayoutManager(new LinearLayoutManager(getContext()));
-            rvPy.setAdapter(new ScriptAdapter(pyFiles, f -> {
+            rvJs.setLayoutManager(new LinearLayoutManager(getContext()));
+
+            ScriptAdapter pyAdapter = new ScriptAdapter(new ArrayList<>(pyFiles), f -> {
                 if (listener != null) listener.onScriptSelect(f, true);
                 dismiss();
-            }));
-
-            rvJs.setLayoutManager(new LinearLayoutManager(getContext()));
-            rvJs.setAdapter(new ScriptAdapter(jsFiles, f -> {
+            });
+            ScriptAdapter jsAdapter = new ScriptAdapter(new ArrayList<>(jsFiles), f -> {
                 if (listener != null) listener.onScriptSelect(f, false);
                 dismiss();
-            }));
+            });
+            rvPy.setAdapter(pyAdapter);
+            rvJs.setAdapter(jsAdapter);
+
+            EditText etSearch = findViewById(R.id.et_search);
+            if (etSearch != null) {
+                etSearch.addTextChangedListener(new TextWatcher() {
+                    @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                    @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+                    @Override public void afterTextChanged(Editable s) {
+                        String keyword = s.toString().trim().toLowerCase();
+                        List<File> filteredPy = new ArrayList<>();
+                        List<File> filteredJs = new ArrayList<>();
+                        for (File f : pyFiles) {
+                            if (f.getName().toLowerCase().contains(keyword)) filteredPy.add(f);
+                        }
+                        for (File f : jsFiles) {
+                            if (f.getName().toLowerCase().contains(keyword)) filteredJs.add(f);
+                        }
+                        pyAdapter.updateData(filteredPy);
+                        jsAdapter.updateData(filteredJs);
+                        boolean hasPy = !filteredPy.isEmpty();
+                        boolean hasJs = !filteredJs.isEmpty();
+                        colPy.setVisibility(hasPy ? View.VISIBLE : View.GONE);
+                        colJs.setVisibility(hasJs ? View.VISIBLE : View.GONE);
+                        layoutColumns.setVisibility((hasPy || hasJs) ? View.VISIBLE : View.GONE);
+                        tvEmpty.setVisibility((hasPy || hasJs) ? View.GONE : View.VISIBLE);
+                        if ((hasPy || hasJs)) tvEmpty.setText("无匹配脚本");
+                    }
+                });
+            }
         }
 
         // Note: Do not set click listener on content view - it interferes with RecyclerView item clicks
