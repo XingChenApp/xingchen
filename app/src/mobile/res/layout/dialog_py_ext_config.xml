@@ -25,7 +25,7 @@
         android:layout_marginTop="4dp"
         android:ellipsize="middle"
         android:singleLine="true"
-        android:textColor="#8A8F98"
+        android:textColor="#666666"
         android:textSize="13sp" />
 
     <com.google.android.material.textview.MaterialTextView
@@ -65,7 +65,7 @@
             android:maxLines="1"
             android:singleLine="true"
             android:textColor="#202124"
-            android:textColorHint="#8A8F98"
+            android:textColorHint="#999999"
             android:textSize="16sp" />
 
         <com.google.android.material.textview.MaterialTextView
@@ -87,7 +87,7 @@
             android:maxLines="1"
             android:singleLine="true"
             android:textColor="#202124"
-            android:textColorHint="#8A8F98"
+            android:textColorHint="#999999"
             android:textSize="16sp" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
@@ -120,7 +120,7 @@
             android:inputType="textMultiLine"
             android:minLines="4"
             android:textColor="#202124"
-            android:textColorHint="#8A8F98"
+            android:textColorHint="#999999"
             android:textSize="13sp" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
