@@ -4,8 +4,8 @@
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
     android:orientation="vertical"
-    android:paddingLeft="40dp"
-    android:paddingRight="40dp"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
     android:paddingTop="48dp"
     android:paddingBottom="16dp">
 
@@ -124,8 +124,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="@drawable/xc_setcard_v2"
-                android:paddingLeft="40dp"
-                android:paddingRight="40dp"
+                android:paddingLeft="16dp"
+                android:paddingRight="16dp"
                 android:paddingTop="8dp"
                 android:paddingBottom="8dp"
                 android:text="删除选中"
