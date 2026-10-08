@@ -5,7 +5,8 @@
     android:background="@drawable/dialog_glass"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:padding="12dp"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="8dp"
     android:layout_marginBottom="8dp">
 
     <CheckBox
