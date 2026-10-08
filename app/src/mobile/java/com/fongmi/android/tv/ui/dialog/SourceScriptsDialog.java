@@ -1,16 +1,22 @@
 package com.fongmi.android.tv.ui.dialog;
 
+import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.ui.adapter.ScriptAdapter;
+import com.fongmi.android.tv.utils.PyExtConfig;
+import org.json.JSONObject;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,11 +44,9 @@ public class SourceScriptsDialog extends Dialog {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.dialog_source_scripts);
-        // Keep status bar transparent
         if (getWindow() != null) {
             getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
         }
-        // Position like design: upper-middle, below top bar
         try {
             if (getWindow() != null) {
                 getWindow().setGravity(android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL);
@@ -50,7 +54,6 @@ public class SourceScriptsDialog extends Dialog {
                 lp.width = android.view.WindowManager.LayoutParams.MATCH_PARENT;
                 lp.height = android.view.WindowManager.LayoutParams.MATCH_PARENT;
                 getWindow().setAttributes(lp);
-                // Position: higher top, left margin larger than right (per design)
                 android.view.View content = findViewById(android.R.id.content);
                 if (content != null) {
                     float d = getContext().getResources().getDisplayMetrics().density;
@@ -83,11 +86,9 @@ public class SourceScriptsDialog extends Dialog {
             tvEmpty.setVisibility(View.GONE);
 
             if (hasPy && hasJs) {
-                // Both: show two columns
                 colPy.setVisibility(View.VISIBLE);
                 colJs.setVisibility(View.VISIBLE);
             } else if (hasPy) {
-                // Only PY: single column, buttons expand
                 colPy.setVisibility(View.VISIBLE);
                 colJs.setVisibility(View.GONE);
                 LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) colPy.getLayoutParams();
@@ -95,7 +96,6 @@ public class SourceScriptsDialog extends Dialog {
                 lp.setMarginEnd(0);
                 colPy.setLayoutParams(lp);
             } else {
-                // Only JS: single column
                 colPy.setVisibility(View.GONE);
                 colJs.setVisibility(View.VISIBLE);
                 LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) colJs.getLayoutParams();
@@ -105,23 +105,113 @@ public class SourceScriptsDialog extends Dialog {
             }
 
             rvPy.setLayoutManager(new LinearLayoutManager(getContext()));
-            rvPy.setAdapter(new ScriptAdapter(pyFiles, f -> {
+            ScriptAdapter pyAdapter = new ScriptAdapter(pyFiles, f -> {
                 if (listener != null) listener.onScriptSelect(f, true);
                 dismiss();
-            }));
+            });
+            pyAdapter.setOnItemLongClickListener(f -> showExtConfigDialog(f, true));
+            rvPy.setAdapter(pyAdapter);
 
             rvJs.setLayoutManager(new LinearLayoutManager(getContext()));
-            rvJs.setAdapter(new ScriptAdapter(jsFiles, f -> {
+            ScriptAdapter jsAdapter = new ScriptAdapter(jsFiles, f -> {
                 if (listener != null) listener.onScriptSelect(f, false);
                 dismiss();
-            }));
+            });
+            jsAdapter.setOnItemLongClickListener(f -> showExtConfigDialog(f, false));
+            rvJs.setAdapter(jsAdapter);
 
             scrollToCurrent(rvPy, pyFiles);
             scrollToCurrent(rvJs, jsFiles);
         }
 
-        // Dismiss on outside touch
         findViewById(android.R.id.content).setOnClickListener(v -> dismiss());
+    }
+
+    private void showExtConfigDialog(File file, boolean isPy) {
+        try {
+            Context ctx = getContext();
+            String name = file.getName();
+            String baseName = name.contains(".") ? name.substring(0, name.lastIndexOf('.')) : name;
+            String key = (isPy ? "py_" : "js_") + baseName;
+
+            String saved = PyExtConfig.load(ctx, key);
+            String account = "";
+            String password = "";
+            try {
+                if (saved != null && !saved.isEmpty()) {
+                    JSONObject jo = new JSONObject(saved);
+                    account = jo.optString("username", "");
+                    password = jo.optString("password", "");
+                }
+            } catch (Exception e) { e.printStackTrace(); }
+
+            float d = ctx.getResources().getDisplayMetrics().density;
+            int pad = (int)(20 * d);
+
+            LinearLayout layout = new LinearLayout(ctx);
+            layout.setOrientation(LinearLayout.VERTICAL);
+            layout.setPadding(pad, (int)(8*d), pad, (int)(8*d));
+
+            TextView tvSub = new TextView(ctx);
+            tvSub.setText(name);
+            tvSub.setTextSize(14);
+            tvSub.setTextColor(0xFF888888);
+            LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            subLp.bottomMargin = (int)(12*d);
+            layout.addView(tvSub, subLp);
+
+            TextView tvAccLabel = new TextView(ctx);
+            tvAccLabel.setText("账号");
+            tvAccLabel.setTextSize(14);
+            tvAccLabel.setTextColor(0xFF333333);
+            layout.addView(tvAccLabel);
+
+            EditText etAccount = new EditText(ctx);
+            etAccount.setHint("请输入账号");
+            etAccount.setText(account);
+            etAccount.setTextSize(16);
+            etAccount.setSingleLine(true);
+            LinearLayout.LayoutParams accLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            accLp.bottomMargin = (int)(12*d);
+            layout.addView(etAccount, accLp);
+
+            TextView tvPwdLabel = new TextView(ctx);
+            tvPwdLabel.setText("密码");
+            tvPwdLabel.setTextSize(14);
+            tvPwdLabel.setTextColor(0xFF333333);
+            layout.addView(tvPwdLabel);
+
+            EditText etPassword = new EditText(ctx);
+            etPassword.setHint("请输入密码");
+            etPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+            etPassword.setText(password);
+            etPassword.setTextSize(16);
+            etPassword.setSingleLine(true);
+            layout.addView(etPassword);
+
+            new AlertDialog.Builder(ctx)
+                    .setTitle("配置 PY 源")
+                    .setView(layout)
+                    .setPositiveButton("保存", (di, w) -> {
+                        String a = etAccount.getText().toString().trim();
+                        String p = etPassword.getText().toString().trim();
+                        String json = "";
+                        if (!a.isEmpty() || !p.isEmpty()) {
+                            try {
+                                JSONObject jo = new JSONObject();
+                                jo.put("username", a);
+                                jo.put("password", p);
+                                json = jo.toString();
+                            } catch (Exception e) { e.printStackTrace(); }
+                        }
+                        PyExtConfig.save(ctx, key, json);
+                        Toast.makeText(ctx, "已保存", Toast.LENGTH_SHORT).show();
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     private void scrollToCurrent(RecyclerView rv, List<File> files) {
