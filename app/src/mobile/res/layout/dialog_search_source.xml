@@ -27,7 +27,7 @@
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_close"
+            android:src="@drawable/ic_action_close"
             app:tint="#5F6368" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
