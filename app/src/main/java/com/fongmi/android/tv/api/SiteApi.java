@@ -161,6 +161,13 @@ public class SiteApi {
             result.setUrl(Source.get().fetch(result, playerType));
             result.setHeader(site.getHeader());
             result.setKey(key);
+            try {
+                String _dbgUrl = result.getUrl();
+                if (_dbgUrl != null && _dbgUrl.length() > 180) _dbgUrl = _dbgUrl.substring(0, 180) + "...";
+                final String _msg = "PY播放地址: " + _dbgUrl;
+                android.os.Handler _h = new android.os.Handler(android.os.Looper.getMainLooper());
+                _h.post(() -> android.widget.Toast.makeText(App.get(), _msg, android.widget.Toast.LENGTH_LONG).show());
+            } catch (Exception ignored) {}
             return result;
         } else if (site.getType() == 4) {
             ArrayMap<String, String> params = new ArrayMap<>();
