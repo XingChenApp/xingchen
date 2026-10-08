@@ -42,6 +42,9 @@ public class PyLoader {
             return spider;
         } catch (Throwable e) {
             e.printStackTrace();
+            String msg = "PY加载失败: " + e.getMessage();
+            android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
+            h.post(() -> android.widget.Toast.makeText(App.get(), msg, android.widget.Toast.LENGTH_LONG).show());
             return new SpiderNull();
         }
     }
