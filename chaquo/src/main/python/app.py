@@ -16,12 +16,10 @@ def download(path, api):
     if api.startswith('http'):
         writeFile(path, redirect(api).content)
     else:
-        # Local file path - read actual file content
         try:
             with open(api, 'r', encoding='utf-8') as f:
                 writeFile(path, f.read().encode('utf-8'))
         except Exception:
-            # Fallback: api might already be source code
             writeFile(path, str.encode(api))
 
 
