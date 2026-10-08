@@ -87,6 +87,31 @@ public class SiteApi {
         if (key != null) homeCache.remove(key);
     }
 
+    private static final long DETAIL_CACHE_TTL = 5 * 60 * 1000;
+    private static final ConcurrentHashMap<String, DetailCacheEntry> detailCache = new ConcurrentHashMap<>();
+
+    private static class DetailCacheEntry {
+        final long time;
+        final String detail;
+
+        DetailCacheEntry(long time, String detail) {
+            this.time = time;
+            this.detail = detail;
+        }
+
+        boolean fresh() {
+            return System.currentTimeMillis() - time < DETAIL_CACHE_TTL;
+        }
+    }
+
+    public static void clearDetailCache() {
+        detailCache.clear();
+    }
+
+    public static void clearDetailCache(String key) {
+        if (key != null) detailCache.remove(key);
+    }
+
     @NonNull
     public static Result homeContent(@NonNull Site site) throws Exception {
         return homeContent(site, false);
@@ -176,6 +201,11 @@ public class SiteApi {
 
     @NonNull
     public static Result detailContent(@NonNull String key, @NonNull String id) throws Exception {
+        return detailContent(key, id, false);
+    }
+
+    @NonNull
+    public static Result detailContent(@NonNull String key, @NonNull String id, boolean forceRefresh) throws Exception {
         SpiderDebug.log("detail", "key=%s,id=%s", key, id);
         if (WebHomeInlineVodStore.KEY.equals(key)) return WebHomeInlineVodStore.detail(id);
         Site site = VodConfig.get().getSite(key);
@@ -189,21 +219,42 @@ public class SiteApi {
             Source.get().parse(vod.setFlags());
             return Result.vod(vod);
         } else if (isSpider(site)) {
+            String cacheKey = key + "_" + id;
+            if (!forceRefresh) {
+                DetailCacheEntry cached = detailCache.get(cacheKey);
+                if (cached != null && cached.fresh()) {
+                    Result result = Result.fromJson(cached.detail);
+                    Source.get().parse(result.getVod().setFlags());
+                    return result;
+                }
+            }
             String detailContent = site.recent().spider().detailContent(Arrays.asList(id));
             SpiderDebug.log("detail", detailContent);
             Result result = Result.fromJson(detailContent);
             Vod vod = result.getVod();
             if (vod == null || vod.getPlayFrom().isEmpty() || vod.getPlayUrl().isEmpty()) {
                 BaseLoader.get().removePySpider(key);
+            } else {
+                detailCache.put(cacheKey, new DetailCacheEntry(System.currentTimeMillis(), detailContent));
             }
             Source.get().parse(result.getVod().setFlags());
             return result;
         } else {
+            String cacheKey = key + "_" + id;
+            if (!forceRefresh) {
+                DetailCacheEntry cached = detailCache.get(cacheKey);
+                if (cached != null && cached.fresh()) {
+                    Result result = Result.fromType(site.getType(), cached.detail);
+                    Source.get().parse(result.getVod().setFlags());
+                    return result;
+                }
+            }
             ArrayMap<String, String> params = new ArrayMap<>();
             params.put("ac", ac(site.getType()));
             params.put("ids", id);
             String detailContent = call(site, params);
             SpiderDebug.log("detail", detailContent);
+            detailCache.put(cacheKey, new DetailCacheEntry(System.currentTimeMillis(), detailContent));
             Result result = Result.fromType(site.getType(), detailContent);
             Source.get().parse(result.getVod().setFlags());
             return result;
