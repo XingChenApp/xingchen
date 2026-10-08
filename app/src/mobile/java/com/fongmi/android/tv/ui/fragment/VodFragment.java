@@ -604,6 +604,17 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     }
 
     @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        if (!hidden) {
+            try {
+                FolderFragment f = getFragment();
+                if (f != null) f.checkCoverChanged();
+            } catch (Exception e) { e.printStackTrace(); }
+        }
+    }
+
+    @Override
     public void onPause() {
         if (mWeb != null) mWeb.onPause();
         super.onPause();
