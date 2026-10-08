@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+import textwrap
 
 
 def _resolve_pic(spider_obj, pic):
@@ -38,21 +39,22 @@ def _fix_pics(spider_obj, result):
     return result
 
 
-def spider(cache, api, file_name=None):
-    name = file_name or os.path.basename(api)
+def spider(cache, source, file_name=None):
+    name = file_name or "spider.py"
+    if not name.endswith('.py'):
+        name = name + '.py'
     path = cache + '/' + name
-    download(path, api)
-    name = name.split('.')[0]
+    writeFile(path, textwrap.dedent(source).encode('utf-8'))
+    mod_name = name.split('.')[0]
     from importlib.machinery import SourceFileLoader
-    return SourceFileLoader(name, path).load_module().Spider()
+    return SourceFileLoader(mod_name, path).load_module().Spider()
 
 
 def download(path, api):
     if api.startswith('http'):
         writeFile(path, redirect(api).content)
     else:
-        with open(api, 'r', encoding='utf-8') as f:
-            writeFile(path, f.read().encode('utf-8'))
+        writeFile(path, textwrap.dedent(api).encode('utf-8'))
 
 
 def writeFile(path, content):
