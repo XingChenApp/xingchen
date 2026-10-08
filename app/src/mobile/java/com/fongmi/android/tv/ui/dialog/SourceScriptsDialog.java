@@ -36,10 +36,7 @@ public class SourceScriptsDialog extends Dialog {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.dialog_source_scripts);
-        View background = findViewById(R.id.root_background);
-        if (background != null) {
-            background.setOnClickListener(v -> dismiss());
-        }
+
     }
 
     private List<File> listScripts(File dir, String ext) {
