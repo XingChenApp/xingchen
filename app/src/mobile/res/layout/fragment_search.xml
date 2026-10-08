@@ -22,7 +22,7 @@
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/back"
-            android:src="@drawable/ic_back"
+            android:src="@drawable/ic_control_back"
             app:tint="#5F6368" />
 
         <androidx.appcompat.widget.LinearLayoutCompat
@@ -38,7 +38,7 @@
             <androidx.appcompat.widget.AppCompatImageView
                 android:layout_width="18dp"
                 android:layout_height="18dp"
-                android:src="@drawable/ic_search"
+                android:src="@drawable/ic_action_search"
                 app:tint="#5F6368" />
 
             <androidx.appcompat.widget.AppCompatEditText
@@ -65,7 +65,7 @@
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="选择搜索源"
-            android:src="@drawable/ic_settings"
+            android:src="@drawable/ic_control_setting"
             app:tint="#5F6368" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
@@ -118,7 +118,7 @@
             android:layout_height="32dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="清空历史"
-            android:src="@drawable/ic_delete"
+            android:src="@drawable/ic_action_delete"
             app:tint="#9AA0A6" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
