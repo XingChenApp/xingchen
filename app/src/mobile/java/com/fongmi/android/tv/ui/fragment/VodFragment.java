@@ -351,7 +351,7 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
             site.setKey(prefix + baseName);
             site.setName(baseName);
             site.setApi(file.getAbsolutePath());
-            site.setType(4);
+            site.setType(3);
             site.setExt("{}");
             site.setJar("");
             com.fongmi.android.tv.api.config.VodConfig.get().setHome(site);
