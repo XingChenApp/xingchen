@@ -44,6 +44,14 @@ public class VodAdapter extends BaseDiffAdapter<Vod, BaseVodHolder> {
     }
 
     @Override
+    public int getItemViewType(int position) {
+        String type = getItem(position).getStyle(style).getType();
+        if ("list".equals(type)) return ViewType.LIST;
+        if ("oval".equals(type)) return ViewType.OVAL;
+        return ViewType.RECT;
+    }
+
+    @Override
     public void onBindViewHolder(@NonNull BaseVodHolder holder, int position) {
         holder.initView(getItem(position));
     }
