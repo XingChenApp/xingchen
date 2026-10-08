@@ -3,6 +3,8 @@ package com.fongmi.android.tv.ui.dialog;
 import android.app.Dialog;
 import android.content.Context;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -22,6 +24,10 @@ import java.util.List;
 public class SourceScriptsDialog extends Dialog {
     private final OnScriptSelectListener listener;
     private File currentFile;
+    private List<File> allPyFiles = new ArrayList<>();
+    private List<File> allJsFiles = new ArrayList<>();
+    private ScriptAdapter pyAdapter;
+    private ScriptAdapter jsAdapter;
 
     public interface OnScriptSelectListener {
         void onScriptSelect(File file, boolean isPy);
@@ -51,6 +57,7 @@ public class SourceScriptsDialog extends Dialog {
                 android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
                 lp.width = android.view.WindowManager.LayoutParams.MATCH_PARENT;
                 lp.height = android.view.WindowManager.LayoutParams.MATCH_PARENT;
+                lp.softInputMode = android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN;
                 getWindow().setAttributes(lp);
                 android.view.View content = findViewById(android.R.id.content);
                 if (content != null) {
@@ -70,11 +77,11 @@ public class SourceScriptsDialog extends Dialog {
         File pyDir = new File(getContext().getFilesDir(), "plugins/py");
         File jsDir = new File(getContext().getFilesDir(), "plugins/js");
 
-        List<File> pyFiles = listScripts(pyDir, ".py");
-        List<File> jsFiles = listScripts(jsDir, ".js");
+        allPyFiles = listScripts(pyDir, ".py");
+        allJsFiles = listScripts(jsDir, ".js");
 
-        boolean hasPy = !pyFiles.isEmpty();
-        boolean hasJs = !jsFiles.isEmpty();
+        boolean hasPy = !allPyFiles.isEmpty();
+        boolean hasJs = !allJsFiles.isEmpty();
 
         if (!hasPy && !hasJs) {
             layoutColumns.setVisibility(View.GONE);
@@ -103,7 +110,7 @@ public class SourceScriptsDialog extends Dialog {
             }
 
             rvPy.setLayoutManager(new LinearLayoutManager(getContext()));
-            ScriptAdapter pyAdapter = new ScriptAdapter(pyFiles, f -> {
+            pyAdapter = new ScriptAdapter(allPyFiles, f -> {
                 if (listener != null) listener.onScriptSelect(f, true);
                 dismiss();
             });
@@ -111,18 +118,45 @@ public class SourceScriptsDialog extends Dialog {
             rvPy.setAdapter(pyAdapter);
 
             rvJs.setLayoutManager(new LinearLayoutManager(getContext()));
-            ScriptAdapter jsAdapter = new ScriptAdapter(jsFiles, f -> {
+            jsAdapter = new ScriptAdapter(allJsFiles, f -> {
                 if (listener != null) listener.onScriptSelect(f, false);
                 dismiss();
             });
             jsAdapter.setOnItemLongClickListener(f -> showExtConfigDialog(f, false));
             rvJs.setAdapter(jsAdapter);
 
-            scrollToCurrent(rvPy, pyFiles);
-            scrollToCurrent(rvJs, jsFiles);
+            scrollToCurrent(rvPy, allPyFiles);
+            scrollToCurrent(rvJs, allJsFiles);
         }
 
+        EditText etSearch = findViewById(R.id.et_search);
+        etSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                applyFilter(s.toString());
+            }
+        });
+
         findViewById(android.R.id.content).setOnClickListener(v -> dismiss());
+    }
+
+    private void applyFilter(String keyword) {
+        String kw = keyword == null ? "" : keyword.trim().toLowerCase();
+        if (pyAdapter != null) pyAdapter.updateData(filterFiles(allPyFiles, kw));
+        if (jsAdapter != null) jsAdapter.updateData(filterFiles(allJsFiles, kw));
+    }
+
+    private List<File> filterFiles(List<File> files, String kw) {
+        if (kw.isEmpty()) return new ArrayList<>(files);
+        List<File> result = new ArrayList<>();
+        for (File f : files) {
+            if (f.getName().toLowerCase().contains(kw)) result.add(f);
+        }
+        return result;
     }
 
     private void showExtConfigDialog(File file, boolean isPy) {
