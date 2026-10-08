@@ -4,8 +4,8 @@
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
     android:orientation="vertical"
-    android:paddingLeft="24dp"
-    android:paddingRight="24dp"
+    android:paddingLeft="32dp"
+    android:paddingRight="32dp"
     android:paddingTop="48dp"
     android:paddingBottom="16dp">
 
