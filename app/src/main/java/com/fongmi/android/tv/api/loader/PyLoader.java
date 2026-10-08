@@ -27,6 +27,16 @@ public class PyLoader {
         recent = null;
     }
 
+    public void remove(String key) {
+        Spider spider = spiders.remove(key);
+        if (spider != null) {
+            try {
+                spider.destroy();
+            } catch (Throwable ignored) {}
+        }
+        if (key.equals(recent)) recent = null;
+    }
+
     public void setRecent(String recent) {
         this.recent = recent;
     }
