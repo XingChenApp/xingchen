@@ -173,6 +173,18 @@ public class SiteApi {
 
     @NonNull
     public static Result detailContent(@NonNull String key, @NonNull String id, boolean forceRefresh) throws Exception {
+        // TEMP-DIAG-ENTRY-REMOVE-AFTER
+        try {
+            java.io.File logFile = new java.io.File(App.get().getExternalFilesDir(null), "py_entry_log.txt");
+            java.io.FileWriter fw = new java.io.FileWriter(logFile, true);
+            fw.write("detailContent called: key=" + key + " id=" + id + " time=" + System.currentTimeMillis() + "\n");
+            try {
+                Site site = VodConfig.get().getSite(key);
+                if (site != null) fw.write("  site type=" + site.getType() + " name=" + site.getName() + "\n");
+            } catch (Exception ignored) {}
+            fw.close();
+        } catch (Exception ignored) {}
+        // TEMP-DIAG-ENTRY-REMOVE-AFTER-END
         SpiderDebug.log("detail", "key=%s,id=%s", key, id);
         if (WebHomeInlineVodStore.KEY.equals(key)) return WebHomeInlineVodStore.detail(id);
         Site site = VodConfig.get().getSite(key);
