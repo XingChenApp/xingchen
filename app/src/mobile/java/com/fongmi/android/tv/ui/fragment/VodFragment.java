@@ -335,7 +335,7 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     private boolean onMenuItemClick(MenuItem item) {
         if (item.getItemId() == R.id.refresh) {
             if (mWeb != null && mWeb.isVisible()) mWeb.reload();
-            else homeContent();
+            else homeContent(true);
         } else if (item.getItemId() == R.id.keep) KeepActivity.start(requireActivity());
         else if (item.getItemId() == R.id.search) SearchActivity.start(requireActivity());
         else if (item.getItemId() == R.id.history) HistoryActivity.start(requireActivity());
@@ -446,6 +446,10 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     }
 
     private void homeContent() {
+        homeContent(false);
+    }
+
+    private void homeContent(boolean forceRefresh) {
         requestNormalChrome();
         showProgress();
         mBinding.homeWeb.setVisibility(View.GONE);
@@ -453,7 +457,7 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         clearPagerTypes();
         mBinding.pager.setAdapter(new PageAdapter(getChildFragmentManager()));
         setFabVisible(0);
-        mViewModel.homeContent();
+        mViewModel.homeContent(forceRefresh);
     }
 
     private void loadHome() {
