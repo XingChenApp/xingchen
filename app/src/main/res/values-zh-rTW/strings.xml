@@ -153,7 +153,6 @@
     <string name="setting_builtin_wall">內置壁紙</string>
     <string name="setting_player">播放設定</string>
     <string name="setting_danmaku">彈幕設定</string>
-    <string name="setting_enhance">增強功能</string>
     <string name="repo_github">GitHub 倉庫</string>
     <string name="repo_cnb">CNB 倉庫</string>
     <string name="setting_debug_log">調試日誌</string>
