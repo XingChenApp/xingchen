@@ -13,20 +13,7 @@
         android:textColor="#171B23"
         android:textSize="18sp"
         android:textStyle="bold"
-        android:layout_marginBottom="8dp" />
-
-    <EditText
-        android:id="@+id/et_search"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"
-        android:background="@drawable/xc_input_bg"
-        android:hint="搜索脚本"
-        android:padding="10dp"
-        android:singleLine="true"
-        android:textColor="#171B23"
-        android:textColorHint="#8A8F99"
-        android:textSize="14sp" />
+        android:layout_marginBottom="12dp" />
 
     <LinearLayout
         android:id="@+id/layout_columns"
