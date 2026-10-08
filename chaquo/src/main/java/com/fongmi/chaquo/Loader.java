@@ -45,10 +45,9 @@ public class Loader {
             String source = response.body().string();
             if (TextUtils.isEmpty(source)) throw new IllegalStateException("Empty python script");
             Path.write(cache, source.getBytes(StandardCharsets.UTF_8));
-            return source;
+            return cache.getAbsolutePath();
         } catch (Exception e) {
-            String cached = Path.read(cache);
-            if (!TextUtils.isEmpty(cached)) return cached;
+            if (cache.exists() && cache.length() > 0) return cache.getAbsolutePath();
             throw new IllegalStateException("Unable to download python script: " + api, e);
         }
     }
