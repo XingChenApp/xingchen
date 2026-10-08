@@ -1,6 +1,5 @@
 import os
 import requests
-from importlib.machinery import SourceFileLoader
 import json
 
 
@@ -9,7 +8,11 @@ def spider(cache, api, file_name=None):
     path = cache + '/' + name
     download(path, api)
     name = name.split('.')[0]
-    return SourceFileLoader(name, path).load_module().Spider()
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.Spider()
 
 
 def download(path, api):
