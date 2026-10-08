@@ -51,7 +51,7 @@ public class SiteApi {
     }
 
     private static boolean isSpider(@NonNull Site site) {
-        return site.getType() == 3;
+        return site.getType() == 3 || site.getKey().startsWith("py_");
     }
 
 
@@ -276,7 +276,7 @@ public class SiteApi {
         Source.get().stop();
         if (WebHomeInlineVodStore.KEY.equals(key)) return WebHomeInlineVodStore.player(flag, id);
         Site site = VodConfig.get().getSite(key);
-        if (site.getType() == 3) {
+        if (isSpider(site)) {
             String playerContent = site.recent().spider().playerContent(flag, id, VodConfig.get().getFlags());
             SpiderDebug.log("player", playerContent);
             Result result = Result.fromJson(playerContent);
@@ -344,7 +344,7 @@ public class SiteApi {
     @NonNull
     public static Result action(@NonNull String key, @NonNull String action) throws Exception {
         Site site = VodConfig.get().getSite(key);
-        if (site.getType() == 3) return Result.fromJson(site.recent().spider().action(action));
+        if (isSpider(site)) return Result.fromJson(site.recent().spider().action(action));
         if (site.getType() == 4) return Result.fromJson(OkHttp.string(action));
         return Result.empty();
     }
