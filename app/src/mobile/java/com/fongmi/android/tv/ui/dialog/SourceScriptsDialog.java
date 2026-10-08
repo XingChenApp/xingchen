@@ -137,13 +137,29 @@ public class SourceScriptsDialog extends Dialog {
             String saved = PyExtConfig.load(ctx, key);
             String account = "";
             String password = "";
+            boolean startAdvanced = false;
             try {
                 if (saved != null && !saved.isEmpty()) {
                     JSONObject jo = new JSONObject(saved);
-                    account = jo.optString("username", "");
-                    password = jo.optString("password", "");
+                    boolean onlyUserPass = true;
+                    java.util.Iterator<String> keys = jo.keys();
+                    while (keys.hasNext()) {
+                        String k = keys.next();
+                        if (!"username".equals(k) && !"password".equals(k)) {
+                            onlyUserPass = false;
+                            break;
+                        }
+                    }
+                    if (onlyUserPass) {
+                        account = jo.optString("username", "");
+                        password = jo.optString("password", "");
+                    } else {
+                        startAdvanced = true;
+                    }
                 }
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {
+                startAdvanced = true;
+            }
 
             float d = ctx.getResources().getDisplayMetrics().density;
             int pad = (int)(20 * d);
@@ -158,14 +174,23 @@ public class SourceScriptsDialog extends Dialog {
             tvSub.setTextColor(0xFF888888);
             LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            subLp.bottomMargin = (int)(12*d);
+            subLp.bottomMargin = (int)(4*d);
             layout.addView(tvSub, subLp);
+
+            TextView tvToggle = new TextView(ctx);
+            tvToggle.setTextSize(13);
+            tvToggle.setTextColor(0xFF007AFF);
+            tvToggle.setPadding(0, (int)(4*d), 0, (int)(10*d));
+            layout.addView(tvToggle);
+
+            LinearLayout simpleBox = new LinearLayout(ctx);
+            simpleBox.setOrientation(LinearLayout.VERTICAL);
 
             TextView tvAccLabel = new TextView(ctx);
             tvAccLabel.setText("账号");
             tvAccLabel.setTextSize(14);
             tvAccLabel.setTextColor(0xFF333333);
-            layout.addView(tvAccLabel);
+            simpleBox.addView(tvAccLabel);
 
             EditText etAccount = new EditText(ctx);
             etAccount.setHint("请输入账号");
@@ -175,13 +200,13 @@ public class SourceScriptsDialog extends Dialog {
             LinearLayout.LayoutParams accLp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             accLp.bottomMargin = (int)(12*d);
-            layout.addView(etAccount, accLp);
+            simpleBox.addView(etAccount, accLp);
 
             TextView tvPwdLabel = new TextView(ctx);
             tvPwdLabel.setText("密码");
             tvPwdLabel.setTextSize(14);
             tvPwdLabel.setTextColor(0xFF333333);
-            layout.addView(tvPwdLabel);
+            simpleBox.addView(tvPwdLabel);
 
             EditText etPassword = new EditText(ctx);
             etPassword.setHint("请输入密码");
@@ -189,15 +214,72 @@ public class SourceScriptsDialog extends Dialog {
             etPassword.setText(password);
             etPassword.setTextSize(16);
             etPassword.setSingleLine(true);
-            layout.addView(etPassword);
+            simpleBox.addView(etPassword);
 
-            new AlertDialog.Builder(ctx)
+            layout.addView(simpleBox);
+
+            LinearLayout advBox = new LinearLayout(ctx);
+            advBox.setOrientation(LinearLayout.VERTICAL);
+
+            TextView tvJsonLabel = new TextView(ctx);
+            tvJsonLabel.setText("JSON 参数");
+            tvJsonLabel.setTextSize(14);
+            tvJsonLabel.setTextColor(0xFF333333);
+            advBox.addView(tvJsonLabel);
+
+            EditText etJson = new EditText(ctx);
+            etJson.setHint("{\"cookie\": \"UID=xxx;CID=xxx;SEID=xxx;KID=xxx\"}");
+            etJson.setTextSize(13);
+            etJson.setTypeface(android.graphics.Typeface.MONOSPACE);
+            etJson.setMinLines(4);
+            etJson.setGravity(android.view.Gravity.TOP | android.view.Gravity.START);
+            etJson.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+            if (startAdvanced && saved != null) {
+                etJson.setText(saved);
+            }
+            advBox.addView(etJson);
+
+            layout.addView(advBox);
+
+            final boolean[] isAdvanced = new boolean[]{startAdvanced};
+            Runnable refreshMode = new Runnable() {
+                @Override
+                public void run() {
+                    boolean adv = isAdvanced[0];
+                    simpleBox.setVisibility(adv ? View.GONE : View.VISIBLE);
+                    advBox.setVisibility(adv ? View.VISIBLE : View.GONE);
+                    tvToggle.setText(adv ? "◂ 简单模式" : "高级 ▸");
+                }
+            };
+            refreshMode.run();
+            tvToggle.setOnClickListener(v -> {
+                isAdvanced[0] = !isAdvanced[0];
+                refreshMode.run();
+            });
+
+            AlertDialog dialog = new AlertDialog.Builder(ctx)
                     .setTitle("配置 PY 源")
                     .setView(layout)
-                    .setPositiveButton("保存", (di, w) -> {
+                    .setPositiveButton("保存", null)
+                    .setNegativeButton("取消", null)
+                    .create();
+            dialog.setOnShowListener(dlg -> {
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                    String json = "";
+                    if (isAdvanced[0]) {
+                        String raw = etJson.getText().toString().trim();
+                        if (!raw.isEmpty()) {
+                            try {
+                                new JSONObject(raw);
+                                json = raw;
+                            } catch (Exception e) {
+                                Toast.makeText(ctx, "JSON 格式不正确", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+                        }
+                    } else {
                         String a = etAccount.getText().toString().trim();
                         String p = etPassword.getText().toString().trim();
-                        String json = "";
                         if (!a.isEmpty() || !p.isEmpty()) {
                             try {
                                 JSONObject jo = new JSONObject();
@@ -206,11 +288,13 @@ public class SourceScriptsDialog extends Dialog {
                                 json = jo.toString();
                             } catch (Exception e) { e.printStackTrace(); }
                         }
-                        PyExtConfig.save(ctx, key, json);
-                        Toast.makeText(ctx, "已保存", Toast.LENGTH_SHORT).show();
-                    })
-                    .setNegativeButton("取消", null)
-                    .show();
+                    }
+                    PyExtConfig.save(ctx, key, json);
+                    Toast.makeText(ctx, "已保存", Toast.LENGTH_SHORT).show();
+                    dialog.dismiss();
+                });
+            });
+            dialog.show();
         } catch (Exception e) { e.printStackTrace(); }
     }
 
