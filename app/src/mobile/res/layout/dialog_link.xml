@@ -19,25 +19,39 @@
         android:textSize="18sp"
         android:textStyle="bold" />
 
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/input"
+    <androidx.appcompat.widget.LinearLayoutCompat
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="@string/dialog_config_url"
-        app:boxBackgroundMode="none"
-        app:endIconDrawable="@drawable/ic_action_choose"
-        app:endIconMode="custom">
+        android:background="@drawable/xc_input_bg"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="8dp">
 
-        <com.google.android.material.textfield.TextInputEditText
+        <androidx.appcompat.widget.AppCompatEditText
             android:id="@+id/text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="@null"
+            android:hint="@string/dialog_config_url"
             android:imeOptions="actionDone"
             android:importantForAutofill="no"
             android:inputType="textUri"
-            android:singleLine="true" />
+            android:singleLine="true"
+            android:textColor="#202124"
+            android:textColorHint="#9AA0A6"
+            android:textSize="15sp" />
 
-    </com.google.android.material.textfield.TextInputLayout>
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/choose"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_action_choose"
+            app:tint="#5F6368" />
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
 
     <androidx.appcompat.widget.LinearLayoutCompat
         android:layout_width="match_parent"
