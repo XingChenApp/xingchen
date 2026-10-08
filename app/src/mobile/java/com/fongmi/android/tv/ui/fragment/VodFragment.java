@@ -350,8 +350,7 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
             com.fongmi.android.tv.bean.Site site = new com.fongmi.android.tv.bean.Site();
             site.setKey(prefix + baseName);
             site.setName(baseName);
-            String pluginType = file.getParentFile().getName();
-        site.setApi("plugins/" + pluginType + "/" + file.getName());
+            site.setApi(file.getAbsolutePath());
             site.setType(4);
             site.setExt("{}");
             site.setJar("");
