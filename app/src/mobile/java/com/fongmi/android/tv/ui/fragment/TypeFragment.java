@@ -161,7 +161,11 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
     }
 
     private void getHome() {
-        mAdapter.clear(() -> mViewModel.homeContent());
+        getHome(false);
+    }
+
+    private void getHome(boolean forceRefresh) {
+        mAdapter.clear(() -> mViewModel.homeContent(forceRefresh));
     }
 
     private void getVideo() {
@@ -211,7 +215,7 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
 
     @Override
     public void onRefresh() {
-        if (isHome()) getHome();
+        if (isHome()) getHome(true);
         else getVideo();
     }
 
