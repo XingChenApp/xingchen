@@ -311,12 +311,25 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
 
     private void onMoreActions() {
         try {
-            new com.fongmi.android.tv.ui.dialog.SourceScriptsDialog(requireActivity(), (file, isPy) -> {
+            com.fongmi.android.tv.ui.dialog.SourceScriptsDialog dialog = new com.fongmi.android.tv.ui.dialog.SourceScriptsDialog(requireActivity(), (file, isPy) -> {
                 try { onScriptSelected(file, isPy); } catch (Exception e) { e.printStackTrace(); }
-            }).show();
+            });
+            dialog.setCurrentFile(getCurrentScriptFile());
+            dialog.show();
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private java.io.File getCurrentScriptFile() {
+        try {
+            com.fongmi.android.tv.bean.Site home = com.fongmi.android.tv.api.config.VodConfig.get().getHome();
+            if (home != null && home.getApi() != null && !home.getApi().startsWith("http")) {
+                java.io.File f = new java.io.File(home.getApi());
+                if (f.exists()) return f;
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        return null;
     }
 
     private boolean onMenuItemClick(MenuItem item) {
@@ -330,9 +343,11 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         else if (item.getItemId() == R.id.web_home_fullscreen) onWebHomeFullscreen();
         else if (item.getItemId() == R.id.more_actions) {
             try {
-                new com.fongmi.android.tv.ui.dialog.SourceScriptsDialog(requireActivity(), (file, isPy) -> {
+                com.fongmi.android.tv.ui.dialog.SourceScriptsDialog dialog = new com.fongmi.android.tv.ui.dialog.SourceScriptsDialog(requireActivity(), (file, isPy) -> {
                     try { onScriptSelected(file, isPy); } catch (Exception e) { e.printStackTrace(); }
-                }).show();
+                });
+                dialog.setCurrentFile(getCurrentScriptFile());
+                dialog.show();
             } catch (Exception e) {
                 e.printStackTrace();
             }
