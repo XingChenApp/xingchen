@@ -22,6 +22,7 @@ import android.text.InputType;
 import android.text.TextUtils;
 import android.text.style.ClickableSpan;
 import android.util.Log;
+import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -317,6 +318,9 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private final Runnable mCustomButtonStateListener = this::updateCustomButtonStates;
     private final Runnable mDiscMenuStateListener = this::updateDiscMenuTools;
     private PiP mPiP;
+    private GestureDetector mLongPressDetector;
+    private float mLongPressOriginSpeed = 1f;
+    private boolean mLongPressActive = false;
     private String mContextWallUrl;
     private String mContextWallLockedUrl;
     private String playHealthKey;
@@ -634,6 +638,17 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mR3 = this::setOrient;
         mR4 = this::showEmpty;
         mPiP = new PiP();
+        mLongPressDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public void onLongPress(MotionEvent e) {
+                float lpSpeed = getSharedPreferences("xingchen", MODE_PRIVATE).getFloat("longpress_speed", 0f);
+                if (lpSpeed > 0f && !mLongPressActive && player() != null) {
+                    mLongPressActive = true;
+                    mLongPressOriginSpeed = player().getSpeed();
+                    player().setSpeed(lpSpeed);
+                }
+            }
+        });
         checkDanmakuImg();
         setRecyclerView();
         mOsd = new PlayerOsdController(mBinding.osd.getRoot(), mBinding.osd.osdTopLeft, mBinding.osd.osdTopRight, mBinding.osd.osdBottomLeft, mBinding.osd.osdBottomRight, mBinding.osd.osdDiagnostics, mBinding.osd.osdMiniProgress, new PlayerOsdController.Source() {
@@ -837,9 +852,15 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.control.action.reset.setOnLongClickListener(view -> onResetToggle());
         mBinding.control.action.ending.setOnLongClickListener(view -> onEndingReset());
         mBinding.control.action.opening.setOnLongClickListener(view -> onOpeningReset());
-        mBinding.video.setOnTouchListener((view, event) ->
-                (!isVisible(mBinding.control.getRoot()) && dispatchDiscMenuTouch(event))
-                        || mKeyDown.onTouchEvent(event));
+        mBinding.video.setOnTouchListener((view, event) -> {
+            if (mLongPressDetector != null) mLongPressDetector.onTouchEvent(event);
+            if ((event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) && mLongPressActive) {
+                mLongPressActive = false;
+                if (player() != null) player().setSpeed(mLongPressOriginSpeed);
+            }
+            return (!isVisible(mBinding.control.getRoot()) && dispatchDiscMenuTouch(event))
+                    || mKeyDown.onTouchEvent(event);
+        });
         mBinding.control.action.getRoot().setOnTouchListener(this::onActionTouch);
         mBinding.swipeLayout.setOnRefreshListener(this::onSwipeRefresh);
     }
@@ -6402,11 +6423,29 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     @Override
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
+        String mode = getSharedPreferences("xingchen", MODE_PRIVATE).getString("bg_pip_mode", "off");
+        if (!"pip".equals(mode)) return;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             preparePiP("userLeaveHint");
         } else {
             requestPiP("userLeaveHint");
         }
+    }
+
+    @Override
+    public void onBackPressed() {
+        String mode = getSharedPreferences("xingchen", MODE_PRIVATE).getString("bg_pip_mode", "off");
+        if ("pip".equals(mode)) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (preparePiP("backPress")) return;
+            } else {
+                if (requestPiP("backPress")) return;
+            }
+        } else if ("bg".equals(mode)) {
+            moveTaskToBack(true);
+            return;
+        }
+        super.onBackPressed();
     }
 
     @Override
@@ -6599,9 +6638,4 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private void dismissKaraokeResultDialogForRecreation() {
         if (!isChangingConfigurations() || mKaraokeResultDialog == null) return;
         mSuppressKaraokeResultAction = true;
-        mKaraokeResultDialog.dismiss();
-        mSuppressKaraokeResultAction = false;
-        mKaraokeResultDialog = null;
-        SpiderDebug.log("karaoke-result", "dismiss old window for configuration change");
-    }
-}
+        mKaraokeResultDialog.d
