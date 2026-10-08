@@ -3,6 +3,41 @@ import requests
 import json
 
 
+def _resolve_pic(spider_obj, pic):
+    if not pic or not isinstance(pic, str):
+        return pic
+    if pic.startswith('http://') or pic.startswith('https://'):
+        return pic
+    if pic.startswith('//'):
+        return 'https:' + pic
+    if pic.startswith('/'):
+        base = ''
+        for attr in ('site', 'host', 'base_url', 'baseUrl', 'domain'):
+            try:
+                v = getattr(spider_obj, attr, '')
+                if v and isinstance(v, str) and v.startswith('http'):
+                    base = v.rstrip('/')
+                    break
+            except Exception:
+                pass
+        if base:
+            return base + pic
+    return pic
+
+
+def _fix_pics(spider_obj, result):
+    try:
+        if isinstance(result, dict):
+            items = result.get('list')
+            if isinstance(items, list):
+                for it in items:
+                    if isinstance(it, dict) and 'vod_pic' in it:
+                        it['vod_pic'] = _resolve_pic(spider_obj, it.get('vod_pic', ''))
+    except Exception:
+        pass
+    return result
+
+
 def spider(cache, api, file_name=None):
     name = file_name or os.path.basename(api)
     path = cache + '/' + name
@@ -52,31 +87,31 @@ def init(ru, extend):
 
 
 def homeContent(ru, filter):
-    result = ru.homeContent(filter)
+    result = _fix_pics(ru, ru.homeContent(filter))
     formatJo = json.dumps(result, ensure_ascii=False)
     return formatJo
 
 
 def homeVideoContent(ru):
-    result = ru.homeVideoContent()
+    result = _fix_pics(ru, ru.homeVideoContent())
     formatJo = json.dumps(result, ensure_ascii=False)
     return formatJo
 
 
 def categoryContent(ru, tid, pg, filter, extend):
-    result = ru.categoryContent(tid, pg, filter, str2json(extend))
+    result = _fix_pics(ru, ru.categoryContent(tid, pg, filter, str2json(extend)))
     formatJo = json.dumps(result, ensure_ascii=False)
     return formatJo
 
 
 def detailContent(ru, array):
-    result = ru.detailContent(str2json(array))
+    result = _fix_pics(ru, ru.detailContent(str2json(array)))
     formatJo = json.dumps(result, ensure_ascii=False)
     return formatJo
 
 
 def searchContent(ru, key, quick, pg="1"):
-    result = ru.searchContent(key, quick, pg)
+    result = _fix_pics(ru, ru.searchContent(key, quick, pg))
     formatJo = json.dumps(result, ensure_ascii=False)
     return formatJo
 
