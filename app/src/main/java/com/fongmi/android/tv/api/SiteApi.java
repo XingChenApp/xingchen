@@ -17,6 +17,7 @@ import com.fongmi.android.tv.player.Source;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Sniffer;
+import com.fongmi.android.tv.utils.Task;
 import com.fongmi.android.tv.web.WebHomeInlineVodStore;
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.crawler.SpiderDebug;
@@ -24,18 +25,15 @@ import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Prefers;
 import com.github.catvod.utils.Util;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.Locale;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
 
 import okhttp3.Call;
 import okhttp3.Response;
@@ -56,52 +54,79 @@ public class SiteApi {
         return site.getType() == 3;
     }
 
-    private static void logPyPlay(String key, String siteName, String flag, String id, Result result) {
-        try {
-            File dir = App.get().getExternalFilesDir(null);
-            if (dir == null) dir = App.get().getFilesDir();
-            File logFile = new File(dir, "py_play.log");
-            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
-            String url = "null";
-            String header = "null";
-            int parse = -1;
-            try {
-                if (result.getUrl() != null) url = result.getUrl().v();
-                if (result.getHeader() != null) header = result.getHeader().toString();
-                parse = result.getParse();
-            } catch (Exception ignored) {}
-            String line = timestamp + " key=" + key + " site=" + siteName + " flag=" + flag + " id=" + id + " parse=" + parse + " url=" + url + " header=" + header + "\n";
-            FileWriter writer = new FileWriter(logFile, true);
-            writer.write(line);
-            writer.close();
-        } catch (Exception ignored) {}
-    }
 
-    private static void logPyLine(String line) {
-        try {
-            File dir = App.get().getExternalFilesDir(null);
-            if (dir == null) dir = App.get().getFilesDir();
-            File logFile = new File(dir, "py_play.log");
-            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
-            FileWriter writer = new FileWriter(logFile, true);
-            writer.write(timestamp + " " + line + "\n");
-            writer.close();
-        } catch (Exception ignored) {}
-    }
 
     private static String ac(int type) {
         return type == 0 ? "videolist" : "detail";
     }
 
+    private static final long HOME_CACHE_TTL = 5 * 60 * 1000;
+    private static final ConcurrentHashMap<String, HomeCacheEntry> homeCache = new ConcurrentHashMap<>();
+
+    private static class HomeCacheEntry {
+        final long time;
+        final String home;
+        final String video;
+
+        HomeCacheEntry(long time, String home, String video) {
+            this.time = time;
+            this.home = home;
+            this.video = video;
+        }
+
+        boolean fresh() {
+            return System.currentTimeMillis() - time < HOME_CACHE_TTL;
+        }
+    }
+
+    public static void clearHomeCache() {
+        homeCache.clear();
+    }
+
+    public static void clearHomeCache(String key) {
+        if (key != null) homeCache.remove(key);
+    }
+
     @NonNull
     public static Result homeContent(@NonNull Site site) throws Exception {
+        return homeContent(site, false);
+    }
+
+    @NonNull
+    public static Result homeContent(@NonNull Site site, boolean forceRefresh) throws Exception {
         if (isSpider(site)) {
+            String key = site.getKey();
+            if (!forceRefresh) {
+                HomeCacheEntry cached = homeCache.get(key);
+                if (cached != null && cached.fresh()) {
+                    Result result = Result.fromJson(cached.home);
+                    List<Vod> list = Result.fromJson(cached.video).getList();
+                    if (!list.isEmpty()) result.setList(list);
+                    setTypes(site, result);
+                    return result;
+                }
+            }
             Spider spider = site.recent().spider();
             boolean crash = Prefers.getBoolean("crash");
-            String home = crash ? "" : spider.homeContent(true);
-            String video = crash ? "" : spider.homeVideoContent();
+            String home;
+            String video;
+            if (crash) {
+                home = "";
+                video = "";
+            } else {
+                Future<String> fHome = Task.executor().submit(() -> spider.homeContent(true));
+                Future<String> fVideo = Task.executor().submit(spider::homeVideoContent);
+                try {
+                    home = fHome.get();
+                    video = fVideo.get();
+                } catch (java.util.concurrent.ExecutionException e) {
+                    Throwable cause = e.getCause();
+                    if (cause instanceof Exception) throw (Exception) cause;
+                    else throw new RuntimeException(cause);
+                }
+            }
             Prefers.put("crash", false);
-            SpiderDebug.log("home", home);
+            homeCache.put(key, new HomeCacheEntry(System.currentTimeMillis(), home, video));
             SpiderDebug.log("homeVideo", video);
             Result result = Result.fromJson(home);
             List<Vod> list = Result.fromJson(video).getList();
@@ -170,7 +195,6 @@ public class SiteApi {
             Vod vod = result.getVod();
             if (vod == null || vod.getPlayFrom().isEmpty() || vod.getPlayUrl().isEmpty()) {
                 BaseLoader.get().removePySpider(key);
-                logPyLine("DETAIL_CACHE_SKIP vid=" + id + " reason=empty_play_url");
             }
             Source.get().parse(result.getVod().setFlags());
             return result;
@@ -205,7 +229,6 @@ public class SiteApi {
             result.setUrl(Source.get().fetch(result, playerType));
             result.setHeader(site.getHeader());
             result.setKey(key);
-            logPyPlay(key, site.getName(), flag, id, result);
             return result;
         } else if (site.getType() == 4) {
             ArrayMap<String, String> params = new ArrayMap<>();
@@ -297,16 +320,4 @@ public class SiteApi {
         if (!types.isEmpty()) result.setTypes(types);
     }
 
-    public static void logPyError(String key, String errorCode, String errorMsg) {
-        try {
-            java.io.File dir = App.get().getExternalFilesDir(null);
-            if (dir == null) dir = App.get().getFilesDir();
-            java.io.File logFile = new java.io.File(dir, "py_play.log");
-            String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(new java.util.Date());
-            String line = timestamp + " ERROR key=" + key + " code=" + errorCode + " msg=" + errorMsg + "\n";
-            java.io.FileWriter writer = new java.io.FileWriter(logFile, true);
-            writer.write(line);
-            writer.close();
-        } catch (Exception ignored) {}
-    }
 }
