@@ -162,7 +162,7 @@ public class SiteApi {
             result.setHeader(site.getHeader());
             result.setKey(key);
             try {
-                String _dbgUrl = result.getUrl();
+                String _dbgUrl = result.getUrl() == null ? "null" : result.getUrl().v();
                 if (_dbgUrl != null && _dbgUrl.length() > 180) _dbgUrl = _dbgUrl.substring(0, 180) + "...";
                 final String _msg = "PY播放地址: " + _dbgUrl;
                 android.os.Handler _h = new android.os.Handler(android.os.Looper.getMainLooper());
