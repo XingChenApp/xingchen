@@ -11,6 +11,7 @@
     android:paddingBottom="16dp">
 
     <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/tv_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="配置 PY 源"
