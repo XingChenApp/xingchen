@@ -12,6 +12,8 @@
 
     <style name="Theme.App" parent="Theme.XingChen">
         <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowSplashScreenBackground">#000000</item>
+        <item name="android:windowBackground">#000000</item>
     </style>
 
     <style name="Theme.Crash" parent="Theme.XingChen">
