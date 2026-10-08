@@ -124,6 +124,14 @@ def detailContent(ru, array):
     import traceback as _tb
     import datetime as _dt
     _log_path = '/sdcard/xingchen_py_error.log'
+    try:
+        from com.chaquo.python import Python as _qp
+        _qctx = _qp.getPlatform().getApplication().getApplicationContext()
+        _qdir = str(_qctx.getExternalFilesDir(None))
+        if _qdir and _qdir != 'None':
+            _log_path = _qdir + '/xingchen_py_error.log'
+    except Exception:
+        pass
     def _dlog(_msg):
         try:
             with open(_log_path, 'a', encoding='utf-8') as _f:
