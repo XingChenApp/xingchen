@@ -37,6 +37,22 @@ public class SourceScriptsDialog extends Dialog {
         if (getWindow() != null) {
             getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
         }
+        // Position like design: upper-middle, below top bar
+        try {
+            if (getWindow() != null) {
+                getWindow().setGravity(android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL);
+                android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
+                lp.width = android.view.WindowManager.LayoutParams.MATCH_PARENT;
+                lp.height = android.view.WindowManager.LayoutParams.MATCH_PARENT;
+                getWindow().setAttributes(lp);
+                // Position: higher top, left margin larger than right (per design)
+                android.view.View content = findViewById(android.R.id.content);
+                if (content != null) {
+                    float d = getContext().getResources().getDisplayMetrics().density;
+                    content.setPadding((int)(24*d), (int)(60*d), (int)(12*d), 0);
+                }
+            }
+        } catch (Exception e) { e.printStackTrace(); }
 
         RecyclerView rvPy = findViewById(R.id.rv_py);
         RecyclerView rvJs = findViewById(R.id.rv_js);
