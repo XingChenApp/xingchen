@@ -41,6 +41,8 @@ def _fix_pics(spider_obj, result):
 
 def spider(cache, source, file_name=None):
     name = file_name or "spider.py"
+    if len(name) > 100 or "\n" in name or "class Spider" in name:
+        name = "spider.py"
     if not name.endswith('.py'):
         name = name + '.py'
     path = cache + '/' + name
