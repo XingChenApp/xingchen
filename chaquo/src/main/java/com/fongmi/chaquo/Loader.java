@@ -36,19 +36,39 @@ public class Loader {
     }
 
     private String source(String api, String name) {
-        if (!api.startsWith("http")) {
-            return api;
-        }
-        File cache = Path.py(name);
-        try (Response response = OkHttp.newCall(OkHttp.client(15000), api).execute()) {
-            if (!response.isSuccessful()) throw new IllegalStateException("HTTP " + response.code());
-            String source = response.body().string();
-            if (TextUtils.isEmpty(source)) throw new IllegalStateException("Empty python script");
-            Path.write(cache, source.getBytes(StandardCharsets.UTF_8));
-            return cache.getAbsolutePath();
-        } catch (Exception e) {
-            if (cache.exists() && cache.length() > 0) return cache.getAbsolutePath();
-            throw new IllegalStateException("Unable to download python script: " + api, e);
+        if (api.startsWith("http")) {
+            File cache = Path.py(name);
+            try (Response response = OkHttp.newCall(OkHttp.client(15000), api).execute()) {
+                if (!response.isSuccessful()) throw new IllegalStateException("HTTP " + response.code());
+                String source = response.body().string();
+                if (TextUtils.isEmpty(source)) throw new IllegalStateException("Empty python script");
+                Path.write(cache, source.getBytes(StandardCharsets.UTF_8));
+                return source;
+            } catch (Exception e) {
+                if (cache.exists() && cache.length() > 0) {
+                    try {
+                        byte[] bytes = java.nio.file.Files.readAllBytes(cache.toPath());
+                        String cached = new String(bytes, StandardCharsets.UTF_8);
+                        if (!TextUtils.isEmpty(cached)) return cached;
+                    } catch (Exception ex) {
+                    }
+                }
+                throw new IllegalStateException("Unable to download python script: " + api, e);
+            }
+        } else {
+            try {
+                java.io.File f = new java.io.File(api);
+                if (f.exists() && f.isFile()) {
+                    byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
+                    return new String(bytes, StandardCharsets.UTF_8);
+                }
+                if (api.contains("class Spider") || api.contains("def homeContent") || api.contains("import ")) {
+                    return api;
+                }
+                return api;
+            } catch (Exception e) {
+                throw new IllegalStateException("Unable to read python script: " + api, e);
+            }
         }
     }
 
