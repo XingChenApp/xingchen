@@ -63,19 +63,23 @@
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/negative"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_height="40dp"
+            android:background="@drawable/xc_btn_cancel"
+            android:minWidth="80dp"
             android:text="@string/dialog_negative"
-            android:textColor="#FF9800" />
+            android:textColor="#5F6368"
+            android:textSize="14sp" />
 
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/positive"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_height="40dp"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/xc_capsule_orange"
+            android:minWidth="80dp"
             android:text="@string/dialog_positive"
-            android:textColor="#FF9800" />
+            android:textColor="#FFFFFF"
+            android:textSize="14sp" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 </androidx.appcompat.widget.LinearLayoutCompat>
