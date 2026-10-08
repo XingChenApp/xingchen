@@ -16,8 +16,14 @@ def download(path, api):
     if api.startswith('http'):
         writeFile(path, redirect(api).content)
     else:
-        with open(api, 'r', encoding='utf-8') as f:
-            writeFile(path, f.read().encode('utf-8'))
+        try:
+            with open(api, 'r', encoding='utf-8') as f:
+                writeFile(path, f.read().encode('utf-8'))
+        except Exception:
+            if 'class Spider' in api or 'def homeContent' in api:
+                writeFile(path, str.encode(api))
+            else:
+                raise
 
 
 def writeFile(path, content):
