@@ -130,7 +130,11 @@ public class SiteViewModel extends ViewModel {
     }
 
     public void detailContent(String key, String id) {
-        execute(TaskType.RESULT, result, () -> SiteApi.detailContent(key, id));
+        detailContent(key, id, false);
+    }
+
+    public void detailContent(String key, String id, boolean forceRefresh) {
+        execute(TaskType.RESULT, result, () -> SiteApi.detailContent(key, id, forceRefresh));
     }
 
     public void playerContent(String key, String flag, String id) {
