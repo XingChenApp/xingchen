@@ -1,10 +1,8 @@
 package com.fongmi.android.tv.ui.dialog;
 
-import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
 import android.os.Bundle;
-import android.text.InputType;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -161,93 +159,43 @@ public class SourceScriptsDialog extends Dialog {
                 startAdvanced = true;
             }
 
-            float d = ctx.getResources().getDisplayMetrics().density;
-            int pad = (int)(20 * d);
+            Dialog dialog = new Dialog(ctx, android.R.style.Theme_Translucent_NoTitleBar);
+            dialog.setContentView(R.layout.dialog_py_ext_config);
+            dialog.setCanceledOnTouchOutside(true);
+            dialog.setCancelable(true);
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+                android.view.WindowManager.LayoutParams lp = dialog.getWindow().getAttributes();
+                lp.width = android.view.WindowManager.LayoutParams.MATCH_PARENT;
+                lp.height = android.view.WindowManager.LayoutParams.WRAP_CONTENT;
+                lp.gravity = android.view.Gravity.CENTER;
+                dialog.getWindow().setAttributes(lp);
+            }
 
-            LinearLayout layout = new LinearLayout(ctx);
-            layout.setOrientation(LinearLayout.VERTICAL);
-            layout.setPadding(pad, (int)(8*d), pad, (int)(8*d));
+            TextView tvScriptName = dialog.findViewById(R.id.tv_script_name);
+            TextView tvToggle = dialog.findViewById(R.id.tv_toggle);
+            View boxSimple = dialog.findViewById(R.id.box_simple);
+            View boxAdvanced = dialog.findViewById(R.id.box_advanced);
+            EditText etAccount = dialog.findViewById(R.id.et_account);
+            EditText etPassword = dialog.findViewById(R.id.et_password);
+            EditText etJson = dialog.findViewById(R.id.et_json);
+            View btnCancel = dialog.findViewById(R.id.btn_cancel);
+            View btnSave = dialog.findViewById(R.id.btn_save);
 
-            TextView tvSub = new TextView(ctx);
-            tvSub.setText(name);
-            tvSub.setTextSize(14);
-            tvSub.setTextColor(0xFF888888);
-            LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            subLp.bottomMargin = (int)(4*d);
-            layout.addView(tvSub, subLp);
-
-            TextView tvToggle = new TextView(ctx);
-            tvToggle.setTextSize(13);
-            tvToggle.setTextColor(0xFF007AFF);
-            tvToggle.setPadding(0, (int)(4*d), 0, (int)(10*d));
-            layout.addView(tvToggle);
-
-            LinearLayout simpleBox = new LinearLayout(ctx);
-            simpleBox.setOrientation(LinearLayout.VERTICAL);
-
-            TextView tvAccLabel = new TextView(ctx);
-            tvAccLabel.setText("账号");
-            tvAccLabel.setTextSize(14);
-            tvAccLabel.setTextColor(0xFF333333);
-            simpleBox.addView(tvAccLabel);
-
-            EditText etAccount = new EditText(ctx);
-            etAccount.setHint("请输入账号");
+            tvScriptName.setText(name);
             etAccount.setText(account);
-            etAccount.setTextSize(16);
-            etAccount.setSingleLine(true);
-            LinearLayout.LayoutParams accLp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            accLp.bottomMargin = (int)(12*d);
-            simpleBox.addView(etAccount, accLp);
-
-            TextView tvPwdLabel = new TextView(ctx);
-            tvPwdLabel.setText("密码");
-            tvPwdLabel.setTextSize(14);
-            tvPwdLabel.setTextColor(0xFF333333);
-            simpleBox.addView(tvPwdLabel);
-
-            EditText etPassword = new EditText(ctx);
-            etPassword.setHint("请输入密码");
-            etPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
             etPassword.setText(password);
-            etPassword.setTextSize(16);
-            etPassword.setSingleLine(true);
-            simpleBox.addView(etPassword);
-
-            layout.addView(simpleBox);
-
-            LinearLayout advBox = new LinearLayout(ctx);
-            advBox.setOrientation(LinearLayout.VERTICAL);
-
-            TextView tvJsonLabel = new TextView(ctx);
-            tvJsonLabel.setText("JSON 参数");
-            tvJsonLabel.setTextSize(14);
-            tvJsonLabel.setTextColor(0xFF333333);
-            advBox.addView(tvJsonLabel);
-
-            EditText etJson = new EditText(ctx);
-            etJson.setHint("{\"cookie\": \"UID=xxx;CID=xxx;SEID=xxx;KID=xxx\"}");
-            etJson.setTextSize(13);
-            etJson.setTypeface(android.graphics.Typeface.MONOSPACE);
-            etJson.setMinLines(4);
-            etJson.setGravity(android.view.Gravity.TOP | android.view.Gravity.START);
-            etJson.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
             if (startAdvanced && saved != null) {
                 etJson.setText(saved);
             }
-            advBox.addView(etJson);
-
-            layout.addView(advBox);
 
             final boolean[] isAdvanced = new boolean[]{startAdvanced};
             Runnable refreshMode = new Runnable() {
                 @Override
                 public void run() {
                     boolean adv = isAdvanced[0];
-                    simpleBox.setVisibility(adv ? View.GONE : View.VISIBLE);
-                    advBox.setVisibility(adv ? View.VISIBLE : View.GONE);
+                    boxSimple.setVisibility(adv ? View.GONE : View.VISIBLE);
+                    boxAdvanced.setVisibility(adv ? View.VISIBLE : View.GONE);
                     tvToggle.setText(adv ? "◂ 简单模式" : "高级 ▸");
                 }
             };
@@ -257,46 +205,48 @@ public class SourceScriptsDialog extends Dialog {
                 refreshMode.run();
             });
 
-            AlertDialog dialog = new AlertDialog.Builder(ctx)
-                    .setTitle("配置 PY 源")
-                    .setView(layout)
-                    .setPositiveButton("保存", null)
-                    .setNegativeButton("取消", null)
-                    .create();
-            dialog.setOnShowListener(dlg -> {
-                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-                    String json = "";
-                    if (isAdvanced[0]) {
-                        String raw = etJson.getText().toString().trim();
-                        if (!raw.isEmpty()) {
-                            try {
-                                new JSONObject(raw);
-                                json = raw;
-                            } catch (Exception e) {
-                                Toast.makeText(ctx, "JSON 格式不正确", Toast.LENGTH_SHORT).show();
-                                return;
-                            }
-                        }
-                    } else {
-                        String a = etAccount.getText().toString().trim();
-                        String p = etPassword.getText().toString().trim();
-                        if (!a.isEmpty() || !p.isEmpty()) {
-                            try {
-                                JSONObject jo = new JSONObject();
-                                jo.put("username", a);
-                                jo.put("password", p);
-                                json = jo.toString();
-                            } catch (Exception e) { e.printStackTrace(); }
+            btnCancel.setOnClickListener(v -> dialog.dismiss());
+            btnSave.setOnClickListener(v -> {
+                String json = "";
+                if (isAdvanced[0]) {
+                    String raw = etJson.getText().toString().trim();
+                    if (!raw.isEmpty()) {
+                        try {
+                            new JSONObject(raw);
+                            json = raw;
+                        } catch (Exception e) {
+                            Toast.makeText(ctx, "JSON 格式不正确", Toast.LENGTH_SHORT).show();
+                            return;
                         }
                     }
-                    PyExtConfig.save(ctx, key, json);
-                    Toast.makeText(ctx, "已保存", Toast.LENGTH_SHORT).show();
-                    dialog.dismiss();
-                });
+                } else {
+                    String a = etAccount.getText().toString().trim();
+                    String p = etPassword.getText().toString().trim();
+                    if (!a.isEmpty() || !p.isEmpty()) {
+                        try {
+                            JSONObject jo = new JSONObject();
+                            jo.put("username", a);
+                            jo.put("password", p);
+                            json = jo.toString();
+                        } catch (Exception e) { e.printStackTrace(); }
+                    }
+                }
+                PyExtConfig.save(ctx, key, json);
+                Toast.makeText(ctx, "已保存", Toast.LENGTH_SHORT).show();
+                dialog.dismiss();
             });
+
             dialog.show();
+            // Dialog width: match parent with side margins
+            if (dialog.getWindow() != null) {
+                android.view.WindowManager.LayoutParams lp = dialog.getWindow().getAttributes();
+                float d = ctx.getResources().getDisplayMetrics().density;
+                lp.width = (int) (ctx.getResources().getDisplayMetrics().widthPixels - 48 * d);
+                dialog.getWindow().setAttributes(lp);
+            }
         } catch (Exception e) { e.printStackTrace(); }
     }
+
 
     private void scrollToCurrent(RecyclerView rv, List<File> files) {
         if (currentFile == null || files == null || files.isEmpty()) return;
