@@ -272,8 +272,6 @@ public class SiteApi {
 
     @NonNull
     public static Result playerContent(@NonNull String key, @NonNull String flag, @NonNull String id, int playerType) throws Exception {
-        // 清掉上次播放残留的 auth 缓存，防止同 host 不同视频串 auth 导致 403
-        OkHttp.requestInterceptor().clear();
         SpiderDebug.log("player", "key=%s,flag=%s,id=%s", key, flag, id);
         Source.get().stop();
         if (WebHomeInlineVodStore.KEY.equals(key)) return WebHomeInlineVodStore.player(flag, id);
