@@ -95,6 +95,7 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
         mBinding.cardFeatures.setOnClickListener(v -> com.fongmi.android.tv.utils.Notify.show("个性功能"));
         mBinding.cardHealth.setOnClickListener(v -> com.fongmi.android.tv.utils.Notify.show("源健康检测"));
         mBinding.cardAbout.setOnClickListener(v -> onVersion(v));
+        updateSubtitles();
     }
 
     private void setOtherText() {
