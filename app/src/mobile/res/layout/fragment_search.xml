@@ -21,7 +21,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/back"
+            android:contentDescription="返回"
             android:src="@drawable/ic_control_back"
             app:tint="#5F6368" />
 
