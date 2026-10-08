@@ -84,7 +84,9 @@ def redirect(url):
 
 
 def str2json(content):
-    return json.loads(content)
+    if isinstance(content, str):
+        return json.loads(content)
+    return content
 
 
 def getDependence(ru):
