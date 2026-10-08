@@ -18,11 +18,16 @@ public class SourceSelectAdapter extends RecyclerView.Adapter<SourceSelectAdapte
     private List<Site> sites;
     private String currentKey;
     private OnItemClickListener listener;
+    private OnItemLongClickListener longClickListener;
 
     public SourceSelectAdapter(List<Site> sites, String currentKey, OnItemClickListener listener) {
         this.sites = sites;
         this.currentKey = currentKey;
         this.listener = listener;
+    }
+
+    public void setOnItemLongClickListener(OnItemLongClickListener l) {
+        this.longClickListener = l;
     }
 
     @NonNull
@@ -47,6 +52,13 @@ public class SourceSelectAdapter extends RecyclerView.Adapter<SourceSelectAdapte
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) listener.onClick(site);
         });
+        holder.itemView.setOnLongClickListener(v -> {
+            if (longClickListener != null) {
+                longClickListener.onLongClick(site);
+                return true;
+            }
+            return false;
+        });
     }
 
     @Override
@@ -64,5 +76,9 @@ public class SourceSelectAdapter extends RecyclerView.Adapter<SourceSelectAdapte
 
     public interface OnItemClickListener {
         void onClick(Site site);
+    }
+
+    public interface OnItemLongClickListener {
+        void onLongClick(Site site);
     }
 }
