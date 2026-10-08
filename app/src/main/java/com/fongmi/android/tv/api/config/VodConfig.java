@@ -5,6 +5,7 @@ import android.text.TextUtils;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.api.CspWarmup;
 import com.fongmi.android.tv.api.Decoder;
+import com.fongmi.android.tv.api.SiteApi;
 import com.fongmi.android.tv.api.loader.BaseLoader;
 import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.bean.Depot;
@@ -93,6 +94,7 @@ public class VodConfig extends BaseConfig {
         parses = null;
         WebHomeExtensionRegistry.get().setGlobalSources(null, "");
         BaseLoader.get().clear();
+        SiteApi.clearHomeCache();
         RuleConfig.get().invalidate();
         return this;
     }
