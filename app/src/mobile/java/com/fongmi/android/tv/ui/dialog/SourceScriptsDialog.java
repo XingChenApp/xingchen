@@ -33,6 +33,10 @@ public class SourceScriptsDialog extends Dialog {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.dialog_source_scripts);
+        // Keep status bar transparent
+        if (getWindow() != null) {
+            getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+        }
         // Position like design: upper-middle, below top bar
         try {
             if (getWindow() != null) {
