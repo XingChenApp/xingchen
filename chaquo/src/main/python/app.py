@@ -8,43 +8,16 @@ def spider(cache, api, file_name=None):
     path = cache + '/' + name
     download(path, api)
     name = name.split('.')[0]
-    import importlib.util
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.Spider()
+    from importlib.machinery import SourceFileLoader
+    return SourceFileLoader(name, path).load_module().Spider()
 
 
 def download(path, api):
-    try:
-        with open(path + '.diag', 'w', encoding='utf-8') as log:
-            log.write('api_len=' + str(len(api)) + '\n')
-            log.write('api_start=' + api[:300] + '\n')
-            log.write('is_http=' + str(api.startswith('http')) + '\n')
-    except:
-        pass
     if api.startswith('http'):
         writeFile(path, redirect(api).content)
     else:
-        try:
-            with open(api, 'r', encoding='utf-8') as f:
-                writeFile(path, f.read().encode('utf-8'))
-            try:
-                with open(path + '.diag', 'a', encoding='utf-8') as log:
-                    log.write('open_success=1\n')
-            except:
-                pass
-        except Exception as e:
-            try:
-                with open(path + '.diag', 'a', encoding='utf-8') as log:
-                    log.write('open_fail=' + str(e) + '\n')
-                    log.write('has_spider=' + str('class Spider' in api) + '\n')
-            except:
-                pass
-            if 'class Spider' in api or 'def homeContent' in api:
-                writeFile(path, str.encode(api))
-            else:
-                raise
+        with open(api, 'r', encoding='utf-8') as f:
+            writeFile(path, f.read().encode('utf-8'))
 
 
 def writeFile(path, content):
