@@ -95,6 +95,7 @@ public class VodConfig extends BaseConfig {
         WebHomeExtensionRegistry.get().setGlobalSources(null, "");
         BaseLoader.get().clear();
         SiteApi.clearHomeCache();
+        SiteApi.clearDetailCache();
         RuleConfig.get().invalidate();
         return this;
     }
