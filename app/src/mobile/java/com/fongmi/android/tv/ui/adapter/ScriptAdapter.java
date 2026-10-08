@@ -11,7 +11,7 @@ import java.io.File;
 import java.util.List;
 
 public class ScriptAdapter extends RecyclerView.Adapter<ScriptAdapter.ViewHolder> {
-    private final List<File> files;
+    private List<File> files;
     private final OnItemClickListener listener;
 
     public interface OnItemClickListener {
@@ -21,6 +21,11 @@ public class ScriptAdapter extends RecyclerView.Adapter<ScriptAdapter.ViewHolder
     public ScriptAdapter(List<File> files, OnItemClickListener listener) {
         this.files = files;
         this.listener = listener;
+    }
+
+    public void updateData(List<File> newFiles) {
+        this.files = newFiles;
+        notifyDataSetChanged();
     }
 
     @NonNull
