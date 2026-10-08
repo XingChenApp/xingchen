@@ -17,6 +17,7 @@ import java.util.List;
 
 public class SourceScriptsDialog extends Dialog {
     private final OnScriptSelectListener listener;
+    private File currentFile;
 
     public interface OnScriptSelectListener {
         void onScriptSelect(File file, boolean isPy);
@@ -27,6 +28,10 @@ public class SourceScriptsDialog extends Dialog {
         this.listener = listener;
         setCanceledOnTouchOutside(true);
         setCancelable(true);
+    }
+
+    public void setCurrentFile(File file) {
+        this.currentFile = file;
     }
 
     @Override
@@ -110,10 +115,26 @@ public class SourceScriptsDialog extends Dialog {
                 if (listener != null) listener.onScriptSelect(f, false);
                 dismiss();
             }));
+
+            scrollToCurrent(rvPy, pyFiles);
+            scrollToCurrent(rvJs, jsFiles);
         }
 
         // Dismiss on outside touch
         findViewById(android.R.id.content).setOnClickListener(v -> dismiss());
+    }
+
+    private void scrollToCurrent(RecyclerView rv, List<File> files) {
+        if (currentFile == null || files == null || files.isEmpty()) return;
+        try {
+            String cur = currentFile.getAbsolutePath();
+            for (int i = 0; i < files.size(); i++) {
+                if (cur.equals(files.get(i).getAbsolutePath())) {
+                    rv.scrollToPosition(i);
+                    break;
+                }
+            }
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     private List<File> listScripts(File dir, String ext) {
