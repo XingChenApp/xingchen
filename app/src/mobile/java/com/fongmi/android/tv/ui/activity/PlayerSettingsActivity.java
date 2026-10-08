@@ -38,9 +38,9 @@ public class PlayerSettingsActivity extends BaseActivity {
         binding.speed150.setOnClickListener(v -> { setSpeed(1.5f); updateSpeedUI(); });
         binding.speed200.setOnClickListener(v -> { setSpeed(2.0f); updateSpeedUI(); });
         updateLongPressUI();
+        binding.lpOff.setOnClickListener(v -> { setLongPress(0f); updateLongPressUI(); });
         binding.lp2x.setOnClickListener(v -> { setLongPress(2f); updateLongPressUI(); });
         binding.lp4x.setOnClickListener(v -> { setLongPress(4f); updateLongPressUI(); });
-        binding.lp5x.setOnClickListener(v -> { setLongPress(5f); updateLongPressUI(); });
         updateBgPipUI();
         binding.bpOff.setOnClickListener(v -> { setBgPip("off"); updateBgPipUI(); });
         binding.bpBg.setOnClickListener(v -> { setBgPip("bg"); updateBgPipUI(); });
@@ -82,10 +82,10 @@ public class PlayerSettingsActivity extends BaseActivity {
     }
 
     private void updateLongPressUI() {
-        float s = getSharedPreferences("xingchen", MODE_PRIVATE).getFloat("longpress_speed", 2f);
+        float s = getSharedPreferences("xingchen", MODE_PRIVATE).getFloat("longpress_speed", 0f);
+        binding.lpOff.setBackgroundResource(s == 0f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
         binding.lp2x.setBackgroundResource(s == 2f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
         binding.lp4x.setBackgroundResource(s == 4f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.lp5x.setBackgroundResource(s == 5f ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
     }
     private void setLongPress(float s) {
         getSharedPreferences("xingchen", MODE_PRIVATE).edit().putFloat("longpress_speed", s).apply();
