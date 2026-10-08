@@ -140,6 +140,8 @@ public class SourceSelectDialog extends Dialog {
                 dialog.getWindow().setAttributes(lp);
             }
 
+            TextView tvTitle = dialog.findViewById(R.id.tv_title);
+            tvTitle.setText("配置点播源");
             TextView tvScriptName = dialog.findViewById(R.id.tv_script_name);
             TextView tvToggle = dialog.findViewById(R.id.tv_toggle);
             View boxSimple = dialog.findViewById(R.id.box_simple);
