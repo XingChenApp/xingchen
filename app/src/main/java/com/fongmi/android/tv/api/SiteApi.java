@@ -85,6 +85,12 @@ public class SiteApi {
         if (key != null) detailCache.remove(key);
     }
 
+    public static void clearHomeCache() {
+    }
+
+    public static void clearHomeCache(String key) {
+    }
+
     @NonNull
     public static Result homeContent(@NonNull Site site) throws Exception {
         return homeContent(site, false);
@@ -332,3 +338,4 @@ public class SiteApi {
     }
 
 }
+
