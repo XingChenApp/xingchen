@@ -248,6 +248,16 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
     @Override
     public void onResume() {
         super.onResume();
+        checkCoverChanged();
+    }
+
+    @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        if (!hidden) checkCoverChanged();
+    }
+
+    public void checkCoverChanged() {
         try {
             android.content.SharedPreferences sp = requireActivity().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
             if (sp.getBoolean("cover_changed", false)) {
@@ -260,6 +270,16 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
     private void refreshCoverStyle() {
         try {
             if (mAdapter == null || mAdapter.getItemCount() == 0) {
+                // 数据为空时也先纠正列数，否则刷新后列数仍是旧的
+                try {
+                    Style ns = getStyle();
+                    if (!ns.isList()) {
+                        int nc = Product.getColumn(requireActivity(), ns);
+                        androidx.recyclerview.widget.RecyclerView.LayoutManager l = mBinding.recycler.getLayoutManager();
+                        int cc = (l instanceof GridLayoutManager) ? ((GridLayoutManager) l).getSpanCount() : -1;
+                        if (cc != nc) mBinding.recycler.setLayoutManager(new GridLayoutManager(getContext(), nc));
+                    }
+                } catch (Exception ignored) { }
                 onRefresh();
                 return;
             }
