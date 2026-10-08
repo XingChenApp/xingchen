@@ -8,8 +8,11 @@ def spider(cache, api, file_name=None):
     name = file_name or os.path.basename(api)
     path = cache + '/' + name
     download(path, api)
-    name = name.split('.')[0]
-    return SourceFileLoader(name, path).load_module().Spider()
+    with open(path, 'r', encoding='utf-8') as f:
+        code = f.read()
+    module_globals = {'__name__': name.split('.')[0], '__file__': path}
+    exec(compile(code, path, 'exec'), module_globals)
+    return module_globals['Spider']()
 
 
 def download(path, api):
