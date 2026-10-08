@@ -8,6 +8,7 @@ import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.api.config.WallConfig;
+import com.fongmi.android.tv.api.SiteApi;
 import com.fongmi.android.tv.api.loader.BaseLoader;
 import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.event.ConfigEvent;
@@ -130,6 +131,7 @@ public class Backup {
         if (options.isMpvConfig()) clearMpvConfigPreferences();
         restorePrefers(prefers, false, false);
         if (options.isConfig() || options.isSpider() || options.isWebHome() || options.isLoginState()) BaseLoader.get().clear();
+        if (options.isConfig() || options.isSpider() || options.isWebHome() || options.isLoginState()) SiteApi.clearHomeCache();
         if (options.isConfig() || options.isSpider() || options.isWebHome() || options.isLoginState()) reloadConfig();
         if (options.isWebHome()) refreshWebHomeExtensions();
         if (options.isKeep()) RefreshEvent.keep();
