@@ -147,7 +147,7 @@ public final class KernelPerformanceSetting {
 
     public static boolean isVideoPrefer(int kernel) {
         ensureMigrated();
-        return Prefers.getBoolean(key(kernel, "video_prefer"));
+        return Prefers.getBoolean(key(kernel, "video_prefer"), true);
     }
 
     public static void putVideoPrefer(int kernel, boolean value) {
