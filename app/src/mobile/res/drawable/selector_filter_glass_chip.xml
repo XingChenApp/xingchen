@@ -6,10 +6,7 @@
             <item android:state_selected="true">
                 <shape android:shape="rectangle">
                     <corners android:radius="8dp" />
-                    <solid android:color="#3DFFFFFF" />
-                    <stroke
-                        android:width="1dp"
-                        android:color="#4DFFFFFF" />
+                    <solid android:color="#FF9800" />
                     <padding
                         android:bottom="8dp"
                         android:left="12dp"
@@ -20,10 +17,10 @@
             <item>
                 <shape android:shape="rectangle">
                     <corners android:radius="8dp" />
-                    <solid android:color="#40FFFFFF" />
+                    <solid android:color="#E8EAED" />
                     <stroke
                         android:width="1dp"
-                        android:color="#50FFFFFF" />
+                        android:color="#DADCE0" />
                     <padding
                         android:bottom="8dp"
                         android:left="12dp"
