@@ -70,5 +70,6 @@ public class PlayerSettingsActivity extends BaseActivity {
     }
     private void setDecode(String d) {
         getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_decode", d).apply();
+        PlayerSetting.putVideoPrefer("hard".equals(d));
     }
 }
