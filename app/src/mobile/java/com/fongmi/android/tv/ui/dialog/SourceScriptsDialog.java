@@ -202,6 +202,10 @@ public class SourceScriptsDialog extends Dialog {
             refreshMode.run();
             tvToggle.setOnClickListener(v -> {
                 isAdvanced[0] = !isAdvanced[0];
+                if (isAdvanced[0] && etJson.getText().toString().trim().isEmpty()) {
+                    etJson.setText("{\"cookie\":\"\"}");
+                    etJson.setSelection("{\"cookie\":\"".length());
+                }
                 refreshMode.run();
             });
 
