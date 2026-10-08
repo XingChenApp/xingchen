@@ -3,7 +3,6 @@ package com.github.catvod.net.interceptor;
 import androidx.annotation.NonNull;
 
 import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
 
 import okhttp3.HttpUrl;
 import okhttp3.Interceptor;
@@ -12,14 +11,7 @@ import okhttp3.Response;
 
 public class RequestInterceptor implements Interceptor {
 
-    private final ConcurrentHashMap<String, String> authMap;
-
     public RequestInterceptor() {
-        authMap = new ConcurrentHashMap<>();
-    }
-
-    public void clear() {
-        authMap.clear();
     }
 
     @NonNull
@@ -32,10 +24,7 @@ public class RequestInterceptor implements Interceptor {
         return chain.proceed(builder.build());
     }
 
+    // auth 自动补参已禁用：按 host 缓存 auth 会导致不同视频间串参，引发 403（Mofilm 直接移除了该逻辑）
     private void checkAuth(HttpUrl url, Request.Builder builder) {
-        String host = url.host();
-        String auth = url.queryParameter("auth");
-        if (auth != null) authMap.put(host, auth);
-        else if (authMap.containsKey(host)) builder.url(url.newBuilder().addQueryParameter("auth", authMap.get(host)).build());
     }
 }
