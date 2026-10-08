@@ -78,6 +78,9 @@ public class UiSettingsActivity extends BaseActivity {
         setSegSelected(binding.segCoverSmall, "small".equals(size));
         setSegSelected(binding.segCoverMedium, "medium".equals(size));
         setSegSelected(binding.segCoverLarge, "large".equals(size));
+        if ("small".equals(size)) binding.tvCoverSizeDesc.setText("小封面：一行显示 4 个海报");
+        else if ("large".equals(size)) binding.tvCoverSizeDesc.setText("大封面：一行显示 2 个海报");
+        else binding.tvCoverSizeDesc.setText("中封面：一行显示 3 个海报");
     }
 
     private void initOrientSection() {
@@ -90,6 +93,8 @@ public class UiSettingsActivity extends BaseActivity {
         String orient = getPref("cover_orient", "portrait");
         setSegSelected(binding.segOrientPortrait, "portrait".equals(orient));
         setSegSelected(binding.segOrientLandscape, "landscape".equals(orient));
+        if ("landscape".equals(orient)) binding.tvOrientDesc.setText("横屏封面：海报按横版显示");
+        else binding.tvOrientDesc.setText("竖屏封面：海报按竖版显示");
     }
 
     private void initRatioSection() {
@@ -104,6 +109,7 @@ public class UiSettingsActivity extends BaseActivity {
         setSegSelected(binding.segRatio23, "2:3".equals(ratio));
         setSegSelected(binding.segRatio34, "3:4".equals(ratio));
         setSegSelected(binding.segRatio916, "9:16".equals(ratio));
+        binding.tvRatioDesc.setText("封面比例 " + ratio);
     }
 
     private void setSegSelected(TextView tv, boolean selected) {
