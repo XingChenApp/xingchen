@@ -32,17 +32,18 @@ public class PyLoader {
     }
 
     public Spider getSpider(String key, String api, String ext) {
-        return spiders.computeIfAbsent(key, k -> {
-            try {
-                Spider spider = loader.spider(api);
-                spider.siteKey = key;
-                spider.init(App.get(), normalizeExt(ext));
-                return spider;
-            } catch (Throwable e) {
-                e.printStackTrace();
-                return new SpiderNull();
-            }
-        });
+        Spider cached = spiders.get(key);
+        if (cached != null) return cached;
+        try {
+            Spider spider = loader.spider(api);
+            spider.siteKey = key;
+            spider.init(App.get(), normalizeExt(ext));
+            spiders.put(key, spider);
+            return spider;
+        } catch (Throwable e) {
+            e.printStackTrace();
+            return new SpiderNull();
+        }
     }
 
     private String normalizeExt(String ext) {
