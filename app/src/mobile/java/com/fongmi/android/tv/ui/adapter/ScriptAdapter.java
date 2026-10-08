@@ -13,14 +13,23 @@ import java.util.List;
 public class ScriptAdapter extends RecyclerView.Adapter<ScriptAdapter.ViewHolder> {
     private List<File> files;
     private final OnItemClickListener listener;
+    private OnItemLongClickListener longClickListener;
 
     public interface OnItemClickListener {
         void onItemClick(File file);
     }
 
+    public interface OnItemLongClickListener {
+        void onItemLongClick(File file);
+    }
+
     public ScriptAdapter(List<File> files, OnItemClickListener listener) {
         this.files = files;
         this.listener = listener;
+    }
+
+    public void setOnItemLongClickListener(OnItemLongClickListener l) {
+        this.longClickListener = l;
     }
 
     public void updateData(List<File> newFiles) {
@@ -41,6 +50,13 @@ public class ScriptAdapter extends RecyclerView.Adapter<ScriptAdapter.ViewHolder
         holder.name.setText(f.getName());
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) listener.onItemClick(f);
+        });
+        holder.itemView.setOnLongClickListener(v -> {
+            if (longClickListener != null) {
+                longClickListener.onItemLongClick(f);
+                return true;
+            }
+            return false;
         });
     }
 
