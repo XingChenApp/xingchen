@@ -5,3 +5,4 @@ requests
 cachetools
 pycryptodome
 beautifulsoup4
+cloudscraper
