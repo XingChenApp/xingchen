@@ -6,6 +6,7 @@ import android.os.Bundle;
 import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivityPlayerSettingsBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.utils.Notify;
 public class PlayerSettingsActivity extends BaseActivity {
     private ActivityPlayerSettingsBinding binding;
@@ -27,7 +28,7 @@ public class PlayerSettingsActivity extends BaseActivity {
         binding.decodeHard.setOnClickListener(v -> { setDecode("hard"); updateDecodeUI(); });
         binding.decodeSoft.setOnClickListener(v -> { setDecode("soft"); updateDecodeUI(); });
         binding.switchAutonext.setChecked(getSharedPreferences("xingchen", MODE_PRIVATE).getBoolean("auto_next", true));
-        binding.switchAutonext.setOnCheckedChangeListener((b, c) -> getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("auto_next", c).apply());
+        binding.switchAutonext.setOnCheckedChangeListener((b, c) -> { getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("auto_next", c).apply(); PlayerSetting.putAutoPlay(c); });
         binding.switchSkip.setChecked(getSharedPreferences("xingchen", MODE_PRIVATE).getBoolean("skip_intro", false));
         binding.switchSkip.setOnCheckedChangeListener((b, c) -> getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("skip_intro", c).apply());
         updateSpeedUI();
@@ -49,6 +50,7 @@ public class PlayerSettingsActivity extends BaseActivity {
     }
     private void setSpeed(float s) {
         getSharedPreferences("xingchen", MODE_PRIVATE).edit().putFloat("player_speed", s).apply();
+        PlayerSetting.putDefaultSpeed(s);
     }
     private void updateKernelUI() {
         String k = getSharedPreferences("xingchen", MODE_PRIVATE).getString("player_kernel", "exo");
@@ -63,6 +65,8 @@ public class PlayerSettingsActivity extends BaseActivity {
     }
     private void setKernel(String k) {
         getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_kernel", k).apply();
+        int p = "mpv".equals(k) ? PlayerSetting.MPV : "ijk".equals(k) ? PlayerSetting.IJK : PlayerSetting.EXO;
+        PlayerSetting.putPlayer(p);
     }
     private void setDecode(String d) {
         getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_decode", d).apply();
