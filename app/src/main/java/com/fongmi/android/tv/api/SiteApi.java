@@ -60,33 +60,6 @@ public class SiteApi {
         return type == 0 ? "videolist" : "detail";
     }
 
-    private static final long HOME_CACHE_TTL = 5 * 60 * 1000;
-    private static final ConcurrentHashMap<String, HomeCacheEntry> homeCache = new ConcurrentHashMap<>();
-
-    private static class HomeCacheEntry {
-        final long time;
-        final String home;
-        final String video;
-
-        HomeCacheEntry(long time, String home, String video) {
-            this.time = time;
-            this.home = home;
-            this.video = video;
-        }
-
-        boolean fresh() {
-            return System.currentTimeMillis() - time < HOME_CACHE_TTL;
-        }
-    }
-
-    public static void clearHomeCache() {
-        homeCache.clear();
-    }
-
-    public static void clearHomeCache(String key) {
-        if (key != null) homeCache.remove(key);
-    }
-
     private static final long DETAIL_CACHE_TTL = 5 * 60 * 1000;
     private static final ConcurrentHashMap<String, DetailCacheEntry> detailCache = new ConcurrentHashMap<>();
 
@@ -120,17 +93,6 @@ public class SiteApi {
     @NonNull
     public static Result homeContent(@NonNull Site site, boolean forceRefresh) throws Exception {
         if (isSpider(site)) {
-            String key = site.getKey();
-            if (!forceRefresh) {
-                HomeCacheEntry cached = homeCache.get(key);
-                if (cached != null && cached.fresh()) {
-                    Result result = Result.fromJson(cached.home);
-                    List<Vod> list = Result.fromJson(cached.video).getList();
-                    if (!list.isEmpty()) result.setList(list);
-                    setTypes(site, result);
-                    return result;
-                }
-            }
             Spider spider = site.recent().spider();
             boolean crash = Prefers.getBoolean("crash");
             String home;
@@ -151,7 +113,6 @@ public class SiteApi {
                 }
             }
             Prefers.put("crash", false);
-            homeCache.put(key, new HomeCacheEntry(System.currentTimeMillis(), home, video));
             SpiderDebug.log("homeVideo", video);
             Result result = Result.fromJson(home);
             List<Vod> list = Result.fromJson(video).getList();
