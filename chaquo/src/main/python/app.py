@@ -120,9 +120,31 @@ def categoryContent(ru, tid, pg, filter, extend):
 
 
 def detailContent(ru, array):
-    result = _fix_pics(ru, ru.detailContent(str2json(array)))
-    formatJo = json.dumps(result, ensure_ascii=False)
-    return formatJo
+    # TEMP-DIAG-REMOVE-AFTER
+    import traceback as _tb
+    import datetime as _dt
+    _log_path = '/sdcard/xingchen_py_error.log'
+    def _dlog(_msg):
+        try:
+            with open(_log_path, 'a', encoding='utf-8') as _f:
+                _f.write(_msg + '\n')
+        except Exception:
+            pass
+    try:
+        _r = _fix_pics(ru, ru.detailContent(str2json(array)))
+        _jo = json.dumps(_r, ensure_ascii=False)
+        _flag = 'EMPTY_RESULT' if len(_jo) < 50 else ''
+        _dlog('[%s] detailContent OK ids=%s len=%d %s' % (_dt.datetime.now().isoformat(), array[:200], len(_jo), _flag))
+        return _jo
+    except Exception:
+        _sp = ''
+        try:
+            _sp = ru.getName()
+        except Exception:
+            pass
+        _dlog('[%s] detailContent EXCEPTION spider=%s ids=%s\n%s' % (_dt.datetime.now().isoformat(), _sp, array[:200], _tb.format_exc()))
+        raise
+    # TEMP-DIAG-REMOVE-AFTER-END
 
 
 def searchContent(ru, key, quick, pg="1"):
