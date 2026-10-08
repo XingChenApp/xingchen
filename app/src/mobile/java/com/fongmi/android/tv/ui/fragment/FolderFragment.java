@@ -54,6 +54,13 @@ public class FolderFragment extends BaseFragment {
         return (TypeFragment) getChildFragmentManager().findFragmentById(R.id.container);
     }
 
+    public void checkCoverChanged() {
+        try {
+            TypeFragment child = getChild();
+            if (child != null) child.checkCoverChanged();
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
     @Override
     protected ViewBinding getBinding(@NonNull LayoutInflater inflater, @Nullable ViewGroup container) {
         return FragmentFolderBinding.inflate(inflater, container, false);
