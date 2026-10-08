@@ -101,6 +101,7 @@
     android:textColor="#222222"/>
 
 <TextView
+    android:id="@+id/tv_cover_size_desc"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="封面大小"
@@ -170,6 +171,7 @@
     android:textColor="#222222"/>
 
 <TextView
+    android:id="@+id/tv_orient_desc"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="竖屏/横屏"
@@ -228,6 +230,7 @@
     android:textColor="#222222"/>
 
 <TextView
+    android:id="@+id/tv_ratio_desc"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="封面宽高比"
