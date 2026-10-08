@@ -227,9 +227,9 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:background="@drawable/xc_seg_container" android:padding="4dp">
-                <TextView android:id="@+id/lp_off" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="关闭" android:textSize="13sp" android:background="@drawable/xc_seg_selected" />
-                <TextView android:id="@+id/lp_3x" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="3x" android:textSize="13sp" />
-                <TextView android:id="@+id/lp_5x" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="5x" android:textSize="13sp" />
+                <TextView android:id="@+id/lp_1x" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="1x" android:textSize="13sp" android:background="@drawable/xc_seg_selected" />
+                <TextView android:id="@+id/lp_2x" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="2x" android:textSize="13sp" />
+                <TextView android:id="@+id/lp_4x" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="4x" android:textSize="13sp" />
             </LinearLayout>
         </LinearLayout>
         <LinearLayout
