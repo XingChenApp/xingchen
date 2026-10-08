@@ -32,21 +32,20 @@ public class PyLoader {
     }
 
     public Spider getSpider(String key, String api, String ext) {
-        Spider cached = spiders.get(key);
-        if (cached != null) return cached;
-        try {
-            Spider spider = loader.spider(api);
-            spider.siteKey = key;
-            spider.init(App.get(), normalizeExt(ext));
-            spiders.put(key, spider);
-            return spider;
-        } catch (Throwable e) {
-            e.printStackTrace();
-            String msg = "PY加载失败: " + e.getMessage();
-            android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
-            h.post(() -> android.widget.Toast.makeText(App.get(), msg, android.widget.Toast.LENGTH_LONG).show());
-            return new SpiderNull();
-        }
+        return spiders.computeIfAbsent(key, k -> {
+            try {
+                Spider spider = loader.spider(api);
+                spider.siteKey = key;
+                spider.init(App.get(), normalizeExt(ext));
+                return spider;
+            } catch (Throwable e) {
+                e.printStackTrace();
+                String msg = "PY加载失败: " + e.getMessage();
+                android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
+                h.post(() -> android.widget.Toast.makeText(App.get(), msg, android.widget.Toast.LENGTH_LONG).show());
+                return new SpiderNull();
+            }
+        });
     }
 
     private String normalizeExt(String ext) {
