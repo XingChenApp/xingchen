@@ -218,10 +218,6 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
     }
 
     private void onDanmaku(View view) {
-        getRoot().change(4);
-    }
-
-    private void onEnhance(View view) {
         getRoot().change(3);
     }
 
