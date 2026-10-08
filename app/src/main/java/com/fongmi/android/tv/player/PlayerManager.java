@@ -334,7 +334,7 @@ public class PlayerManager implements ParseCallback {
             }
         };
         this.playerType = PlayerSetting.getPlayer();
-        this.engine = buildEngine(playerType, PlayerEngine.HARD);
+        this.engine = buildEngine(playerType, PlayerSetting.isVideoPrefer(playerType) ? PlayerEngine.HARD : PlayerEngine.SOFT);
         this.player = engine.getPlayer();
     }
 
