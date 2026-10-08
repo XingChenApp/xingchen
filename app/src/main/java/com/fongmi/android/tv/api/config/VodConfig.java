@@ -301,6 +301,8 @@ public class VodConfig extends BaseConfig {
     }
 
     public Site getSite(String key) {
+        Site home = getHome();
+        if (key != null && key.trim().equals(home.getKey().trim())) return home;
         return getSites().stream().filter(item -> item.getKey().equals(key)).findFirst().orElse(new Site());
     }
 
