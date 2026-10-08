@@ -50,7 +50,7 @@ public class PyLoader {
             } catch (Throwable e) {
                 e.printStackTrace();
                 logDiag("EXCEPTION: " + e.getClass().getName() + ": " + e.getMessage());
-                String msg = "PY加载失败: " + e.getMessage();
+                String msg = "PY加载失败 [" + key + "]: " + e.getClass().getSimpleName() + ": " + e.getMessage();
                 android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
                 h.post(() -> android.widget.Toast.makeText(App.get(), msg, android.widget.Toast.LENGTH_LONG).show());
                 spiders.remove(key);
