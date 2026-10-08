@@ -23,8 +23,13 @@ import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Prefers;
 import com.github.catvod.utils.Util;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -48,6 +53,27 @@ public class SiteApi {
 
     private static boolean isSpider(@NonNull Site site) {
         return site.getType() == 3;
+    }
+
+    private static void logPyPlay(String key, String siteName, String flag, String id, Result result) {
+        try {
+            File dir = App.get().getExternalFilesDir(null);
+            if (dir == null) dir = App.get().getFilesDir();
+            File logFile = new File(dir, "py_play.log");
+            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
+            String url = "null";
+            String header = "null";
+            int parse = -1;
+            try {
+                if (result.getUrl() != null) url = result.getUrl().v();
+                if (result.getHeader() != null) header = result.getHeader().toString();
+                parse = result.getParse();
+            } catch (Exception ignored) {}
+            String line = timestamp + " key=" + key + " site=" + siteName + " flag=" + flag + " id=" + id + " parse=" + parse + " url=" + url + " header=" + header + "\n";
+            FileWriter writer = new FileWriter(logFile, true);
+            writer.write(line);
+            writer.close();
+        } catch (Exception ignored) {}
     }
 
     private static String ac(int type) {
@@ -161,6 +187,7 @@ public class SiteApi {
             result.setUrl(Source.get().fetch(result, playerType));
             result.setHeader(site.getHeader());
             result.setKey(key);
+            logPyPlay(key, site.getName(), flag, id, result);
             return result;
         } else if (site.getType() == 4) {
             ArrayMap<String, String> params = new ArrayMap<>();
@@ -250,5 +277,18 @@ public class SiteApi {
         result.getTypes().forEach(type -> typeByName.put(type.getTypeName(), type));
         List<Class> types = site.getCategories().stream().map(typeByName::get).filter(Objects::nonNull).toList();
         if (!types.isEmpty()) result.setTypes(types);
+    }
+
+    public static void logPyError(String key, String errorCode, String errorMsg) {
+        try {
+            java.io.File dir = App.get().getExternalFilesDir(null);
+            if (dir == null) dir = App.get().getFilesDir();
+            java.io.File logFile = new java.io.File(dir, "py_play.log");
+            String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(new java.util.Date());
+            String line = timestamp + " ERROR key=" + key + " code=" + errorCode + " msg=" + errorMsg + "\n";
+            java.io.FileWriter writer = new java.io.FileWriter(logFile, true);
+            writer.write(line);
+            writer.close();
+        } catch (Exception ignored) {}
     }
 }
