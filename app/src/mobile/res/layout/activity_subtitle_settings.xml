@@ -1,0 +1,425 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingTop="48dp"
+        android:paddingBottom="16dp">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="字幕设置"
+            android:textColor="#171B23"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp" />
+        <!-- 字幕开关 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="字幕开关"
+                    android:textColor="#171B23"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="有字幕轨的影片自动显示字幕"
+                    android:textColor="#5A5F68"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <Switch android:id="@+id/switch_sub_enable" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
+        </LinearLayout>
+        <!-- 字幕字号 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="字幕字号"
+                    android:textColor="#171B23"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="字幕文字的大小"
+                    android:textColor="#5A5F68"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@drawable/xc_seg_container" android:padding="4dp">
+                <TextView android:id="@+id/sub_size_small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="小" android:textSize="14sp" />
+                <TextView android:id="@+id/sub_size_medium" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="中" android:textSize="14sp" android:background="@drawable/xc_seg_selected" />
+                <TextView android:id="@+id/sub_size_large" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="大" android:textSize="14sp" />
+            </LinearLayout>
+        </LinearLayout>
+        <!-- 字幕颜色 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="字幕颜色"
+                    android:textColor="#171B23"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="字幕文字的显示颜色"
+                    android:textColor="#5A5F68"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <View android:id="@+id/color_white" android:layout_width="36dp" android:layout_height="36dp" android:layout_margin="4dp" android:background="@drawable/xc_color_white" />
+                <View android:id="@+id/color_yellow" android:layout_width="36dp" android:layout_height="36dp" android:layout_margin="4dp" android:background="@drawable/xc_color_yellow" />
+                <View android:id="@+id/color_red" android:layout_width="36dp" android:layout_height="36dp" android:layout_margin="4dp" android:background="@drawable/xc_color_red" />
+                <View android:id="@+id/color_green" android:layout_width="36dp" android:layout_height="36dp" android:layout_margin="4dp" android:background="@drawable/xc_color_green" />
+                <View android:id="@+id/color_cyan" android:layout_width="36dp" android:layout_height="36dp" android:layout_margin="4dp" android:background="@drawable/xc_color_cyan" />
+                <View android:id="@+id/color_blue" android:layout_width="36dp" android:layout_height="36dp" android:layout_margin="4dp" android:background="@drawable/xc_color_blue" />
+            </LinearLayout>
+        </LinearLayout>
+        <!-- 字幕位置 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="字幕位置"
+                    android:textColor="#171B23"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="字幕在画面中的上下位置"
+                    android:textColor="#5A5F68"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@drawable/xc_seg_container" android:padding="4dp">
+                <TextView android:id="@+id/pos_top" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="顶部" android:textSize="14sp" />
+                <TextView android:id="@+id/pos_middle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="中间" android:textSize="14sp" />
+                <TextView android:id="@+id/pos_bottom" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="底部" android:textSize="14sp" android:background="@drawable/xc_seg_selected" />
+            </LinearLayout>
+        </LinearLayout>
+        <!-- 字幕延迟 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="字幕延迟"
+                    android:textColor="#171B23"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="字幕和声音对不齐时提前或延后"
+                    android:textColor="#5A5F68"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@drawable/xc_seg_container" android:padding="4dp">
+                <TextView android:id="@+id/delay_m2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="10dp" android:paddingRight="10dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="-2s" android:textSize="13sp" />
+                <TextView android:id="@+id/delay_m1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="10dp" android:paddingRight="10dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="-1s" android:textSize="13sp" />
+                <TextView android:id="@+id/delay_0" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="10dp" android:paddingRight="10dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="同步" android:textSize="13sp" android:background="@drawable/xc_seg_selected" />
+                <TextView android:id="@+id/delay_p1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="10dp" android:paddingRight="10dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="+1s" android:textSize="13sp" />
+                <TextView android:id="@+id/delay_p2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="10dp" android:paddingRight="10dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="+2s" android:textSize="13sp" />
+            </LinearLayout>
+        </LinearLayout>
+        <!-- 自动匹配字幕 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="自动匹配字幕"
+                    android:textColor="#171B23"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="播放时按偏好语言自动搜索并加载字幕"
+                    android:textColor="#5A5F68"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <Switch android:id="@+id/switch_sub_automatch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
+        </LinearLayout>
+        <!-- 偏好语言 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="horizontal"
+            android:padding="15dp"
+            android:gravity="center_vertical">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="偏好语言"
+                    android:textColor="#171B23"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="自动匹配时优先选择的字幕语言"
+                    android:textColor="#5A5F68"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@drawable/xc_seg_container" android:padding="4dp">
+                <TextView android:id="@+id/lang_cn_first" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="中文优先" android:textSize="13sp" android:background="@drawable/xc_seg_selected" />
+                <TextView android:id="@+id/lang_cn_s" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="简体" android:textSize="13sp" />
+                <TextView android:id="@+id/lang_cn_t" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="繁體" android:textSize="13sp" />
+                <TextView android:id="@+id/lang_en" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="12dp" android:paddingRight="12dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="English" android:textSize="13sp" />
+            </LinearLayout>
+        </LinearLayout>
+        <!-- 字幕源 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="vertical"
+            android:padding="15dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="字幕源"
+                android:textColor="#171B23"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="内置常用字幕源，开箱即用，可单独开关"
+                android:textColor="#5A5F68"
+                android:textSize="12sp"
+                android:layout_marginBottom="8dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp">
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="OpenSubtitles" android:textColor="#171B23" android:textSize="14sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="需要 API 密钥" android:textColor="#5A5F68" android:textSize="12sp" />
+                </LinearLayout>
+                <Switch android:id="@+id/switch_src_opensub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
+            </LinearLayout>
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#10000000" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp">
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SubHD" android:textColor="#171B23" android:textSize="14sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="中文字幕" android:textColor="#5A5F68" android:textSize="12sp" />
+                </LinearLayout>
+                <Switch android:id="@+id/switch_src_subhd" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
+            </LinearLayout>
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#10000000" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp">
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="射手网" android:textColor="#171B23" android:textSize="14sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="中英双语" android:textColor="#5A5F68" android:textSize="12sp" />
+                </LinearLayout>
+                <Switch android:id="@+id/switch_src_shooter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
+            </LinearLayout>
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#10000000" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp">
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="字幕库" android:textColor="#171B23" android:textSize="14sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="中文字幕" android:textColor="#5A5F68" android:textSize="12sp" />
+                </LinearLayout>
+                <Switch android:id="@+id/switch_src_zimuku" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
+            </LinearLayout>
+        </LinearLayout>
+        <!-- OpenSubtitles API 密钥 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="vertical"
+            android:padding="15dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="OpenSubtitles API 密钥"
+                android:textColor="#171B23"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/tv_opensub_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="未配置，OpenSubtitles 源暂不可用"
+                android:textColor="#5A5F68"
+                android:textSize="12sp"
+                android:layout_marginBottom="8dp" />
+            <EditText
+                android:id="@+id/et_opensub_key"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="粘贴 OpenSubtitles API 密钥"
+                android:textSize="14sp"
+                android:background="@drawable/xc_seg_container"
+                android:padding="12dp"
+                android:layout_marginBottom="8dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <Button
+                    android:id="@+id/btn_opensub_clear"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginRight="8dp"
+                    android:text="清除"
+                    android:background="@drawable/xc_seg_container" />
+                <Button
+                    android:id="@+id/btn_opensub_save"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="保存"
+                    android:background="@drawable/xc_seg_selected" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
