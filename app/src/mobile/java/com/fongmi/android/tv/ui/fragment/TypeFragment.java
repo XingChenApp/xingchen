@@ -264,12 +264,22 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
                 return;
             }
             Style newStyle = getStyle();
-            if (!newStyle.equals(mAdapter.getStyle())) {
-                // Recreate adapter with new style, keep existing data
+            int newColumn = com.fongmi.android.tv.Product.getColumn(requireActivity(), newStyle);
+            androidx.recyclerview.widget.RecyclerView.LayoutManager lm = mBinding.recycler.getLayoutManager();
+            int curColumn = (lm instanceof androidx.recyclerview.widget.GridLayoutManager)
+                    ? ((androidx.recyclerview.widget.GridLayoutManager) lm).getSpanCount() : -1;
+            boolean styleChanged = !newStyle.equals(mAdapter.getStyle());
+            boolean columnChanged = curColumn != newColumn;
+            if (styleChanged || columnChanged) {
                 java.util.List<com.fongmi.android.tv.bean.Vod> data = new java.util.ArrayList<>(mAdapter.getItems());
                 mAdapter = new VodAdapter(this, newStyle, com.fongmi.android.tv.Product.getSpec(requireActivity(), newStyle));
                 mAdapter.setItems(data);
                 mBinding.recycler.setAdapter(mAdapter);
+                if (newStyle.isList()) {
+                    mBinding.recycler.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(requireActivity()));
+                } else {
+                    mBinding.recycler.setLayoutManager(new androidx.recyclerview.widget.GridLayoutManager(getContext(), newColumn));
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
