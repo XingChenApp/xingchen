@@ -55,6 +55,10 @@ public class BaseLoader {
         });
     }
 
+    public void removePySpider(String key) {
+        pyLoader.remove(key);
+    }
+
     public Spider getSpider(String key, String api, String ext, String jar) {
         if (isPy(api)) return pyLoader.getSpider(key, api, ext);
         else if (isJs(api)) return jsLoader.getSpider(key, api, ext, jar);
