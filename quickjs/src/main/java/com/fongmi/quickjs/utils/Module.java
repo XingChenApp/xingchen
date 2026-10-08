@@ -25,7 +25,23 @@ public class Module {
         if (name.startsWith("http")) cache.put(name, content = OkHttp.string(name));
         else if (name.startsWith("assets")) cache.put(name, content = Asset.read(name));
         else if (name.startsWith("lib/")) cache.put(name, content = Asset.read("js/" + name));
+        else if (name.startsWith("/")) cache.put(name, content = readLocalFile(name));
         return content;
+    }
+
+    private String readLocalFile(String path) {
+        try {
+            java.io.File file = new java.io.File(path);
+            if (!file.exists()) return null;
+            java.io.FileInputStream fis = new java.io.FileInputStream(file);
+            byte[] bytes = new byte[(int) file.length()];
+            fis.read(bytes);
+            fis.close();
+            return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public void clear() {
