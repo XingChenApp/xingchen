@@ -112,8 +112,7 @@ public class SourceScriptsDialog extends Dialog {
             }));
         }
 
-        // Dismiss on outside touch
-        findViewById(android.R.id.content).setOnClickListener(v -> dismiss());
+        // Note: Do not set click listener on content view - it interferes with RecyclerView item clicks
     }
 
     private List<File> listScripts(File dir, String ext) {
