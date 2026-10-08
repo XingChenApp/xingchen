@@ -155,7 +155,6 @@
     <string name="setting_builtin_wall">Built-in wallpapers</string>
     <string name="setting_player">Player setting</string>
     <string name="setting_danmaku">Danmaku setting</string>
-    <string name="setting_enhance">Enhancements</string>
     <string name="repo_github">GitHub repository</string>
     <string name="repo_cnb">CNB repository</string>
     <string name="setting_debug_log">Debug log</string>
