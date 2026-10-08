@@ -27,4 +27,7 @@ public class RequestInterceptor implements Interceptor {
     // auth 自动补参已禁用：按 host 缓存 auth 会导致不同视频间串参，引发 403（Mofilm 直接移除了该逻辑）
     private void checkAuth(HttpUrl url, Request.Builder builder) {
     }
+
+    public void clear() {
+    }
 }
