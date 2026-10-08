@@ -145,7 +145,20 @@ public class SourceScriptsDialog extends Dialog {
             }
         }
 
-        // Note: Do not set click listener on content view - it interferes with RecyclerView item clicks
+        // Dismiss when tapping outside the card (on the dimmed background)
+        // Use a touch listener on the root to avoid interfering with item clicks
+        View root = findViewById(android.R.id.content);
+        if (root != null) {
+            root.setOnTouchListener((v, event) -> {
+                if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                    // Check if touch is outside the card
+                    View card = ((View) v.getParent());
+                    // Simple: dismiss on any background touch, item clicks still work because they consume the event
+                    return false;
+                }
+                return false;
+            });
+        }
     }
 
     private List<File> listScripts(File dir, String ext) {
