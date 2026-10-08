@@ -48,7 +48,7 @@ public class LinkDialog extends BaseAlertDialog {
 
     @Override
     protected void initEvent() {
-        binding.input.setEndIconOnClickListener(this::onChoose);
+        binding.choose.setOnClickListener(this::onChoose);
         binding.positive.setOnClickListener(v -> onPositive());
         binding.negative.setOnClickListener(v -> dismiss());
         binding.text.setOnEditorActionListener((textView, actionId, event) -> {
