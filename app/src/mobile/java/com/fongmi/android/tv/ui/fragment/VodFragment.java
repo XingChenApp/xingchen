@@ -355,7 +355,6 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
             site.setExt("{}");
             site.setJar("");
             com.fongmi.android.tv.api.config.VodConfig.get().setHome(site);
-            homeContent();
         } catch (Exception e) {
             e.printStackTrace();
             android.widget.Toast.makeText(requireActivity(), "加载失败: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
