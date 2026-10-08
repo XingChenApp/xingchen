@@ -50,8 +50,8 @@ public class SiteApi {
         }
     }
 
-    private static boolean isSpider(@NonNull Site site) {
-        return site.getType() == 3 || site.getKey().startsWith("py_");
+    private static boolean isSpider(@NonNull String key, @NonNull Site site) {
+        return site.getType() == 3 || key.startsWith("py_");
     }
 
 
@@ -98,7 +98,7 @@ public class SiteApi {
 
     @NonNull
     public static Result homeContent(@NonNull Site site, boolean forceRefresh) throws Exception {
-        if (isSpider(site)) {
+        if (isSpider(site.getKey(), site)) {
             Spider spider = site.recent().spider();
             boolean crash = Prefers.getBoolean("crash");
             String home;
@@ -149,7 +149,7 @@ public class SiteApi {
     public static Result categoryContent(@NonNull String key, @NonNull String tid, @NonNull String page, boolean filter, @NonNull HashMap<String, String> extend) throws Exception {
         SpiderDebug.log("category", "key=%s,tid=%s,page=%s,filter=%s,extend=%s", key, tid, page, filter, extend);
         Site site = VodConfig.get().getSite(key);
-        if (isSpider(site)) {
+        if (isSpider(key, site)) {
             String categoryContent = site.recent().spider().categoryContent(tid, page, filter, extend);
             SpiderDebug.log("category", categoryContent);
             return Result.fromJson(categoryContent);
@@ -197,7 +197,7 @@ public class SiteApi {
             vod.setPic(ResUtil.getString(R.string.push_image));
             Source.get().parse(vod.setFlags());
             return Result.vod(vod);
-        } else if (isSpider(site)) {
+        } else if (isSpider(key, site)) {
             String cacheKey = key + "_" + id;
             if (!forceRefresh) {
                 DetailCacheEntry cached = detailCache.get(cacheKey);
@@ -276,7 +276,7 @@ public class SiteApi {
         Source.get().stop();
         if (WebHomeInlineVodStore.KEY.equals(key)) return WebHomeInlineVodStore.player(flag, id);
         Site site = VodConfig.get().getSite(key);
-        if (isSpider(site)) {
+        if (isSpider(key, site)) {
             String playerContent = site.recent().spider().playerContent(flag, id, VodConfig.get().getFlags());
             SpiderDebug.log("player", playerContent);
             Result result = Result.fromJson(playerContent);
@@ -321,7 +321,7 @@ public class SiteApi {
     public static Result searchContent(@NonNull Site site, @NonNull String keyword, boolean quick, @NonNull String page) throws Exception {
         SpiderDebug.log("search", "site=%s,keyword=%s,quick=%s,page=%s", site.getName(), keyword, quick, page);
         boolean hasPage = !page.equals("1");
-        if (isSpider(site)) {
+        if (isSpider(site.getKey(), site)) {
             String searchContent = hasPage ? site.spider().searchContent(keyword, quick, page) : site.spider().searchContent(keyword, quick);
             SpiderDebug.log("search", searchContent);
             Result result = Result.fromJson(searchContent);
@@ -344,7 +344,7 @@ public class SiteApi {
     @NonNull
     public static Result action(@NonNull String key, @NonNull String action) throws Exception {
         Site site = VodConfig.get().getSite(key);
-        if (isSpider(site)) return Result.fromJson(site.recent().spider().action(action));
+        if (isSpider(key, site)) return Result.fromJson(site.recent().spider().action(action));
         if (site.getType() == 4) return Result.fromJson(OkHttp.string(action));
         return Result.empty();
     }
