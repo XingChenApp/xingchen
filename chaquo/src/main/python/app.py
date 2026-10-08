@@ -110,6 +110,19 @@ def categoryContent(ru, tid, pg, filter, extend):
 
 def detailContent(ru, array):
     result = _fix_pics(ru, ru.detailContent(str2json(array)))
+    try:
+        lst = result.get('list', [])
+        if lst:
+            vod = lst[0]
+            pf = vod.get('vod_play_from', '')
+            pu = vod.get('vod_play_url', '')
+            if not pf or not pu:
+                import datetime
+                log_path = "/sdcard/Android/data/com.XingChen.tv/files/py_play.log"
+                with open(log_path, 'a', encoding='utf-8') as f:
+                    f.write(str(datetime.datetime.now()) + " DETAIL_EMPTY pf_len=" + str(len(pf)) + " pu_len=" + str(len(pu)) + " result=" + str(result)[:500] + "\n")
+    except:
+        pass
     formatJo = json.dumps(result, ensure_ascii=False)
     return formatJo
 
