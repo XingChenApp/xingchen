@@ -193,7 +193,6 @@ public class HomeActivity extends BaseActivity implements NavigationBarView.OnIt
         mBinding.navigation.getMenu().findItem(R.id.vod).setVisible(true);
         mBinding.navigation.getMenu().findItem(R.id.setting).setVisible(true);
         mBinding.navigation.getMenu().findItem(R.id.live).setVisible(LiveConfig.hasUrl());
-        mBinding.navigation.getMenu().findItem(R.id.reading).setVisible(com.fongmi.android.tv.ui.activity.FeaturesActivity.isReadingEnabled(this));
         syncNavigationSelection();
     }
 
@@ -263,10 +262,6 @@ public class HomeActivity extends BaseActivity implements NavigationBarView.OnIt
         if (item.getItemId() == R.id.setting) return changeFragment(1);
         if (item.getItemId() == R.id.vod) return changeFragment(0);
         if (item.getItemId() == R.id.live) return openLive();
-        if (item.getItemId() == R.id.reading) {
-            com.fongmi.android.tv.utils.Notify.show("阅读");
-            return true;
-        }
         return false;
     }
 

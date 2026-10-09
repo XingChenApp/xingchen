@@ -7,7 +7,6 @@
     <!-- Nav -->
     <string name="nav_vod">点播</string>
     <string name="nav_live">直播</string>
-    <string name="nav_reading">阅读</string>
     <string name="nav_setting">设置</string>
 
     <!-- Menu -->
