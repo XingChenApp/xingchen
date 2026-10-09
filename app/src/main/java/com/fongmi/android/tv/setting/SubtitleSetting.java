@@ -29,7 +29,21 @@ public class SubtitleSetting {
         PlayerSetting.putSubtitleTextSize(toTextSize(mode));
     }
 
+    /**
+     * 播放器面板连续微调字号时调用：mode 记为 custom，保证设置页不再显示错误的分段选中，
+     * 同时把真实浮点值同步进 PlayerSetting（播放引擎读取的唯一来源）。
+     */
+    public static void putCustomTextSize(float size) {
+        Prefers.put("subtitle_size_mode", "custom");
+        PlayerSetting.putSubtitleTextSize(size);
+    }
+
+    public static boolean isCustomSize() {
+        return "custom".equals(getSizeMode());
+    }
+
     public static float toTextSize(String mode) {
+        if ("custom".equals(mode)) return PlayerSetting.getSubtitleTextSize();
         if ("small".equals(mode)) return 0.04f;
         if ("large".equals(mode)) return 0.07f;
         return 0.0533f;
@@ -58,7 +72,21 @@ public class SubtitleSetting {
         PlayerSetting.putSubtitlePosition(toPosition(mode));
     }
 
+    /**
+     * 播放器面板连续微调位置时调用：mode 记为 custom，保证设置页不再显示错误的分段选中，
+     * 同时把真实浮点值同步进 PlayerSetting（播放引擎读取的唯一来源）。
+     */
+    public static void putCustomPosition(float position) {
+        Prefers.put("subtitle_pos_mode", "custom");
+        PlayerSetting.putSubtitlePosition(position);
+    }
+
+    public static boolean isCustomPosition() {
+        return "custom".equals(getPositionMode());
+    }
+
     public static float toPosition(String mode) {
+        if ("custom".equals(mode)) return PlayerSetting.getSubtitlePosition();
         if ("top".equals(mode)) return 1.0f;
         if ("middle".equals(mode)) return 0.5f;
         return 0.0f;

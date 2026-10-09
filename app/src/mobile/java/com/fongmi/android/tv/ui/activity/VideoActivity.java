@@ -4189,7 +4189,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         }
         setTrackVisible();
         hideWidgetOverlay();
-        mBinding.control.danmaku.setVisibility(isLock() || !player().haveDanmaku() ? View.GONE : View.VISIBLE);
+        mBinding.control.danmaku.setVisibility(isLock() || !player().haveDanmaku() || !DanmakuSetting.isShow() ? View.GONE : View.VISIBLE);
         mBinding.control.setting.setVisibility(View.GONE);
         mBinding.control.right.rotate.setVisibility(isFullscreen() && !isLock() ? View.VISIBLE : View.GONE);
         mBinding.control.fullscreen.setVisibility(isLock() ? View.GONE : View.VISIBLE);
@@ -4213,6 +4213,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         updateCustomButtonVisibility();
         if (mOsd != null) mOsd.setControlsVisible(true);
         checkFullscreenImg();
+        checkDanmakuImg();
         setR1Callback();
     }
 

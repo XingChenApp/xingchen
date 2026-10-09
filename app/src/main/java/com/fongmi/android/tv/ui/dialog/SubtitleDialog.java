@@ -15,6 +15,7 @@ import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.DialogSubtitleBinding;
 import com.fongmi.android.tv.player.PlayerManager;
 import com.fongmi.android.tv.setting.PlayerSetting;
+import com.fongmi.android.tv.setting.SubtitleSetting;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Util;
 import com.github.bassaer.library.MDColor;
@@ -84,7 +85,7 @@ public final class SubtitleDialog extends BaseBottomSheetDialog {
         }
         if (subtitleView == null) return;
         subtitleView.addPosition(POSITION_STEP);
-        PlayerSetting.putSubtitlePosition(subtitleView.getPosition());
+        SubtitleSetting.putCustomPosition(subtitleView.getPosition());
     }
 
     private void onDown(View view) {
@@ -94,7 +95,7 @@ public final class SubtitleDialog extends BaseBottomSheetDialog {
         }
         if (subtitleView == null) return;
         subtitleView.subPosition(POSITION_STEP);
-        PlayerSetting.putSubtitlePosition(subtitleView.getPosition());
+        SubtitleSetting.putCustomPosition(subtitleView.getPosition());
     }
 
     private void onLarge(View view) {
@@ -104,7 +105,7 @@ public final class SubtitleDialog extends BaseBottomSheetDialog {
         }
         if (subtitleView == null) return;
         subtitleView.addTextSize(TEXT_STEP);
-        PlayerSetting.putSubtitleTextSize(subtitleView.getTextSize());
+        SubtitleSetting.putCustomTextSize(subtitleView.getTextSize());
     }
 
     private void onSmall(View view) {
@@ -114,12 +115,12 @@ public final class SubtitleDialog extends BaseBottomSheetDialog {
         }
         if (subtitleView == null) return;
         subtitleView.subTextSize(TEXT_STEP);
-        PlayerSetting.putSubtitleTextSize(subtitleView.getTextSize());
+        SubtitleSetting.putCustomTextSize(subtitleView.getTextSize());
     }
 
     private void onReset(View view) {
-        PlayerSetting.putSubtitleTextSize(0.0f);
-        PlayerSetting.putSubtitlePosition(0.0f);
+        SubtitleSetting.putCustomTextSize(0.0f);
+        SubtitleSetting.putCustomPosition(0.0f);
         if (isNativeSubtitleStyle()) {
             player.setSubtitleStyle(0.0f, 0.0f);
         } else if (subtitleView != null) {
@@ -138,13 +139,13 @@ public final class SubtitleDialog extends BaseBottomSheetDialog {
 
     private void setNativeTextSize(float value) {
         value = Math.max(0.02f, Math.min(0.12f, value));
-        PlayerSetting.putSubtitleTextSize(value);
+        SubtitleSetting.putCustomTextSize(value);
         player.setSubtitleStyle(value, PlayerSetting.getSubtitlePosition());
     }
 
     private void setNativePosition(float value) {
         value = Math.max(-0.5f, Math.min(1.0f, value));
-        PlayerSetting.putSubtitlePosition(value);
+        SubtitleSetting.putCustomPosition(value);
         player.setSubtitleStyle(PlayerSetting.getSubtitleTextSize(), value);
     }
 

@@ -6,7 +6,9 @@ import android.os.Bundle;
 import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivityPlayerSettingsBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.setting.DanmakuSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
+import com.fongmi.android.tv.setting.SubtitleSetting;
 import com.fongmi.android.tv.utils.Notify;
 public class PlayerSettingsActivity extends BaseActivity {
     private ActivityPlayerSettingsBinding binding;
@@ -48,6 +50,16 @@ public class PlayerSettingsActivity extends BaseActivity {
         binding.cardDanmu.setOnClickListener(v -> DanmakuSettingsActivity.start(this));
         binding.cardSubtitle.setOnClickListener(v -> SubtitleSettingsActivity.start(this));
         binding.cardSkipSettings.setOnClickListener(v -> SkipSettingsActivity.start(this));
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        binding.tvDanmuStatus.setText(DanmakuSetting.isShow() ? "已开启" : "已关闭");
+        binding.tvSubtitleStatus.setText(SubtitleSetting.isEnabled() ? "已开启" : "已关闭");
+        SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
+        boolean skipOn = sp.getBoolean("skip_opening_show", true) || sp.getBoolean("skip_ending_show", true);
+        binding.tvSkipStatus.setText(skipOn ? "已开启" : "已关闭");
     }
     private void updateSpeedUI() {
         float s = getSharedPreferences("xingchen", MODE_PRIVATE).getFloat("player_speed", 1.0f);
