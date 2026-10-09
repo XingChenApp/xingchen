@@ -34,6 +34,7 @@ import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.api.hk.HkDetail;
 import com.fongmi.android.tv.api.hk.HkItem;
 import com.fongmi.android.tv.api.hk.HkRouter;
 import com.fongmi.android.tv.api.hk.HkRule;
@@ -44,6 +45,9 @@ import com.fongmi.android.tv.utils.ImgUtil;
 import com.fongmi.android.tv.utils.Notify;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -53,14 +57,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 海阔小程序单页（M3）：V1 规则列表 / V2 分类+列表 / V3 搜索结果，三视图栈式切换。
- * 点条目 → VideoActivity.startHk（复用星辰详情页）；详情/播放走 HkRouter。
+ * 海阔小程序单页（M3）：V1 规则列表 / V2 分类+列表 / V3 搜索结果 / V4 详情，三视图栈式切换。
+ * 点条目 → V4 海阔详情（标题/封面/简介/线路/选集）；点选集 → VideoActivity 直接播放。
  */
 public class HkPageActivity extends BaseActivity {
 
     private static final int V_RULES = 0;
     private static final int V_CONTENT = 1;
     private static final int V_SEARCH = 2;
+    private static final int V_DETAIL = 3;
     private static final int REQ_IMPORT_FILE = 0x101;
     private static final String PREFS = "xingchen";
     private static final String KEY_HIST = "hk_search_history";
@@ -92,6 +97,13 @@ public class HkPageActivity extends BaseActivity {
     private int searchPage = 1;
     private boolean searchLoading, searchNoMore;
 
+    private HkItem detailItem;
+    private boolean detailFromSearch;
+    private HkDetail currentDetail;
+    private HkDetail.Line currentLine;
+    private EpisodeAdapter episodeAdapter;
+    private final List<HkDetail.Episode> episodes = new ArrayList<>();
+
     @Override
     protected ViewBinding getBinding() {
         binding = ActivityHkBinding.inflate(getLayoutInflater());
@@ -103,6 +115,7 @@ public class HkPageActivity extends BaseActivity {
         initRulesView();
         initContentView();
         initSearchView();
+        initDetailView();
         stack.push(V_RULES);
         showView(V_RULES);
         refreshRules();
@@ -179,6 +192,7 @@ public class HkPageActivity extends BaseActivity {
         binding.viewRules.setVisibility(v == V_RULES ? View.VISIBLE : View.GONE);
         binding.viewContent.setVisibility(v == V_CONTENT ? View.VISIBLE : View.GONE);
         binding.viewSearch.setVisibility(v == V_SEARCH ? View.VISIBLE : View.GONE);
+        binding.viewDetail.setVisibility(v == V_DETAIL ? View.VISIBLE : View.GONE);
     }
 
     private void pushView(int v) {
@@ -255,7 +269,8 @@ public class HkPageActivity extends BaseActivity {
     private void pickRuleFile() {
         try {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-            intent.setType("application/json");
+            intent.setType("*/*");
+            intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"application/json", "application/zip"});
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             startActivityForResult(intent, REQ_IMPORT_FILE);
         } catch (Exception e) {
@@ -305,12 +320,55 @@ public class HkPageActivity extends BaseActivity {
 
     private void importRuleFile(Uri uri) {
         new Thread(() -> {
+            File tmp = null;
             try (InputStream in = getContentResolver().openInputStream(uri)) {
-                importRuleJson(readAll(in));
+                // 先落到临时文件：需要按后缀/魔数判断是否为 zip
+                tmp = File.createTempFile("hkimport", ".tmp", getCacheDir());
+                try (FileOutputStream out = new FileOutputStream(tmp)) {
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                }
+                if (isZipFile(tmp, getDisplayName(uri))) {
+                    List<HkRule> rules = HkRuleManager.get().importZip(tmp);
+                    StringBuilder sb = new StringBuilder("导入成功 " + rules.size() + " 个：");
+                    for (HkRule r : rules) sb.append("\n").append(r.getTitle());
+                    String msg = sb.toString();
+                    App.post(() -> {
+                        Notify.show(msg);
+                        refreshRules();
+                    });
+                } else {
+                    importRuleJson(readAll(new FileInputStream(tmp)));
+                }
             } catch (Exception e) {
                 App.post(() -> Notify.show("导入失败：" + e.getMessage()));
+            } finally {
+                if (tmp != null) tmp.delete();
             }
         }).start();
+    }
+
+    /** 取 content uri 的显示文件名（可能为 null）。 */
+    private String getDisplayName(Uri uri) {
+        try (android.database.Cursor c = getContentResolver().query(
+                uri, new String[]{android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (c != null && c.moveToFirst()) return c.getString(0);
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    /** 按后缀或 zip 魔数（PK\x03\x04）判断是否为 zip 包。 */
+    private boolean isZipFile(File f, String displayName) {
+        if (displayName != null && displayName.toLowerCase().endsWith(".zip")) return true;
+        try (FileInputStream in = new FileInputStream(f)) {
+            byte[] magic = new byte[4];
+            int n = in.read(magic);
+            return n == 4 && magic[0] == 'P' && magic[1] == 'K' && magic[2] == 3 && magic[3] == 4;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private static String readAll(InputStream in) throws Exception {
@@ -760,6 +818,158 @@ public class HkPageActivity extends BaseActivity {
         binding.historySection.setVisibility(hist.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
+    // ================= V4 详情 =================
+
+    private void initDetailView() {
+        binding.btnBackDetail.setOnClickListener(v -> onBackInvoked());
+        binding.tvDetailTitle.setSelected(true);
+        binding.rvDetailLines.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        GridLayoutManager epGrid = new GridLayoutManager(this, 4);
+        binding.rvDetailEpisodes.setLayoutManager(epGrid);
+        binding.rvDetailEpisodes.setNestedScrollingEnabled(false);
+        binding.rvDetailEpisodes.addItemDecoration(new EpSpace());
+        episodeAdapter = new EpisodeAdapter();
+        binding.rvDetailEpisodes.setAdapter(episodeAdapter);
+        binding.tvDetailEmpty.setOnClickListener(v -> {
+            if (detailItem != null) openDetail(detailItem, detailFromSearch);
+        });
+    }
+
+    private void openDetail(HkItem item, boolean fromSearch) {
+        detailItem = item;
+        detailFromSearch = fromSearch;
+        currentDetail = null;
+        currentLine = null;
+        episodes.clear();
+        if (episodeAdapter != null) episodeAdapter.notifyDataSetChanged();
+        binding.tvDetailTitle.setText(item.getTitle());
+        binding.detailScroll.setVisibility(View.GONE);
+        binding.tvDetailEmpty.setVisibility(View.GONE);
+        binding.tvDetailLoading.setVisibility(View.VISIBLE);
+        pushView(V_DETAIL);
+        new Thread(() -> {
+            HkDetail detail;
+            try {
+                detail = getRouter().detail(item.getUrl(), item, fromSearch);
+            } catch (Throwable e) {
+                detail = null;
+            }
+            final HkDetail result = detail;
+            App.post(() -> {
+                binding.tvDetailLoading.setVisibility(View.GONE);
+                if (result == null || result.isEmpty()) {
+                    binding.detailScroll.setVisibility(View.GONE);
+                    binding.tvDetailEmpty.setVisibility(View.VISIBLE);
+                } else {
+                    bindDetail(result);
+                }
+            });
+        }).start();
+    }
+
+    private void bindDetail(HkDetail detail) {
+        currentDetail = detail;
+        binding.detailScroll.setVisibility(View.VISIBLE);
+        binding.tvDetailEmpty.setVisibility(View.GONE);
+        binding.tvDetailTitle.setText(detail.getTitle());
+        binding.tvDetailName.setText(detail.getTitle());
+        ImgUtil.load(detail.getTitle(), detail.getPic(), binding.ivDetailCover);
+        int epCount = 0;
+        for (HkDetail.Line l : detail.getLines()) epCount += l.getEpisodes().size();
+        String meta = (currentRule == null ? "" : currentRule.getTitle() + " · ")
+                + detail.getLines().size() + "条线路 · 共" + epCount + "集";
+        binding.tvDetailMeta.setText(meta);
+        String content = detail.getContent();
+        boolean hasContent = !TextUtils.isEmpty(content);
+        binding.tvDetailIntroLabel.setVisibility(hasContent ? View.VISIBLE : View.GONE);
+        binding.tvDetailContent.setVisibility(hasContent ? View.VISIBLE : View.GONE);
+        if (hasContent) binding.tvDetailContent.setText(content);
+        List<HkDetail.Line> lines = detail.getLines();
+        List<String[]> pairs = new ArrayList<>();
+        for (HkDetail.Line l : lines) pairs.add(new String[]{l.getName(), l.getName()});
+        binding.rvDetailLines.setAdapter(new ChipAdapter(pairs, 0, value -> {
+            if (currentDetail == null) return;
+            for (HkDetail.Line l : currentDetail.getLines()) {
+                if (l.getName().equals(value)) {
+                    currentLine = l;
+                    refreshEpisodes();
+                    break;
+                }
+            }
+        }));
+        boolean multiLine = lines.size() > 1;
+        binding.tvDetailLineLabel.setVisibility(multiLine ? View.VISIBLE : View.GONE);
+        binding.rvDetailLines.setVisibility(multiLine ? View.VISIBLE : View.GONE);
+        currentLine = lines.get(0);
+        refreshEpisodes();
+        binding.detailScroll.scrollTo(0, 0);
+    }
+
+    private void refreshEpisodes() {
+        episodes.clear();
+        if (currentLine != null) episodes.addAll(currentLine.getEpisodes());
+        episodeAdapter.notifyDataSetChanged();
+        binding.tvDetailEpLabel.setText(episodes.isEmpty() ? "选集" : "选集（" + episodes.size() + "）");
+    }
+
+    private class EpisodeAdapter extends RecyclerView.Adapter<EpisodeAdapter.Holder> {
+
+        class Holder extends RecyclerView.ViewHolder {
+            TextView tv;
+
+            Holder(View v) {
+                super(v);
+                tv = v.findViewById(R.id.tv_episode);
+            }
+        }
+
+        @NonNull
+        @Override
+        public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_hk_episode, parent, false);
+            return new Holder(v);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull Holder h, int position) {
+            HkDetail.Episode ep = episodes.get(position);
+            h.tv.setText(ep.getName());
+            h.itemView.setOnClickListener(v -> {
+                int pos = h.getBindingAdapterPosition();
+                if (pos == RecyclerView.NO_POSITION || currentRule == null || currentLine == null) return;
+                HkDetail.Episode e = episodes.get(pos);
+                String title = detailItem != null && !TextUtils.isEmpty(detailItem.getTitle())
+                        ? detailItem.getTitle()
+                        : (currentDetail == null ? "" : currentDetail.getTitle());
+                String pic = detailItem != null ? detailItem.getPic()
+                        : (currentDetail == null ? "" : currentDetail.getPic());
+                VideoActivity.startHkPlay(HkPageActivity.this,
+                        currentRule.getTitle(), currentLine.getName(),
+                        e.getUrl(), e.getName(), title, pic);
+            });
+        }
+
+        @Override
+        public int getItemCount() {
+            return episodes.size();
+        }
+    }
+
+    /** 选集 4 列网格间距。 */
+    private class EpSpace extends RecyclerView.ItemDecoration {
+        @Override
+        public void getItemOffsets(@NonNull Rect outRect, @NonNull View view, @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
+            int pos = parent.getChildAdapterPosition(view);
+            if (pos < 0) return;
+            int col = pos % 4;
+            int h = dp(8);
+            int v = dp(8);
+            outRect.left = col == 0 ? 0 : h / 2;
+            outRect.right = col == 3 ? 0 : h / 2;
+            if (pos >= 4) outRect.top = v;
+        }
+    }
+
     // ================= 通用组件 =================
 
     private int dp(int v) {
@@ -826,7 +1036,7 @@ public class HkPageActivity extends BaseActivity {
                 int pos = h.getBindingAdapterPosition();
                 if (pos == RecyclerView.NO_POSITION || currentRule == null) return;
                 HkItem it = items.get(pos);
-                VideoActivity.startHk(HkPageActivity.this, currentRule.getTitle(), it.getUrl(), it.getTitle(), it.getPic());
+                openDetail(it, !fromContent);
             });
         }
 

@@ -425,6 +425,23 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         activity.startActivity(intent);
     }
 
+    /**
+     * 海阔 V4 直接播放：跳过详情页，选集直达播放器。
+     * 解析走 SiteApi.playerContent 的 hk_ 拦截（HkRouter.play），headers 保留。
+     */
+    public static void startHkPlay(Activity activity, String ruleTitle, String lineName, String episodeUrl, String episodeName, String name, String pic) {
+        Intent intent = new Intent(activity, VideoActivity.class);
+        intent.putExtra("key", HkDetailBridge.siteKey(ruleTitle));
+        intent.putExtra("id", episodeUrl);
+        intent.putExtra("name", name);
+        intent.putExtra("pic", pic);
+        intent.putExtra("hk_rule", ruleTitle);
+        intent.putExtra("hk_line", lineName);
+        intent.putExtra("hk_episode", episodeName);
+        intent.putExtra("hk_direct_play", true);
+        activity.startActivity(intent);
+    }
+
     public static void collect(Activity activity, String key, String id, String name, String pic, String wallPic) {
         start(activity, key, id, name, pic, null, true, wallPic);
     }
@@ -1270,7 +1287,8 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     private void checkId() {
         if (!TextUtils.isEmpty(getIntent().getStringExtra("hk_rule"))) {
-            getHkDetail();
+            if (getIntent().getBooleanExtra("hk_direct_play", false)) playHkDirect();
+            else getHkDetail();
             return;
         }
         if (getId().startsWith("push://")) getIntent().putExtra("key", SiteApi.PUSH).putExtra("id", getId().substring(7));
@@ -1312,6 +1330,16 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
                 });
             }
         }).start();
+    }
+
+    /**
+     * 海阔 V4 直接播放：不加载详情，直接走播放链。
+     * SiteApi.playerContent 的 hk_ 拦截会调 HkRouter.play() 解析出真地址（含 headers）。
+     */
+    private void playHkDirect() {
+        showProgress();
+        String flag = Objects.toString(getIntent().getStringExtra("hk_line"), "");
+        mViewModel.playerContent(getKey(), flag, getId());
     }
 
     private void checkLand() {
@@ -1503,7 +1531,9 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.control.parse.setVisibility(isUseParse() ? View.VISIBLE : View.GONE);
         List<Danmaku> siteDanmakus = result.getDanmaku();
         startPlayer(getHistoryKey(), result, isUseParse(), getSite().getTimeout(), buildMetadata());
-        if (DanmakuApi.canAutoSearch(siteDanmakus)) DanmakuApi.search(mHistory.getVodName(), getEpisode().getName(), player()::setDanmaku);
+        Episode playEpisode = getEpisode();
+        if (DanmakuApi.canAutoSearch(siteDanmakus) && playEpisode != null)
+            DanmakuApi.search(mHistory.getVodName(), playEpisode.getName(), player()::setDanmaku);
     }
 
     private boolean consumePendingPlaybackResult() {

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔单页 V4：选集按钮 -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tv_episode"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:background="@drawable/hk_chip_bg"
+    android:ellipsize="end"
+    android:gravity="center"
+    android:maxLines="1"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp"
+    android:textColor="#F2F4F8"
+    android:textSize="13sp" />
