@@ -1,13 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Root keeps fitsSystemWindows for status-bar avoidance. Do NOT put padding on
+     this view: the framework replaces it with window insets at runtime
+     (View.applyInsets), so any padding declared here is silently ignored.
+     Content side-margins live on the inner container below. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:orientation="vertical"
-    android:paddingLeft="16dp"
-    android:paddingRight="16dp"
-    android:paddingTop="48dp"
-    android:paddingBottom="16dp">
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp">
 
     <TextView
         android:layout_width="wrap_content"
@@ -119,4 +126,5 @@
         android:layout_weight="1"
         android:clipToPadding="false"
         android:paddingBottom="16dp" />
+    </LinearLayout>
 </LinearLayout>
