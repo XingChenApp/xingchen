@@ -106,6 +106,8 @@ public class ShieldWebViewDialog extends BaseAlertDialog {
         WebView webView = binding.webview;
         WebViewUtil.configureBase(webView, "shield");
         WebSettingsHolder.apply(webView);
+        // UA 必须与 provider 请求头一致，否则 Cloudflare 的 cf_clearance 不认
+        webView.getSettings().setUserAgentString(ShieldBypass.userAgent(providerId));
         CookieManager cm = CookieManager.getInstance();
         cm.setAcceptCookie(true);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -126,10 +128,18 @@ public class ShieldWebViewDialog extends BaseAlertDialog {
     }
 
     private void onDone() {
-        String host = ShieldBypass.hostOf(verifyUrl);
+        CookieManager cm = CookieManager.getInstance();
+        try {
+            cm.flush();
+        } catch (Throwable ignored) {
+        }
+        // 用 WebView 实际 URL（可能发生跳转），为空才回退 verifyUrl
+        String actualUrl = binding.webview != null && !TextUtils.isEmpty(binding.webview.getUrl())
+                ? binding.webview.getUrl() : verifyUrl;
+        String host = ShieldBypass.hostOf(actualUrl);
         String cookie = "";
         try {
-            cookie = CookieManager.getInstance().getCookie(verifyUrl);
+            cookie = cm.getCookie(actualUrl);
         } catch (Throwable ignored) {
         }
         if (TextUtils.isEmpty(cookie)) {
