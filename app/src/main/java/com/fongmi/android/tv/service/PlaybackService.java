@@ -31,6 +31,7 @@ import com.fongmi.android.tv.event.ActionEvent;
 import com.fongmi.android.tv.event.ConfigEvent;
 import com.fongmi.android.tv.playback.PlaybackEventCollector;
 import com.fongmi.android.tv.player.PlayerManager;
+import com.fongmi.android.tv.player.Source;
 import com.fongmi.android.tv.player.engine.PlaySpec;
 import com.fongmi.android.tv.player.lyrics.DesktopLyricsWindow;
 import com.fongmi.android.tv.player.lyrics.LyricsLine;
@@ -236,6 +237,7 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         running = false;
         player.prepareTerminalRelease();
         stopAndClear();
+        Source.get().stop();
         removeForeground();
         stopSelf();
     }

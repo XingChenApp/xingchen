@@ -9,6 +9,7 @@ import com.fongmi.android.tv.exception.ExtractException;
 import com.fongmi.android.tv.player.Source;
 import com.fongmi.android.tv.utils.Download;
 import com.fongmi.android.tv.utils.ResUtil;
+import com.fongmi.android.tv.utils.Task;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.utils.Path;
 import com.github.catvod.utils.Util;
@@ -26,6 +27,7 @@ import java.util.regex.Pattern;
 public class Thunder implements Source.Extractor {
 
     private GetTaskId taskId;
+    private File downloadDir;
 
     @Override
     public boolean match(Uri uri) {
@@ -42,6 +44,7 @@ public class Thunder implements Source.Extractor {
         File parent = torrent.getParentFile();
         String name = uri.getQueryParameter("name");
         int index = Integer.parseInt(uri.getQueryParameter("index"));
+        downloadDir = parent;
         taskId = XLTaskHelper.get().addTorrentTask(torrent, parent, index);
         for (int i = 0; i < 100; i++) {
             XLTaskInfo info = XLTaskHelper.get().getBtSubTaskInfo(taskId, index).mTaskInfo;
@@ -54,6 +57,7 @@ public class Thunder implements Source.Extractor {
 
     private String addThunderTask(String url) {
         File folder = Path.thunder(Util.md5(url));
+        downloadDir = folder;
         taskId = XLTaskHelper.get().addThunderTask(url, folder);
         return XLTaskHelper.get().getLocalUrl(taskId.getSaveFile());
     }
@@ -61,9 +65,37 @@ public class Thunder implements Source.Extractor {
     @Override
     public void stop() {
         if (taskId == null) return;
-        XLTaskHelper.get().deleteTask(taskId);
-        XLTaskHelper.get().release();
+        try {
+            XLTaskHelper.get().deleteTask(taskId);
+        } catch (Exception ignored) {
+        }
+        try {
+            XLTaskHelper.get().release();
+        } catch (Exception ignored) {
+        }
         taskId = null;
+        File dir = downloadDir;
+        downloadDir = null;
+        if (dir != null) Task.execute(() -> deleteQuietly(dir));
+    }
+
+    private void deleteQuietly(File dir) {
+        try {
+            File root = Path.thunder().getCanonicalFile();
+            File target = dir.getCanonicalFile();
+            if (!target.getPath().startsWith(root.getPath())) return;
+            deleteRecursively(target);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void deleteRecursively(File file) {
+        File[] children = file.listFiles();
+        if (children != null) for (File child : children) deleteRecursively(child);
+        try {
+            file.delete();
+        } catch (Exception ignored) {
+        }
     }
 
     @Override
