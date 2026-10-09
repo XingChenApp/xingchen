@@ -391,6 +391,33 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
                 mBinding.textDownloadSub.setText("暂无下载任务");
             }
         } catch (Exception e) { e.printStackTrace(); }
+        // Health subtitle - isolated
+        try {
+            android.content.SharedPreferences sp = requireActivity().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
+            long time = sp.getLong("health_time", 0);
+            if (time > 0 && mBinding.textHealthSub != null) {
+                int ok = sp.getInt("health_ok", 0);
+                int fail = sp.getInt("health_fail", 0);
+                mBinding.textHealthSub.setText("上次检测：" + ok + " 个可用·" + fail + " 个不可用");
+            } else if (mBinding.textHealthSub != null) {
+                mBinding.textHealthSub.setText("暂未检测");
+            }
+            if (mBinding.textHealthTime != null) {
+                mBinding.textHealthTime.setText(relativeHealthTime(time));
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private String relativeHealthTime(long time) {
+        if (time <= 0) return "";
+        long diff = System.currentTimeMillis() - time;
+        long minutes = diff / 60000;
+        if (minutes < 1) return "刚刚";
+        if (minutes < 60) return minutes + " 分钟前";
+        long hours = minutes / 60;
+        if (hours < 24) return hours + " 小时前";
+        long days = hours / 24;
+        return days + " 天前";
     }
 
 }
