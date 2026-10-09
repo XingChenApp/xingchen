@@ -12,7 +12,6 @@ import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.databinding.DialogDanmakuSettingBinding;
 import com.fongmi.android.tv.player.PlayerManager;
 import com.fongmi.android.tv.setting.DanmakuSetting;
-import com.fongmi.android.tv.utils.ResUtil;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.slider.Slider;
 
@@ -101,7 +100,7 @@ final class DanmakuSettingPanel {
     private void tintText(View view) {
         if (view == binding.reset || view == binding.tabAppearance || view == binding.tabTiming) return;
         if (view instanceof MaterialButton) return;
-        if (view instanceof TextView) ((TextView) view).setTextColor(ResUtil.getColor(R.color.white_90));
+        if (view instanceof TextView) ((TextView) view).setTextColor(0xB3000000);
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
             for (int i = 0; i < group.getChildCount(); i++) tintText(group.getChildAt(i));
@@ -111,7 +110,7 @@ final class DanmakuSettingPanel {
     private void tintSlider(Slider slider) {
         ColorStateList active = ColorStateList.valueOf(0xCC6F86E8);
         slider.setTrackActiveTintList(active);
-        slider.setTrackInactiveTintList(ColorStateList.valueOf(0x24FFFFFF));
+        slider.setTrackInactiveTintList(ColorStateList.valueOf(0x24000000));
         slider.setThumbTintList(active);
         slider.setHaloTintList(ColorStateList.valueOf(0x226F86E8));
     }

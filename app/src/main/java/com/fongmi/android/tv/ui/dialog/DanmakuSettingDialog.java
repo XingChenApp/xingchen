@@ -180,7 +180,7 @@ public final class DanmakuSettingDialog {
         @Override
         public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
             binding = DanmakuSettingDialog.inflate(inflater, container);
-            binding.getRoot().setBackgroundResource(R.drawable.shape_dialog_glass_panel);
+            binding.getRoot().setBackgroundResource(R.drawable.shape_dialog_glass_white_panel);
             FrameLayout overlay = new FrameLayout(requireContext());
             overlay.setBackgroundColor(Color.TRANSPARENT);
             overlay.setOnClickListener(view -> dismiss());
