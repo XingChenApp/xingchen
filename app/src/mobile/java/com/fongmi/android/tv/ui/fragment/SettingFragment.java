@@ -89,6 +89,7 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
         mBinding.cardPlayer.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.PlayerSettingsActivity.start(getActivity()));
         mBinding.cardAppearance.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.UiSettingsActivity.start(getActivity()));
         mBinding.cardPlugin.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.PluginActivity.start(getActivity()));
+        mBinding.cardDownload.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.DownloadActivity.start(getActivity()));
         mBinding.cardFeatures.setOnClickListener(v -> com.fongmi.android.tv.utils.Notify.show("个性功能"));
         mBinding.cardHealth.setOnClickListener(v -> com.fongmi.android.tv.utils.Notify.show("源健康检测"));
         mBinding.cardXingchen.setOnClickListener(v -> com.fongmi.android.tv.ui.activity.XingChenSettingsActivity.start(getActivity()));
@@ -382,6 +383,12 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
         try {
             if (mBinding.textXingchenSub != null) {
                 mBinding.textXingchenSub.setText(AppVersion.fullName());
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        // Download subtitle - isolated (placeholder)
+        try {
+            if (mBinding.textDownloadSub != null) {
+                mBinding.textDownloadSub.setText("暂无下载任务");
             }
         } catch (Exception e) { e.printStackTrace(); }
     }
