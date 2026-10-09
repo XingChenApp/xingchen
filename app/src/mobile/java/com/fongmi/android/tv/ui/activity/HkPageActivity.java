@@ -2,12 +2,15 @@ package com.fongmi.android.tv.ui.activity;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
@@ -61,6 +64,7 @@ public class HkPageActivity extends BaseActivity {
     private static final int REQ_IMPORT_FILE = 0x101;
     private static final String PREFS = "xingchen";
     private static final String KEY_HIST = "hk_search_history";
+    private static final String KEY_LAST_CLIP = "hk_last_clip_prompt";
 
     public static void start(Activity activity) {
         activity.startActivity(new Intent(activity, HkPageActivity.class));
@@ -126,6 +130,51 @@ public class HkPageActivity extends BaseActivity {
         super.onDestroy();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        checkClipboardForCloudCode();
+    }
+
+    /**
+     * 进入小程序时自动识别剪贴板里的云口令（官方 App 同款行为）：
+     * 复制口令后打开本页，自动弹出导入确认。同一口令只提示一次。
+     */
+    private void checkClipboardForCloudCode() {
+        try {
+            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (cm == null || !cm.hasPrimaryClip()) return;
+            ClipData clip = cm.getPrimaryClip();
+            if (clip == null || clip.getItemCount() == 0) return;
+            CharSequence text = clip.getItemAt(0).coerceToText(this);
+            if (TextUtils.isEmpty(text)) return;
+            String code = extractCloudCode(text.toString());
+            if (code == null) return;
+            // 同一口令只提示一次
+            SharedPreferences sp = getSharedPreferences(PREFS, MODE_PRIVATE);
+            if (code.equals(sp.getString(KEY_LAST_CLIP, ""))) return;
+            sp.edit().putString(KEY_LAST_CLIP, code).apply();
+            new AlertDialog.Builder(this)
+                    .setTitle("检测到云口令")
+                    .setMessage("剪贴板中有海阔云口令，是否立即导入？\n\n" + code)
+                    .setPositiveButton("导入", (d, w) -> importByCloudCode(code))
+                    .setNegativeButton("取消", null)
+                    .show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /** 从文本中提取云口令（云2/云5/云6 开头，取连续的一段）。 */
+    private static String extractCloudCode(String text) {
+        if (TextUtils.isEmpty(text)) return null;
+        // 按空白切分，找第一段云口令
+        for (String part : text.trim().split("\\s+")) {
+            if (HkRuleManager.isCloudCode(part)) return part;
+        }
+        return null;
+    }
+
     private void showView(int v) {
         binding.viewRules.setVisibility(v == V_RULES ? View.VISIBLE : View.GONE);
         binding.viewContent.setVisibility(v == V_CONTENT ? View.VISIBLE : View.GONE);
@@ -161,10 +210,46 @@ public class HkPageActivity extends BaseActivity {
 
     private void showImportDialog() {
         new AlertDialog.Builder(this)
-                .setItems(new String[]{"从文件导入", "从口令导入"}, (d, which) -> {
+                .setItems(new String[]{"从文件导入", "从云口令导入", "粘贴规则 JSON"}, (d, which) -> {
                     if (which == 0) pickRuleFile();
+                    else if (which == 1) showCloudCodeDialog(null);
                     else showPasteDialog();
                 }).show();
+    }
+
+    /** 云口令导入对话框（支持 云2/云5/云6 开头，如 云6oooole/apidb/xxxx）。 */
+    private void showCloudCodeDialog(String preset) {
+        EditText et = new EditText(this);
+        et.setHint("粘贴云口令，如：云6oooole/apidb/xxxx");
+        et.setSingleLine(true);
+        et.setTextColor(0xFFF2F4F8);
+        et.setHintTextColor(0xFF6E7686);
+        if (!TextUtils.isEmpty(preset)) et.setText(preset);
+        new AlertDialog.Builder(this)
+                .setTitle("从云口令导入")
+                .setView(et)
+                .setPositiveButton("导入", (d, w) -> importByCloudCode(et.getText().toString()))
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void importByCloudCode(String code) {
+        if (TextUtils.isEmpty(code)) {
+            Notify.show("口令为空");
+            return;
+        }
+        Notify.show("正在从云端获取规则…");
+        new Thread(() -> {
+            try {
+                HkRule rule = HkRuleManager.get().importByCloudCode(code);
+                App.post(() -> {
+                    Notify.show("导入成功：" + rule.getTitle());
+                    refreshRules();
+                });
+            } catch (Exception e) {
+                App.post(() -> Notify.show("导入失败：" + e.getMessage()));
+            }
+        }).start();
     }
 
     private void pickRuleFile() {
@@ -238,8 +323,69 @@ public class HkPageActivity extends BaseActivity {
 
     private void showRuleMenu(HkRule rule) {
         new AlertDialog.Builder(this)
-                .setItems(new String[]{"删除"}, (d, which) -> showDeleteRuleConfirm(rule))
+                .setItems(new String[]{"导出为云口令", "导出为文件", "删除"}, (d, which) -> {
+                    if (which == 0) exportAsCloudCode(rule);
+                    else if (which == 1) exportAsFile(rule);
+                    else showDeleteRuleConfirm(rule);
+                })
                 .show();
+    }
+
+    /** 导出规则为云口令：上传云端后显示口令，可复制分享（官方 App 也可导入）。 */
+    private void exportAsCloudCode(HkRule rule) {
+        Notify.show("正在上传云端…");
+        new Thread(() -> {
+            try {
+                String code = HkRuleManager.get().exportAsCloudCode(rule.getTitle());
+                App.post(() -> showExportCodeDialog(rule.getTitle(), code));
+            } catch (Exception e) {
+                App.post(() -> Notify.show("导出失败：" + e.getMessage()));
+            }
+        }).start();
+    }
+
+    private void showExportCodeDialog(String title, String code) {
+        TextView tv = new TextView(this);
+        tv.setText(code);
+        tv.setTextIsSelectable(true);
+        tv.setTextColor(0xFFF2F4F8);
+        tv.setPadding(dp(8), dp(8), dp(8), dp(8));
+        new AlertDialog.Builder(this)
+                .setTitle("「" + title + "」的云口令")
+                .setMessage("口令已生成，可复制分享给他人导入：")
+                .setView(tv)
+                .setPositiveButton("复制", (d, w) -> {
+                    ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                    if (cm != null) {
+                        cm.setPrimaryClip(ClipData.newPlainText("hk_cloud_code", code));
+                        Notify.show("口令已复制");
+                    }
+                })
+                .setNegativeButton("关闭", null)
+                .show();
+    }
+
+    /** 导出规则为文件：保存到 Download 目录并调起分享。 */
+    private void exportAsFile(HkRule rule) {
+        new Thread(() -> {
+            try {
+                File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                java.io.File out = HkRuleManager.get().exportAsFile(rule.getTitle(), dir);
+                App.post(() -> {
+                    Notify.show("已导出到：" + out.getAbsolutePath());
+                    try {
+                        Intent share = new Intent(Intent.ACTION_SEND);
+                        share.setType("application/json");
+                        share.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(out));
+                        startActivity(Intent.createChooser(share, "分享规则文件"));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                });
+            } catch (Exception e) {
+                App.post(() -> Notify.show("导出失败：" + e.getMessage()));
+            }
+        }).start();
     }
 
     private void showDeleteRuleConfirm(HkRule rule) {
