@@ -23,7 +23,7 @@ public class ZimukuProvider implements SubtitleProvider {
     private static final String BASE_FALLBACK = "http://www.zimuku.la";
 
     private static final Pattern ITEM = Pattern.compile(
-            "<a[^>]+href=\"(/detail/[^\"]+)\"[^>]*>(.*?)</a>", Pattern.DOTALL);
+            "<a[^>]+href=\"(/subs/\\d+\\.html)\"[^>]*>(.*?)</a>", Pattern.DOTALL);
     private static final Pattern TAG = Pattern.compile("<[^>]+>");
     private static final Pattern LANG_HINT = Pattern.compile(
             "(简体|繁体|双语|中英|英文|英语|简|繁)", Pattern.CASE_INSENSITIVE);

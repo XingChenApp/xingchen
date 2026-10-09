@@ -35,7 +35,9 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.player.PlayerManager;
+import com.fongmi.android.tv.setting.SubtitleSetting;
 import com.fongmi.android.tv.subtitle.ShieldBypass;
+import com.fongmi.android.tv.subtitle.ShooterProvider;
 import com.fongmi.android.tv.subtitle.SubtitleInfo;
 import com.fongmi.android.tv.subtitle.SubtitleManager;
 import com.fongmi.android.tv.ui.custom.CustomRecyclerView;
@@ -280,24 +282,64 @@ public final class SubtitleSearchDialog extends DialogFragment {
         SubtitleManager.search(getKeywordText(), items -> {
             results = items == null ? new ArrayList<>() : items;
             adapter.setItems(results);
-            if (results.isEmpty() && ShieldBypass.hasBlocked()) showShieldEmpty();
-            else hideProgress(results.isEmpty());
+            if (results.isEmpty()) showSourceStatus();
+            else hideProgress(false);
         });
     }
 
-    /** 盾拦截空态：点文字打开 WebView 过验证，验证完自动重试 */
-    private void showShieldEmpty() {
+    /** 空态：列出全部字幕源状态，点击可处理（过验证 / 填 Token） */
+    private void showSourceStatus() {
         progress.setVisibility(GONE);
         recycler.setVisibility(GONE);
         empty.setVisibility(VISIBLE);
         List<String> blocked = ShieldBypass.getBlocked();
-        StringBuilder names = new StringBuilder();
-        for (String id : blocked) {
-            if (names.length() > 0) names.append("、");
-            names.append(ShieldBypass.providerName(id));
+        StringBuilder sb = new StringBuilder();
+        String[] ids = {"subhd", "shooter", "zimuku", "opensubtitles"};
+        for (String id : ids) {
+            if (sb.length() > 0) sb.append("\n");
+            sb.append(ShieldBypass.providerName(id)).append("：").append(statusOf(id, blocked));
         }
-        empty.setText("「" + names + "」需要过验证\n点击完成验证后自动重试");
-        empty.setOnClickListener(v -> openShieldVerify(blocked.get(0)));
+        empty.setText(sb.toString());
+        empty.setOnClickListener(v -> {
+            if (!blocked.isEmpty()) {
+                openShieldVerify(blocked.get(0));
+            } else if (ShooterProvider.needsToken()) {
+                showAssrtTokenInput();
+            }
+        });
+    }
+
+    private String statusOf(String id, List<String> blocked) {
+        if (blocked.contains(id)) return "需要过验证（点击验证）";
+        if (!SubtitleSetting.isSrcEnabled(id)) return "已关闭";
+        if ("shooter".equals(id) && ShooterProvider.needsToken()) return "未填写 Token（点击填写）";
+        if ("opensubtitles".equals(id) && TextUtils.isEmpty(SubtitleSetting.getOpenSubtitlesKey())) return "未填写 Key";
+        return "无结果";
+    }
+
+    /** 射手网 Token 输入：毛玻璃弹窗 + 黄色保存按钮，保存后自动重试 */
+    private void showAssrtTokenInput() {
+        FragmentActivity activity = getActivity();
+        if (activity == null || activity.isFinishing()) return;
+        android.view.View view = android.view.LayoutInflater.from(activity).inflate(R.layout.dialog_assrt_token, null);
+        android.widget.EditText input = view.findViewById(R.id.et_token);
+        input.setText(SubtitleSetting.getAssrtToken());
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(activity).setView(view).create();
+        view.findViewById(R.id.btn_cancel).setOnClickListener(v -> dialog.dismiss());
+        view.findViewById(R.id.btn_save).setOnClickListener(v -> {
+            SubtitleSetting.putAssrtToken(input.getText().toString());
+            Notify.show("已保存");
+            dialog.dismiss();
+            search();
+        });
+        dialog.show();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams params = window.getAttributes();
+            params.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.88f);
+            window.setAttributes(params);
+        }
     }
 
     private void openShieldVerify(String providerId) {

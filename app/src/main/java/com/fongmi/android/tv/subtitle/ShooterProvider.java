@@ -3,8 +3,12 @@ package com.fongmi.android.tv.subtitle;
 import android.net.Uri;
 import android.text.TextUtils;
 
+import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.setting.SubtitleSetting;
 import com.github.catvod.net.OkHttp;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,22 +18,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 射手网（现 assrt.net）：网页抓取。
- * 搜索：GET /search?q={keyword}；解析结果中的字幕条目。
- * 射手网传统 API 是按文件 Hash 匹配（点播流无本地文件），这里用标题搜索兜底。
+ * 射手网（assrt.net）：官方 API。
+ * 搜索：GET https://api.assrt.net/v1/sub/search?token={token}&q={keyword}&cnt=15
+ * 需要用户在 assrt.net 注册后把 API Token 填进字幕设置。
  */
 public class ShooterProvider implements SubtitleProvider {
 
-    private static final String BASE = "https://assrt.net";
-    private static final String BASE_FALLBACK = "https://www.shooter.cn";
-
-    private static final Pattern ITEM = Pattern.compile(
-            "<a[^>]+href=\"(/subtitle/[^\"]+)\"[^>]*>(.*?)</a>", Pattern.DOTALL);
-    private static final Pattern ITEM2 = Pattern.compile(
-            "<a[^>]+href=\"([^\"]*download[^\"]*)\"[^>]*>(.*?)</a>", Pattern.DOTALL);
-    private static final Pattern TAG = Pattern.compile("<[^>]+>");
-    private static final Pattern LANG_HINT = Pattern.compile(
-            "(简体|繁体|双语|中英|英文|英语|简|繁)", Pattern.CASE_INSENSITIVE);
+    private static final String API = "https://api.assrt.net";
+    private static final Pattern URL_HARVEST = Pattern.compile(
+            "\"(https?://[^\"']+\\.(?:srt|ass|ssa|vtt|zip|rar|7z)[^\"']*)\"");
 
     @Override
     public String getId() {
@@ -43,61 +40,39 @@ public class ShooterProvider implements SubtitleProvider {
 
     @Override
     public boolean isAvailable() {
-        return SubtitleSetting.isSrcEnabled("shooter");
+        return SubtitleSetting.isSrcEnabled("shooter") && !TextUtils.isEmpty(SubtitleSetting.getAssrtToken());
+    }
+
+    /** 未填 Token 时也视为"需要配置"（给 UI 展示用） */
+    public static boolean needsToken() {
+        return SubtitleSetting.isSrcEnabled("shooter") && TextUtils.isEmpty(SubtitleSetting.getAssrtToken());
     }
 
     @Override
     public List<SubtitleInfo> search(String query) {
         List<SubtitleInfo> result = new ArrayList<>();
         if (TextUtils.isEmpty(query) || !isAvailable()) return result;
-        // 先试 assrt.net，失败回退 shooter.cn
-        result.addAll(searchOn(BASE, query));
-        if (result.isEmpty()) result.addAll(searchOn(BASE_FALLBACK, query));
-        return result;
-    }
-
-    private List<SubtitleInfo> searchOn(String base, String query) {
-        List<SubtitleInfo> result = new ArrayList<>();
         try {
-            String url = base + "/search?q=" + Uri.encode(query);
-            String html = OkHttp.string(url, headers(base));
-            if (TextUtils.isEmpty(html)) {
-                // 换一种搜索路径试试
-                url = base + "/search/" + Uri.encode(query);
-                html = OkHttp.string(url, headers(base));
-            }
-            if (ShieldBypass.isShieldPage(html)) {
-                ShieldBypass.setBlocked(getId());
-                return result;
-            }
-            if (TextUtils.isEmpty(html)) return result;
-            Matcher m = ITEM.matcher(html);
-            int count = 0;
-            while (m.find() && count < 30) {
+            String url = API + "/v1/sub/search?token=" + Uri.encode(SubtitleSetting.getAssrtToken())
+                    + "&q=" + Uri.encode(query) + "&cnt=15";
+            String body = OkHttp.string(url, headers());
+            if (TextUtils.isEmpty(body)) return result;
+            JsonObject root = App.gson().fromJson(body, JsonObject.class);
+            if (root == null || !root.has("status") || root.get("status").getAsInt() != 0) return result;
+            JsonObject sub = root.has("sub") ? root.getAsJsonObject("sub") : null;
+            JsonArray subs = sub != null && sub.has("subs") ? sub.getAsJsonArray("subs") : new JsonArray();
+            for (JsonElement e : subs) {
                 try {
-                    String path = m.group(1);
-                    String rawTitle = stripTags(m.group(2)).trim();
-                    if (TextUtils.isEmpty(rawTitle) || rawTitle.length() > 200) continue;
-                    String window = html.substring(m.end(), Math.min(html.length(), m.end() + 600));
-                    String lang = guessLang(window, rawTitle);
-                    result.add(new SubtitleInfo(rawTitle, lang, "shooter://detail" + path + "@" + base, getId()));
-                    count++;
+                    JsonObject o = e.getAsJsonObject();
+                    long id = o.has("id") ? o.get("id").getAsLong() : 0;
+                    if (id <= 0) continue;
+                    String name = o.has("native_name") ? o.get("native_name").getAsString() : "";
+                    if (TextUtils.isEmpty(name) && o.has("videoname")) name = o.get("videoname").getAsString();
+                    if (TextUtils.isEmpty(name)) name = "射手字幕 " + id;
+                    String lang = mapLang(o);
+                    result.add(new SubtitleInfo(name, lang, "assrt://" + id, getId()));
+                    if (result.size() >= 30) break;
                 } catch (Throwable ignored) {
-                }
-            }
-            // 兜底：直接找下载链接
-            if (result.isEmpty()) {
-                Matcher d = ITEM2.matcher(html);
-                while (d.find() && count < 30) {
-                    try {
-                        String dl = d.group(1);
-                        String rawTitle = stripTags(d.group(2)).trim();
-                        if (TextUtils.isEmpty(rawTitle)) continue;
-                        if (!dl.startsWith("http")) dl = base + dl;
-                        result.add(new SubtitleInfo(rawTitle, guessLang("", rawTitle), dl, getId()));
-                        count++;
-                    } catch (Throwable ignored) {
-                    }
                 }
             }
         } catch (Throwable ignored) {
@@ -106,53 +81,57 @@ public class ShooterProvider implements SubtitleProvider {
     }
 
     /**
-     * 解析详情页拿真实下载地址。
-     * downloadUrl 格式：shooter://detail{path}@{base}
+     * 解析详情拿真实下载地址。
+     * downloadUrl 格式：assrt://{id}
      */
     public static String resolveDownloadUrl(String stored) {
         try {
-            if (!stored.startsWith("shooter://detail")) return stored;
-            String rest = stored.substring("shooter://detail".length());
-            int at = rest.lastIndexOf('@');
-            if (at < 0) return "";
-            String path = rest.substring(0, at);
-            String base = rest.substring(at + 1);
-            String html = OkHttp.string(base + path, headers(base));
-            if (TextUtils.isEmpty(html)) return "";
-            Matcher m = Pattern.compile("href=\"([^\"]*\\.(?:srt|ass|ssa|zip)[^\"]*)\"").matcher(html);
-            if (m.find()) {
-                String dl = m.group(1);
-                return dl.startsWith("http") ? dl : base + dl;
-            }
+            if (!stored.startsWith("assrt://")) return stored;
+            String id = stored.substring("assrt://".length());
+            String token = SubtitleSetting.getAssrtToken();
+            if (TextUtils.isEmpty(id) || TextUtils.isEmpty(token)) return "";
+            String url = API + "/v1/sub/detail?token=" + Uri.encode(token) + "&id=" + Uri.encode(id);
+            String body = OkHttp.string(url, headers());
+            if (TextUtils.isEmpty(body)) return "";
+            Matcher m = URL_HARVEST.matcher(body);
+            if (m.find()) return m.group(1).replace("\\/", "/");
         } catch (Throwable ignored) {
         }
         return "";
     }
 
-    private static String guessLang(String window, String title) {
-        String s = window + " " + title;
-        Matcher m = LANG_HINT.matcher(s);
-        if (m.find()) {
-            String hit = m.group(1);
-            if (hit.contains("双语") || hit.contains("中英")) return "zh_en";
-            if (hit.contains("繁")) return "zh_cht";
-            if (hit.contains("英")) return "en";
-            return "zh_chs";
+    private static String mapLang(JsonObject o) {
+        try {
+            JsonObject lang = o.has("lang") ? o.getAsJsonObject("lang") : null;
+            String desc = lang != null && lang.has("desc") ? lang.get("desc").getAsString() : "";
+            if (desc.contains("双语") || desc.contains("中英")) return "zh_en";
+            JsonObject list = lang != null && lang.has("langlist") ? lang.getAsJsonObject("langlist") : null;
+            boolean chs = hasLang(list, "langchs");
+            boolean cht = hasLang(list, "langcht");
+            boolean eng = hasLang(list, "langeng");
+            if ((chs || cht) && eng) return "zh_en";
+            if (cht) return "zh_cht";
+            if (chs) return "zh_chs";
+            if (eng) return "en";
+            if (desc.contains("繁")) return "zh_cht";
+            if (desc.contains("英")) return "en";
+        } catch (Throwable ignored) {
         }
         return "zh_chs";
     }
 
-    private static String stripTags(String s) {
-        if (s == null) return "";
-        return TAG.matcher(s).replaceAll("").replace("&nbsp;", " ").trim();
+    private static boolean hasLang(JsonObject list, String key) {
+        try {
+            return list != null && list.has(key) && list.get(key).getAsBoolean();
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
-    private static Map<String, String> headers(String base) {
+    private static Map<String, String> headers() {
         Map<String, String> h = new HashMap<>();
         h.put("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36");
-        h.put("Accept", "text/html,application/xhtml+xml");
-        h.put("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
-        ShieldBypass.injectCookie(h, ShieldBypass.hostOf(base));
+        h.put("Accept", "application/json");
         return h;
     }
 }

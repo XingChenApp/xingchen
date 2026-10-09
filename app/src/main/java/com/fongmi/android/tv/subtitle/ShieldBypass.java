@@ -67,6 +67,8 @@ public class ShieldBypass {
                 return "射手网";
             case "zimuku":
                 return "字幕库";
+            case "opensubtitles":
+                return "OpenSubtitles";
             default:
                 return providerId;
         }

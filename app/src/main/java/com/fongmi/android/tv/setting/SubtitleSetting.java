@@ -131,4 +131,12 @@ public class SubtitleSetting {
     public static void putOpenSubtitlesKey(String key) {
         Prefers.put("subtitle_opensubtitles_key", key == null ? "" : key.trim());
     }
+
+    public static String getAssrtToken() {
+        return Prefers.getString("subtitle_assrt_token", "");
+    }
+
+    public static void putAssrtToken(String token) {
+        Prefers.put("subtitle_assrt_token", token == null ? "" : token.trim());
+    }
 }

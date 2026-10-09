@@ -158,6 +158,9 @@ public class SubtitleManager {
             if (url.startsWith("subhd://detail")) {
                 return SubHDProvider.resolveDownloadUrl(url.substring("subhd://detail".length()));
             }
+            if (url.startsWith("assrt://")) {
+                return ShooterProvider.resolveDownloadUrl(url);
+            }
             if (url.startsWith("shooter://detail")) {
                 return ShooterProvider.resolveDownloadUrl(url);
             }
