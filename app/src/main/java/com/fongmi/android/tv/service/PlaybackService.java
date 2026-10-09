@@ -237,7 +237,6 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         running = false;
         player.prepareTerminalRelease();
         stopAndClear();
-        Source.get().stop();
         removeForeground();
         stopSelf();
     }
