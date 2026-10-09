@@ -233,7 +233,7 @@ public class Backup {
             Map<String, ?> values) {
         return values.containsKey("playback_performance_profile")
                 || values.containsKey("perf_exo_profile")
-                || values.containsKey("perf_mpv_profile")
+                || values.containsKey("perf_mpv_profile");
     }
 
     private static void putPrefers(SharedPreferences.Editor editor, Map<String, ?> values) {
