@@ -12,7 +12,7 @@ import com.github.catvod.utils.Prefers;
 public class DanmakuSetting {
 
     public static boolean isLoad() {
-        return Prefers.getBoolean("danmaku_load");
+        return Prefers.getBoolean("danmaku_load", true);
     }
 
     public static void putLoad(boolean danmakuLoad) {
@@ -20,7 +20,7 @@ public class DanmakuSetting {
     }
 
     public static boolean isAuto() {
-        return Prefers.getBoolean("danmaku_auto");
+        return Prefers.getBoolean("danmaku_auto", true);
     }
 
     public static void putAuto(boolean auto) {
@@ -44,7 +44,7 @@ public class DanmakuSetting {
     }
 
     public static boolean isShow() {
-        return Prefers.getBoolean("danmaku_show");
+        return Prefers.getBoolean("danmaku_show", true);
     }
 
     public static void putShow(boolean danmakuShow) {
@@ -161,6 +161,16 @@ public class DanmakuSetting {
 
     public static void putMaxOnScreen(int value) {
         Prefers.put("danmaku_max_on_screen", Math.max(1, value));
+    }
+
+    public static String getAreaMode() {
+        return Prefers.getString("danmaku_area_mode", "top");
+    }
+
+    public static void putAreaMode(String mode) {
+        if (mode == null) mode = "top";
+        Prefers.put("danmaku_area_mode", mode);
+        putScrollAreaRatio("full".equals(mode) ? 1.0f : 0.5f);
     }
 
     public static float getScrollAreaRatio() {

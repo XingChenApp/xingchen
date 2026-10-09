@@ -106,6 +106,7 @@ import com.fongmi.android.tv.setting.PlaybackPerformanceCatalog;
 import com.fongmi.android.tv.setting.PlaybackPerformanceSetting;
 import com.fongmi.android.tv.setting.PlaybackProfileAbSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
+import com.fongmi.android.tv.setting.SubtitleSetting;
 import com.fongmi.android.tv.utils.LocalProxyDebug;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
@@ -5329,6 +5330,7 @@ public class PlayerManager implements ParseCallback {
 
     private void applySubtitleStyle() {
         if (engine != null) engine.setSubtitleStyle(PlayerSetting.getSubtitleTextSize(), PlayerSetting.getSubtitlePosition());
+        if (player != null) setTextOffsetMs(SubtitleSetting.getDelayMs());
     }
 
     private void startNativeAudioSession(boolean shouldPlay) {

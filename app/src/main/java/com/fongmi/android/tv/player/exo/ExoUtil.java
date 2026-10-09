@@ -78,6 +78,7 @@ import com.fongmi.android.tv.setting.PlaybackPerformanceCatalog;
 import com.fongmi.android.tv.setting.PlaybackPerformanceSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.setting.SubtitleSetting;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.crawler.SpiderDebug;
@@ -108,6 +109,7 @@ public class ExoUtil {
         view.getSubtitleView().setStyle(getCaptionStyle());
         view.getSubtitleView().setApplyEmbeddedStyles(true);
         view.getSubtitleView().setApplyEmbeddedFontSizes(false);
+        view.getSubtitleView().setVisibility(SubtitleSetting.isEnabled() ? android.view.View.VISIBLE : android.view.View.GONE);
         if (PlayerSetting.getSubtitlePosition() != 0) view.getSubtitleView().setBottomPosition(PlayerSetting.getSubtitlePosition());
         if (PlayerSetting.getSubtitleTextSize() != 0) view.getSubtitleView().setFractionalTextSize(PlayerSetting.getSubtitleTextSize());
     }
@@ -315,6 +317,10 @@ public class ExoUtil {
     }
 
     public static CaptionStyleCompat getCaptionStyle() {
+        if (SubtitleSetting.hasCustomColor()) {
+            int foreground = SubtitleSetting.getColor();
+            return new CaptionStyleCompat(foreground, Color.TRANSPARENT, Color.TRANSPARENT, CaptionStyleCompat.EDGE_TYPE_OUTLINE, Color.BLACK, null);
+        }
         return PlayerSetting.isCaption() ? CaptionStyleCompat.createFromCaptionStyle(((CaptioningManager) App.get().getSystemService(Context.CAPTIONING_SERVICE)).getUserStyle()) : new CaptionStyleCompat(Color.WHITE, Color.TRANSPARENT, Color.TRANSPARENT, CaptionStyleCompat.EDGE_TYPE_OUTLINE, Color.BLACK, null);
     }
 

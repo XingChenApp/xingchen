@@ -1,80 +1,149 @@
 package com.fongmi.android.tv.ui.activity;
+
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.SeekBar;
+
 import androidx.viewbinding.ViewBinding;
+
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.databinding.ActivityDanmakuSettingsBinding;
 import com.fongmi.android.tv.setting.DanmakuSetting;
 import com.fongmi.android.tv.setting.PlayerButtonSetting;
 import com.fongmi.android.tv.ui.base.BaseActivity;
+
 public class DanmakuSettingsActivity extends BaseActivity {
+
     private ActivityDanmakuSettingsBinding binding;
-    private SharedPreferences prefs;
+
     public static void start(Activity activity) {
         activity.startActivity(new Intent(activity, DanmakuSettingsActivity.class));
     }
+
     @Override
     protected ViewBinding getBinding() {
         binding = ActivityDanmakuSettingsBinding.inflate(getLayoutInflater());
         return binding;
     }
-    private SharedPreferences prefs() {
-        if (prefs == null) prefs = getSharedPreferences("xingchen", MODE_PRIVATE);
-        return prefs;
-    }
+
     @Override
     protected void initView(Bundle savedInstanceState) {
-        boolean load = prefs().getBoolean("danmu_load", true);
-        DanmakuSetting.putLoad(load);
-        binding.switchDanmuLoad.setChecked(load);
-        binding.switchDanmuLoad.setOnCheckedChangeListener((b, c) -> { prefs().edit().putBoolean("danmu_load", c).apply(); DanmakuSetting.putLoad(c); });
-        binding.cardDanmuApi.setOnClickListener(v -> {});
-        boolean auto = prefs().getBoolean("danmu_autosearch", true);
-        DanmakuSetting.putAuto(auto);
-        binding.switchDanmuAutosearch.setChecked(auto);
-        binding.switchDanmuAutosearch.setOnCheckedChangeListener((b, c) -> { prefs().edit().putBoolean("danmu_autosearch", c).apply(); DanmakuSetting.putAuto(c); });
-        boolean spiderFirst = prefs().getBoolean("danmu_spider_first", false);
-        DanmakuSetting.putSpiderFirst(spiderFirst);
-        binding.switchDanmuSpiderFirst.setChecked(spiderFirst);
-        binding.switchDanmuSpiderFirst.setOnCheckedChangeListener((b, c) -> { prefs().edit().putBoolean("danmu_spider_first", c).apply(); DanmakuSetting.putSpiderFirst(c); });
-        boolean enable = prefs().getBoolean("danmu_enable", true);
-        DanmakuSetting.putShow(enable);
-        PlayerButtonSetting.putVisible(PlayerButtonSetting.DANMAKU, enable);
+        binding.switchDanmuLoad.setChecked(DanmakuSetting.isLoad());
+        binding.switchDanmuLoad.setOnCheckedChangeListener((b, c) -> DanmakuSetting.putLoad(c));
+
+        updateApiDesc();
+        binding.cardDanmuApi.setOnClickListener(v -> showApiDialog());
+
+        binding.switchDanmuAutosearch.setChecked(DanmakuSetting.isAuto());
+        binding.switchDanmuAutosearch.setOnCheckedChangeListener((b, c) -> DanmakuSetting.putAuto(c));
+
+        binding.switchDanmuSpiderFirst.setChecked(DanmakuSetting.isSpiderFirst());
+        binding.switchDanmuSpiderFirst.setOnCheckedChangeListener((b, c) -> DanmakuSetting.putSpiderFirst(c));
+
+        boolean enable = DanmakuSetting.isShow();
         binding.switchDanmuEnable.setChecked(enable);
         binding.switchDanmuEnable.setOnCheckedChangeListener((b, c) -> {
-            prefs().edit().putBoolean("danmu_enable", c).apply();
             DanmakuSetting.putShow(c);
             PlayerButtonSetting.putVisible(PlayerButtonSetting.DANMAKU, c);
             updateSubCardsVisibility(c);
         });
         updateSubCardsVisibility(enable);
-        int alpha = prefs().getInt("danmu_alpha", 70);
+
+        int alpha = Math.round((1f - DanmakuSetting.getTransparency()) * 100f);
         binding.seekDanmuAlpha.setProgress(alpha);
         binding.tvDanmuAlpha.setText(alpha + "%");
         binding.seekDanmuAlpha.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(SeekBar s, int p, boolean fromUser) {
+            @Override
+            public void onProgressChanged(SeekBar s, int p, boolean fromUser) {
                 binding.tvDanmuAlpha.setText(p + "%");
-                if (fromUser) prefs().edit().putInt("danmu_alpha", p).apply();
+                if (fromUser) DanmakuSetting.putTransparency(1f - p / 100f);
             }
-            @Override public void onStartTrackingTouch(SeekBar s) {}
-            @Override public void onStopTrackingTouch(SeekBar s) {}
+
+            @Override
+            public void onStartTrackingTouch(SeekBar s) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar s) {
+            }
         });
+
         updateSpeedUI();
-        binding.speedSlow.setOnClickListener(v -> { setSpeed("slow"); updateSpeedUI(); });
-        binding.speedNormal.setOnClickListener(v -> { setSpeed("normal"); updateSpeedUI(); });
-        binding.speedFast.setOnClickListener(v -> { setSpeed("fast"); updateSpeedUI(); });
+        binding.speedSlow.setOnClickListener(v -> {
+            DanmakuSetting.putDurationMs(12000L);
+            updateSpeedUI();
+        });
+        binding.speedNormal.setOnClickListener(v -> {
+            DanmakuSetting.putDurationMs(8000L);
+            updateSpeedUI();
+        });
+        binding.speedFast.setOnClickListener(v -> {
+            DanmakuSetting.putDurationMs(5000L);
+            updateSpeedUI();
+        });
+
         updateSizeUI();
-        binding.sizeSmall.setOnClickListener(v -> { setSize("small"); updateSizeUI(); });
-        binding.sizeMedium.setOnClickListener(v -> { setSize("medium"); updateSizeUI(); });
-        binding.sizeLarge.setOnClickListener(v -> { setSize("large"); updateSizeUI(); });
+        binding.sizeSmall.setOnClickListener(v -> {
+            DanmakuSetting.putTextScale(0.8f);
+            updateSizeUI();
+        });
+        binding.sizeMedium.setOnClickListener(v -> {
+            DanmakuSetting.putTextScale(1.0f);
+            updateSizeUI();
+        });
+        binding.sizeLarge.setOnClickListener(v -> {
+            DanmakuSetting.putTextScale(1.25f);
+            updateSizeUI();
+        });
+
         updateAreaUI();
-        binding.areaTop.setOnClickListener(v -> { setArea("top"); updateAreaUI(); });
-        binding.areaFull.setOnClickListener(v -> { setArea("full"); updateAreaUI(); });
-        binding.areaBottom.setOnClickListener(v -> { setArea("bottom"); updateAreaUI(); });
+        binding.areaTop.setOnClickListener(v -> {
+            DanmakuSetting.putAreaMode("top");
+            updateAreaUI();
+        });
+        binding.areaFull.setOnClickListener(v -> {
+            DanmakuSetting.putAreaMode("full");
+            updateAreaUI();
+        });
+        binding.areaBottom.setOnClickListener(v -> {
+            DanmakuSetting.putAreaMode("bottom");
+            updateAreaUI();
+        });
     }
+
+    private void updateApiDesc() {
+        String url = DanmakuSetting.getEffectiveApiUrl();
+        binding.tvDanmuApiDesc.setText(url == null || url.isEmpty() ? "未设置" : url);
+    }
+
+    private void showApiDialog() {
+        EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        input.setText(DanmakuSetting.getApiUrl());
+        input.setHint("https://");
+        input.setSelection(input.getText().length());
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        input.setPadding(pad, pad, pad, pad);
+        new AlertDialog.Builder(this)
+                .setTitle("弹幕搜索接口")
+                .setView(input)
+                .setPositiveButton("保存", (d, w) -> {
+                    DanmakuSetting.putApiUrl(input.getText().toString());
+                    updateApiDesc();
+                })
+                .setNegativeButton("取消", null)
+                .setNeutralButton("清空", (d, w) -> {
+                    DanmakuSetting.putApiUrl("");
+                    updateApiDesc();
+                })
+                .show();
+    }
+
     private void updateSubCardsVisibility(boolean enable) {
         int v = enable ? View.VISIBLE : View.GONE;
         binding.cardDanmuAlpha.setVisibility(v);
@@ -82,25 +151,39 @@ public class DanmakuSettingsActivity extends BaseActivity {
         binding.cardDanmuSize.setVisibility(v);
         binding.cardDanmuArea.setVisibility(v);
     }
+
+    private String currentSpeed() {
+        long d = DanmakuSetting.getDurationMs();
+        if (d >= 10000L) return "slow";
+        if (d <= 6000L) return "fast";
+        return "normal";
+    }
+
     private void updateSpeedUI() {
-        String s = prefs().getString("danmu_speed", "normal");
-        binding.speedSlow.setBackgroundResource("slow".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.speedNormal.setBackgroundResource("normal".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.speedFast.setBackgroundResource("fast".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        String s = currentSpeed();
+        binding.speedSlow.setBackgroundResource("slow".equals(s) ? R.drawable.xc_seg_selected : 0);
+        binding.speedNormal.setBackgroundResource("normal".equals(s) ? R.drawable.xc_seg_selected : 0);
+        binding.speedFast.setBackgroundResource("fast".equals(s) ? R.drawable.xc_seg_selected : 0);
     }
-    private void setSpeed(String s) { prefs().edit().putString("danmu_speed", s).apply(); }
+
+    private String currentSize() {
+        float s = DanmakuSetting.getTextScale();
+        if (s < 0.9f) return "small";
+        if (s > 1.1f) return "large";
+        return "medium";
+    }
+
     private void updateSizeUI() {
-        String s = prefs().getString("danmu_size", "medium");
-        binding.sizeSmall.setBackgroundResource("small".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.sizeMedium.setBackgroundResource("medium".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.sizeLarge.setBackgroundResource("large".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        String s = currentSize();
+        binding.sizeSmall.setBackgroundResource("small".equals(s) ? R.drawable.xc_seg_selected : 0);
+        binding.sizeMedium.setBackgroundResource("medium".equals(s) ? R.drawable.xc_seg_selected : 0);
+        binding.sizeLarge.setBackgroundResource("large".equals(s) ? R.drawable.xc_seg_selected : 0);
     }
-    private void setSize(String s) { prefs().edit().putString("danmu_size", s).apply(); }
+
     private void updateAreaUI() {
-        String s = prefs().getString("danmu_area", "top");
-        binding.areaTop.setBackgroundResource("top".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.areaFull.setBackgroundResource("full".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.areaBottom.setBackgroundResource("bottom".equals(s) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        String s = DanmakuSetting.getAreaMode();
+        binding.areaTop.setBackgroundResource("top".equals(s) ? R.drawable.xc_seg_selected : 0);
+        binding.areaFull.setBackgroundResource("full".equals(s) ? R.drawable.xc_seg_selected : 0);
+        binding.areaBottom.setBackgroundResource("bottom".equals(s) ? R.drawable.xc_seg_selected : 0);
     }
-    private void setArea(String s) { prefs().edit().putString("danmu_area", s).apply(); }
 }

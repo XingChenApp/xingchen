@@ -59,6 +59,7 @@ import com.fongmi.android.tv.player.mpv.MpvNetworkRecoveryPolicy;
 import com.fongmi.android.tv.player.mpv.MpvSubtitleStylePolicy;
 import com.fongmi.android.tv.player.mpv.PlaybackRecoveryMonitor;
 import com.fongmi.android.tv.setting.PlayerSetting;
+import com.fongmi.android.tv.setting.SubtitleSetting;
 import com.fongmi.android.tv.setting.MpvPerformanceSetting;
 import com.fongmi.android.tv.setting.PreloadSetting;
 import com.fongmi.android.tv.setting.Setting;
@@ -5935,6 +5936,7 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
 
     private void applySubtitleStyle() {
         if (!initialized) return;
+        safeSetPropertyString("sub-visibility", SubtitleSetting.isEnabled() ? "yes" : "no");
         CaptionStyle style = captionStyle();
         safeSetPropertyDouble("sub-scale", subtitleScale());
         safeSetPropertyDouble("sub-pos", subtitlePosition());
@@ -5964,6 +5966,10 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
     }
 
     private CaptionStyle captionStyle() {
+        if (SubtitleSetting.hasCustomColor()) {
+            CaptionStyle base = defaultCaptionStyle();
+            return new CaptionStyle(base.font(), base.bold(), base.italic(), SubtitleSetting.getColor(), base.edge(), base.back(), base.borderStyle(), base.borderSize(), base.shadowOffset());
+        }
         if (!PlayerSetting.isCaption()) return defaultCaptionStyle();
         try {
             CaptioningManager manager = (CaptioningManager) context.getSystemService(Context.CAPTIONING_SERVICE);
