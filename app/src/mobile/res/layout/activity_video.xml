@@ -41,8 +41,7 @@
             style="@style/Player.Vod"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            app:surface_type="none"
-                app:resize_mode="fill" />
+            app:surface_type="none" />
 
         <include
             android:id="@+id/widget"
