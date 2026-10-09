@@ -235,8 +235,8 @@ public class SiteApi {
      * Other headers (e.g. User-Agent) are kept intact.
      */
     private static void stripRefererForCloudFront(@NonNull Result result) {
-        String url = result.getUrl();
-        if (url == null || !url.contains("cloudfront.net")) return;
+        String url = result.getUrl().v();
+        if (url.isEmpty() || !url.contains("cloudfront.net")) return;
         Map<String, String> header = result.getHeader();
         if (header.isEmpty()) return;
         header.remove("Referer");
