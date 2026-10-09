@@ -7,6 +7,7 @@ import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivityPlayerSettingsBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.setting.DanmakuSetting;
+import com.fongmi.android.tv.setting.BackgroundPlaybackPolicy;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.SubtitleSetting;
 import com.fongmi.android.tv.utils.Notify;
@@ -108,8 +109,11 @@ public class PlayerSettingsActivity extends BaseActivity {
         binding.bpOff.setBackgroundResource("off".equals(m) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
         binding.bpBg.setBackgroundResource("bg".equals(m) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
         binding.bpPip.setBackgroundResource("pip".equals(m) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        int want = "off".equals(m) ? BackgroundPlaybackPolicy.OFF : BackgroundPlaybackPolicy.ON;
+        if (PlayerSetting.getBackground() != want) PlayerSetting.putBackground(want);
     }
     private void setBgPip(String m) {
         getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("bg_pip_mode", m).apply();
+        PlayerSetting.putBackground("off".equals(m) ? BackgroundPlaybackPolicy.OFF : BackgroundPlaybackPolicy.ON);
     }
 }
