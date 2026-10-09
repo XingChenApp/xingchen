@@ -2,22 +2,13 @@ diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/Danma
 index 6debf76..74bf12c 100644
 --- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/Danmaku.java
 +++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/Danmaku.java
-@@ -110,6 +110,11 @@ public final class Danmaku {
- 
-   @Nullable private final int[] sourceGradientColors;
- 
+@@ -112,0 +113,5 @@ public final class Danmaku {
 +  /** Whether this is a live-stream item (mutable for live batch API compatibility). */
 +  public boolean liveItem;
 +  /** Elapsed-realtime expiry for live items, or 0 if none. */
 +  public long liveExpiryElapsedRealtimeMs;
 +
-   /** Creates a danmaku item. */
-   public Danmaku(
-       String text,
-@@ -205,4 +210,15 @@ public final class Danmaku {
-   public int[] getSourceGradientColors() {
-     return sourceGradientColors != null ? sourceGradientColors.clone() : null;
-   }
+@@ -207,0 +213,11 @@ public final class Danmaku {
 +
 +  /**
 +   * Sets the elapsed-realtime expiry for live items.
@@ -29,15 +20,11 @@ index 6debf76..74bf12c 100644
 +    this.liveExpiryElapsedRealtimeMs = Math.max(0L, expiryElapsedRealtimeMs);
 +    return this;
 +  }
- }
 diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuController.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuController.java
 index 7bf291c..91c0860 100644
 --- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuController.java
 +++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuController.java
-@@ -429,6 +429,27 @@ public final class DanmakuController {
-   }
- 
-   /** Sets whether danmaku rendering is enabled. */
+@@ -431,0 +432,21 @@ public final class DanmakuController {
 +  /**
 +   * Offers a batch of live-stream danmaku items for immediate display.
 +   */
@@ -59,45 +46,22 @@ index 7bf291c..91c0860 100644
 +    }
 +  }
 +
-   public void setEnabled(boolean enabled) {
-     if (this.enabled == enabled) {
-       return;
 diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
 index a2bcd99..183a360 100644
 --- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
 +++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
-@@ -34,6 +34,7 @@ final class DanmakuRenderItem {
-   final boolean forceGeneratedWhite;
-   @Nullable final int[] sourceGradientColors;
-   float measuredWidth;
+@@ -36,0 +37 @@ final class DanmakuRenderItem {
 +  boolean liveItem;
-   int trackIndex = -1;
-   int trackSpan = 1;
-   long activatedTimeMs = -1;
-@@ -57,5 +58,6 @@ final class DanmakuRenderItem {
-     textHash = text.hashCode();
-     forceGeneratedWhite = Math.abs(textHash) % 5 == 0;
-     sourceGradientColors = danmaku.getSourceGradientColors();
+@@ -59,0 +61 @@ final class DanmakuRenderItem {
 +    liveItem = danmaku.liveItem;
-   }
- }
 diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
 index 2142ac7..9018f7b 100644
 --- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
 +++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
-@@ -46,6 +46,8 @@ public final class DanmakuView extends View {
-   private DanmakuConfig config;
-   private boolean drawEnabled = true;
-   private long lastActivationPositionMs = Long.MIN_VALUE;
+@@ -48,0 +49,2 @@ public final class DanmakuView extends View {
 +  private long liveOffered;
 +  private long liveAdmitted;
-   private boolean released;
-   private int viewWidth;
-   private int viewHeight;
-@@ -251,6 +253,86 @@ public final class DanmakuView extends View {
-     invalidate();
-   }
- 
+@@ -253,0 +256,80 @@ public final class DanmakuView extends View {
 +  /**
 +   * Offers a batch of live-stream danmaku items for immediate display.
 +   *
@@ -178,6 +142,3 @@ index 2142ac7..9018f7b 100644
 +    }
 +  }
 +
-   /** Replaces the render pool with {@code items}. */
-   public void replacePool(List<Danmaku> items) {
-     checkNotNull(items);

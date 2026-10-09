@@ -7,11 +7,11 @@
     "patches": [
       {
         "path": "third_party/patches/media3-exo-avs3-r2.patch",
-        "sha256": "7a16520f5b7452cde3b8fe698382c6494084c272e6bcd07b962efdb00cc870d4"
+        "sha256": "45fe2a83d70ed52e16fecde21eb2545a7153f9758d1bb89d55436363542f71aa"
       },
       {
         "path": "third_party/patches/media3-danmaku-live-r2.patch",
-        "sha256": "f2e8f5d3294fe980e1923eeeb2f1cc0fda9b313128ccd3d57d42def1873ec1f7"
+        "sha256": "20e5749f98a06edea0513bf8a3cd6e1dd93c5e6a1939d7aa8f3f405c8bb1d25d"
       },
       {
         "path": "third_party/patches/media3-playback-diagnostics-r2.patch",
@@ -19,7 +19,7 @@
       },
       {
         "path": "third_party/patches/media3-deferred-cues-r2.patch",
-        "sha256": "ca8ea25461af30c71b0915c655a8412ad925460559b40e20ea50e2f72c6b39e0"
+        "sha256": "a16892cde4cf444f5f92e0116d75f88876efec25d72d9d22e9bd4d56c82044d2"
       },
       {
         "path": "third_party/patches/media3-precache-hls-safety.patch",
