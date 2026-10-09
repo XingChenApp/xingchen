@@ -44,7 +44,6 @@ public class Thunder implements Source.Extractor {
         File parent = torrent.getParentFile();
         String name = uri.getQueryParameter("name");
         int index = Integer.parseInt(uri.getQueryParameter("index"));
-        downloadDir = parent;
         taskId = XLTaskHelper.get().addTorrentTask(torrent, parent, index);
         for (int i = 0; i < 100; i++) {
             XLTaskInfo info = XLTaskHelper.get().getBtSubTaskInfo(taskId, index).mTaskInfo;
@@ -59,7 +58,7 @@ public class Thunder implements Source.Extractor {
         File folder = Path.thunder(Util.md5(url));
         downloadDir = folder;
         taskId = XLTaskHelper.get().addThunderTask(url, folder);
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 300; i++) {
             XLTaskInfo info = XLTaskHelper.get().getTaskInfo(taskId);
             if (info == null) {
                 SystemClock.sleep(100);
@@ -77,10 +76,6 @@ public class Thunder implements Source.Extractor {
         if (taskId == null) return;
         try {
             XLTaskHelper.get().deleteTask(taskId);
-        } catch (Exception ignored) {
-        }
-        try {
-            XLTaskHelper.get().release();
         } catch (Exception ignored) {
         }
         taskId = null;
