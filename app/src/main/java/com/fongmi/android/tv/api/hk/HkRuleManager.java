@@ -90,12 +90,33 @@ public class HkRuleManager {
     }
 
     /**
-     * 从 JSON 文本导入规则：解析 → 校验 → 落盘（保留原始 JSON 文本，不丢失未知字段）。
+     * 解析后尚未落盘的规则（含原始 JSON 文本，落盘时原样写入，不丢失未知字段）。
+     * 一键导入先全部解析 → 弹窗让用户勾选 → 只把选中的 saveRule 落盘。
+     */
+    public static class ParsedRule {
+        public final HkRule rule;
+        public final String json;
+
+        public ParsedRule(HkRule rule, String json) {
+            this.rule = rule;
+            this.json = json;
+        }
+    }
+
+    /** .hkzip 包的解析结果：规则（未落盘）+ 附带资源（require.json / libs）。 */
+    public static class HkZipData {
+        public final List<ParsedRule> rules = new ArrayList<>();
+        public byte[] requireJson;
+        public final Map<String, byte[]> libs = new LinkedHashMap<>();
+    }
+
+    /**
+     * 从 JSON 文本解析规则：解析 → 校验，不落盘。
      *
-     * @return 导入成功的规则
+     * @return 解析通过的规则
      * @throws Exception 解析失败或校验不通过时抛出，message 可直接提示用户
      */
-    public HkRule importJson(String json) throws Exception {
+    public HkRule parseJson(String json) throws Exception {
         if (json == null || json.trim().isEmpty()) throw new IllegalArgumentException("规则内容为空");
         HkRule rule;
         try {
@@ -105,9 +126,27 @@ public class HkRuleManager {
         }
         if (rule == null) throw new IllegalArgumentException("规则 JSON 解析失败");
         rule.validate();
+        return rule;
+    }
+
+    /** 把解析好的规则落盘（保留原始 JSON 文本，不丢失未知字段）。 */
+    public void saveRule(HkRule rule, String rawJson) throws Exception {
+        if (rule == null) throw new IllegalArgumentException("规则为空");
+        if (rawJson == null || rawJson.isEmpty()) rawJson = new Gson().toJson(rule);
         File target = new File(getDir(), safeFileName(rule.getTitle()) + ".json");
-        Files.write(target.toPath(), json.getBytes(StandardCharsets.UTF_8));
+        Files.write(target.toPath(), rawJson.getBytes(StandardCharsets.UTF_8));
         rule.setEnabled(isEnabled(rule.getTitle()));
+    }
+
+    /**
+     * 从 JSON 文本导入规则：解析 → 校验 → 落盘（保留原始 JSON 文本，不丢失未知字段）。
+     *
+     * @return 导入成功的规则
+     * @throws Exception 解析失败或校验不通过时抛出，message 可直接提示用户
+     */
+    public HkRule importJson(String json) throws Exception {
+        HkRule rule = parseJson(json);
+        saveRule(rule, json);
         return rule;
     }
 
@@ -119,15 +158,15 @@ public class HkRuleManager {
     }
 
     /**
-     * 从 zip 包导入规则：解压后找出所有 rule.json（根目录或子目录均可），逐个导入。
+     * 从 zip 包解析规则（不落盘）：解压后找出所有 .json（根目录或子目录均可），逐个解析。
      * 一个 zip 可包含多个规则；zip 内条目也可能是规则数组；单个损坏的条目只跳过、不影响其它。
      *
-     * @return 导入成功的规则列表
+     * @return 解析成功的规则列表
      * @throws Exception zip 损坏 / 其中没有合法规则时抛出，message 可直接提示用户
      */
-    public List<HkRule> importZip(File zipFile) throws Exception {
+    public List<ParsedRule> parseZip(File zipFile) throws Exception {
         if (zipFile == null || !zipFile.exists()) throw new IllegalArgumentException("zip 文件不存在");
-        List<HkRule> imported = new ArrayList<>();
+        List<ParsedRule> parsed = new ArrayList<>();
         List<String> failed = new ArrayList<>();
         try (ZipFile zip = new ZipFile(zipFile)) {
             Enumeration<? extends ZipEntry> entries = zip.entries();
@@ -144,7 +183,7 @@ public class HkRuleManager {
                 byte[] bytes = readStream(zip.getInputStream(entry));
                 try {
                     // 条目可能是单个规则，也可能是规则数组
-                    imported.addAll(importJsonList(new String(bytes, StandardCharsets.UTF_8)));
+                    parsed.addAll(parseJsonList(new String(bytes, StandardCharsets.UTF_8)));
                 } catch (Exception e) {
                     failed.add(base + "（" + e.getMessage() + "）");
                 }
@@ -152,26 +191,42 @@ public class HkRuleManager {
         } catch (ZipException e) {
             throw new IllegalArgumentException("不是有效的 zip 包或文件已损坏");
         }
-        if (imported.isEmpty()) {
+        if (parsed.isEmpty()) {
             if (!failed.isEmpty()) throw new IllegalArgumentException("zip 中没有合法规则：" + failed.get(0));
             throw new IllegalArgumentException("zip 中没有找到 rule.json");
+        }
+        return parsed;
+    }
+
+    /**
+     * 从 zip 包导入规则：解压后找出所有 rule.json（根目录或子目录均可），逐个导入。
+     * 一个 zip 可包含多个规则；zip 内条目也可能是规则数组；单个损坏的条目只跳过、不影响其它。
+     *
+     * @return 导入成功的规则列表
+     * @throws Exception zip 损坏 / 其中没有合法规则时抛出，message 可直接提示用户
+     */
+    public List<HkRule> importZip(File zipFile) throws Exception {
+        List<ParsedRule> parsed = parseZip(zipFile);
+        List<HkRule> imported = new ArrayList<>();
+        for (ParsedRule p : parsed) {
+            saveRule(p.rule, p.json);
+            imported.add(p.rule);
         }
         return imported;
     }
 
     /**
-     * 从 .hkzip 包导入：内容为 rule.json + require.json + libs.zip。
-     * rule.json 走导入；require.json 与 libs.zip 解压到规则数据目录（data/&lt;规则名&gt;/），
-     * 供 require() 本地优先加载（无网络时也能用）。
+     * 从 .hkzip 包解析：内容为 rule.json + require.json + libs.zip。
+     * rule.json 只解析不落盘；require.json 与 libs.zip 缓存在返回对象中，
+     * 用户勾选后只把选中规则的附带资源落盘到 data/&lt;规则名&gt;/。
      *
-     * @return 导入成功的规则列表
+     * @return 解析结果
+     * @throws Exception 包损坏 / 其中没有合法规则时抛出
      */
-    public List<HkRule> importHkZip(File hkzipFile) throws Exception {
+    public HkZipData parseHkZip(File hkzipFile) throws Exception {
         if (hkzipFile == null || !hkzipFile.exists()) throw new IllegalArgumentException("hkzip 文件不存在");
-        List<HkRule> imported = new ArrayList<>();
+        HkZipData data = new HkZipData();
         List<String> failed = new ArrayList<>();
-        byte[] requireJson = null;
-        Map<String, byte[]> libs = new LinkedHashMap<>();
         try (ZipFile zip = new ZipFile(hkzipFile)) {
             Enumeration<? extends ZipEntry> entries = zip.entries();
             while (entries.hasMoreElements()) {
@@ -183,7 +238,7 @@ public class HkRuleManager {
                 String lower = base.toLowerCase(Locale.ROOT);
                 byte[] bytes = readStream(zip.getInputStream(entry));
                 if (lower.equals("require.json")) {
-                    requireJson = bytes;
+                    data.requireJson = bytes;
                 } else if (lower.equals("libs.zip")) {
                     // 内层 zip：解出所有 js 库
                     try (ZipInputStream zin = new ZipInputStream(new ByteArrayInputStream(bytes))) {
@@ -193,7 +248,7 @@ public class HkRuleManager {
                                 String en = e.getName();
                                 String eb = en.substring(en.lastIndexOf('/') + 1);
                                 if (!eb.startsWith(".") && eb.toLowerCase(Locale.ROOT).endsWith(".js")) {
-                                    libs.put(eb, readStream(zin));
+                                    data.libs.put(eb, readStream(zin));
                                 }
                             }
                             zin.closeEntry();
@@ -202,7 +257,7 @@ public class HkRuleManager {
                     }
                 } else if (lower.endsWith(".json")) {
                     try {
-                        imported.addAll(importJsonList(new String(bytes, StandardCharsets.UTF_8)));
+                        data.rules.addAll(parseJsonList(new String(bytes, StandardCharsets.UTF_8)));
                     } catch (Exception e) {
                         failed.add(base + "（" + e.getMessage() + "）");
                     }
@@ -211,23 +266,28 @@ public class HkRuleManager {
         } catch (ZipException e) {
             throw new IllegalArgumentException("不是有效的 hkzip 包或文件已损坏");
         }
-        if (imported.isEmpty()) {
+        if (data.rules.isEmpty()) {
             if (!failed.isEmpty()) throw new IllegalArgumentException("hkzip 中没有合法规则：" + failed.get(0));
             throw new IllegalArgumentException("hkzip 中没有找到 rule.json");
         }
-        // 落盘 require.json 与 libs，供 require() 本地加载
-        for (HkRule rule : imported) {
+        return data;
+    }
+
+    /** 把 .hkzip 的附带资源（require.json / libs）落盘到指定规则的数据目录，供 require() 本地加载。 */
+    public void saveHkZipAssets(HkZipData data, List<HkRule> rules) {
+        if (data == null || rules == null) return;
+        for (HkRule rule : rules) {
             File dataDir = getDataDir(rule.getTitle());
-            if (requireJson != null) {
+            if (data.requireJson != null) {
                 try {
-                    Files.write(new File(dataDir, "require.json").toPath(), requireJson);
+                    Files.write(new File(dataDir, "require.json").toPath(), data.requireJson);
                 } catch (Exception ignored) {
                 }
             }
-            if (!libs.isEmpty()) {
+            if (!data.libs.isEmpty()) {
                 File libsDir = new File(dataDir, "libs");
                 libsDir.mkdirs();
-                for (Map.Entry<String, byte[]> e : libs.entrySet()) {
+                for (Map.Entry<String, byte[]> e : data.libs.entrySet()) {
                     try {
                         Files.write(new File(libsDir, e.getKey()).toPath(), e.getValue());
                     } catch (Exception ignored) {
@@ -235,6 +295,24 @@ public class HkRuleManager {
                 }
             }
         }
+    }
+
+    /**
+     * 从 .hkzip 包导入：内容为 rule.json + require.json + libs.zip。
+     * rule.json 走导入；require.json 与 libs.zip 解压到规则数据目录（data/&lt;规则名&gt;/），
+     * 供 require() 本地优先加载（无网络时也能用）。
+     *
+     * @return 导入成功的规则列表
+     */
+    public List<HkRule> importHkZip(File hkzipFile) throws Exception {
+        HkZipData data = parseHkZip(hkzipFile);
+        List<HkRule> imported = new ArrayList<>();
+        for (ParsedRule p : data.rules) {
+            saveRule(p.rule, p.json);
+            imported.add(p.rule);
+        }
+        // 落盘 require.json 与 libs，供 require() 本地加载
+        saveHkZipAssets(data, imported);
         return imported;
     }
 
@@ -249,18 +327,19 @@ public class HkRuleManager {
     }
 
     /**
-     * 导入 JSON 文本：兼容单个规则对象与规则数组（一个文件多个小程序）。
+     * 解析 JSON 文本（不落盘）：兼容单个规则对象与规则数组（一个文件多个小程序）。
      * 数组中单个损坏/不合规的条目只跳过、不影响其它。
      *
-     * @return 导入成功的规则列表（单个对象时为 1 个元素的列表）
+     * @return 解析成功的规则列表（单个对象时为 1 个元素的列表）
      * @throws Exception 没有任何合法规则时抛出，message 可直接提示用户
      */
-    public List<HkRule> importJsonList(String json) throws Exception {
+    public List<ParsedRule> parseJsonList(String json) throws Exception {
         if (json == null || json.trim().isEmpty()) throw new IllegalArgumentException("规则内容为空");
         String t = json.trim();
         if (!t.startsWith("[")) {
-            List<HkRule> single = new ArrayList<>();
-            single.add(importJson(t));
+            List<ParsedRule> single = new ArrayList<>();
+            HkRule rule = parseJson(t);
+            single.add(new ParsedRule(rule, t));
             return single;
         }
         JsonArray arr;
@@ -269,7 +348,7 @@ public class HkRuleManager {
         } catch (Exception e) {
             throw new IllegalArgumentException("规则 JSON 数组解析失败：" + e.getMessage());
         }
-        List<HkRule> imported = new ArrayList<>();
+        List<ParsedRule> parsed = new ArrayList<>();
         List<String> failed = new ArrayList<>();
         Gson gson = new Gson();
         int idx = 0;
@@ -286,13 +365,32 @@ public class HkRuleManager {
             }
             String label = title.isEmpty() ? "第" + idx + "项" : "「" + title + "」";
             try {
-                imported.add(importJson(gson.toJson(el)));
+                String raw = gson.toJson(el);
+                HkRule rule = parseJson(raw);
+                parsed.add(new ParsedRule(rule, raw));
             } catch (Exception e) {
                 failed.add(label + "：" + e.getMessage());
             }
         }
-        if (imported.isEmpty()) {
+        if (parsed.isEmpty()) {
             throw new IllegalArgumentException("没有合法规则" + (failed.isEmpty() ? "" : "，" + failed.get(0)));
+        }
+        return parsed;
+    }
+
+    /**
+     * 导入 JSON 文本：兼容单个规则对象与规则数组（一个文件多个小程序）。
+     * 数组中单个损坏/不合规的条目只跳过、不影响其它。
+     *
+     * @return 导入成功的规则列表（单个对象时为 1 个元素的列表）
+     * @throws Exception 没有任何合法规则时抛出，message 可直接提示用户
+     */
+    public List<HkRule> importJsonList(String json) throws Exception {
+        List<ParsedRule> parsed = parseJsonList(json);
+        List<HkRule> imported = new ArrayList<>();
+        for (ParsedRule p : parsed) {
+            saveRule(p.rule, p.json);
+            imported.add(p.rule);
         }
         return imported;
     }

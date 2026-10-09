@@ -15,14 +15,18 @@ import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.DisplayMetrics;
+import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
+import android.widget.ArrayAdapter;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -318,16 +322,25 @@ public class HkPageActivity extends BaseActivity {
                 }
                 String displayName = getDisplayName(uri);
                 if (isZipFile(tmp, displayName)) {
+                    // 多规则包：先全部解析 → 弹窗让用户勾选 → 只导入选中的
                     boolean hkzip = displayName != null && displayName.toLowerCase().endsWith(".hkzip");
-                    List<HkRule> rules = hkzip
-                            ? HkRuleManager.get().importHkZip(tmp)
-                            : HkRuleManager.get().importZip(tmp);
-                    StringBuilder sb = new StringBuilder("导入成功 " + rules.size() + " 个：");
-                    for (HkRule r : rules) sb.append("\n").append(r.getTitle());
-                    String msg = sb.toString();
+                    List<HkRuleManager.ParsedRule> parsed;
+                    HkRuleManager.HkZipData hkZipData = null;
+                    if (hkzip) {
+                        hkZipData = HkRuleManager.get().parseHkZip(tmp);
+                        parsed = hkZipData.rules;
+                    } else {
+                        parsed = HkRuleManager.get().parseZip(tmp);
+                    }
+                    List<HkRuleManager.ParsedRule> result = parsed;
+                    HkRuleManager.HkZipData data = hkZipData;
                     App.post(() -> {
-                        Notify.show(msg);
-                        refreshRules();
+                        if (result.size() == 1) {
+                            // 单个规则直接导入（.hkzip 的附带资源一并落盘）
+                            importPickedRules(result, data);
+                        } else {
+                            showPickRulesDialog(result, data);
+                        }
                     });
                 } else {
                     importRuleText(readAll(new FileInputStream(tmp)), displayName);
@@ -360,19 +373,110 @@ public class HkPageActivity extends BaseActivity {
                         refreshRules();
                     });
                 } else {
-                    List<HkRule> rules = HkRuleManager.get().importJsonList(text);
-                    String msg = rules.size() == 1
-                            ? "导入成功：" + rules.get(0).getTitle()
-                            : "导入成功 " + rules.size() + " 个小程序";
+                    // 一键导入：先全部解析，多个则弹窗让用户勾选要导入哪些（带全选）
+                    List<HkRuleManager.ParsedRule> parsed = HkRuleManager.get().parseJsonList(text);
                     App.post(() -> {
-                        Notify.show(msg);
-                        refreshRules();
+                        if (parsed.size() == 1) {
+                            importPickedRules(parsed, null);
+                        } else {
+                            showPickRulesDialog(parsed, null);
+                        }
                     });
                 }
             } catch (Exception e) {
                 App.post(() -> Notify.show("导入失败：" + e.getMessage()));
             }
         }).start();
+    }
+
+    /**
+     * 把选中的解析结果落盘导入（.hkzip 的附带资源一并落盘）。
+     *
+     * @param picked    选中的规则
+     * @param hkZipData .hkzip 解析数据（可为 null）
+     */
+    private void importPickedRules(List<HkRuleManager.ParsedRule> picked, HkRuleManager.HkZipData hkZipData) {
+        if (picked.isEmpty()) {
+            Notify.show("未选中任何规则");
+            return;
+        }
+        new Thread(() -> {
+            try {
+                List<HkRule> rules = new ArrayList<>();
+                for (HkRuleManager.ParsedRule p : picked) {
+                    HkRuleManager.get().saveRule(p.rule, p.json);
+                    rules.add(p.rule);
+                }
+                if (hkZipData != null) HkRuleManager.get().saveHkZipAssets(hkZipData, rules);
+                String msg = rules.size() == 1
+                        ? "导入成功：" + rules.get(0).getTitle()
+                        : "导入成功 " + rules.size() + " 个小程序";
+                App.post(() -> {
+                    Notify.show(msg);
+                    refreshRules();
+                });
+            } catch (Exception e) {
+                App.post(() -> Notify.show("导入失败：" + e.getMessage()));
+            }
+        }).start();
+    }
+
+    /**
+     * 一键导入勾选弹窗：多选列表（标题+作者）+ 顶部"全选"复选框。
+     * 确定后只导入勾选中的规则。
+     *
+     * @param parsed    解析好的全部规则
+     * @param hkZipData .hkzip 解析数据（可为 null）
+     */
+    private void showPickRulesDialog(List<HkRuleManager.ParsedRule> parsed, HkRuleManager.HkZipData hkZipData) {
+        float density = getResources().getDisplayMetrics().density;
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (16 * density);
+        root.setPadding(pad, pad / 2, pad, 0);
+
+        CheckBox cbAll = new CheckBox(this);
+        cbAll.setText("全选");
+        cbAll.setChecked(true);
+        cbAll.setTextColor(0xFFF2F4F8);
+        root.addView(cbAll);
+
+        List<String> labels = new ArrayList<>();
+        for (HkRuleManager.ParsedRule p : parsed) {
+            String author = p.rule.getAuthor();
+            labels.add(TextUtils.isEmpty(author) ? p.rule.getTitle() : p.rule.getTitle() + "（" + author + "）");
+        }
+        ListView listView = new ListView(this);
+        listView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_list_item_multiple_choice, labels);
+        listView.setAdapter(adapter);
+        for (int i = 0; i < labels.size(); i++) listView.setItemChecked(i, true);
+        int rowPx = (int) (56 * density);
+        int listH = Math.min(rowPx * labels.size(), rowPx * 7);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, listH);
+        lp.topMargin = (int) (8 * density);
+        listView.setLayoutParams(lp);
+        root.addView(listView);
+
+        cbAll.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            for (int i = 0; i < labels.size(); i++) listView.setItemChecked(i, isChecked);
+        });
+
+        new AlertDialog.Builder(this)
+                .setTitle("选择要导入的小程序（" + labels.size() + "）")
+                .setView(root)
+                .setPositiveButton("导入", (d, w) -> {
+                    SparseBooleanArray checked = listView.getCheckedItemPositions();
+                    List<HkRuleManager.ParsedRule> picked = new ArrayList<>();
+                    for (int i = 0; i < labels.size(); i++) {
+                        if (checked.get(i)) picked.add(parsed.get(i));
+                    }
+                    importPickedRules(picked, hkZipData);
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     /** 取 content uri 的显示文件名（可能为 null）。 */
