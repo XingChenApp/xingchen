@@ -386,7 +386,9 @@ public class PlayerSetting {
     }
 
     public static void putVideoPrefer(boolean videoPrefer) {
-        KernelPerformanceSetting.putVideoPrefer(getPlayer(), videoPrefer);
+        for (int kernel : new int[]{EXO, MPV, IJK}) {
+            KernelPerformanceSetting.putVideoPrefer(kernel, videoPrefer);
+        }
     }
 
     public static boolean isPreferAAC() {

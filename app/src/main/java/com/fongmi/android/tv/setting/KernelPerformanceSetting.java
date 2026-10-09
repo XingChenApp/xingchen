@@ -295,7 +295,7 @@ public final class KernelPerformanceSetting {
         boolean audioPass = Prefers.getBoolean("audio_pass_through", true);
         boolean preferAac = Prefers.getBoolean("prefer_aac");
         boolean audioPrefer = Prefers.getBoolean("audio_prefer");
-        boolean videoPrefer = Prefers.getBoolean("video_prefer");
+        boolean videoPrefer = Prefers.getBoolean("video_prefer", true);
         for (int kernel : new int[]{PlayerSetting.EXO, PlayerSetting.MPV, PlayerSetting.IJK}) {
             Prefers.put(key(kernel, "buffer"), buffer);
             Prefers.put(key(kernel, "buffer_bytes"), bufferBytes);
