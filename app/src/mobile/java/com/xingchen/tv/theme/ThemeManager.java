@@ -215,7 +215,8 @@ public class ThemeManager {
                     }
                 } catch (Exception e) {}
             }
-            int id = getBuiltinRes(activity, value);
+            boolean preBlurred = blur && "shanjian".equals(value);
+            int id = getBuiltinRes(activity, value, blur);
             flog("getWallpaperDrawable: builtin id=" + id);
             if (id != 0) {
                 try {
@@ -234,7 +235,7 @@ public class ThemeManager {
                     flog("getWallpaperDrawable: decoding with sample=" + sample + " for " + opts.outWidth + "x" + opts.outHeight);
                     android.graphics.Bitmap bm = android.graphics.BitmapFactory.decodeResource(activity.getResources(), id, opts);
                     if (bm != null) {
-                        if (blur) bm = WallpaperBlur.blurredWallpaper(bm);
+                        if (blur && !preBlurred) bm = WallpaperBlur.blurredWallpaper(bm);
                         android.graphics.drawable.BitmapDrawable bd = new android.graphics.drawable.BitmapDrawable(activity.getResources(), bm);
                         bd.setTintList(null);
                         flog("getWallpaperDrawable: builtin bitmap decoded, " + bm.getWidth() + "x" + bm.getHeight() + ", caching");
@@ -246,7 +247,7 @@ public class ThemeManager {
                     flog("ERROR builtin decode: " + e);
                 }
                 android.graphics.drawable.Drawable fallback = activity.getResources().getDrawable(id, null);
-                if (blur) {
+                if (blur && !preBlurred) {
                     android.graphics.Bitmap fbm = drawableToBitmap(activity, fallback);
                     if (fbm != null) {
                         fallback = new android.graphics.drawable.BitmapDrawable(activity.getResources(), WallpaperBlur.blurredWallpaper(fbm));
@@ -278,10 +279,12 @@ public class ThemeManager {
         }
     }
 
-    private int getBuiltinRes(android.content.Context ctx, String name) {
+    private int getBuiltinRes(android.content.Context ctx, String name, boolean blur) {
         try {
             if ("shanjian".equals(name)) {
-                return R.drawable.poster_shanjian_blur_v3;
+                // Blur OFF -> clear original; Blur ON -> pre-blurred soft version (moderate).
+                // Runtime blur is skipped for the pre-blurred resource (no double blur).
+                return blur ? R.drawable.poster_shanjian_blur_soft : R.drawable.poster_shanjian;
             }
             return ctx.getResources().getIdentifier(name, "drawable", ctx.getPackageName());
         } catch (Exception e) {
