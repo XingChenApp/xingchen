@@ -26,6 +26,7 @@ public class OkDns implements Dns {
     private final ConcurrentHashMap<String, String> map;
     private volatile Supplier<Doh> supplier;
     private volatile DnsOverHttps doh;
+    private volatile DnsOverHttps fallbackDoh;
 
     public OkDns() {
         this.map = new ConcurrentHashMap<>();
@@ -74,7 +75,24 @@ public class OkDns implements Dns {
     public List<InetAddress> lookup(@NonNull String hostname) throws UnknownHostException {
         Supplier<Doh> supplier = this.supplier;
         if (supplier != null) initDoh(supplier);
-        List<InetAddress> addresses = (doh != null ? doh : Dns.SYSTEM).lookup(get(hostname));
+        String target = get(hostname);
+        List<InetAddress> addresses;
+        try {
+            addresses = (doh != null ? doh : Dns.SYSTEM).lookup(target);
+        } catch (UnknownHostException e) {
+            // System mode with broken system DNS (NXDOMAIN / timeout / poisoned
+            // resolver): try a public DoH once before giving up, so System mode
+            // keeps working on such networks. Provider modes rethrow unchanged.
+            // The fallback client uses plain system DNS (never this wrapper),
+            // so there is no recursion.
+            DnsOverHttps fallback = (doh == null) ? getFallbackDoh() : null;
+            if (fallback == null) throw e;
+            try {
+                addresses = fallback.lookup(target);
+            } catch (Exception ex) {
+                throw e;
+            }
+        }
         // Prefer IPv4: some networks' DNS returns broken IPv6 (e.g. [::]) or hijacked
         // loopback (e.g. 127.0.1.1) for CDN/API hosts, which makes every connection fail.
         // Keep the original list only when no usable IPv4 exists so IPv6-only hosts keep working.
@@ -83,6 +101,14 @@ public class OkDns implements Dns {
             if (address instanceof Inet4Address && !address.isLoopbackAddress() && !address.isAnyLocalAddress()) ipv4.add(address);
         }
         return ipv4.isEmpty() ? addresses : ipv4;
+    }
+
+    private synchronized DnsOverHttps getFallbackDoh() {
+        if (fallbackDoh == null) {
+            HttpUrl url = HttpUrl.parse("https://doh.pub/dns-query");
+            if (url != null) fallbackDoh = new DnsOverHttps.Builder().client(new OkHttpClient()).url(url).build();
+        }
+        return fallbackDoh;
     }
 
     private synchronized void initDoh(Supplier<Doh> supplier) {

@@ -8,6 +8,38 @@ for _k in ('http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'all_proxy'
     os.environ.pop(_k, None)
 
 
+def _install_dns_bridge():
+    try:
+        import socket as _sock
+        from com.github.catvod.net import OkHttp as _java_okhttp
+        _orig = _sock.getaddrinfo
+
+        def _patched(host, port, family=0, type=0, proto=0, flags=0):
+            if isinstance(host, str):
+                try:
+                    result = []
+                    for addr in _java_okhttp.dns().lookup(host):
+                        ip = addr.getHostAddress()
+                        af = _sock.AF_INET6 if ':' in ip else _sock.AF_INET
+                        if family and family != af:
+                            continue
+                        st = type if type else _sock.SOCK_STREAM
+                        sa = (ip, port, 0, 0) if af == _sock.AF_INET6 else (ip, port)
+                        result.append((af, st, proto, '', sa))
+                    if result:
+                        return result
+                except Exception:
+                    pass
+            return _orig(host, port, family, type, proto, flags)
+
+        _sock.getaddrinfo = _patched
+    except Exception:
+        pass
+
+
+_install_dns_bridge()
+
+
 _file_hashes = {}
 
 
