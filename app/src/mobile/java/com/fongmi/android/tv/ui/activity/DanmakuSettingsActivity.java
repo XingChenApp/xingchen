@@ -3,6 +3,8 @@ package com.fongmi.android.tv.ui.activity;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.View;
@@ -124,34 +126,79 @@ public class DanmakuSettingsActivity extends BaseActivity {
 
     private void showServerDialog() {
         int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        int dark = Color.parseColor("#202124");
+        int darkGray = Color.parseColor("#5F6368");
+        int accent = Color.parseColor("#F0A400");
+
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(pad, pad / 2, pad, 0);
+        layout.setBackgroundResource(R.drawable.shape_dialog_glass_white_panel);
+        layout.setPadding(pad, pad, pad, pad);
+
+        TextView titleView = new TextView(this);
+        titleView.setText("弹幕源");
+        titleView.setTextSize(18);
+        titleView.setTextColor(dark);
+        layout.addView(titleView);
 
         TextView defaultView = new TextView(this);
         defaultView.setText("默认：弹弹play");
         defaultView.setTextSize(16);
-        layout.addView(defaultView);
+        defaultView.setTextColor(dark);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        dlp.topMargin = pad / 2;
+        layout.addView(defaultView, dlp);
 
         EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         input.setText(DanmakuSetting.getSourceServer());
         input.setHint("自定义源（可选填）");
+        input.setTextColor(dark);
+        input.setHintTextColor(darkGray);
         input.setSelection(input.getText().length());
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.topMargin = pad / 2;
         layout.addView(input, lp);
 
-        new AlertDialog.Builder(this)
-                .setTitle("弹幕源")
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setGravity(android.view.Gravity.END | android.view.Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        alp.topMargin = pad;
+        layout.addView(actions, alp);
+
+        TextView cancelBtn = makeGlassActionBtn(accent, "取消");
+        TextView saveBtn = makeGlassActionBtn(accent, "保存");
+        actions.addView(cancelBtn);
+        actions.addView(saveBtn);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
                 .setView(layout)
-                .setPositiveButton("保存", (d, w) -> {
-                    DanmakuSetting.putSourceServer(input.getText().toString());
-                    updateApiDesc();
-                })
-                .setNegativeButton("取消", null)
-                .show();
+                .create();
+        cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        saveBtn.setOnClickListener(v -> {
+            DanmakuSetting.putSourceServer(input.getText().toString());
+            updateApiDesc();
+            dialog.dismiss();
+        });
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+        dialog.show();
+    }
+
+    private TextView makeGlassActionBtn(int color, String text) {
+        TextView btn = new TextView(this);
+        btn.setText(text);
+        btn.setTextSize(15);
+        btn.setTextColor(color);
+        int hp = (int) (16 * getResources().getDisplayMetrics().density);
+        int vp = (int) (8 * getResources().getDisplayMetrics().density);
+        btn.setPadding(hp, vp, hp, vp);
+        return btn;
     }
 
     private void updateSubCardsVisibility(boolean enable) {
