@@ -128,18 +128,46 @@ public class DownloadActivity extends BaseActivity {
 
     private void showThreadDialog() {
         int current = DownloadManager.getThreadCount(this);
-        String[] items = new String[32];
-        for (int i = 0; i < 32; i++) items[i] = (i + 1) + " 线程";
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("下载线程数")
-                .setSingleChoiceItems(items, current - 1, (d, which) -> {
-                    DownloadManager.setThreadCount(this, which + 1);
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_download_threads);
+        android.view.Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            window.setLayout((int) (getResources().getDisplayMetrics().widthPixels * 0.85), android.view.WindowManager.LayoutParams.WRAP_CONTENT);
+        }
+        androidx.recyclerview.widget.RecyclerView recycler = dialog.findViewById(R.id.recycler);
+        recycler.setLayoutManager(new LinearLayoutManager(this));
+        recycler.setAdapter(new androidx.recyclerview.widget.RecyclerView.Adapter<androidx.recyclerview.widget.RecyclerView.ViewHolder>() {
+            @Override
+            public androidx.recyclerview.widget.RecyclerView.ViewHolder onCreateViewHolder(android.view.ViewGroup parent, int viewType) {
+                android.view.View v = android.view.LayoutInflater.from(parent.getContext()).inflate(R.layout.item_download_thread, parent, false);
+                return new androidx.recyclerview.widget.RecyclerView.ViewHolder(v) {};
+            }
+            @Override
+            public void onBindViewHolder(androidx.recyclerview.widget.RecyclerView.ViewHolder holder, int position) {
+                int count = position + 1;
+                com.google.android.material.textview.MaterialTextView tv = holder.itemView.findViewById(R.id.text);
+                androidx.appcompat.widget.AppCompatRadioButton radio = holder.itemView.findViewById(R.id.radio);
+                tv.setText(count + " 线程");
+                radio.setChecked(count == current);
+                holder.itemView.setOnClickListener(v -> {
+                    DownloadManager.setThreadCount(DownloadActivity.this, count);
                     refreshThreadSub();
-                    d.dismiss();
-                    Notify.show("已设为 " + (which + 1) + " 线程，新任务生效");
-                })
-                .setNegativeButton("取消", null)
-                .show();
+                    dialog.dismiss();
+                    Notify.show("已设为 " + count + " 线程，新任务生效");
+                });
+            }
+            @Override
+            public int getItemCount() {
+                return 32;
+            }
+        });
+        // Scroll to current selection
+        recycler.post(() -> recycler.scrollToPosition(current - 1));
+        android.view.View cancel = dialog.findViewById(R.id.cancel);
+        cancel.setOnClickListener(v -> dialog.dismiss());
+        dialog.show();
     }
 
     private void refreshDirSub() {
