@@ -112,6 +112,10 @@
             android:name=".ui.activity.DanmakuSettingsActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout"
             android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.activity.XingChenSettingsActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
 
         <activity
             android:name=".ui.activity.SubtitleSettingsActivity"

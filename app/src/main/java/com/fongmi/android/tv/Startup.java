@@ -5,10 +5,9 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.startup.Initializer;
 
-import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.utils.XingChenDoh;
 import com.fongmi.android.tv.player.mpv.PlaybackRecoveryMonitor;
 import com.fongmi.android.tv.ui.activity.CrashActivity;
-import com.github.catvod.bean.Doh;
 import com.github.catvod.net.OkHttp;
 import com.orhanobut.logger.AndroidLogAdapter;
 import com.orhanobut.logger.Logger;
@@ -33,7 +32,7 @@ public class Startup implements Initializer<Void> {
             } catch (Throwable t) {
             EventBus.builder().installDefaultEventBus();
         }
-        OkHttp.dns().setDoh(() -> Doh.objectFrom(Setting.getDoh()));
+        XingChenDoh.apply(context);
         return null;
     }
 
