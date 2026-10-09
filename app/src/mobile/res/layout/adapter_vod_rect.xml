@@ -39,6 +39,19 @@
         tools:visibility="visible" />
 
     <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/rating"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:background="@drawable/shape_vod_year"
+        android:singleLine="true"
+        android:textColor="@color/text_year"
+        android:textSize="12sp"
+        android:visibility="gone"
+        tools:text="8.5"
+        tools:visibility="visible" />
+
+    <com.google.android.material.textview.MaterialTextView
         android:id="@+id/remark"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

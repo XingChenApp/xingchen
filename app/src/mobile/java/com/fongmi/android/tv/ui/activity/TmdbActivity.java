@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
@@ -15,15 +14,13 @@ import android.widget.EditText;
 
 import androidx.viewbinding.ViewBinding;
 
+import com.fongmi.android.tv.api.TmdbApi;
 import com.fongmi.android.tv.databinding.ActivityTmdbBinding;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.utils.Notify;
 
 public class TmdbActivity extends BaseActivity {
-
-    private static final String PREFS = "xingchen";
-    private static final String KEY_API_KEY = "xingchen.tmdb_api_key";
 
     private ActivityTmdbBinding binding;
 
@@ -32,12 +29,11 @@ public class TmdbActivity extends BaseActivity {
     }
 
     public static String getApiKey(Context context) {
-        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_API_KEY, "");
+        return TmdbApi.getApiKey(context);
     }
 
     public static boolean isConfigured(Context context) {
-        String key = getApiKey(context);
-        return key != null && !key.isEmpty();
+        return TmdbApi.isConfigured(context);
     }
 
     @Override
@@ -77,7 +73,7 @@ public class TmdbActivity extends BaseActivity {
                 .create();
         view.findViewById(R.id.btn_cancel).setOnClickListener(v -> dialog.dismiss());
         view.findViewById(R.id.btn_save).setOnClickListener(v -> {
-            getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_API_KEY, input.getText().toString().trim()).apply();
+            TmdbApi.putApiKey(v.getContext(), input.getText().toString());
             refreshSub();
             Notify.show("已保存");
             dialog.dismiss();
