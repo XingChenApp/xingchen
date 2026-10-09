@@ -10,6 +10,7 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.util.Locale;
 
 public class PanAuth {
 
@@ -51,7 +52,17 @@ public class PanAuth {
     }
 
     public static boolean is115LoggedIn() {
-        return !get115Cookie().isEmpty();
+        return isCookieValid(get115Cookie());
+    }
+
+    /**
+     * 115 登录态格式校验：必须包含 UID/CID/SEID 三个关键字段，
+     * 与 115 网盘爬虫的 cookie_ok 判定一致。光有 cookie 字符串不算登录。
+     */
+    private static boolean isCookieValid(String cookie) {
+        if (cookie == null || cookie.isEmpty()) return false;
+        String upper = cookie.toUpperCase(Locale.US);
+        return upper.contains("UID=") && upper.contains("CID=") && upper.contains("SEID=");
     }
 
     public static String get115Vip() {
