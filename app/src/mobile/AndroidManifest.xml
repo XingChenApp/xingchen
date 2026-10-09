@@ -162,7 +162,7 @@
             android:launchMode="singleTop"
             android:parentActivityName=".ui.activity.HomeActivity"
             android:screenOrientation="fullUser"
-            android:supportsPictureInPicture="true" />
+            android:supportsPictureInPicture="false" />
 
         <receiver
             android:name=".receiver.ShortcutReceiver"
