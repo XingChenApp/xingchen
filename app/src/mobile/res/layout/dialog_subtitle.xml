@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="@drawable/shape_dialog_glass_toolbar"
+    android:background="@drawable/shape_dialog_glass_white_panel"
     android:orientation="horizontal"
     android:gravity="center"
     android:padding="8dp">
@@ -13,7 +14,8 @@
         android:layout_height="wrap_content"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:padding="8dp"
-        android:src="@drawable/ic_subtitle_large" />
+        android:src="@drawable/ic_subtitle_large"
+        app:tint="#B3000000" />
 
     <androidx.appcompat.widget.AppCompatImageView
         android:id="@+id/small"
@@ -21,7 +23,8 @@
         android:layout_height="wrap_content"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:padding="8dp"
-        android:src="@drawable/ic_subtitle_small" />
+        android:src="@drawable/ic_subtitle_small"
+        app:tint="#B3000000" />
 
     <androidx.appcompat.widget.AppCompatImageView
         android:id="@+id/up"
@@ -29,7 +32,8 @@
         android:layout_height="wrap_content"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:padding="8dp"
-        android:src="@drawable/ic_subtitle_up" />
+        android:src="@drawable/ic_subtitle_up"
+        app:tint="#B3000000" />
 
     <androidx.appcompat.widget.AppCompatImageView
         android:id="@+id/down"
@@ -37,7 +41,8 @@
         android:layout_height="wrap_content"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:padding="8dp"
-        android:src="@drawable/ic_subtitle_down" />
+        android:src="@drawable/ic_subtitle_down"
+        app:tint="#B3000000" />
 
     <androidx.appcompat.widget.AppCompatImageView
         android:id="@+id/reset"
@@ -45,6 +50,7 @@
         android:layout_height="wrap_content"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:padding="8dp"
-        android:src="@drawable/ic_subtitle_reset" />
+        android:src="@drawable/ic_subtitle_reset"
+        app:tint="#B3000000" />
 
 </androidx.appcompat.widget.LinearLayoutCompat>

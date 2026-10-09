@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/shape_dialog_control_glass_panel"
+    android:background="@drawable/shape_dialog_glass_white_sheet"
     android:clipChildren="false"
     android:clipToPadding="false"
     android:orientation="vertical"
@@ -15,7 +15,7 @@
 
     <com.google.android.material.textview.MaterialTextView
         android:id="@+id/title"
-        style="@style/ControlSheetTitle"
+        style="@style/ControlSheetTitleLight"
         android:layout_marginTop="0dp"
         android:ellipsize="end"
         android:singleLine="true"

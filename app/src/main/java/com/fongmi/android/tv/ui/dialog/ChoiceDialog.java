@@ -201,7 +201,7 @@ public final class ChoiceDialog extends DialogFragment {
         if (showCancel && !multi && items != null && items.length > 0 && negative == null) negative = getString(R.string.dialog_negative);
         LinearLayout root = new LinearLayout(requireContext());
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundResource(R.drawable.shape_shell_proxy_dialog);
+        root.setBackgroundResource(R.drawable.shape_dialog_glass_white_panel);
         int vertical = dp(24);
         int horizontal = dp(actionCount() >= 3 ? 18 : 24);
         root.setPadding(horizontal, vertical, horizontal, vertical);

@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/shape_dialog_control_glass_panel"
+    android:background="@drawable/shape_dialog_glass_white_sheet"
     tools:background="#1F1F1F">
 
     <com.fongmi.android.tv.ui.custom.ContextWallImageView
@@ -35,7 +35,7 @@
             android:orientation="vertical">
 
             <com.google.android.material.textview.MaterialTextView
-                style="@style/ControlSheetTitle"
+                style="@style/ControlSheetTitleLight"
                 android:text="@string/live_control_play" />
 
             <androidx.appcompat.widget.LinearLayoutCompat
@@ -45,22 +45,22 @@
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/config"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:text="@string/live_control_config" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/source"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:text="@string/live_control_source" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/epg"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:text="@string/live_control_epg" />
             </androidx.appcompat.widget.LinearLayoutCompat>
 
             <com.google.android.material.textview.MaterialTextView
-                style="@style/ControlSheetTitle"
+                style="@style/ControlSheetTitleLight"
                 android:text="@string/live_control_action" />
 
             <androidx.appcompat.widget.LinearLayoutCompat
@@ -70,22 +70,22 @@
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/cast"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:text="@string/play_cast" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/pip"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:text="@string/live_control_pip" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/background"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:text="@string/player_background" />
             </androidx.appcompat.widget.LinearLayoutCompat>
 
             <com.google.android.material.textview.MaterialTextView
-                style="@style/ControlSheetTitle"
+                style="@style/ControlSheetTitleLight"
                 android:text="@string/live_control_preference" />
 
             <androidx.appcompat.widget.LinearLayoutCompat
@@ -95,22 +95,22 @@
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/invert"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:text="@string/play_invert" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/across"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:text="@string/play_across" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/change"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:text="@string/play_change" />
             </androidx.appcompat.widget.LinearLayoutCompat>
 
             <com.google.android.material.textview.MaterialTextView
-                style="@style/ControlSheetTitle"
+                style="@style/ControlSheetTitleLight"
                 android:text="@string/live_control_display_style" />
 
             <androidx.appcompat.widget.LinearLayoutCompat
@@ -120,17 +120,17 @@
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/listTransparent"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:text="@string/live_control_list_transparent" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/listReadable"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:text="@string/live_control_list_readable" />
             </androidx.appcompat.widget.LinearLayoutCompat>
 
             <com.google.android.material.textview.MaterialTextView
-                style="@style/ControlSheetTitle"
+                style="@style/ControlSheetTitleLight"
                 android:text="@string/control_scale" />
 
             <androidx.appcompat.widget.LinearLayoutCompat
@@ -140,37 +140,37 @@
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/scale_0"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:tag="0"
                     tools:text="原始" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/scale_1"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:tag="1"
                     tools:text="16:9" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/scale_2"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:tag="2"
                     tools:text="4:3" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/scale_3"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:tag="3"
                     tools:text="填充" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/scale_4"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:tag="4"
                     tools:text="裁剪" />
             </androidx.appcompat.widget.LinearLayoutCompat>
 
             <com.google.android.material.textview.MaterialTextView
-                style="@style/ControlSheetTitle"
+                style="@style/ControlSheetTitleLight"
                 android:text="@string/live_control_player" />
 
             <androidx.appcompat.widget.LinearLayoutCompat
@@ -180,17 +180,17 @@
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/player"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     tools:text="EXO" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/decode"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     tools:text="硬解" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/playParams"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:text="@string/play_params" />
 
                 <Space
@@ -208,7 +208,7 @@
 
             <com.google.android.material.textview.MaterialTextView
                 android:id="@+id/trackText"
-                style="@style/ControlSheetTitle"
+                style="@style/ControlSheetTitleLight"
                 android:text="@string/control_track" />
 
             <androidx.appcompat.widget.LinearLayoutCompat
@@ -219,19 +219,19 @@
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/text"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:tag="3"
                     android:text="@string/play_track_text" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/audio"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:tag="1"
                     android:text="@string/play_track_audio" />
 
                 <com.google.android.material.textview.MaterialTextView
                     android:id="@+id/video"
-                    style="@style/ControlSheetButton"
+                    style="@style/ControlSheetButtonLight"
                     android:tag="2"
                     android:text="@string/play_track_video" />
 
