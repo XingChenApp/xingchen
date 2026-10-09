@@ -18,8 +18,6 @@ public class PlaybackBufferLabelPolicyTest {
                 PlayerSetting.MPV, PlaybackPerformanceSetting.PROFILE_AUTO, 10));
         assertEquals("目标15秒", PlaybackPerformanceSetting.forwardBufferText(
                 PlayerSetting.MPV, PlaybackPerformanceSetting.PROFILE_CUSTOM, 1));
-        assertEquals("由读包内存和水位控制", PlaybackPerformanceSetting.forwardBufferText(
-                PlayerSetting.IJK, PlaybackPerformanceSetting.PROFILE_AUTO, 10));
     }
 
     @Test
@@ -30,10 +28,6 @@ public class PlaybackBufferLabelPolicyTest {
                 PlayerSetting.MPV, PlaybackPerformanceSetting.PROFILE_AUTO, 0));
         assertEquals("128MB", PlaybackPerformanceSetting.memoryBufferText(
                 PlayerSetting.EXO, PlaybackPerformanceSetting.PROFILE_CUSTOM, 2));
-        assertEquals("自动 · 读包4～15MB", PlaybackPerformanceSetting.ijkMemoryBufferText(
-                PlaybackPerformanceSetting.PROFILE_AUTO, 15));
-        assertEquals("读包8MB", PlaybackPerformanceSetting.ijkMemoryBufferText(
-                PlaybackPerformanceSetting.PROFILE_CUSTOM, 8));
     }
 
     @Test
@@ -42,8 +36,6 @@ public class PlaybackBufferLabelPolicyTest {
                 PlayerSetting.EXO, PlaybackPerformanceSetting.PROFILE_CUSTOM, 2));
         assertEquals("中等 · 至少32MB", PlaybackPerformanceSetting.playedDataRetentionText(
                 PlayerSetting.MPV, PlaybackPerformanceSetting.PROFILE_CUSTOM, 2));
-        assertEquals("无独立保留", PlaybackPerformanceSetting.playedDataRetentionText(
-                PlayerSetting.IJK, PlaybackPerformanceSetting.PROFILE_AUTO, 0));
         assertEquals("1GB", PlaybackPerformanceSetting.playbackDiskCacheText(3));
     }
 }

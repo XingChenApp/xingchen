@@ -13,8 +13,6 @@ public class AudioPassthroughPresetPolicyTest {
                 PlayerSetting.EXO));
         assertTrue(KernelPerformanceSetting.audioPassthroughForPreset(
                 PlayerSetting.MPV));
-        assertFalse(KernelPerformanceSetting.audioPassthroughForPreset(
-                PlayerSetting.IJK));
     }
 
     @Test

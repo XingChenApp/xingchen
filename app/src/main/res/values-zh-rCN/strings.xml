@@ -606,7 +606,6 @@
     <string name="setting_custom_csp_player_type">playerType</string>
     <string name="setting_custom_csp_unset">不写</string>
     <string name="setting_custom_csp_player_system">0 系统</string>
-    <string name="setting_custom_csp_player_ijk">1 IJK</string>
     <string name="setting_custom_csp_player_exo">2 EXO</string>
     <string name="setting_custom_csp_live_url">url</string>
     <string name="setting_custom_csp_logo">logo</string>
@@ -843,7 +842,7 @@
     <string name="player_performance_profile_merge">均衡档合并</string>
     <string name="player_performance_profile_merge_enabled">已合并到自动 · 可回滚</string>
     <string name="player_performance_profile_merge_rolled_back">已恢复旧均衡档</string>
-    <string name="player_performance_profile_merge_help">均衡档默认合并到自动档。旧均衡选择会分别迁移 EXO、MPV、IJK，兼容、轻量和自定义选择保持不变。本机回滚只恢复迁移过且当前仍是自动档的内核，不覆盖迁移后新选的档位。历史 A/B 报告继续保留，但构建和 JVM 测试不能证明真实设备已经完成验收。</string>
+    <string name="player_performance_profile_merge_help">均衡档默认合并到自动档。旧均衡选择会分别迁移 EXO、MPV，兼容、轻量和自定义选择保持不变。本机回滚只恢复迁移过且当前仍是自动档的内核，不覆盖迁移后新选的档位。历史 A/B 报告继续保留，但构建和 JVM 测试不能证明真实设备已经完成验收。</string>
     <string name="player_performance_profile_merge_rollback_title">恢复旧均衡档？</string>
     <string name="player_performance_profile_merge_rollback_message">将重新显示均衡标签。曾从均衡迁移且当前仍为自动的内核会恢复均衡；迁移后改选的兼容、轻量或自定义不会被覆盖。A/B 采集仍保持关闭，需要时必须重新明确加入。</string>
     <string name="player_performance_profile_merge_rollback_confirm">恢复均衡档</string>
@@ -858,7 +857,7 @@
     <string name="player_performance_lightweight_assessment_report">自动/轻量档评估报告</string>
     <string name="player_performance_lightweight_assessment_report_value">自动 %1$d · 轻量 %2$d · %3$s</string>
     <string name="player_performance_lightweight_assessment_report_title">自动/轻量档本机评估报告</string>
-    <string name="player_performance_lightweight_assessment_report_summary">状态：%1$s\n自动档样本：%2$d\n轻量档样本：%3$d\n分组数：%4$d\n可评估分组：%5$d\n通过：%6$d\n失败：%7$d\n不足或指标缺失：%8$d\n关键覆盖：%9$d / %10$d\n\n只有 EXO、MPV、IJK 的低内存硬解与软解六个单元全部覆盖且所有分组通过，才具备进一步去留复核条件。本报告不会自动删除轻量档。</string>
+    <string name="player_performance_lightweight_assessment_report_summary">状态：%1$s\n自动档样本：%2$d\n轻量档样本：%3$d\n分组数：%4$d\n可评估分组：%5$d\n通过：%6$d\n失败：%7$d\n不足或指标缺失：%8$d\n关键覆盖：%9$d / %10$d\n\n只有 EXO、MPV 的低内存硬解与软解四个单元全部覆盖且所有分组通过，才具备进一步去留复核条件。本报告不会自动删除轻量档。</string>
     <string name="player_performance_lightweight_assessment_coverage_missing">覆盖单元不足</string>
     <string name="player_performance_lightweight_assessment_missing_coverage">缺少覆盖</string>
     <string name="player_performance_lightweight_assessment_coverage_low_ram_hardware">低内存硬解</string>
@@ -868,7 +867,7 @@
     <string name="player_performance_lightweight_assessment_clear_message">将删除本机全部自动/轻量档评估样本；加入状态会保留，之后符合条件的播放仍可重新采集。历史自动/均衡档 A/B 报告不受影响。</string>
     <string name="player_performance_lightweight_assessment_clear_confirm">清除样本</string>
     <string name="player_performance_compatibility_assessment">兼容档去留评估</string>
-    <string name="player_performance_compatibility_assessment_help">V-06B 以失败关闭方式审计兼容档是否具备进一步去留复核条件。它分别检查 EXO、MPV、IJK 对 codec 错误、硬解能力虚报、输出模式异常及协议/Range 异常的覆盖，并要求能够识别画面正确性和具备问题设备长期证据。现有自动回退都有范围限制，依赖明确错误或可观测指标；decoder 不报错时的绿屏、错色或错误画面目前无法可靠识别，因此当前结论是继续保留兼容档。本报告不会隐藏、迁移或删除任何档位。</string>
+    <string name="player_performance_compatibility_assessment_help">V-06B 以失败关闭方式审计兼容档是否具备进一步去留复核条件。它分别检查 EXO、MPV 对 codec 错误、硬解能力虚报、输出模式异常及协议/Range 异常的覆盖，并要求能够识别画面正确性和具备问题设备长期证据。现有自动回退都有范围限制，依赖明确错误或可观测指标；decoder 不报错时的绿屏、错色或错误画面目前无法可靠识别，因此当前结论是继续保留兼容档。本报告不会隐藏、迁移或删除任何档位。</string>
     <string name="player_performance_compatibility_assessment_value">%1$s · 可靠覆盖 %2$d / %3$d</string>
     <string name="player_performance_compatibility_assessment_title">兼容档去留评估报告</string>
     <string name="player_performance_compatibility_assessment_summary">当前结论：%1$s\n可靠覆盖：%2$d / %3$d\n受限：%4$d\n未验证：%5$d\n不可观察：%6$d\n缺失：%7$d\n\n只有全部要求都具备可靠自动回退和问题设备长期证据，才允许再次进行产品决策；即使全部满足，本报告也不会自动删除兼容档。</string>
@@ -1265,7 +1264,6 @@
 
     <string-array name="select_player_kernel">
         <item>EXO</item>
-        <item>IJK</item>
         <item>MPV</item>
     </string-array>
     <string-array name="select_buffer_bytes">

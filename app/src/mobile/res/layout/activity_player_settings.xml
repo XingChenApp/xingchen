@@ -53,7 +53,6 @@
                 android:background="@drawable/xc_seg_container" android:padding="4dp">
                 <TextView android:id="@+id/kernel_exo" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="ExoPlayer" android:textSize="14sp" android:background="@drawable/xc_seg_selected" />
                 <TextView android:id="@+id/kernel_mpv" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="mpv" android:textSize="14sp" />
-                <TextView android:id="@+id/kernel_ijk" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:text="ijk" android:textSize="14sp" />
             </LinearLayout>
         </LinearLayout>
         <LinearLayout

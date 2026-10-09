@@ -27,7 +27,6 @@ public class PlayerSettingsActivity extends BaseActivity {
         updateDecodeUI();
         binding.kernelExo.setOnClickListener(v -> { setKernel("exo"); updateKernelUI(); });
         binding.kernelMpv.setOnClickListener(v -> { setKernel("mpv"); updateKernelUI(); });
-        binding.kernelIjk.setOnClickListener(v -> { setKernel("ijk"); updateKernelUI(); });
         binding.decodeHard.setOnClickListener(v -> { setDecode("hard"); updateDecodeUI(); });
         binding.decodeSoft.setOnClickListener(v -> { setDecode("soft"); updateDecodeUI(); });
         binding.switchAutonext.setChecked(getSharedPreferences("xingchen", MODE_PRIVATE).getBoolean("auto_next", true));
@@ -76,9 +75,9 @@ public class PlayerSettingsActivity extends BaseActivity {
     }
     private void updateKernelUI() {
         String k = getSharedPreferences("xingchen", MODE_PRIVATE).getString("player_kernel", "exo");
+        if ("ijk".equals(k)) k = "exo";
         binding.kernelExo.setBackgroundResource("exo".equals(k) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
         binding.kernelMpv.setBackgroundResource("mpv".equals(k) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
-        binding.kernelIjk.setBackgroundResource("ijk".equals(k) ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
     }
     private void updateDecodeUI() {
         String d = getSharedPreferences("xingchen", MODE_PRIVATE).getString("player_decode", "hard");
@@ -87,7 +86,7 @@ public class PlayerSettingsActivity extends BaseActivity {
     }
     private void setKernel(String k) {
         getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_kernel", k).apply();
-        int p = "mpv".equals(k) ? PlayerSetting.MPV : "ijk".equals(k) ? PlayerSetting.IJK : PlayerSetting.EXO;
+        int p = "mpv".equals(k) ? PlayerSetting.MPV : PlayerSetting.EXO;
         PlayerSetting.putPlayer(p);
     }
     private void setDecode(String d) {

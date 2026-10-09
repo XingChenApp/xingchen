@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Process-wide coordinator for the MPV/IJK HLS proxy cache.
+ * Process-wide coordinator for the MPV HLS proxy cache.
  *
  * <p>The coordinator only guards local cache state. Network requests are deliberately kept
  * outside its lock. A reservation accounts for the bytes that have not yet reached the temp

@@ -32,7 +32,6 @@ import com.fongmi.android.tv.setting.PlaybackPerformanceSetting;
 import com.fongmi.android.tv.setting.PlaybackPerformanceUiPolicy;
 import com.fongmi.android.tv.setting.PlaybackProfileMergePolicy;
 import com.fongmi.android.tv.setting.MpvPerformanceSetting;
-import com.fongmi.android.tv.setting.IjkPerformanceSetting;
 import com.fongmi.android.tv.setting.ExoPerformanceSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.PreloadSetting;
@@ -520,7 +519,6 @@ public final class PlaybackPerformanceDialog extends DialogFragment {
 
     private String playerName() {
         return switch (PlayerSetting.getPlayer()) {
-            case PlayerSetting.IJK -> "IJK";
             case PlayerSetting.MPV -> "MPV";
             default -> "EXO";
         };
@@ -578,20 +576,6 @@ public final class PlaybackPerformanceDialog extends DialogFragment {
             case PlaybackPerformanceCatalog.MPV_FRAME_DROP -> MpvPerformanceSetting.getFrameDropText();
             case PlaybackPerformanceCatalog.MPV_INTERPOLATION -> onOff(MpvPerformanceSetting.isInterpolation());
             case PlaybackPerformanceCatalog.MPV_SOFT_TUNE -> MpvPerformanceSetting.getSoftTuneText();
-            case PlaybackPerformanceCatalog.IJK_SCENE -> IjkPerformanceSetting.getSceneText();
-            case PlaybackPerformanceCatalog.IJK_BUFFER -> ijkBufferText();
-            case PlaybackPerformanceCatalog.IJK_PACKET_BUFFERING -> onOff(IjkPerformanceSetting.isPacketBuffering());
-            case PlaybackPerformanceCatalog.IJK_WATER -> PlaybackPerformanceSetting.isAuto(PlayerSetting.IJK, id)
-                    ? "自动 · 0.1～5秒" : IjkPerformanceSetting.getWaterText();
-            case PlaybackPerformanceCatalog.IJK_PICTURE_QUEUE -> PlaybackPerformanceSetting.isAuto(PlayerSetting.IJK, id)
-                    ? "自动 · 3帧" : IjkPerformanceSetting.getPictureQueue() + "帧";
-            case PlaybackPerformanceCatalog.IJK_FRAME_DROP -> IjkPerformanceSetting.getDropText();
-            case PlaybackPerformanceCatalog.IJK_ACCURATE_SEEK -> onOff(IjkPerformanceSetting.isAccurateSeek());
-            case PlaybackPerformanceCatalog.IJK_PROBE -> IjkPerformanceSetting.getProbeText();
-            case PlaybackPerformanceCatalog.IJK_SOFT_TUNE -> PlaybackPerformanceSetting.isAuto(PlayerSetting.IJK, id)
-                    ? "自动 · 关闭～积极" : IjkPerformanceSetting.getSoftTuneText();
-            case PlaybackPerformanceCatalog.IJK_RTSP_TRANSPORT -> IjkPerformanceSetting.getRtspTransportText();
-            case PlaybackPerformanceCatalog.IJK_RECONNECT -> onOff(IjkPerformanceSetting.isReconnect());
             case PlaybackPerformanceCatalog.EXO_FRAME_RATE -> ExoPerformanceSetting.getFrameRateText();
             case PlaybackPerformanceCatalog.EXO_START_BUFFER -> PlaybackPerformanceSetting.getExoStartBufferText();
             case PlaybackPerformanceCatalog.EXO_REBUFFER -> PlaybackPerformanceSetting.getExoRebufferText();
@@ -714,50 +698,6 @@ public final class PlaybackPerformanceDialog extends DialogFragment {
                 MpvPerformanceSetting.putSoftTuneMode((MpvPerformanceSetting.getSoftTuneMode() + 1) % 3);
                 refresh();
             };
-            case PlaybackPerformanceCatalog.IJK_SCENE -> () -> {
-                IjkPerformanceSetting.putScene((IjkPerformanceSetting.getScene() + 1) % 4);
-                refresh();
-            };
-            case PlaybackPerformanceCatalog.IJK_BUFFER -> () -> {
-                cycleBufferBytes();
-            };
-            case PlaybackPerformanceCatalog.IJK_PACKET_BUFFERING -> () -> {
-                IjkPerformanceSetting.putPacketBuffering(!IjkPerformanceSetting.isPacketBuffering());
-                refresh();
-            };
-            case PlaybackPerformanceCatalog.IJK_WATER -> () -> {
-                IjkPerformanceSetting.putWaterMode((IjkPerformanceSetting.getWaterMode() + 1) % 3);
-                refresh();
-            };
-            case PlaybackPerformanceCatalog.IJK_PICTURE_QUEUE -> () -> {
-                int current = IjkPerformanceSetting.getPictureQueue();
-                IjkPerformanceSetting.putPictureQueue(current == 3 ? 5 : current == 5 ? 8 : 3);
-                refresh();
-            };
-            case PlaybackPerformanceCatalog.IJK_FRAME_DROP -> () -> {
-                IjkPerformanceSetting.putDropMode((IjkPerformanceSetting.getDropMode() + 1) % 3);
-                refresh();
-            };
-            case PlaybackPerformanceCatalog.IJK_ACCURATE_SEEK -> () -> {
-                IjkPerformanceSetting.putAccurateSeek(!IjkPerformanceSetting.isAccurateSeek());
-                refresh();
-            };
-            case PlaybackPerformanceCatalog.IJK_PROBE -> () -> {
-                IjkPerformanceSetting.putProbeMode((IjkPerformanceSetting.getProbeMode() + 1) % 3);
-                refresh();
-            };
-            case PlaybackPerformanceCatalog.IJK_SOFT_TUNE -> () -> {
-                IjkPerformanceSetting.putSoftTuneMode((IjkPerformanceSetting.getSoftTuneMode() + 1) % 3);
-                refresh();
-            };
-            case PlaybackPerformanceCatalog.IJK_RTSP_TRANSPORT -> () -> {
-                IjkPerformanceSetting.putRtspTransport((IjkPerformanceSetting.getRtspTransport() + 1) % 3);
-                refresh();
-            };
-            case PlaybackPerformanceCatalog.IJK_RECONNECT -> () -> {
-                IjkPerformanceSetting.putReconnect(!IjkPerformanceSetting.isReconnect());
-                refresh();
-            };
             case PlaybackPerformanceCatalog.EXO_FRAME_RATE -> () -> {
                 ExoPerformanceSetting.putFrameRateMode((ExoPerformanceSetting.getFrameRateMode() + 1) % 4);
                 refresh();
@@ -863,9 +803,7 @@ public final class PlaybackPerformanceDialog extends DialogFragment {
 
     private void cycleBufferBytes() {
         PlayerSetting.putBufferBytesOption((PlayerSetting.getBufferBytesOption() + 1) % 4);
-        PlaybackPerformanceSetting.markOverride(PlayerSetting.getPlayer() == PlayerSetting.IJK
-                ? PlaybackPerformanceCatalog.IJK_BUFFER
-                : PlaybackPerformanceCatalog.BUFFER_BYTES);
+        PlaybackPerformanceSetting.markOverride(PlaybackPerformanceCatalog.BUFFER_BYTES);
         refresh();
     }
 
@@ -919,17 +857,6 @@ public final class PlaybackPerformanceDialog extends DialogFragment {
         int seconds = PreloadSetting.getPreloadAheadSeconds();
         return seconds == PreloadSetting.WHOLE_MEDIA_AHEAD_SECONDS
                 ? "整部影片" : seconds / 60 + " 分钟";
-    }
-
-    private String ijkBufferText() {
-        long configuredBytes = PlayerSetting.getBufferBytes(PlayerSetting.IJK);
-        if (configuredBytes > 0) {
-            return FileUtil.byteCountToDisplaySize(configuredBytes);
-        }
-        return PlaybackPerformanceSetting.isAuto(
-                PlayerSetting.IJK,
-                PlaybackPerformanceCatalog.IJK_BUFFER)
-                ? "自动 · 4～15MB" : IjkPerformanceSetting.getBufferMb() + "MB";
     }
 
     private String pausePreloadText() {

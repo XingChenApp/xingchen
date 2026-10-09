@@ -40,8 +40,7 @@ public class SharedPlaybackScenarioMatrixTest {
 
             for (PlaybackAutoContext.Kernel kernel : new PlaybackAutoContext.Kernel[]{
                     PlaybackAutoContext.Kernel.EXO,
-                    PlaybackAutoContext.Kernel.MPV,
-                    PlaybackAutoContext.Kernel.IJK}) {
+                    PlaybackAutoContext.Kernel.MPV}) {
                 PlaybackAutoContext context = scenario.context(kernel);
                 assertEquals(scenario.id().name(), exo.session(), context.session());
                 assertEquals(scenario.id().name(), kernel, context.kernel().value());
@@ -108,15 +107,11 @@ public class SharedPlaybackScenarioMatrixTest {
         assertOnlyDomainEnabled(PlaybackExperimentPolicy.Domain.EXO,
                 new PlaybackExperimentPolicy.State(
                         PlaybackExperimentPolicy.CURRENT_SCHEMA_VERSION,
-                        true, true, false, false));
+                        true, true, false));
         assertOnlyDomainEnabled(PlaybackExperimentPolicy.Domain.MPV,
                 new PlaybackExperimentPolicy.State(
                         PlaybackExperimentPolicy.CURRENT_SCHEMA_VERSION,
-                        true, false, true, false));
-        assertOnlyDomainEnabled(PlaybackExperimentPolicy.Domain.IJK,
-                new PlaybackExperimentPolicy.State(
-                        PlaybackExperimentPolicy.CURRENT_SCHEMA_VERSION,
-                        true, false, false, true));
+                        true, false, true));
     }
 
     @Test
@@ -176,7 +171,6 @@ public class SharedPlaybackScenarioMatrixTest {
         return switch (domain) {
             case EXO -> PlaybackAutoContext.Kernel.EXO;
             case MPV -> PlaybackAutoContext.Kernel.MPV;
-            case IJK -> PlaybackAutoContext.Kernel.IJK;
             case SHARED -> PlaybackAutoContext.Kernel.UNKNOWN;
         };
     }

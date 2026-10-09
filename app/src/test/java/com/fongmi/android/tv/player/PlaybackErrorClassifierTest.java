@@ -124,7 +124,7 @@ public class PlaybackErrorClassifierTest {
     }
 
     @Test
-    public void untypedTimeout_preservesLegacyIjkAndNetworkClassification() {
+    public void untypedTimeout_preservesLegacyNetworkClassification() {
         PlaybackRoute.Resolution route = PlaybackRoute.resolve("https://cdn.example/video");
         assertEquals(PlaybackErrorClassifier.Stage.NETWORK_IO, PlaybackErrorClassifier.classify(
                 error("timeout", null, PlaybackException.ERROR_CODE_TIMEOUT), route).stage());

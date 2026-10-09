@@ -121,7 +121,7 @@ public class PlaybackLightweightAssessmentPolicyTest {
         assertEquals(1, report.missingCoverage().size());
         assertEquals(
                 PlaybackLightweightAssessmentPolicy.CoverageCell
-                        .IJK_SOFTWARE,
+                        .EXO_SOFTWARE,
                 report.missingCoverage().get(0));
     }
 
@@ -138,15 +138,15 @@ public class PlaybackLightweightAssessmentPolicyTest {
     }
 
     private static PlaybackProfileAbStore.Snapshot snapshot(
-            boolean omitIjkSoftware,
+            boolean omitExoSoftware,
             boolean failExoSoftware) {
         List<PlaybackProfileAbStore.GroupSamples> groups =
                 new ArrayList<>();
         for (PlaybackLightweightAssessmentPolicy.CoverageCell cell
                 : PlaybackLightweightAssessmentPolicy.CoverageCell.values()) {
-            if (omitIjkSoftware
+            if (omitExoSoftware
                     && cell == PlaybackLightweightAssessmentPolicy
-                    .CoverageCell.IJK_SOFTWARE) continue;
+                    .CoverageCell.EXO_SOFTWARE) continue;
             PlaybackAutoContext.DecodeMode decodeMode = cell.kind()
                     == PlaybackLightweightAssessmentPolicy
                     .CoverageKind.SOFTWARE

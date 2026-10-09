@@ -62,7 +62,7 @@ final class MpvPreloadCachePolicy {
             return true;
         }
         if (resolvedProtocol != PlaybackAutoContext.Protocol.UNKNOWN) return false;
-        // Match Exo/IJK: an opaque HTTP(S) URL is still a cacheable network
+        // Match Exo: an opaque HTTP(S) URL is still a cacheable network
         // source. File extensions and MIME hints improve diagnostics, but must
         // never be a prerequisite for forward buffering.
         return resolvedPath == PlaybackAutoContext.PathKind.REMOTE

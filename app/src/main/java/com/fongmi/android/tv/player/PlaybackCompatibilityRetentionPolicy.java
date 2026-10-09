@@ -33,12 +33,6 @@ public final class PlaybackCompatibilityRetentionPolicy {
         coverage.put(Requirement.MPV_OUTPUT_MODE, Coverage.LIMITED);
         coverage.put(Requirement.MPV_PROTOCOL_RANGE, Coverage.LIMITED);
 
-        coverage.put(Requirement.IJK_CODEC_FAILURE, Coverage.LIMITED);
-        coverage.put(Requirement.IJK_HARDWARE_MISREPORT,
-                Coverage.UNVERIFIED);
-        coverage.put(Requirement.IJK_OUTPUT_MODE, Coverage.UNVERIFIED);
-        coverage.put(Requirement.IJK_PROTOCOL_RANGE, Coverage.LIMITED);
-
         coverage.put(Requirement.VISUAL_CORRECTNESS,
                 Coverage.UNOBSERVABLE);
         coverage.put(Requirement.LONG_TERM_DEVICE_EVIDENCE,
@@ -120,18 +114,6 @@ public final class PlaybackCompatibilityRetentionPolicy {
                 Area.OUTPUT_MODE),
         MPV_PROTOCOL_RANGE(
                 PlaybackAutoContext.Kernel.MPV,
-                Area.PROTOCOL_RANGE),
-        IJK_CODEC_FAILURE(
-                PlaybackAutoContext.Kernel.IJK,
-                Area.CODEC_FAILURE),
-        IJK_HARDWARE_MISREPORT(
-                PlaybackAutoContext.Kernel.IJK,
-                Area.HARDWARE_MISREPORT),
-        IJK_OUTPUT_MODE(
-                PlaybackAutoContext.Kernel.IJK,
-                Area.OUTPUT_MODE),
-        IJK_PROTOCOL_RANGE(
-                PlaybackAutoContext.Kernel.IJK,
                 Area.PROTOCOL_RANGE),
         VISUAL_CORRECTNESS(
                 PlaybackAutoContext.Kernel.UNKNOWN,

@@ -25,7 +25,6 @@ public class PlaybackPerformanceSetting {
     private static final String KEY_PROFILE_MIGRATED = "playback_performance_profile_per_kernel";
     private static final String KEY_PROFILE_EXO = "perf_exo_profile";
     private static final String KEY_PROFILE_MPV = "perf_mpv_profile";
-    private static final String KEY_PROFILE_IJK = "perf_ijk_profile";
     private static final String KEY_INITIALIZED = "playback_performance_initialized";
     private static final String KEY_BUFFER_WATERMARKS_MIGRATED = "playback_performance_buffer_watermarks_v2";
     private static final String KEY_EXO_SIZE_PRIORITY_MIGRATED = "playback_performance_exo_size_priority_v1";
@@ -63,7 +62,6 @@ public class PlaybackPerformanceSetting {
     private static final String KEY_BANDWIDTH_METER = "perf_bandwidth_meter";
     private static final String KEY_AUTO_OVERRIDES_EXO = "perf_exo_auto_overrides_v1";
     private static final String KEY_AUTO_OVERRIDES_MPV = "perf_mpv_auto_overrides_v1";
-    private static final String KEY_AUTO_OVERRIDES_IJK = "perf_ijk_auto_overrides_v1";
 
     public static void ensureInitialized() {
         PlaybackExperimentSetting.ensureInitialized();
@@ -120,8 +118,6 @@ public class PlaybackPerformanceSetting {
         } else if (kernel == PlayerSetting.MPV) {
             MpvPerformanceSetting.applyRecommended();
             put(KEY_MPV_DV7_HANDLING, DV7_HANDLING_P81);
-        } else {
-            IjkPerformanceSetting.applyRecommended();
         }
     }
 
@@ -136,13 +132,11 @@ public class PlaybackPerformanceSetting {
         } else if (kernel == PlayerSetting.MPV) {
             MpvPerformanceSetting.applyAuto();
             put(KEY_MPV_DV7_HANDLING, DV7_HANDLING_P81);
-        } else {
-            IjkPerformanceSetting.applyRecommended();
         }
     }
 
     private static void applyAutoValues() {
-        for (int kernel : new int[]{PlayerSetting.EXO, PlayerSetting.MPV, PlayerSetting.IJK}) {
+        for (int kernel : new int[]{PlayerSetting.EXO, PlayerSetting.MPV}) {
             applyAutoProfile(kernel);
             Prefers.put(profileKey(kernel), PROFILE_AUTO);
         }
@@ -171,8 +165,6 @@ public class PlaybackPerformanceSetting {
         } else if (kernel == PlayerSetting.MPV) {
             MpvPerformanceSetting.applyLightweight();
             put(KEY_MPV_DV7_HANDLING, DV7_HANDLING_P81);
-        } else {
-            IjkPerformanceSetting.applyLightweight();
         }
     }
 
@@ -495,11 +487,6 @@ public class PlaybackPerformanceSetting {
     public static String getMemoryBufferText() {
         ensureInitialized();
         int kernel = PlayerSetting.getPlayer();
-        if (kernel == PlayerSetting.IJK) {
-            return ijkMemoryBufferText(
-                    displayProfile(kernel, PlaybackPerformanceCatalog.IJK_BUFFER),
-                    IjkPerformanceSetting.getBufferMb());
-        }
         return memoryBufferText(
                 kernel,
                 displayProfile(kernel, PlaybackPerformanceCatalog.BUFFER_BYTES),
@@ -627,7 +614,6 @@ public class PlaybackPerformanceSetting {
     private static String overrideKey(int kernel) {
         return switch (PlayerSetting.sanitizePlayer(kernel)) {
             case PlayerSetting.MPV -> KEY_AUTO_OVERRIDES_MPV;
-            case PlayerSetting.IJK -> KEY_AUTO_OVERRIDES_IJK;
             default -> KEY_AUTO_OVERRIDES_EXO;
         };
     }
@@ -637,10 +623,8 @@ public class PlaybackPerformanceSetting {
         int oldProfile = clampProfile(Prefers.getInt(KEY_PROFILE, PROFILE_RECOMMENDED));
         Prefers.put(KEY_PROFILE_EXO, oldProfile);
         Prefers.put(KEY_PROFILE_MPV, oldProfile);
-        Prefers.put(KEY_PROFILE_IJK, oldProfile);
         applyKernelSpecificPreset(PlayerSetting.EXO, oldProfile);
         applyKernelSpecificPreset(PlayerSetting.MPV, oldProfile);
-        applyKernelSpecificPreset(PlayerSetting.IJK, oldProfile);
         Prefers.put(KEY_PROFILE_MIGRATED, true);
     }
 
@@ -666,7 +650,7 @@ public class PlaybackPerformanceSetting {
 
     private static void migratePreloadDefaults() {
         if (Prefers.getBoolean(KEY_PRELOAD_DEFAULTS_MIGRATED)) return;
-        for (int kernel : new int[]{PlayerSetting.EXO, PlayerSetting.MPV, PlayerSetting.IJK}) {
+        for (int kernel : new int[]{PlayerSetting.EXO, PlayerSetting.MPV}) {
             int profile = clampProfile(Prefers.getInt(profileKey(kernel), PROFILE_RECOMMENDED));
             if (shouldMigratePreloadDefaults(profile)) KernelPerformanceSetting.applyPreloadPreset(kernel, profile);
         }
@@ -767,7 +751,7 @@ public class PlaybackPerformanceSetting {
                 profileMergeResolution();
         PlaybackProfileMergePolicy.State state = resolution.state();
         int[] kernels = {
-                PlayerSetting.EXO, PlayerSetting.MPV, PlayerSetting.IJK};
+                PlayerSetting.EXO, PlayerSetting.MPV};
         boolean[] migrate = new boolean[kernels.length];
         boolean profileChanged = false;
         if (resolution.mergeEnabled()) {
@@ -819,7 +803,7 @@ public class PlaybackPerformanceSetting {
         if (Prefers.getBoolean(KEY_PROFILE_AUTO_LIGHT_MIGRATED)) return;
         try {
             for (int kernel : new int[]{
-                    PlayerSetting.EXO, PlayerSetting.MPV, PlayerSetting.IJK}) {
+                    PlayerSetting.EXO, PlayerSetting.MPV}) {
                 int rawProfile = rawProfile(kernel);
                 int targetProfile = PlaybackProfileMergePolicy.effectiveProfile(
                         rawProfile, true);
@@ -844,7 +828,7 @@ public class PlaybackPerformanceSetting {
             PlaybackProfileMergePolicy.State state) {
         PlaybackProfileMergePolicy.State pending = state;
         for (int kernel : new int[]{
-                PlayerSetting.EXO, PlayerSetting.MPV, PlayerSetting.IJK}) {
+                PlayerSetting.EXO, PlayerSetting.MPV}) {
             PlaybackProfileMergePolicy.Slot slot = mergeSlot(kernel);
             if (!pending.wasMigrated(slot)) continue;
             int rawProfile = rawProfile(kernel);
@@ -936,7 +920,6 @@ public class PlaybackPerformanceSetting {
     private static PlaybackProfileMergePolicy.Slot mergeSlot(int kernel) {
         return switch (PlayerSetting.sanitizePlayer(kernel)) {
             case PlayerSetting.MPV -> PlaybackProfileMergePolicy.Slot.MPV;
-            case PlayerSetting.IJK -> PlaybackProfileMergePolicy.Slot.IJK;
             default -> PlaybackProfileMergePolicy.Slot.EXO;
         };
     }
@@ -952,10 +935,6 @@ public class PlaybackPerformanceSetting {
             else if (profile == PROFILE_LIGHTWEIGHT) MpvPerformanceSetting.applyLightweight();
             else if (profile == PROFILE_AUTO) MpvPerformanceSetting.applyAuto();
             else MpvPerformanceSetting.applyRecommended();
-        } else {
-            if (profile == PROFILE_COMPATIBLE) IjkPerformanceSetting.applyCompatible();
-            else if (profile == PROFILE_LIGHTWEIGHT) IjkPerformanceSetting.applyLightweight();
-            else IjkPerformanceSetting.applyRecommended();
         }
     }
 
@@ -968,7 +947,6 @@ public class PlaybackPerformanceSetting {
 
     private static String profileKey(int kernel) {
         return switch (kernel) {
-            case PlayerSetting.IJK -> KEY_PROFILE_IJK;
             case PlayerSetting.MPV -> KEY_PROFILE_MPV;
             default -> KEY_PROFILE_EXO;
         };
@@ -1008,14 +986,7 @@ public class PlaybackPerformanceSetting {
         };
     }
 
-    static String ijkMemoryBufferText(int profile, int bufferMb) {
-        return profile == PROFILE_AUTO
-                ? "自动 · 读包4～15MB"
-                : "读包" + Math.max(0, bufferMb) + "MB";
-    }
-
     static String playedDataRetentionText(int kernel, int profile, int option) {
-        if (kernel == PlayerSetting.IJK) return "无独立保留";
         if (kernel == PlayerSetting.MPV) {
             if (profile == PROFILE_AUTO) return "自动 · 0～64MB";
             return switch (Math.clamp(option, 0, 3)) {

@@ -20,7 +20,6 @@ public class PlaybackExperimentPolicyTest {
         assertFalse(result.state().enabled());
         assertTrue(result.state().exoEnabled());
         assertTrue(result.state().mpvEnabled());
-        assertTrue(result.state().ijkEnabled());
     }
 
     @Test
@@ -42,8 +41,6 @@ public class PlaybackExperimentPolicyTest {
                 PlaybackExperimentPolicy.Action.SHARED_PROFILE_AB_VALIDATION));
         assertTrue(state.allows(
                 PlaybackExperimentPolicy.Action.MPV_AUTO_PRELOAD));
-        assertTrue(state.allows(
-                PlaybackExperimentPolicy.Action.IJK_RUNTIME_KERNEL_FALLBACK));
         assertEquals("playback-auto-production-v2",
                 PlaybackExperimentPolicy.STABLE_STRATEGY_ID);
         assertEquals(PlaybackExperimentPolicy.STABLE_STRATEGY_ID,
@@ -55,14 +52,12 @@ public class PlaybackExperimentPolicyTest {
         PlaybackExperimentPolicy.State state =
                 new PlaybackExperimentPolicy.State(
                         PlaybackExperimentPolicy.CURRENT_SCHEMA_VERSION,
-                        false, false, false, false);
+                        false, false, false);
 
         assertTrue(state.allows(
                 PlaybackExperimentPolicy.Action.EXO_AUTO_PRELOAD));
         assertTrue(state.allows(
                 PlaybackExperimentPolicy.Action.MPV_HLS_RUNTIME_RELOAD));
-        assertTrue(state.allows(
-                PlaybackExperimentPolicy.Action.IJK_DECODE_REBUILD));
         assertFalse(state.allows(
                 PlaybackExperimentPolicy.Action.EXO_FRAME_SCHEDULING_AB));
     }
@@ -72,7 +67,7 @@ public class PlaybackExperimentPolicyTest {
         PlaybackExperimentPolicy.State state =
                 new PlaybackExperimentPolicy.State(
                         PlaybackExperimentPolicy.CURRENT_SCHEMA_VERSION,
-                        true, true, false, true);
+                        true, true, false);
 
         assertTrue(state.allows(
                 PlaybackExperimentPolicy.Action.EXO_AUTO_PRELOAD));
@@ -82,8 +77,6 @@ public class PlaybackExperimentPolicyTest {
                 PlaybackExperimentPolicy.Action.SHARED_PROFILE_AB_VALIDATION));
         assertTrue(state.allows(
                 PlaybackExperimentPolicy.Action.MPV_CACHE_EXPANSION));
-        assertTrue(state.allows(
-                PlaybackExperimentPolicy.Action.IJK_BUFFER_RELOAD));
         assertFalse(state.domainEnabled(
                 PlaybackExperimentPolicy.Domain.MPV));
         assertEquals("playback-internal-experiment-v2",
@@ -164,7 +157,6 @@ public class PlaybackExperimentPolicyTest {
         assertFalse(result.state().enabled());
         assertTrue(result.state().exoEnabled());
         assertTrue(result.state().mpvEnabled());
-        assertTrue(result.state().ijkEnabled());
         assertTrue(result.state().allows(
                 PlaybackExperimentPolicy.Action.EXO_AUTO_PRELOAD));
         assertFalse(result.state().allows(

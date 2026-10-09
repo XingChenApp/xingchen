@@ -608,7 +608,6 @@
     <string name="setting_custom_csp_player_type">playerType</string>
     <string name="setting_custom_csp_unset">Unset</string>
     <string name="setting_custom_csp_player_system">0 System</string>
-    <string name="setting_custom_csp_player_ijk">1 IJK</string>
     <string name="setting_custom_csp_player_exo">2 EXO</string>
     <string name="setting_custom_csp_live_url">url</string>
     <string name="setting_custom_csp_logo">logo</string>
@@ -845,7 +844,7 @@
     <string name="player_performance_profile_merge">Balanced profile merge</string>
     <string name="player_performance_profile_merge_enabled">Merged into Auto · rollback available</string>
     <string name="player_performance_profile_merge_rolled_back">Legacy Balanced restored</string>
-    <string name="player_performance_profile_merge_help">Balanced is merged into Auto by default. Legacy Balanced selections are migrated independently for EXO, MPV and IJK, while Compatible, Light and Custom selections are preserved. Local rollback restores only migrated engines that still remain on Auto; choices made after migration are not overwritten. The historical A/B report stays available, but real device acceptance has not been established by build or JVM tests.</string>
+    <string name="player_performance_profile_merge_help">Balanced is merged into Auto by default. Legacy Balanced selections are migrated independently for EXO and MPV, while Compatible, Light and Custom selections are preserved. Local rollback restores only migrated engines that still remain on Auto; choices made after migration are not overwritten. The historical A/B report stays available, but real device acceptance has not been established by build or JVM tests.</string>
     <string name="player_performance_profile_merge_rollback_title">Restore the legacy Balanced profile?</string>
     <string name="player_performance_profile_merge_rollback_message">The Balanced tab will return. Engines migrated from Balanced will be restored only if they are still on Auto. Compatible, Light or Custom choices made after migration will not be changed. A/B collection remains off until you explicitly enroll again.</string>
     <string name="player_performance_profile_merge_rollback_confirm">Restore Balanced</string>
@@ -860,7 +859,7 @@
     <string name="player_performance_lightweight_assessment_report">Auto/Light assessment report</string>
     <string name="player_performance_lightweight_assessment_report_value">Auto %1$d · Light %2$d · %3$s</string>
     <string name="player_performance_lightweight_assessment_report_title">Auto/Light device-local assessment</string>
-    <string name="player_performance_lightweight_assessment_report_summary">Status: %1$s\nAuto samples: %2$d\nLight samples: %3$d\nGroups: %4$d\nEvaluable groups: %5$d\nPassed: %6$d\nFailed: %7$d\nInsufficient or missing: %8$d\nCritical coverage: %9$d / %10$d\n\nFurther retention review requires all six EXO, MPV and IJK low-RAM hardware/software cells and every group to pass. This report never removes the Light profile automatically.</string>
+    <string name="player_performance_lightweight_assessment_report_summary">Status: %1$s\nAuto samples: %2$d\nLight samples: %3$d\nGroups: %4$d\nEvaluable groups: %5$d\nPassed: %6$d\nFailed: %7$d\nInsufficient or missing: %8$d\nCritical coverage: %9$d / %10$d\n\nFurther retention review requires all four EXO and MPV low-RAM hardware/software cells and every group to pass. This report never removes the Light profile automatically.</string>
     <string name="player_performance_lightweight_assessment_coverage_missing">Coverage cells missing</string>
     <string name="player_performance_lightweight_assessment_missing_coverage">Missing coverage</string>
     <string name="player_performance_lightweight_assessment_coverage_low_ram_hardware">low-RAM hardware</string>
@@ -870,7 +869,7 @@
     <string name="player_performance_lightweight_assessment_clear_message">All device-local Auto/Light assessment samples will be deleted. Enrollment remains and eligible sessions can be collected again. The historical Auto/Balanced A/B report is unaffected.</string>
     <string name="player_performance_lightweight_assessment_clear_confirm">Clear samples</string>
     <string name="player_performance_compatibility_assessment">Compatible retention assessment</string>
-    <string name="player_performance_compatibility_assessment_help">V-06B is a fail-closed audit of whether the Compatible profile can ever be reconsidered. It checks EXO, MPV and IJK coverage for codec failures, hardware capability misreporting, output-mode faults, and protocol/Range faults, plus visual-correctness detection and long-term problem-device evidence. Existing recovery is bounded and depends on explicit errors or observable metrics. Green screens, wrong colors or an incorrect picture without a decoder error cannot currently be detected reliably, so the present conclusion is to retain Compatible. This report never hides, migrates or removes a profile.</string>
+    <string name="player_performance_compatibility_assessment_help">V-06B is a fail-closed audit of whether the Compatible profile can ever be reconsidered. It checks EXO and MPV coverage for codec failures, hardware capability misreporting, output-mode faults, and protocol/Range faults, plus visual-correctness detection and long-term problem-device evidence. Existing recovery is bounded and depends on explicit errors or observable metrics. Green screens, wrong colors or an incorrect picture without a decoder error cannot currently be detected reliably, so the present conclusion is to retain Compatible. This report never hides, migrates or removes a profile.</string>
     <string name="player_performance_compatibility_assessment_value">%1$s · reliable %2$d / %3$d</string>
     <string name="player_performance_compatibility_assessment_title">Compatible profile retention assessment</string>
     <string name="player_performance_compatibility_assessment_summary">Current conclusion: %1$s\nReliable coverage: %2$d / %3$d\nLimited: %4$d\nUnverified: %5$d\nUnobservable: %6$d\nMissing: %7$d\n\nEvery requirement must have reliable automated recovery and long-term device evidence before further review. Even full coverage would only permit another product decision; this report never removes Compatible automatically.</string>
@@ -1273,7 +1272,6 @@
 
     <string-array name="select_player_kernel">
         <item>EXO</item>
-        <item>IJK</item>
         <item>MPV</item>
     </string-array>
     <string-array name="select_buffer_bytes">

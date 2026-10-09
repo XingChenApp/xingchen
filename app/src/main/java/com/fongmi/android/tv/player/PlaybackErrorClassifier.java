@@ -60,7 +60,7 @@ public final class PlaybackErrorClassifier {
 
     private static Stage exactStage(int errorCode) {
         return switch (errorCode) {
-            // IJK also maps its native timed-out errors to this legacy code. Keep
+            // Keep
             // that contract; typed Media3 playback stalls are handled above.
             case PlaybackException.ERROR_CODE_TIMEOUT,
                     PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,

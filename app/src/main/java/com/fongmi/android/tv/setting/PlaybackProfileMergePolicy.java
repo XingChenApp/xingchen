@@ -127,8 +127,7 @@ public final class PlaybackProfileMergePolicy {
 
     public enum Slot {
         EXO(1),
-        MPV(1 << 1),
-        IJK(1 << 2);
+        MPV(1 << 1);
 
         private final int bit;
 

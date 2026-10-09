@@ -519,7 +519,6 @@ public class PlayerOsdController {
 
     private String getSoftDecodeTuneText(PlayerManager player) {
         if (player.isHardDecode()) return "";
-        if (player.isIjk()) return "软解降负载 IJK跳帧/滤波";
         if (player.isMpv()) return "软解降负载 MPV hwdec=no";
         return PlaybackPerformanceSetting.isSoftVideoTuneEnabled() ? "软解降负载 EXO跳帧/滤波/低分辨" : "软解降负载 关";
     }
@@ -593,7 +592,6 @@ public class PlayerOsdController {
             if (!TextUtils.isEmpty(hwdec)) return "MPV " + hwdec;
             return player.isHardDecode() ? "MPV mediacodec" : "MPV ffmpeg";
         }
-        if (player.isIjk()) return player.isHardDecode() ? "IJK mediacodec" : "IJK ffmpeg";
         return "";
     }
 

@@ -23,13 +23,6 @@ public final class PlaybackPerformanceUiPolicy {
             PlaybackPerformanceCatalog.MPV_OPTION_PRIORITY,
             PlaybackPerformanceCatalog.AUDIO_PASSTHROUGH,
             PlaybackPerformanceCatalog.MPV_MULTICHANNEL_AUDIO);
-    private static final Set<String> IJK_COMMON = Set.of(
-            PlaybackPerformanceCatalog.IJK_SCENE,
-            PlaybackPerformanceCatalog.IJK_BUFFER,
-            PlaybackPerformanceCatalog.IJK_FRAME_DROP,
-            PlaybackPerformanceCatalog.IJK_RTSP_TRANSPORT,
-            PlaybackPerformanceCatalog.IJK_RECONNECT);
-
     private PlaybackPerformanceUiPolicy() {
     }
 
@@ -78,7 +71,6 @@ public final class PlaybackPerformanceUiPolicy {
     private static Set<String> commonIds(int kernel) {
         return switch (kernel) {
             case PlayerSetting.MPV -> MPV_COMMON;
-            case PlayerSetting.IJK -> IJK_COMMON;
             default -> EXO_COMMON;
         };
     }

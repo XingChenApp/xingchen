@@ -26,7 +26,7 @@ public class PlaybackPerformanceUiPolicyTest {
     @Test
     public void everyKernelSeparatesProfileCommonAndAdvancedWithoutLoss() {
         for (int kernel : new int[]{
-                PlayerSetting.EXO, PlayerSetting.MPV, PlayerSetting.IJK}) {
+                PlayerSetting.EXO, PlayerSetting.MPV}) {
             List<PlaybackPerformanceOption> all =
                     PlaybackPerformanceCatalog.forKernel(kernel, false);
             PlaybackPerformanceUiPolicy.Split split =
@@ -68,14 +68,6 @@ public class PlaybackPerformanceUiPolicyTest {
                         PlaybackPerformanceCatalog.MPV_MULTICHANNEL_AUDIO),
                 ids(PlaybackPerformanceUiPolicy
                         .splitForKernel(PlayerSetting.MPV, false).common()));
-        assertEquals(Set.of(
-                        PlaybackPerformanceCatalog.IJK_SCENE,
-                        PlaybackPerformanceCatalog.IJK_BUFFER,
-                        PlaybackPerformanceCatalog.IJK_FRAME_DROP,
-                        PlaybackPerformanceCatalog.IJK_RTSP_TRANSPORT,
-                        PlaybackPerformanceCatalog.IJK_RECONNECT),
-                ids(PlaybackPerformanceUiPolicy
-                        .splitForKernel(PlayerSetting.IJK, false).common()));
     }
 
     @Test
@@ -91,7 +83,7 @@ public class PlaybackPerformanceUiPolicyTest {
     @Test
     public void helpDescriptionsCoverEveryParameter() {
         for (int kernel : new int[]{
-                PlayerSetting.EXO, PlayerSetting.MPV, PlayerSetting.IJK}) {
+                PlayerSetting.EXO, PlayerSetting.MPV}) {
             for (PlaybackPerformanceOption option
                     : PlaybackPerformanceCatalog.forKernel(kernel, false)) {
                 assertFalse(option.title().isBlank());
@@ -108,9 +100,6 @@ public class PlaybackPerformanceUiPolicyTest {
                 PlaybackPerformanceCatalog.DV7_HDR10_FALLBACK));
         assertTrue(ids(PlaybackPerformanceCatalog.forKernel(
                 PlayerSetting.MPV, false)).contains(
-                PlaybackPerformanceCatalog.DV7_HDR10_FALLBACK));
-        assertFalse(ids(PlaybackPerformanceCatalog.forKernel(
-                PlayerSetting.IJK, false)).contains(
                 PlaybackPerformanceCatalog.DV7_HDR10_FALLBACK));
     }
 

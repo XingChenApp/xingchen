@@ -594,7 +594,6 @@
     <string name="setting_custom_csp_player_type">playerType</string>
     <string name="setting_custom_csp_unset">不寫</string>
     <string name="setting_custom_csp_player_system">0 系統</string>
-    <string name="setting_custom_csp_player_ijk">1 IJK</string>
     <string name="setting_custom_csp_player_exo">2 EXO</string>
     <string name="setting_custom_csp_live_url">url</string>
     <string name="setting_custom_csp_logo">logo</string>
@@ -826,7 +825,7 @@
     <string name="player_performance_profile_merge">均衡檔合併</string>
     <string name="player_performance_profile_merge_enabled">已合併到自動 · 可回退</string>
     <string name="player_performance_profile_merge_rolled_back">已恢復舊均衡檔</string>
-    <string name="player_performance_profile_merge_help">均衡檔預設合併到自動檔。舊均衡選擇會分別遷移 EXO、MPV、IJK，相容、輕量和自訂選擇保持不變。本機回退只恢復遷移過且目前仍是自動檔的內核，不覆蓋遷移後新選的檔位。歷史 A/B 報告繼續保留，但建置和 JVM 測試不能證明真實裝置已完成驗收。</string>
+    <string name="player_performance_profile_merge_help">均衡檔預設合併到自動檔。舊均衡選擇會分別遷移 EXO、MPV，相容、輕量和自訂選擇保持不變。本機回退只恢復遷移過且目前仍是自動檔的內核，不覆蓋遷移後新選的檔位。歷史 A/B 報告繼續保留，但建置和 JVM 測試不能證明真實裝置已完成驗收。</string>
     <string name="player_performance_profile_merge_rollback_title">恢復舊均衡檔？</string>
     <string name="player_performance_profile_merge_rollback_message">將重新顯示均衡標籤。曾從均衡遷移且目前仍為自動的內核會恢復均衡；遷移後改選的相容、輕量或自訂不會被覆蓋。A/B 採集仍保持關閉，需要時必須重新明確加入。</string>
     <string name="player_performance_profile_merge_rollback_confirm">恢復均衡檔</string>
@@ -841,7 +840,7 @@
     <string name="player_performance_lightweight_assessment_report">自動/輕量檔評估報告</string>
     <string name="player_performance_lightweight_assessment_report_value">自動 %1$d · 輕量 %2$d · %3$s</string>
     <string name="player_performance_lightweight_assessment_report_title">自動/輕量檔本機評估報告</string>
-    <string name="player_performance_lightweight_assessment_report_summary">狀態：%1$s\n自動檔樣本：%2$d\n輕量檔樣本：%3$d\n分組數：%4$d\n可評估分組：%5$d\n通過：%6$d\n失敗：%7$d\n不足或指標缺失：%8$d\n關鍵覆蓋：%9$d / %10$d\n\n只有 EXO、MPV、IJK 的低記憶體硬解與軟解六個單元全部覆蓋且所有分組通過，才具備進一步去留複核條件。本報告不會自動刪除輕量檔。</string>
+    <string name="player_performance_lightweight_assessment_report_summary">狀態：%1$s\n自動檔樣本：%2$d\n輕量檔樣本：%3$d\n分組數：%4$d\n可評估分組：%5$d\n通過：%6$d\n失敗：%7$d\n不足或指標缺失：%8$d\n關鍵覆蓋：%9$d / %10$d\n\n只有 EXO、MPV 的低記憶體硬解與軟解四個單元全部覆蓋且所有分組通過，才具備進一步去留複核條件。本報告不會自動刪除輕量檔。</string>
     <string name="player_performance_lightweight_assessment_coverage_missing">覆蓋單元不足</string>
     <string name="player_performance_lightweight_assessment_missing_coverage">缺少覆蓋</string>
     <string name="player_performance_lightweight_assessment_coverage_low_ram_hardware">低記憶體硬解</string>
@@ -851,7 +850,7 @@
     <string name="player_performance_lightweight_assessment_clear_message">將刪除本機全部自動/輕量檔評估樣本；加入狀態會保留，之後符合條件的播放仍可重新採集。歷史自動/均衡檔 A/B 報告不受影響。</string>
     <string name="player_performance_lightweight_assessment_clear_confirm">清除樣本</string>
     <string name="player_performance_compatibility_assessment">相容檔去留評估</string>
-    <string name="player_performance_compatibility_assessment_help">V-06B 以失敗關閉方式稽核相容檔是否具備進一步去留複核條件。它分別檢查 EXO、MPV、IJK 對 codec 錯誤、硬解能力虛報、輸出模式異常及協定/Range 異常的覆蓋，並要求能夠識別畫面正確性和具備問題裝置長期證據。現有自動回退都有範圍限制，依賴明確錯誤或可觀察指標；decoder 不報錯時的綠屏、錯色或錯誤畫面目前無法可靠識別，因此目前結論是繼續保留相容檔。本報告不會隱藏、遷移或刪除任何檔位。</string>
+    <string name="player_performance_compatibility_assessment_help">V-06B 以失敗關閉方式稽核相容檔是否具備進一步去留複核條件。它分別檢查 EXO、MPV 對 codec 錯誤、硬解能力虛報、輸出模式異常及協定/Range 異常的覆蓋，並要求能夠識別畫面正確性和具備問題裝置長期證據。現有自動回退都有範圍限制，依賴明確錯誤或可觀察指標；decoder 不報錯時的綠屏、錯色或錯誤畫面目前無法可靠識別，因此目前結論是繼續保留相容檔。本報告不會隱藏、遷移或刪除任何檔位。</string>
     <string name="player_performance_compatibility_assessment_value">%1$s · 可靠覆蓋 %2$d / %3$d</string>
     <string name="player_performance_compatibility_assessment_title">相容檔去留評估報告</string>
     <string name="player_performance_compatibility_assessment_summary">目前結論：%1$s\n可靠覆蓋：%2$d / %3$d\n受限：%4$d\n未驗證：%5$d\n不可觀察：%6$d\n缺失：%7$d\n\n只有全部要求都具備可靠自動回退和問題裝置長期證據，才允許再次進行產品決策；即使全部滿足，本報告也不會自動刪除相容檔。</string>
@@ -1248,7 +1247,6 @@
 
     <string-array name="select_player_kernel">
         <item>EXO</item>
-        <item>IJK</item>
         <item>MPV</item>
     </string-array>
     <string-array name="select_buffer_bytes">

@@ -68,7 +68,6 @@ public final class PlaybackProfileAbPolicy {
         return switch (kernel) {
             case EXO -> PlaybackExperimentPolicy.Domain.EXO;
             case MPV -> PlaybackExperimentPolicy.Domain.MPV;
-            case IJK -> PlaybackExperimentPolicy.Domain.IJK;
             case UNKNOWN -> null;
         };
     }

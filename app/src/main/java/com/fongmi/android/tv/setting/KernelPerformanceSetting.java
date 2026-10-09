@@ -308,7 +308,7 @@ public final class KernelPerformanceSetting {
     }
 
     static boolean audioPassthroughForPreset(int kernel) {
-        return PlayerSetting.sanitizePlayer(kernel) != PlayerSetting.IJK;
+        return true;
     }
 
     private static synchronized void ensureMigrated() {
@@ -325,7 +325,7 @@ public final class KernelPerformanceSetting {
         boolean preferAac = Prefers.getBoolean("prefer_aac");
         boolean audioPrefer = Prefers.getBoolean("audio_prefer");
         boolean videoPrefer = Prefers.getBoolean("video_prefer", true);
-        for (int kernel : new int[]{PlayerSetting.EXO, PlayerSetting.MPV, PlayerSetting.IJK}) {
+        for (int kernel : new int[]{PlayerSetting.EXO, PlayerSetting.MPV}) {
             Prefers.put(key(kernel, "buffer"), buffer);
             Prefers.put(key(kernel, "buffer_bytes"), bufferBytes);
             Prefers.put(key(kernel, "back_buffer"), backBuffer);
@@ -344,7 +344,7 @@ public final class KernelPerformanceSetting {
 
     private static synchronized void ensurePausePreloadMigrated() {
         if (Prefers.getBoolean(KEY_PAUSE_PRELOAD_MIGRATED)) return;
-        for (int kernel : new int[]{PlayerSetting.EXO, PlayerSetting.MPV, PlayerSetting.IJK}) {
+        for (int kernel : new int[]{PlayerSetting.EXO, PlayerSetting.MPV}) {
             String preferenceKey = key(kernel, "preload_pause");
             int legacy = Prefers.getPrefers().contains(preferenceKey)
                     ? Prefers.getInt(preferenceKey, PreloadSetting.DEFAULT_PAUSE_PRELOAD)
@@ -360,7 +360,7 @@ public final class KernelPerformanceSetting {
     }
 
     private static String key(int kernel, String suffix) {
-        String prefix = kernel == PlayerSetting.MPV ? "perf_mpv_" : kernel == PlayerSetting.IJK ? "perf_ijk_" : "perf_exo_";
+        String prefix = kernel == PlayerSetting.MPV ? "perf_mpv_" : "perf_exo_";
         return prefix + suffix;
     }
 

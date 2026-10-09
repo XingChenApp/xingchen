@@ -16,17 +16,19 @@ public final class PlayerKernelDialog {
     }
 
     public static void show(FragmentActivity activity, int selected, Listener listener) {
-        int current = PlayerSetting.sanitizePlayer(selected);
-        ChoiceDialog.showSingleNoCancel(activity, R.string.player_kernel, activity.getResources().getStringArray(R.array.select_player_kernel), current, which -> notifySelected(current, which, listener));
+        int player = PlayerSetting.sanitizePlayer(selected);
+        int current = PlayerSetting.playerToIndex(player);
+        ChoiceDialog.showSingleNoCancel(activity, R.string.player_kernel, activity.getResources().getStringArray(R.array.select_player_kernel), current, which -> notifySelected(player, which, listener));
     }
 
     public static void show(Fragment fragment, int selected, Listener listener) {
-        int current = PlayerSetting.sanitizePlayer(selected);
-        ChoiceDialog.showSingleNoCancel(fragment, R.string.player_kernel, fragment.getResources().getStringArray(R.array.select_player_kernel), current, which -> notifySelected(current, which, listener));
+        int player = PlayerSetting.sanitizePlayer(selected);
+        int current = PlayerSetting.playerToIndex(player);
+        ChoiceDialog.showSingleNoCancel(fragment, R.string.player_kernel, fragment.getResources().getStringArray(R.array.select_player_kernel), current, which -> notifySelected(player, which, listener));
     }
 
-    private static void notifySelected(int current, int selected, Listener listener) {
-        int target = PlayerSetting.sanitizePlayer(selected);
-        if (target != current && listener != null) listener.onSelected(target);
+    private static void notifySelected(int currentPlayer, int selectedIndex, Listener listener) {
+        int target = PlayerSetting.indexToPlayer(selectedIndex);
+        if (target != currentPlayer && listener != null) listener.onSelected(target);
     }
 }

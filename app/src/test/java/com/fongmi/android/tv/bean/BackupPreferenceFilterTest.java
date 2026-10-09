@@ -59,7 +59,6 @@ public class BackupPreferenceFilterTest {
         assertFalse(Backup.include("playback_experiment_enabled", everything));
         assertFalse(Backup.include("playback_experiment_exo", everything));
         assertFalse(Backup.include("playback_experiment_mpv", everything));
-        assertFalse(Backup.include("playback_experiment_ijk", everything));
         assertFalse(Backup.include(
                 "playback_experiment_exo_frame_schema", everything));
         assertFalse(Backup.include(

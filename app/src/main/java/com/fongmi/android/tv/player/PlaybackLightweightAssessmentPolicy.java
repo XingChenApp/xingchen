@@ -104,12 +104,6 @@ public final class PlaybackLightweightAssessmentPolicy {
         MPV_SOFTWARE(
                 PlaybackAutoContext.Kernel.MPV,
                 CoverageKind.SOFTWARE),
-        IJK_LOW_RAM_HARDWARE(
-                PlaybackAutoContext.Kernel.IJK,
-                CoverageKind.LOW_RAM_HARDWARE),
-        IJK_SOFTWARE(
-                PlaybackAutoContext.Kernel.IJK,
-                CoverageKind.SOFTWARE);
 
         private final PlaybackAutoContext.Kernel kernel;
         private final CoverageKind kind;

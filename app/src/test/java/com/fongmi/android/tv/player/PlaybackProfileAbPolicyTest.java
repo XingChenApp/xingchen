@@ -92,8 +92,6 @@ public class PlaybackProfileAbPolicyTest {
         assertFalse(PlaybackProfileAbPolicy.gateAllows(
                 exoOnly, PlaybackAutoContext.Kernel.MPV));
         assertFalse(PlaybackProfileAbPolicy.gateAllows(
-                exoOnly, PlaybackAutoContext.Kernel.IJK));
-        assertFalse(PlaybackProfileAbPolicy.gateAllows(
                 stable, PlaybackAutoContext.Kernel.EXO));
         assertFalse(PlaybackProfileAbPolicy.gateAllows(
                 exoOnly, PlaybackAutoContext.Kernel.UNKNOWN));

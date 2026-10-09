@@ -135,16 +135,16 @@ public class PlaybackProfileMergePolicyTest {
     public void migrationMarkerIsStableAcrossRepeatedMerge() {
         PlaybackProfileMergePolicy.State state =
                 PlaybackProfileMergePolicy.State.merged()
-                        .withMigrated(PlaybackProfileMergePolicy.Slot.IJK)
-                        .withMigrated(PlaybackProfileMergePolicy.Slot.IJK);
+                        .withMigrated(PlaybackProfileMergePolicy.Slot.MPV)
+                        .withMigrated(PlaybackProfileMergePolicy.Slot.MPV);
 
         assertTrue(state.wasMigrated(
-                PlaybackProfileMergePolicy.Slot.IJK));
-        assertEquals(1 << 2, state.migratedMask());
+                PlaybackProfileMergePolicy.Slot.MPV));
+        assertEquals(1 << 1, state.migratedMask());
         PlaybackProfileMergePolicy.State completed =
-                state.withoutMigrated(PlaybackProfileMergePolicy.Slot.IJK);
+                state.withoutMigrated(PlaybackProfileMergePolicy.Slot.MPV);
         assertFalse(completed.wasMigrated(
-                PlaybackProfileMergePolicy.Slot.IJK));
+                PlaybackProfileMergePolicy.Slot.MPV));
         assertEquals(0, completed.migratedMask());
         assertTrue(PlaybackProfileMergePolicy.shouldMigrate(
                 PlaybackPerformanceSetting.PROFILE_RECOMMENDED,

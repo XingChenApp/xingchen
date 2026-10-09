@@ -38,8 +38,7 @@ public final class PlaybackExperimentPolicy {
             Boolean enabled = bool(raw.enabled());
             Boolean exo = bool(raw.exoEnabled());
             Boolean mpv = bool(raw.mpvEnabled());
-            Boolean ijk = bool(raw.ijkEnabled());
-            if (enabled == null || exo == null || mpv == null || ijk == null) {
+            if (enabled == null || exo == null || mpv == null) {
                 return stable(Status.CORRUPT, true);
             }
             return migratedStable();
@@ -47,12 +46,11 @@ public final class PlaybackExperimentPolicy {
         Boolean enabled = bool(raw.enabled());
         Boolean exo = bool(raw.exoEnabled());
         Boolean mpv = bool(raw.mpvEnabled());
-        Boolean ijk = bool(raw.ijkEnabled());
-        if (enabled == null || exo == null || mpv == null || ijk == null) {
+        if (enabled == null || exo == null || mpv == null) {
             return stable(Status.CORRUPT, true);
         }
         return new Resolution(
-                new State(CURRENT_SCHEMA_VERSION, enabled, exo, mpv, ijk),
+                new State(CURRENT_SCHEMA_VERSION, enabled, exo, mpv),
                 Status.CURRENT,
                 false,
                 true);
@@ -98,8 +96,7 @@ public final class PlaybackExperimentPolicy {
     public enum Domain {
         SHARED,
         EXO,
-        MPV,
-        IJK
+        MPV
     }
 
     public enum Risk {
@@ -141,18 +138,6 @@ public final class PlaybackExperimentPolicy {
         MPV_AUTO_PRELOAD("mpv.auto-preload", Domain.MPV,
                 Risk.AUTOMATIC_OPTIMIZATION, 1),
         MPV_HLS_RUNTIME_RELOAD("mpv.hls-runtime-reload", Domain.MPV,
-                Risk.AUTOMATIC_OPTIMIZATION, 1),
-        IJK_INITIAL_BASELINE("ijk.initial-baseline", Domain.IJK,
-                Risk.STABLE_BASELINE, 1),
-        IJK_BUFFER_SAFETY_RELOAD("ijk.buffer-safety-reload", Domain.IJK,
-                Risk.SAFETY_PROTECTION, 1),
-        IJK_BUFFER_RELOAD("ijk.buffer-reload", Domain.IJK,
-                Risk.AUTOMATIC_OPTIMIZATION, 1),
-        IJK_REALTIME_REBUILD("ijk.realtime-rebuild", Domain.IJK,
-                Risk.AUTOMATIC_OPTIMIZATION, 1),
-        IJK_DECODE_REBUILD("ijk.decode-rebuild", Domain.IJK,
-                Risk.AUTOMATIC_OPTIMIZATION, 1),
-        IJK_RUNTIME_KERNEL_FALLBACK("ijk.runtime-kernel-fallback", Domain.IJK,
                 Risk.AUTOMATIC_OPTIMIZATION, 1);
 
         private final String id;
@@ -196,11 +181,10 @@ public final class PlaybackExperimentPolicy {
             Object schemaVersion,
             Object enabled,
             Object exoEnabled,
-            Object mpvEnabled,
-            Object ijkEnabled) {
+            Object mpvEnabled) {
 
         public static RawState missing() {
-            return new RawState(null, null, null, null, null);
+            return new RawState(null, null, null, null);
         }
     }
 
@@ -208,15 +192,14 @@ public final class PlaybackExperimentPolicy {
             int schemaVersion,
             boolean enabled,
             boolean exoEnabled,
-            boolean mpvEnabled,
-            boolean ijkEnabled) {
+            boolean mpvEnabled) {
 
         public State {
             schemaVersion = CURRENT_SCHEMA_VERSION;
         }
 
         public static State stable() {
-            return new State(CURRENT_SCHEMA_VERSION, false, true, true, true);
+            return new State(CURRENT_SCHEMA_VERSION, false, true, true);
         }
 
         public boolean allows(Action action) {
@@ -226,7 +209,6 @@ public final class PlaybackExperimentPolicy {
             return switch (action.domain()) {
                 case EXO -> exoEnabled;
                 case MPV -> mpvEnabled;
-                case IJK -> ijkEnabled;
                 case SHARED -> true;
             };
         }
@@ -236,7 +218,6 @@ public final class PlaybackExperimentPolicy {
             return switch (domain) {
                 case EXO -> exoEnabled;
                 case MPV -> mpvEnabled;
-                case IJK -> ijkEnabled;
                 case SHARED -> true;
             };
         }

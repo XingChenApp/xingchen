@@ -14,7 +14,6 @@ public final class PlaybackExperimentSetting {
     public static final String KEY_ENABLED = "playback_experiment_enabled";
     public static final String KEY_EXO = "playback_experiment_exo";
     public static final String KEY_MPV = "playback_experiment_mpv";
-    public static final String KEY_IJK = "playback_experiment_ijk";
 
     private static volatile PlaybackExperimentPolicy.Resolution cachedResolution;
 
@@ -59,8 +58,7 @@ public final class PlaybackExperimentSetting {
                 PlaybackExperimentPolicy.CURRENT_SCHEMA_VERSION,
                 enabled,
                 current.exoEnabled(),
-                current.mpvEnabled(),
-                current.ijkEnabled()));
+                current.mpvEnabled()));
     }
 
     public static synchronized void putDomainEnabled(
@@ -76,9 +74,7 @@ public final class PlaybackExperimentSetting {
                 domain == PlaybackExperimentPolicy.Domain.EXO
                         ? enabled : current.exoEnabled(),
                 domain == PlaybackExperimentPolicy.Domain.MPV
-                        ? enabled : current.mpvEnabled(),
-                domain == PlaybackExperimentPolicy.Domain.IJK
-                        ? enabled : current.ijkEnabled()));
+                        ? enabled : current.mpvEnabled()));
     }
 
     public static synchronized void rollbackToStable() {
@@ -90,8 +86,7 @@ public final class PlaybackExperimentSetting {
                 PlaybackExperimentPolicy.CURRENT_SCHEMA_VERSION,
                 false,
                 current.exoEnabled(),
-                current.mpvEnabled(),
-                current.ijkEnabled()));
+                current.mpvEnabled()));
     }
 
     private static PlaybackExperimentPolicy.Resolution read() {
@@ -106,8 +101,7 @@ public final class PlaybackExperimentSetting {
                         values.get(KEY_SCHEMA),
                         values.get(KEY_ENABLED),
                         values.get(KEY_EXO),
-                        values.get(KEY_MPV),
-                        values.get(KEY_IJK)));
+                        values.get(KEY_MPV)));
     }
 
     private static void update(PlaybackExperimentPolicy.State state) {
@@ -127,7 +121,6 @@ public final class PlaybackExperimentSetting {
         editor.putBoolean(KEY_ENABLED, safe.enabled());
         editor.putBoolean(KEY_EXO, safe.exoEnabled());
         editor.putBoolean(KEY_MPV, safe.mpvEnabled());
-        editor.putBoolean(KEY_IJK, safe.ijkEnabled());
         editor.apply();
     }
 }

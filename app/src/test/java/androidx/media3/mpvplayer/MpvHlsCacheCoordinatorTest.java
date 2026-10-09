@@ -239,7 +239,7 @@ public class MpvHlsCacheCoordinatorTest {
         MpvHlsCacheCoordinator coordinator = coordinator(new MpvHlsCacheCoordinator.StorageFacts(true, 8 * GIB, 10 * GIB), clock);
         AtomicInteger callbacks = new AtomicInteger();
         MpvHlsCacheCoordinator.ClientLease mpv = coordinator.registerClient(MIB, callbacks::incrementAndGet);
-        MpvHlsCacheCoordinator.ClientLease ijk = coordinator.registerClient(MIB, callbacks::incrementAndGet);
+        MpvHlsCacheCoordinator.ClientLease lease = coordinator.registerClient(MIB, callbacks::incrementAndGet);
         MpvHlsCacheCoordinator.ReservationDecision first = coordinator.tryReserve(
                 "a.bin", new File(directory, "a.bin"), 100, MIB, MpvHlsCacheCoordinator.WriterType.PREFETCH);
         assertTrue(first.granted());
@@ -259,7 +259,7 @@ public class MpvHlsCacheCoordinatorTest {
         assertFalse(coordinator.isCircuitOpen());
         recovered.reservation().abort();
         mpv.close();
-        ijk.close();
+        lease.close();
     }
 
     @Test

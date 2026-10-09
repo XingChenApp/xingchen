@@ -11,7 +11,6 @@ import com.github.catvod.utils.Prefers;
 public class PlayerSetting {
 
     public static final int EXO = 0;
-    public static final int IJK = 1;
     public static final int MPV = 2;
     public static final int RENDER_SURFACE = 0;
     public static final int RENDER_TEXTURE = 1;
@@ -94,19 +93,27 @@ public class PlayerSetting {
     }
 
     public static boolean isPlayer(int player) {
-        return player == EXO || player == IJK || player == MPV;
+        return player == EXO || player == MPV;
     }
 
     public static int sanitizePlayer(int player) {
-        return player == IJK || player == MPV ? player : EXO;
+        return player == MPV ? player : EXO;
     }
 
     public static int nextPlayer(int player) {
         return switch (sanitizePlayer(player)) {
-            case EXO -> IJK;
-            case IJK -> MPV;
+            case EXO -> MPV;
             default -> EXO;
         };
+    }
+
+    /** Index into R.array.select_player_kernel ([EXO, MPV]). */
+    public static int playerToIndex(int player) {
+        return sanitizePlayer(player) == MPV ? 1 : 0;
+    }
+
+    public static int indexToPlayer(int index) {
+        return index == 1 ? MPV : EXO;
     }
 
     public static int getRender() {
@@ -388,7 +395,7 @@ public class PlayerSetting {
     }
 
     public static void putVideoPrefer(boolean videoPrefer) {
-        for (int kernel : new int[]{EXO, MPV, IJK}) {
+        for (int kernel : new int[]{EXO, MPV}) {
             KernelPerformanceSetting.putVideoPrefer(kernel, videoPrefer);
         }
         // Keep the user-facing "xingchen" player_decode pref in sync: it is the

@@ -352,25 +352,7 @@ public final class MpvHlsProxy extends NanoHTTPD {
     }
 
     public LiveLagSnapshot liveLagSnapshot(long nativeBufferedDurationMs) {
-        if (kernel != PlayerSetting.IJK) return LiveLagSnapshot.unknown();
-        SessionStats stats = sessionStats.get(sessionId);
-        if (stats == null) return LiveLagSnapshot.unknown();
-        long now = SystemClock.elapsedRealtime();
-        PlaybackResourceClassifier.Classification classification =
-                stats.resourceClassification(now);
-        PlaybackAutoContext.StreamKind stream = classification == null
-                ? PlaybackAutoContext.StreamKind.UNKNOWN
-                : classification.streamKind();
-        if (stream != PlaybackAutoContext.StreamKind.LIVE
-                && stream != PlaybackAutoContext.StreamKind.LOW_LATENCY_LIVE) {
-            return LiveLagSnapshot.unknown();
-        }
-        HlsProxyLiveLagTracker.Snapshot snapshot =
-                stats.liveLagSnapshot(now, nativeBufferedDurationMs);
-        return snapshot.known()
-                ? new LiveLagSnapshot(true, snapshot.lowerBoundMs(),
-                snapshot.nativeBufferedDurationMs(), snapshot.outsideWindow())
-                : LiveLagSnapshot.unknown();
+        return LiveLagSnapshot.unknown();
     }
 
     HlsVariantSnapshot variantSnapshot() {
@@ -701,12 +683,6 @@ public final class MpvHlsProxy extends NanoHTTPD {
             boolean targetPlaylist = MpvHlsSegmentContentPolicy.isPlaylist(
                     target.role(), target.url, null);
             if (targetPlaylist) recordSelectedVariant(target);
-            if (kernel == PlayerSetting.IJK
-                    && !targetPlaylist
-                    && target.role() == HlsPlaylistRewriter.UriRole.MEDIA_SEGMENT) {
-                stats(target.sessionId()).observeLiveMediaRequest(
-                        target.url(), SystemClock.elapsedRealtime());
-            }
             String forwardedRange = targetPlaylist ? null : range;
             if (!targetPlaylist && target.cacheable) {
                 Response cached = serveCached(owner, target.url, range, foreground);
@@ -1297,17 +1273,6 @@ public final class MpvHlsProxy extends NanoHTTPD {
                 == PlaybackAutoContext.StreamKind.VOD;
         String playlistKey = playlistUrl == null
                 ? "direct" : Util.md5(playlistUrl);
-        if (kernel == PlayerSetting.IJK
-                && !result.mediaUnits().isEmpty()
-                && (effective.streamKind() == PlaybackAutoContext.StreamKind.LIVE
-                || effective.streamKind()
-                == PlaybackAutoContext.StreamKind.LOW_LATENCY_LIVE)) {
-            stats.observeLivePlaylist(
-                    playlistKey, result.mediaUnits(), now);
-        } else if (kernel == PlayerSetting.IJK
-                && !result.mediaUnits().isEmpty()) {
-            stats.clearLivePlaylist(playlistKey);
-        }
         String upper = text.toUpperCase(Locale.US);
         if (upper.contains("#EXT-X-BYTERANGE:") || upper.contains("BYTERANGE=")) stats.hasByteRange = true;
         if (!result.variants().isEmpty()) stats.recordVariants(result.variants());
