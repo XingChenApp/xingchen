@@ -1344,7 +1344,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void setText(Vod item) {
-        setText(mBinding.content, 0, item.getContent());
+        setText(mBinding.content, R.string.detail_content, item.getContent());
         setDetailLyrics(item.getContent());
         setMeta(item);
         updateAudioStageText();
@@ -1429,7 +1429,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         else applyPlaybackArtwork(getPlaybackEpisode());
         if (result.hasPosition()) mHistory.setPosition(result.getPosition());
         if (result.hasDesc()) {
-            setText(mBinding.content, 0, result.getDesc());
+            setText(mBinding.content, R.string.detail_content, result.getDesc());
             setPlaybackLyrics(result.getDesc());
         }
         updateAudioStageText();
@@ -4459,7 +4459,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private void showInitialPreview() {
         mBinding.progressLayout.showContent();
         mBinding.name.setText(getName());
-        setText(mBinding.content, 0, getContent());
+        setText(mBinding.content, R.string.detail_content, getContent());
         setDetailLyrics(getContent());
         if (!getPic().isEmpty()) setArtwork(getPic());
         else if (!getWallPic().isEmpty()) setContextWall(getWallPic());
