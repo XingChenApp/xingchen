@@ -106,8 +106,15 @@ public class HomeActivity extends BaseActivity implements NavigationBarView.OnIt
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        setNavigation();
+    }
+
+    @Override
     protected void initEvent() {
-        mBinding.navigation.findViewById(R.id.live).setOnLongClickListener(this::addShortcut);
+        View liveView = mBinding.navigation.findViewById(R.id.live);
+        if (liveView != null) liveView.setOnLongClickListener(this::addShortcut);
     }
 
     private void checkAction(Intent intent) {
@@ -185,7 +192,7 @@ public class HomeActivity extends BaseActivity implements NavigationBarView.OnIt
     private void setNavigation() {
         mBinding.navigation.getMenu().findItem(R.id.vod).setVisible(true);
         mBinding.navigation.getMenu().findItem(R.id.setting).setVisible(true);
-        mBinding.navigation.getMenu().findItem(R.id.live).setVisible(true);
+        mBinding.navigation.getMenu().findItem(R.id.live).setVisible(LiveConfig.hasUrl());
         syncNavigationSelection();
     }
 
@@ -225,6 +232,9 @@ public class HomeActivity extends BaseActivity implements NavigationBarView.OnIt
         switch (event.type()) {
             case VOD:
                 RefreshEvent.home();
+                break;
+            case LIVE:
+                setNavigation();
                 break;
             case COMMON:
                 setNavigation();
