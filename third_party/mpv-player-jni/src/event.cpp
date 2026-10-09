@@ -6,7 +6,6 @@
 #include "jni_utils.h"
 #include "log.h"
 #include "request.h"
-#include "node_json.h"
 
 static void sendPropertyUpdateToJava(JNIEnv *env, mpv_event_property *prop)
 {
@@ -32,16 +31,6 @@ static void sendPropertyUpdateToJava(JNIEnv *env, mpv_event_property *prop)
         jvalue = utf8_to_jstring(env, *(const char**)prop->data);
         env->CallStaticVoidMethod(mpv_MPVLib, mpv_MPVLib_eventProperty_SS, jprop, jvalue);
         break;
-    case MPV_FORMAT_NODE: {
-        std::string json;
-        if (mpv_node_json::encode(static_cast<mpv_node *>(prop->data), &json))
-            jvalue = utf8_to_jstring(env, json.c_str());
-        else
-            ALOGE("bounded NODE snapshot rejected for %s", prop->name);
-        env->CallStaticVoidMethod(mpv_MPVLib, mpv_MPVLib_eventPropertyNode_SS,
-                                  jprop, jvalue);
-        break;
-    }
     default:
         ALOGV("sendPropertyUpdateToJava: Unknown property update format received in callback: %d!", prop->format);
         break;
@@ -100,17 +89,19 @@ static void clearJavaCallbackException(JNIEnv *env)
 
 static void finishShutdown(JNIEnv *env, bool force)
 {
-    mpv_handle *context = g_mpv.exchange(NULL);
-    if (context) {
-        if (force)
-            mpv_terminate_destroy(context);
-        else
-            mpv_destroy(context);
-        release_requests(env);
+    {
+        std::lock_guard<std::mutex> lock(g_mpv_mutex);
+        mpv_handle *context = g_mpv.exchange(NULL);
+        if (context) {
+            if (force)
+                mpv_terminate_destroy(context);
+            else
+                mpv_destroy(context);
+            release_requests(env);
+        }
+        g_force_shutdown = false;
+        g_event_thread_started = false;
     }
-
-    g_force_shutdown = false;
-    g_event_thread_started = false;
     sendEventToJava(env, MPV_EVENT_SHUTDOWN);
     clearJavaCallbackException(env);
     g_shutdown_requested = false;

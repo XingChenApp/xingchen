@@ -123,11 +123,13 @@ jstring utf8_to_jstring(JNIEnv *env, const char *value)
                           static_cast<jsize>(utf16.size()));
 }
 
-void send_command_reply_to_java(JNIEnv *env, uint64_t request_id, int error)
+void send_command_reply_to_java(JNIEnv *env, uint64_t request_id, int error,
+                               int64_t result)
 {
-    env->CallStaticVoidMethod(mpv_MPVLib, mpv_MPVLib_eventCommandReply_Ji,
-                              static_cast<jlong>(request_id),
-                              static_cast<jint>(error));
+    env->CallStaticVoidMethod(mpv_MPVLib, mpv_MPVLib_eventCommandReply_JiJ,
+                             static_cast<jlong>(request_id),
+                             static_cast<jint>(error),
+                             static_cast<jlong>(result));
 }
 
 bool acquire_jni_env(JavaVM *vm, JNIEnv **env)
@@ -155,7 +157,7 @@ static bool cache_global_class(JNIEnv *env, jclass *cached_class, const char *na
 }
 
 static bool cache_method(JNIEnv *env, jmethodID *cached_method, jclass clazz,
-                         const char *name, const char *signature)
+                        const char *name, const char *signature)
 {
     if (!*cached_method)
         *cached_method = env->GetMethodID(clazz, name, signature);
@@ -163,7 +165,7 @@ static bool cache_method(JNIEnv *env, jmethodID *cached_method, jclass clazz,
 }
 
 static bool cache_static_method(JNIEnv *env, jmethodID *cached_method, jclass clazz,
-                                const char *name, const char *signature)
+                               const char *name, const char *signature)
 {
     if (!*cached_method)
         *cached_method = env->GetStaticMethodID(clazz, name, signature);
@@ -171,7 +173,7 @@ static bool cache_static_method(JNIEnv *env, jmethodID *cached_method, jclass cl
 }
 
 static bool cache_static_field(JNIEnv *env, jfieldID *cached_field, jclass clazz,
-                               const char *name, const char *signature)
+                              const char *name, const char *signature)
 {
     if (!*cached_field)
         *cached_field = env->GetStaticFieldID(clazz, name, signature);
@@ -213,13 +215,10 @@ bool init_methods_cache(JNIEnv *env)
         cache_static_method(
             env, &mpv_MPVLib_eventProperty_SS, mpv_MPVLib,
             "eventProperty", "(Ljava/lang/String;Ljava/lang/String;)V") &&
-        cache_static_method(
-            env, &mpv_MPVLib_eventPropertyNode_SS, mpv_MPVLib,
-            "eventPropertyNode", "(Ljava/lang/String;Ljava/lang/String;)V") &&
         cache_static_method(env, &mpv_MPVLib_event, mpv_MPVLib,
                             "event", "(I)V") &&
-        cache_static_method(env, &mpv_MPVLib_eventCommandReply_Ji, mpv_MPVLib,
-                            "eventCommandReply", "(JI)V") &&
+        cache_static_method(env, &mpv_MPVLib_eventCommandReply_JiJ, mpv_MPVLib,
+                            "eventCommandReply", "(JIJ)V") &&
         cache_static_method(
             env, &mpv_MPVLib_eventEndFile_iiS, mpv_MPVLib,
             "eventEndFile", "(IILjava/lang/String;)V") &&

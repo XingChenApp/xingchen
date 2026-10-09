@@ -1,6 +1,5 @@
 #include <jni.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string>
 
@@ -22,7 +21,6 @@ extern "C" {
     jni_func(jstring, getPropertyString, jstring jproperty);
     jni_func(jint, setPropertyString, jstring jproperty, jstring jvalue);
     jni_func(jbyteArray, getPropertyByteArray, jstring jproperty);
-    jni_func(void, dumpTrackList);
 
     jni_func(jint, observeProperty, jstring property, jint format);
 }
@@ -36,43 +34,8 @@ static int get_utf8(JNIEnv *env, jstring string, std::string *value)
     return env->ExceptionCheck() ? MPV_ERROR_NOMEM : MPV_ERROR_INVALID_PARAMETER;
 }
 
-static void log_node(const char *path, const mpv_node &node) {
-    if (node.format == MPV_FORMAT_NODE_ARRAY || node.format == MPV_FORMAT_NODE_MAP) {
-        mpv_node_list *list = node.u.list;
-        if (!list) return;
-        for (int i = 0; i < list->num; ++i) {
-            char child[256];
-            const char *key = node.format == MPV_FORMAT_NODE_MAP && list->keys ? list->keys[i] : nullptr;
-            if (key) snprintf(child, sizeof(child), "%s/%s", path, key);
-            else snprintf(child, sizeof(child), "%s/%d", path, i);
-            log_node(child, list->values[i]);
-        }
-        return;
-    }
-    switch (node.format) {
-        case MPV_FORMAT_STRING: ALOGV("mpv-node %s string=%s", path, node.u.string ? node.u.string : ""); break;
-        case MPV_FORMAT_FLAG: ALOGV("mpv-node %s flag=%d", path, node.u.flag); break;
-        case MPV_FORMAT_INT64: ALOGV("mpv-node %s int=%lld", path, static_cast<long long>(node.u.int64)); break;
-        case MPV_FORMAT_DOUBLE: ALOGV("mpv-node %s double=%f", path, node.u.double_); break;
-        case MPV_FORMAT_NONE: ALOGV("mpv-node %s none", path); break;
-        default: ALOGV("mpv-node %s format=%d", path, node.format); break;
-    }
-}
-
-jni_func(void, dumpTrackList) {
-    if (!check_mpv_initialized())
-        return;
-    mpv_node node{};
-    int result = mpv_get_property(g_mpv, "track-list", MPV_FORMAT_NODE, &node);
-    if (result < 0) {
-        ALOGE("mpv track-list node failed: %s", mpv_error_string(result));
-        return;
-    }
-    log_node("track-list", node);
-    mpv_free_node_contents(&node);
-}
-
 jni_func(jint, setOptionString, jstring joption, jstring jvalue) {
+    std::lock_guard<std::mutex> lock(g_mpv_mutex);
     if (!check_mpv_initialized())
         return MPV_ERROR_UNINITIALIZED;
 
@@ -90,6 +53,7 @@ jni_func(jint, setOptionString, jstring joption, jstring jvalue) {
 
 static int common_get_property(JNIEnv *env, jstring jproperty, mpv_format format, void *output)
 {
+    std::lock_guard<std::mutex> lock(g_mpv_mutex);
     if (!check_mpv_initialized())
         return MPV_ERROR_UNINITIALIZED;
 
@@ -109,6 +73,7 @@ static int common_get_property(JNIEnv *env, jstring jproperty, mpv_format format
 
 static int common_set_property(JNIEnv *env, jstring jproperty, mpv_format format, void *value)
 {
+    std::lock_guard<std::mutex> lock(g_mpv_mutex);
     if (!check_mpv_initialized())
         return MPV_ERROR_UNINITIALIZED;
 
@@ -204,6 +169,7 @@ jni_func(jint, setPropertyString, jstring jproperty, jstring jvalue) {
 }
 
 jni_func(jint, observeProperty, jstring property, jint format) {
+    std::lock_guard<std::mutex> lock(g_mpv_mutex);
     if (!check_mpv_initialized())
         return MPV_ERROR_UNINITIALIZED;
     std::string prop;

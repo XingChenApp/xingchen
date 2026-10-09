@@ -1,7 +1,7 @@
 {
   "builder": {
     "repo": "https://github.com/FongMi/mpv-android.git",
-    "commit": "99a60ad2141d5ace94453590903c2c6b9a0a2443"
+    "commit": "2425b5c76b319a87fc823d0e87ee8140f0cb393c"
   },
   "android": {
     "ndk_version": "29.0.14206865",

@@ -19,6 +19,11 @@ extern "C" {
 #include "jni_utils.h"
 #include "event.h"
 #include "request.h"
+#include "globals.h"
+#include "stream.h"
+
+// Project-specific: DVD ISO protocol (webhtv-dvdiso)
+bool register_iso_protocol(JNIEnv *env);
 
 extern "C" {
     jni_func(void, create, jobject appctx);
@@ -27,6 +32,8 @@ extern "C" {
 
     jni_func(jint, command, jobjectArray jarray);
     jni_func(jint, enqueueCommand, jlong request_id, jobjectArray jarray);
+    jni_func(jint, enqueueCommandLongResult, jlong request_id,
+             jstring result_key, jobjectArray jarray);
 };
 
 JavaVM *g_vm;
@@ -34,15 +41,14 @@ std::atomic<mpv_handle *> g_mpv(NULL);
 std::atomic<bool> g_event_thread_started(false);
 std::atomic<bool> g_shutdown_requested(false);
 std::atomic<bool> g_force_shutdown(false);
+std::mutex g_mpv_mutex;
 
 static pthread_t event_thread_id;
 static jobject global_appctx;
 static constexpr int kMaxCommandArguments = 128;
 
-bool register_iso_protocol(JNIEnv *env);
-
 static void throw_error_code(JNIEnv *env, const char *action, int result,
-                             const char *detail)
+                            const char *detail)
 {
     char message[256];
     if (detail)
@@ -101,6 +107,7 @@ static bool prepare_environment(JNIEnv *env, jobject appctx) {
 }
 
 jni_func(void, create, jobject appctx) {
+    std::lock_guard<std::mutex> lock(g_mpv_mutex);
     if (g_shutdown_requested) {
         throw_java_exception(env, "mpv shutdown is still in progress");
         return;
@@ -119,6 +126,15 @@ jni_func(void, create, jobject appctx) {
         return;
     }
 
+    int stream_result = register_iso_stream(env, g_mpv);
+    if (stream_result < 0) {
+        destroy_mpv_context();
+        if (!env->ExceptionCheck())
+            throw_error_code(env, "register ISO stream", stream_result, NULL);
+        return;
+    }
+
+    // Project-specific: DVD ISO protocol
     if (!register_iso_protocol(env))
         ALOGE("DVD ISO protocol unavailable");
 
@@ -129,6 +145,7 @@ jni_func(void, create, jobject appctx) {
 }
 
 jni_func(void, init) {
+    std::lock_guard<std::mutex> lock(g_mpv_mutex);
     if (!g_mpv) {
         throw_java_exception(env, "mpv is not created");
         return;
@@ -156,6 +173,7 @@ jni_func(void, init) {
 }
 
 jni_func(jint, destroy) {
+    std::lock_guard<std::mutex> lock(g_mpv_mutex);
     mpv_handle *context = g_mpv.load();
     if (!context) {
         ALOGV("mpv destroy called but it's already destroyed");
@@ -165,6 +183,7 @@ jni_func(jint, destroy) {
     if (!g_event_thread_started) {
         destroy_mpv_context();
         release_requests(env);
+        // Project-specific: notify Java of shutdown
         env->CallStaticVoidMethod(mpv_MPVLib, mpv_MPVLib_event,
                                   MPV_EVENT_SHUTDOWN);
         return MPV_ERROR_SUCCESS;
@@ -173,7 +192,9 @@ jni_func(jint, destroy) {
     return enqueue_shutdown(env);
 }
 
-static int run_command(JNIEnv *env, jobjectArray jarray, uint64_t request_id) {
+static int run_command(JNIEnv *env, jobjectArray jarray, uint64_t request_id,
+                       const std::string *result_key) {
+    std::lock_guard<std::mutex> lock(g_mpv_mutex);
     if (!check_mpv_initialized())
         return MPV_ERROR_UNINITIALIZED;
 
@@ -197,7 +218,10 @@ static int run_command(JNIEnv *env, jobjectArray jarray, uint64_t request_id) {
 
     int result;
     if (request_id) {
-        result = enqueue_command(env, request_id, std::move(utf8_arguments));
+        result = result_key
+            ? enqueue_command_long_result(env, request_id, *result_key,
+                                          std::move(utf8_arguments))
+            : enqueue_command(env, request_id, std::move(utf8_arguments));
     } else {
         std::vector<const char *> arguments(static_cast<size_t>(len) + 1, NULL);
         for (int i = 0; i < len; ++i)
@@ -213,11 +237,24 @@ static int run_command(JNIEnv *env, jobjectArray jarray, uint64_t request_id) {
 }
 
 jni_func(jint, command, jobjectArray jarray) {
-    return run_command(env, jarray, 0);
+    return run_command(env, jarray, 0, NULL);
 }
 
 jni_func(jint, enqueueCommand, jlong request_id, jobjectArray jarray) {
     if (request_id <= 0)
         return MPV_ERROR_INVALID_PARAMETER;
-    return run_command(env, jarray, static_cast<uint64_t>(request_id));
+    return run_command(env, jarray, static_cast<uint64_t>(request_id), NULL);
+}
+
+jni_func(jint, enqueueCommandLongResult, jlong request_id, jstring result_key,
+         jobjectArray jarray) {
+    if (request_id <= 0 || !result_key)
+        return MPV_ERROR_INVALID_PARAMETER;
+    std::string utf8_result_key;
+    if (!jstring_to_utf8(env, result_key, &utf8_result_key))
+        return env->ExceptionCheck() ? MPV_ERROR_NOMEM : MPV_ERROR_INVALID_PARAMETER;
+    if (utf8_result_key.empty())
+        return MPV_ERROR_INVALID_PARAMETER;
+    return run_command(env, jarray, static_cast<uint64_t>(request_id),
+                       &utf8_result_key);
 }

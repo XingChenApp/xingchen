@@ -26,6 +26,7 @@ static inline mpv_node make_node_str(const char *s)
 }
 
 jni_func(jobject, grabThumbnail, jint dimension) {
+    std::lock_guard<std::mutex> lock(g_mpv_mutex);
     if (!check_mpv_initialized())
         return NULL;
 

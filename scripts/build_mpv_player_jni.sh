@@ -121,6 +121,7 @@ BUILDSCRIPTS="$WORK_DIR/mpv-android/buildscripts"
 
 SOURCES=(
   "$SRC_DIR/main.cpp"
+  "$SRC_DIR/stream.cpp"
   "$SRC_DIR/render.cpp"
   "$SRC_DIR/log.cpp"
   "$SRC_DIR/jni_utils.cpp"
