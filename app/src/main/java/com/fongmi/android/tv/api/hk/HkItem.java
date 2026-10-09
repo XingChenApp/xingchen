@@ -1,0 +1,60 @@
+package com.fongmi.android.tv.api.hk;
+
+/**
+ * 海阔规则解析出的一条列表/搜索结果。
+ * 对应设计文档 §5 HkItem。
+ */
+public class HkItem {
+
+    private String title;
+    private String url;
+    private String pic;
+    private String desc;
+
+    public HkItem() {
+    }
+
+    public HkItem(String title, String url, String pic, String desc) {
+        this.title = title;
+        this.url = url;
+        this.pic = pic;
+        this.desc = desc;
+    }
+
+    public String getTitle() {
+        return title == null ? "" : title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getUrl() {
+        return url == null ? "" : url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
+    public String getPic() {
+        return pic == null ? "" : pic;
+    }
+
+    public void setPic(String pic) {
+        this.pic = pic;
+    }
+
+    public String getDesc() {
+        return desc == null ? "" : desc;
+    }
+
+    public void setDesc(String desc) {
+        this.desc = desc;
+    }
+
+    @Override
+    public String toString() {
+        return "HkItem{title='" + title + "', url='" + url + "', pic='" + pic + "', desc='" + desc + "'}";
+    }
+}
