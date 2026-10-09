@@ -107,7 +107,6 @@ public class ImgUtil {
     }
 
     public static Object getUrl(String url) {
-        if (!TextUtils.isEmpty(url)) XcPyLog.d("cover load url=" + url);
         String param = null;
         boolean noParams = !(url.contains("@Headers=") || url.contains("@Cookie=") || url.contains("@Referer=") || url.contains("@User-Agent="));
         url = UrlUtil.convert(url);
@@ -138,7 +137,6 @@ public class ImgUtil {
         return new RequestListener<>() {
             @Override
             public boolean onLoadFailed(@Nullable GlideException e, Object model, @NonNull Target<Drawable> target, boolean isFirstResource) {
-                XcPyLog.d("cover failed url=" + url + " err=" + (e != null ? e.getMessage() : "null"));
                 view.setImageDrawable(getTextDrawable(text, vod));
                 failed.add(url);
                 return true;

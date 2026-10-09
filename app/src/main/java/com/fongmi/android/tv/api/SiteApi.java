@@ -1,7 +1,6 @@
 package com.fongmi.android.tv.api;
 
 import android.text.TextUtils;
-import com.fongmi.android.tv.utils.XcPyLog;
 
 import androidx.annotation.NonNull;
 import androidx.collection.ArrayMap;
@@ -263,7 +262,6 @@ public class SiteApi {
             result.setUrl(Source.get().fetch(result, playerType));
             result.setHeader(site.getHeader());
             stripRefererForCloudFront(result);
-            XcPyLog.d("play url=" + result.getUrl().v() + " headers=" + result.getHeader());
             result.setKey(key);
             return result;
         } else if (site.getType() == 4) {
