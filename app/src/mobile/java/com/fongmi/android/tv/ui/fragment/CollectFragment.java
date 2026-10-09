@@ -179,8 +179,9 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
             }
             if (!exists) mSites.add(site);
         }
-        // Add selected PY scripts that are not in sites/home (from plugins/py/)
+        // Add PY scripts from plugins/py/
         if (selected != null) {
+            // User confirmed selection in dialog: only add selected PY scripts
             for (String key : selected) {
                 if (!key.startsWith("py_")) continue;
                 boolean exists = false;
@@ -189,7 +190,25 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
                 }
                 if (exists) continue;
                 Site pySite = createPySite(key.substring(3));
-                if (pySite != null) mSites.add(pySite);
+                if (pySite != null && pySite.isSearchable()) mSites.add(pySite);
+            }
+        } else {
+            // No dialog selection: scan all PY scripts in plugins/py/ (align with VOD "search all" behavior)
+            java.io.File pyDir = new java.io.File(requireContext().getFilesDir(), "plugins/py");
+            java.io.File[] pyFiles = pyDir.listFiles((dir, name) -> name.endsWith(".py"));
+            if (pyFiles != null) {
+                for (java.io.File f : pyFiles) {
+                    String fileName = f.getName();
+                    String baseName = fileName.substring(0, fileName.length() - 3);
+                    String key = "py_" + baseName;
+                    boolean exists = false;
+                    for (Site s : mSites) {
+                        if (s.getKey().equals(key)) { exists = true; break; }
+                    }
+                    if (exists) continue;
+                    Site pySite = createPySite(baseName);
+                    if (pySite != null && pySite.isSearchable()) mSites.add(pySite);
+                }
             }
         }
         SiteHealthStore.sortSites(mSites);
@@ -204,7 +223,9 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
             site.setName(baseName);
             site.setApi(file.getAbsolutePath());
             site.setType(3);
-            site.setExt("{}");
+            String extKey = "py_" + baseName;
+            String savedExt = com.fongmi.android.tv.utils.PyExtConfig.load(requireContext(), extKey);
+            site.setExt(savedExt == null || savedExt.isEmpty() ? "{}" : savedExt);
             site.setJar("");
             return site;
         } catch (Exception e) {
