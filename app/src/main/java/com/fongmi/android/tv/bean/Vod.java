@@ -11,6 +11,7 @@ import androidx.annotation.Nullable;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.impl.Diffable;
+import com.fongmi.android.tv.utils.AdBlock;
 import com.fongmi.android.tv.utils.Sniffer;
 import com.fongmi.android.tv.utils.Util;
 import com.github.catvod.utils.Trans;
@@ -176,7 +177,7 @@ public class Vod implements Parcelable, Diffable<Vod> {
     }
 
     public String getContent() {
-        return TextUtils.isEmpty(vodContent) ? "" : Util.clean(vodContent);
+        return TextUtils.isEmpty(vodContent) ? "" : AdBlock.cleanLines(Util.clean(vodContent));
     }
 
     public void setContent(String vodContent) {

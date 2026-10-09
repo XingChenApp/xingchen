@@ -14,6 +14,7 @@ import com.fongmi.android.tv.gson.HeaderAdapter;
 import com.fongmi.android.tv.gson.MsgAdapter;
 import com.fongmi.android.tv.gson.UrlAdapter;
 import com.fongmi.android.tv.setting.DanmakuSetting;
+import com.fongmi.android.tv.utils.AdBlock;
 import com.fongmi.android.tv.utils.Util;
 import com.github.catvod.utils.Trans;
 import com.google.gson.annotations.JsonAdapter;
@@ -184,7 +185,7 @@ public class Result implements Parcelable {
     }
 
     public void setList(List<Vod> list) {
-        this.list = list;
+        this.list = AdBlock.filter(list);
     }
 
     public LinkedHashMap<String, List<Filter>> getFilters() {

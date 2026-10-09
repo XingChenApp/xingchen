@@ -20,6 +20,7 @@ import com.fongmi.android.tv.player.mpv.PlaybackRecoveryMonitor;
 import com.fongmi.android.tv.remote.RemoteAgent;
 import com.fongmi.android.tv.setting.ProxySetting;
 import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.utils.AdBlock;
 import com.fongmi.android.tv.utils.DanmakuSearchListFocusFixer;
 import com.fongmi.android.tv.utils.NsdDeviceDiscovery;
 import com.fongmi.android.tv.utils.Notify;
@@ -109,6 +110,7 @@ public class App extends Application implements Application.ActivityLifecycleCal
         }
         Notify.createChannel();
         ProxySetting.apply();
+        AdBlock.refresh(this);
         DanmakuSearchListFocusFixer.start();
         registerActivityLifecycleCallbacks(this);
         post(this::startBackgroundServices, 1200);

@@ -20,6 +20,7 @@ import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.databinding.ActivityAdblockBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.utils.AdBlock;
 import com.fongmi.android.tv.utils.Notify;
 
 import java.util.ArrayList;
@@ -59,6 +60,7 @@ public class AdBlockActivity extends BaseActivity {
         binding.swAdblock.setChecked(isEnabled(this));
         binding.swAdblock.setOnCheckedChangeListener((btn, checked) -> {
             getPrefs().edit().putBoolean(KEY_ENABLED, checked).apply();
+            AdBlock.refresh(this);
             Notify.show(checked ? "去广告已启用" : "去广告已关闭");
         });
         adapter = new KeywordAdapter();
@@ -95,6 +97,7 @@ public class AdBlockActivity extends BaseActivity {
                         Set<String> keywords = getKeywords(this);
                         keywords.add(keyword);
                         getPrefs().edit().putStringSet(KEY_KEYWORDS, keywords).apply();
+                        AdBlock.refresh(this);
                         refreshList();
                         Notify.show("已添加");
                     }
@@ -128,6 +131,7 @@ public class AdBlockActivity extends BaseActivity {
                 Set<String> keywords = getKeywords(AdBlockActivity.this);
                 keywords.remove(keyword);
                 getPrefs().edit().putStringSet(KEY_KEYWORDS, keywords).apply();
+                AdBlock.refresh(AdBlockActivity.this);
                 refreshList();
             });
         }
