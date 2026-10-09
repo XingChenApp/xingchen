@@ -262,7 +262,16 @@
                 android:layout_height="18dp"
                 android:src="@drawable/ic_chev_v2" />
         </LinearLayout>
-                <LinearLayout
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="12dp"
+            android:text="关于"
+            android:textColor="#171B23"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+        <LinearLayout
             android:id="@+id/card_xingchen"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -292,7 +301,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
-                    android:text="DoH·缓存·备份"
+                    android:text=""
                     android:textColor="#2E3A4E"
                     android:textSize="13sp" />
             </LinearLayout>
