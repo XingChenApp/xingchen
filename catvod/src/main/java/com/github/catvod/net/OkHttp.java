@@ -25,6 +25,7 @@ import javax.net.ssl.X509TrustManager;
 
 import okhttp3.Call;
 import okhttp3.Connection;
+import okhttp3.Dns;
 import okhttp3.EventListener;
 import okhttp3.FormBody;
 import okhttp3.Headers;
