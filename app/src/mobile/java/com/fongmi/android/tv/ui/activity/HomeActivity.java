@@ -270,7 +270,7 @@ public class HomeActivity extends BaseActivity implements NavigationBarView.OnIt
         if (item.getItemId() == R.id.vod) return changeFragment(0);
         if (item.getItemId() == R.id.live) return openLive();
         if (item.getItemId() == R.id.miniapp) {
-            Notify.show("小程序");
+            HkPageActivity.start(this);
             return true;
         }
         return false;
