@@ -69,6 +69,7 @@ public final class DanDanPlaySearchDialog extends DialogFragment {
     private DanDanPlayApi.Anime currentAnime;
     private List<DanDanPlayApi.Anime> animeList = new ArrayList<>();
     private boolean inEpisodes;
+    private Runnable retryAction;
 
     public static DanDanPlaySearchDialog create() {
         return new DanDanPlaySearchDialog();
@@ -235,6 +236,10 @@ public final class DanDanPlaySearchDialog extends DialogFragment {
         empty.setTextColor(Color.parseColor("#99FFFFFF"));
         empty.setTextSize(14);
         empty.setVisibility(GONE);
+        empty.setPadding(0, dp(12), 0, dp(12));
+        empty.setOnClickListener(v -> {
+            if (retryAction != null) retryAction.run();
+        });
         frame.addView(empty, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(72), Gravity.CENTER));
 
         recycler = new CustomRecyclerView(requireContext());
@@ -303,9 +308,12 @@ public final class DanDanPlaySearchDialog extends DialogFragment {
         titleView.setText(getString(R.string.danmaku) + getString(R.string.play_search) + " · 弹弹play");
         showProgress();
         Util.hideKeyboard(keywordView);
-        DanDanPlayApi.searchAnime(getKeywordText(), items -> {
+        retryAction = this::search;
+        empty.setText(R.string.error_empty);
+        DanDanPlayApi.searchAnime(getKeywordText(), (items, networkError) -> {
             animeList = items;
             adapter.setAnimes(items);
+            if (networkError) empty.setText("网络连接失败，点击重试");
             hideProgress(items.isEmpty());
         });
     }
@@ -323,10 +331,13 @@ public final class DanDanPlaySearchDialog extends DialogFragment {
         currentAnime = anime;
         inEpisodes = true;
         showProgress();
-        DanDanPlayApi.getEpisodes(anime.animeId, items -> {
+        retryAction = () -> loadEpisodes(anime);
+        empty.setText(R.string.error_empty);
+        DanDanPlayApi.getEpisodes(anime.animeId, (items, networkError) -> {
             backView.setVisibility(VISIBLE);
             titleView.setText(anime.title + " · 选分集");
             adapter.setEpisodes(items);
+            if (networkError) empty.setText("网络连接失败，点击重试");
             hideProgress(items.isEmpty());
         });
     }
