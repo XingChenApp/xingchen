@@ -38,6 +38,7 @@ public class FeaturesActivity extends BaseActivity {
     protected void initView(Bundle savedInstanceState) {
         refreshAdBlock();
         refreshTmdb();
+        refreshPanLogin();
         refreshMiniApp();
         binding.swMiniapp.setOnCheckedChangeListener((btn, checked) -> {
             getPrefs().edit().putBoolean(KEY_MINIAPP, checked).apply();
@@ -46,6 +47,7 @@ public class FeaturesActivity extends BaseActivity {
         });
         binding.cardAdblock.setOnClickListener(v -> AdBlockActivity.start(this));
         binding.cardTmdb.setOnClickListener(v -> TmdbActivity.start(this));
+        binding.cardPanlogin.setOnClickListener(v -> PanLoginActivity.start(this));
     }
 
     @Override
@@ -53,6 +55,7 @@ public class FeaturesActivity extends BaseActivity {
         super.onResume();
         refreshAdBlock();
         refreshTmdb();
+        refreshPanLogin();
         refreshMiniApp();
     }
 
@@ -68,6 +71,10 @@ public class FeaturesActivity extends BaseActivity {
     private void refreshTmdb() {
         String key = TmdbActivity.getApiKey(this);
         binding.tvTmdbSub.setText(key == null || key.isEmpty() ? "未配置" : "已配置");
+    }
+
+    private void refreshPanLogin() {
+        binding.tvPanloginSub.setText(PanLoginActivity.loginSummary(this));
     }
 
     private void refreshMiniApp() {

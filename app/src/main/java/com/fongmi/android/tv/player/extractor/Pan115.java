@@ -1,16 +1,15 @@
 package com.fongmi.android.tv.player.extractor;
 
-import android.content.Context;
 import android.net.Uri;
 import android.util.Base64;
 
 import androidx.collection.ArrayMap;
 
-import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.bean.Episode;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.exception.ExtractException;
 import com.fongmi.android.tv.player.Source;
+import com.fongmi.android.tv.utils.PanAuth;
 import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.net.OkHttp;
 
@@ -241,21 +240,7 @@ public class Pan115 implements Source.Extractor {
     }
 
     static String getCookie() {
-        try {
-            Context ctx = App.get();
-            if (ctx != null) {
-                String c = ctx.getSharedPreferences("xingchen", Context.MODE_PRIVATE).getString("pan115_cookie", "");
-                if (c != null && !c.isEmpty()) return c;
-                File f = new File(ctx.getFilesDir(), "plugins/py/115_cookie.json");
-                if (f.exists()) {
-                    String txt = readAll(f);
-                    String cookie = new JSONObject(txt).optString("cookie", "");
-                    if (!cookie.isEmpty()) return cookie;
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        return "";
+        return PanAuth.get115Cookie();
     }
 
     private static String readAll(File f) throws Exception {
