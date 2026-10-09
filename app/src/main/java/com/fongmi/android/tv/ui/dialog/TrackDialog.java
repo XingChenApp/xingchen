@@ -107,6 +107,7 @@ public final class TrackDialog extends BaseBottomSheetDialog implements TrackAda
         binding.offset.setOnClickListener(this::onOffset);
         binding.choose.setOnClickListener(this::onChoose);
         binding.subtitle.setOnClickListener(this::onSubtitle);
+        binding.search.setOnClickListener(this::onSearch);
     }
 
     private void refreshTrackList() {
@@ -120,6 +121,7 @@ public final class TrackDialog extends BaseBottomSheetDialog implements TrackAda
         binding.offset.setVisibility(hasText() || hasAudio() ? View.VISIBLE : View.GONE);
         binding.choose.setVisibility(hasChoose() ? View.VISIBLE : View.GONE);
         binding.subtitle.setVisibility(hasText() ? View.VISIBLE : View.GONE);
+        binding.search.setVisibility(hasChoose() ? View.VISIBLE : View.GONE);
     }
 
     private String getTitle() {
@@ -145,6 +147,13 @@ public final class TrackDialog extends BaseBottomSheetDialog implements TrackAda
         Listener listener = (Listener) requireActivity();
         App.post(listener::onSubtitleClick, 100);
         dismiss();
+    }
+
+    private void onSearch(View view) {
+        FragmentActivity activity = getActivity();
+        if (activity == null) return;
+        dismissAllowingStateLoss();
+        SubtitleSearchDialog.create().player(player).restoreParent(true).show(activity);
     }
 
     private List<Track> getTrack() {
