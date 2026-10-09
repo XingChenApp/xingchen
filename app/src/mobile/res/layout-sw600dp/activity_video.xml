@@ -574,6 +574,24 @@
                             app:iconTint="@color/black" />
 
                         <com.google.android.material.button.MaterialButton
+                            android:id="@+id/castBtn"
+                            android:layout_width="0dp"
+                            android:layout_height="50dp"
+                            android:layout_marginStart="10dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/shape_detail_btn_yellow"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:text="@string/play_cast"
+                            android:textColor="@color/black"
+                            android:textSize="14sp"
+                            app:icon="@drawable/ic_control_cast_shadow"
+                            app:iconGravity="textStart"
+                            app:iconPadding="6dp"
+                            app:iconSize="20dp"
+                            app:iconTint="@color/black" />
+
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/downloadBtn"
                             android:layout_width="0dp"
                             android:layout_height="50dp"
@@ -592,48 +610,18 @@
                             app:iconSize="20dp"
                             app:iconTint="@color/black" />
 
-                        <androidx.appcompat.widget.LinearLayoutCompat
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/settingBtn"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="50dp"
                             android:layout_marginStart="10dp"
                             android:layout_weight="1"
-                            android:gravity="center_horizontal"
-                            android:orientation="vertical">
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/settingBtn"
-                                android:layout_width="match_parent"
-                                android:layout_height="50dp"
-                                android:layout_marginBottom="8dp"
-                                android:background="@drawable/shape_detail_btn_yellow"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:text="@string/nav_setting"
-                                android:textColor="@color/black"
-                                android:textSize="14sp"
-                                app:icon="@drawable/ic_detail_setting"
-                                app:iconGravity="textStart"
-                                app:iconPadding="6dp"
-                                app:iconSize="20dp"
-                                app:iconTint="@color/black" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/castBtn"
-                                android:layout_width="match_parent"
-                                android:layout_height="50dp"
-                                android:background="@drawable/shape_detail_btn_yellow"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:text="@string/play_cast"
-                                android:textColor="@color/black"
-                                android:textSize="14sp"
-                                app:icon="@drawable/ic_control_cast_shadow"
-                                app:iconGravity="textStart"
-                                app:iconPadding="6dp"
-                                app:iconSize="20dp"
-                                app:iconTint="@color/black" />
-
-                        </androidx.appcompat.widget.LinearLayoutCompat>
+                            android:background="@drawable/shape_detail_btn_yellow"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:text="@string/nav_setting"
+                            android:textColor="@color/black"
+                            android:textSize="14sp" />
 
                     </androidx.appcompat.widget.LinearLayoutCompat>
 
