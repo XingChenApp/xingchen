@@ -13,9 +13,13 @@ import com.fongmi.android.tv.databinding.DialogSearchSourceBinding;
 import com.fongmi.android.tv.ui.adapter.CheckableAdapter;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import android.widget.Toast;
+
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class SearchSourceDialog extends BaseAlertDialog {
 
@@ -108,8 +112,43 @@ public class SearchSourceDialog extends BaseAlertDialog {
         binding.confirm.setOnClickListener(v -> onConfirm());
     }
 
+    /** Selected source keys for search. Empty means search all. */
+    private static final Set<String> selectedKeys = new HashSet<>();
+    private static boolean hasSelection = false;
+
+    public static Set<String> getSelectedKeys() {
+        return selectedKeys;
+    }
+
+    public static boolean hasSelection() {
+        return hasSelection;
+    }
+
+    public static void clearSelection() {
+        selectedKeys.clear();
+        hasSelection = false;
+    }
+
     private void onConfirm() {
-        // TODO: Save selected sources and trigger search
+        selectedKeys.clear();
+        hasSelection = true;
+        // VOD sources: map names to site keys
+        if (vodAdapter != null) {
+            List<String> names = vodAdapter.getSelected();
+            for (Site site : VodConfig.get().getSites()) {
+                if (names.contains(site.getName())) selectedKeys.add(site.getKey());
+            }
+        }
+        // PY scripts: build py_ keys
+        if (pyAdapter != null) {
+            for (String name : pyAdapter.getSelected()) {
+                selectedKeys.add("py_" + name);
+            }
+        }
+        // JS scripts: not supported yet
+        if (jsAdapter != null && !jsAdapter.getSelected().isEmpty()) {
+            Toast.makeText(requireContext(), "JS 暂未支持", Toast.LENGTH_SHORT).show();
+        }
         dismiss();
     }
 
