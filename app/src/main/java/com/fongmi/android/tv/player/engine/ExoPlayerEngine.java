@@ -3,7 +3,7 @@ package com.fongmi.android.tv.player.engine;
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecList;
 import android.os.Build;
-import android.util.Log;
+import com.fongmi.android.tv.utils.XcPyLog;
 
 import androidx.media3.common.C;
 import androidx.media3.common.Effect;
@@ -141,7 +141,7 @@ public class ExoPlayerEngine implements PlayerEngine {
 
         @Override
         public void onPlayerError(@androidx.annotation.NonNull PlaybackException error) {
-            Log.d("XC-PY", "exo onPlayerError code=" + error.errorCode + " http=" + getHttpResponseCode(error) + " msg=" + error.getMessage());
+            XcPyLog.d("exo onPlayerError code=" + error.errorCode + " http=" + getHttpResponseCode(error) + " msg=" + error.getMessage());
             tunnelingWatchdog.onError();
             App.removeCallbacks(tunnelingWatchdogRunnable);
             cancelTunnelingProgressWatchdog();
@@ -151,7 +151,7 @@ public class ExoPlayerEngine implements PlayerEngine {
 
     private static int getHttpResponseCode(Throwable e) {
         while (e != null) {
-            if (e instanceof HttpDataSource.HttpDataSourceException) return ((HttpDataSource.HttpDataSourceException) e).responseCode;
+            if (e instanceof HttpDataSource.InvalidResponseCodeException) return ((HttpDataSource.InvalidResponseCodeException) e).responseCode;
             e = e.getCause();
         }
         return -1;
