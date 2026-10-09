@@ -7,7 +7,9 @@ import android.os.Bundle;
 import android.text.InputType;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.SeekBar;
+import android.widget.TextView;
 
 import androidx.viewbinding.ViewBinding;
 
@@ -121,26 +123,34 @@ public class DanmakuSettingsActivity extends BaseActivity {
     }
 
     private void showServerDialog() {
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(pad, pad / 2, pad, 0);
+
+        TextView defaultView = new TextView(this);
+        defaultView.setText("默认：弹弹play");
+        defaultView.setTextSize(16);
+        layout.addView(defaultView);
+
         EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         input.setText(DanmakuSetting.getSourceServer());
-        input.setHint("https://xxx.workers.dev");
+        input.setHint("自定义源（可选填）");
         input.setSelection(input.getText().length());
-        int pad = (int) (16 * getResources().getDisplayMetrics().density);
-        input.setPadding(pad, pad, pad, pad);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = pad / 2;
+        layout.addView(input, lp);
+
         new AlertDialog.Builder(this)
-                .setTitle("弹弹play 服务器地址")
-                .setMessage("填写你部署的弹幕 API 地址（Cloudflare Workers）")
-                .setView(input)
+                .setTitle("弹幕源")
+                .setView(layout)
                 .setPositiveButton("保存", (d, w) -> {
                     DanmakuSetting.putSourceServer(input.getText().toString());
                     updateApiDesc();
                 })
                 .setNegativeButton("取消", null)
-                .setNeutralButton("清空", (d, w) -> {
-                    DanmakuSetting.putSourceServer("");
-                    updateApiDesc();
-                })
                 .show();
     }
 
