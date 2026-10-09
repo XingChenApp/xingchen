@@ -6,6 +6,7 @@ import androidx.annotation.NonNull;
 import androidx.startup.Initializer;
 
 import com.fongmi.android.tv.utils.XingChenDoh;
+import com.fongmi.android.tv.utils.XingChenProxy;
 import com.fongmi.android.tv.player.mpv.PlaybackRecoveryMonitor;
 import com.fongmi.android.tv.ui.activity.CrashActivity;
 import com.github.catvod.net.OkHttp;
@@ -33,6 +34,7 @@ public class Startup implements Initializer<Void> {
             EventBus.builder().installDefaultEventBus();
         }
         XingChenDoh.apply(context);
+        XingChenProxy.apply(context);
         return null;
     }
 

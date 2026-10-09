@@ -9,3 +9,4 @@ pyquery==2.1.0
 cachetools==7.2.0
 pycryptodome==3.21.0
 ujson==5.11.0
+PySocks==1.7.1

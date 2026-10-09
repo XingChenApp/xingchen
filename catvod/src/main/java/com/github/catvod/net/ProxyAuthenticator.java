@@ -14,6 +14,11 @@ public class ProxyAuthenticator extends Authenticator {
 
     @Override
     protected PasswordAuthentication getPasswordAuthentication() {
+        // 全局 SOCKS5 代理账号：JDK 的 SOCKS 握手走 java.net.Authenticator 取密码
+        GlobalProxy.Config c = GlobalProxy.get();
+        if (c.type == GlobalProxy.TYPE_SOCKS5 && c.hasAuth() && c.host.equalsIgnoreCase(getRequestingHost())) {
+            return new PasswordAuthentication(c.user, c.pass.toCharArray());
+        }
         String userInfo = findUserInfo(getRequestingHost());
         if (userInfo == null || !userInfo.contains(":")) return null;
         int index = userInfo.indexOf(':');

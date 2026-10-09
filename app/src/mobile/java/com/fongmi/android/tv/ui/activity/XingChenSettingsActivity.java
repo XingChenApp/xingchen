@@ -14,10 +14,12 @@ import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.AboutDialog;
 import com.fongmi.android.tv.ui.dialog.ChoiceDialog;
 import com.fongmi.android.tv.ui.dialog.ProxyDialog;
+import com.fongmi.android.tv.ui.dialog.GlobalProxyDialog;
 import com.fongmi.android.tv.utils.AppVersion;
 import com.fongmi.android.tv.utils.FileUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.XingChenDoh;
+import com.fongmi.android.tv.utils.XingChenProxy;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -45,6 +47,8 @@ public class XingChenSettingsActivity extends BaseActivity {
         binding.cardVersion.setOnClickListener(v -> AboutDialog.show(this, () -> Updater.create().force().start(this)));
         updateProxySub();
         binding.cardProxy.setOnClickListener(v -> ProxyDialog.create().show(this));
+        updateGlobalProxySub();
+        binding.cardGlobalProxy.setOnClickListener(v -> GlobalProxyDialog.create().show(this));
         updateDohSub();
         binding.cardDoh.setOnClickListener(v -> ChoiceDialog.showSingle(getSupportFragmentManager(), "DoH", XingChenDoh.NAMES, XingChenDoh.getIndex(this), which -> {
             XingChenDoh.setIndex(this, which);
@@ -66,6 +70,10 @@ public class XingChenSettingsActivity extends BaseActivity {
         binding.tvProxySub.setText(Setting.isShellProxy() ? "已启用" : "未启用");
     }
 
+    private void updateGlobalProxySub() {
+        binding.tvGlobalProxySub.setText(XingChenProxy.summary(this));
+    }
+
     private void updateDohSub() {
         binding.tvDohSub.setText(XingChenDoh.getName(this));
     }
@@ -74,6 +82,7 @@ public class XingChenSettingsActivity extends BaseActivity {
     protected void onResume() {
         super.onResume();
         updateProxySub();
+        updateGlobalProxySub();
         updateDohSub();
     }
 

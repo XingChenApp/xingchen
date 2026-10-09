@@ -257,9 +257,10 @@ public class OkHttp {
         // straight to the connection layer and fail on.
         OkHttpClient.Builder builder = new OkHttpClient.Builder().addInterceptor(requestInterceptor()).addInterceptor(authInterceptor()).addNetworkInterceptor(responseInterceptor()).connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS).readTimeout(TIMEOUT, TimeUnit.MILLISECONDS).writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS).dns(dns()).hostnameVerifier((hostname, session) -> true).sslSocketFactory(getSSLContext().getSocketFactory(), trustAllCertificates());
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY);
-        builder.proxyAuthenticator(authenticator());
         //builder.addNetworkInterceptor(logging);
-        builder.proxySelector(selector());
+        // 全局代理包装走壳代理：开启时接管全部流量（回环除外），关闭时行为与原来一致
+        builder.proxySelector(GlobalProxy.wrapSelector(selector()));
+        builder.proxyAuthenticator(GlobalProxy.wrapAuthenticator(authenticator()));
         return builder;
     }
 

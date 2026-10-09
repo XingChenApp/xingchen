@@ -5,6 +5,7 @@ import android.text.TextUtils;
 import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.github.catvod.crawler.SpiderDebug;
+import com.github.catvod.net.GlobalProxy;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Path;
 import com.github.catvod.utils.Util;
@@ -25,6 +26,8 @@ public class Loader {
         } catch (RuntimeException error) {
             SpiderDebug.log("python-spider", error);
         }
+        // Python 刚启动：把全局代理配置同步进 os.environ，供 requests 读取
+        GlobalProxy.syncPython();
         app = Python.getInstance().getModule("app");
     }
 
