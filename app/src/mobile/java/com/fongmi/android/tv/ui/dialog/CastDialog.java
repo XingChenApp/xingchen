@@ -119,8 +119,8 @@ public class CastDialog extends BaseAlertDialog implements DeviceAdapter.OnClick
         Window window = getDialog().getWindow();
         WindowManager.LayoutParams params = window.getAttributes();
         boolean land = ResUtil.isLand(requireContext());
-        int width = Math.min(Math.round(ResUtil.getScreenWidth(requireContext()) * (land ? 0.5f : 0.92f)), ResUtil.dp2px(620));
-        params.width = Math.max(width, ResUtil.dp2px(320));
+        int width = Math.min(Math.round(ResUtil.getScreenWidth(requireContext()) * (land ? 0.6f : 0.94f)), ResUtil.dp2px(700));
+        params.width = Math.max(width, ResUtil.dp2px(340));
         params.height = WindowManager.LayoutParams.WRAP_CONTENT;
         params.gravity = Gravity.CENTER;
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
