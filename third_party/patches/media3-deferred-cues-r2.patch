@@ -1,0 +1,28 @@
+diff --git a/libraries/extractor/src/main/java/androidx/media3/extractor/mkv/MatroskaExtractor.java b/libraries/extractor/src/main/java/androidx/media3/extractor/mkv/MatroskaExtractor.java
+index a381097..df0702d 100644
+--- a/libraries/extractor/src/main/java/androidx/media3/extractor/mkv/MatroskaExtractor.java
++++ b/libraries/extractor/src/main/java/androidx/media3/extractor/mkv/MatroskaExtractor.java
+@@ -132,7 +132,7 @@ public class MatroskaExtractor implements Extractor {
+   @Target(TYPE_USE)
+   @IntDef(
+       flag = true,
+-      value = {FLAG_DISABLE_SEEK_FOR_CUES, FLAG_EMIT_RAW_SUBTITLE_DATA})
++      value = {FLAG_DISABLE_SEEK_FOR_CUES, FLAG_EMIT_RAW_SUBTITLE_DATA, FLAG_DEFER_SEEK_FOR_CUES})
+   public @interface Flags {}
+ 
+   /**
+@@ -151,6 +151,14 @@ public class MatroskaExtractor implements Extractor {
+    */
+   public static final int FLAG_EMIT_RAW_SUBTITLE_DATA = 1 << 1; // 2
+ 
++  /**
++   * Flag to defer reading a tail Cues element until a non-zero seek is requested.
++   *
++   * <p>Note: Full deferred-cues implementation is not yet ported to this base. The flag is
++   * accepted for API compatibility but currently behaves as a no-op.
++   */
++  public static final int FLAG_DEFER_SEEK_FOR_CUES = 1 << 2; // 4
++
+   /**
+    * @deprecated Use {@link #newFactory(SubtitleParser.Factory)} instead.
+    */

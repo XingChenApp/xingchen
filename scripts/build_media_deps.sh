@@ -233,25 +233,14 @@ apply_media_patches() {
   [[ -d "$patch_dir" ]] || return 0
   # Keep dependency and release order explicit instead of relying on filesystem glob order.
   local patches=(
-    "$patch_dir/media3-danmaku-live.patch"
-    "$patch_dir/media3-dolby-vision-matroska.patch"
-    "$patch_dir/media3-upstream-playback-fixes-2026-08.patch"
-    "$patch_dir/media3-exo-hdr-parser-safety.patch"
-    "$patch_dir/media3-deferred-cues.patch"
-    "$patch_dir/media3-exo-pixel-eac3-joc-guard.patch"
-    "$patch_dir/media3-exo-dts-14bit-frame-size.patch"
-    "$patch_dir/media3-exo-subtitle-byte-safety.patch"
-    "$patch_dir/media3-exo-cue-data-contract.patch"
-    "$patch_dir/media3-exo-bounded-cache-writer.patch"
-    "$patch_dir/media3-exo-iso-reader-safety.patch"
-    "$patch_dir/media3-exo-iso-multi-extent.patch"
+    "$patch_dir/media3-exo-avs3-r2.patch"
+    "$patch_dir/media3-danmaku-live-r2.patch"
+    "$patch_dir/media3-playback-diagnostics-r2.patch"
+    "$patch_dir/media3-deferred-cues-r2.patch"
     "$patch_dir/media3-precache-hls-safety.patch"
-    "$patch_dir/media3-exo-av3a-mp4.patch"
     "$patch_dir/media3-exo-av3a-dash-channel-config.patch"
     "$patch_dir/media3-exo-alac-wave.patch"
     "$patch_dir/media3-exo-ass-observer.patch"
-    "$patch_dir/media3-playback-diagnostics.patch"
-    "$patch_dir/media3-exo-avs3.patch"
   )
   for patch_file in "${patches[@]}"; do
     [[ -f "$patch_file" ]] || continue

@@ -1,65 +1,29 @@
 {
   "fongmi_media": {
-    "repo": "https://github.com/fish2018/webhtv",
-    "branch": "media/release-1.11.0-alpha01-fongmi",
-    "commit": "e3e922d5c01bc0b564849940fe589daf37360d15",
+    "repo": "https://github.com/FongMi/media",
+    "branch": "release-1.11.0-fongmi",
+    "commit": "3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d",
     "version": "1.11.0-alpha01-fongmi",
     "patches": [
       {
-        "path": "third_party/patches/media3-danmaku-live.patch",
-        "sha256": "c7d3405851c975a7256e363047405e652ec24ffcba39181b5be410b6907db3a5"
+        "path": "third_party/patches/media3-exo-avs3-r2.patch",
+        "sha256": "7a16520f5b7452cde3b8fe698382c6494084c272e6bcd07b962efdb00cc870d4"
       },
       {
-        "path": "third_party/patches/media3-dolby-vision-matroska.patch",
-        "sha256": "dda4ab64ac9982377545d23fbcf864d9e9d9308d5be09f86d94efde43a994cce"
+        "path": "third_party/patches/media3-danmaku-live-r2.patch",
+        "sha256": "f2e8f5d3294fe980e1923eeeb2f1cc0fda9b313128ccd3d57d42def1873ec1f7"
       },
       {
-        "path": "third_party/patches/media3-upstream-playback-fixes-2026-08.patch",
-        "sha256": "1e09ef63b481af8b69b78c44fc6beea50fd0ae340d149ccf2028dc7804f684b5"
+        "path": "third_party/patches/media3-playback-diagnostics-r2.patch",
+        "sha256": "460465ff49b30b9767e1694a85ab2cdfc8347785e256743a57393b197f11628b"
       },
       {
-        "path": "third_party/patches/media3-deferred-cues.patch",
-        "sha256": "ebbfbe0bcd1f002780b2db300bdcf42d9c3309c0738b43212ffa224eedcba8dd"
-      },
-      {
-        "path": "third_party/patches/media3-exo-hdr-parser-safety.patch",
-        "sha256": "a6a8bbf95630e70938dacde7e36c97ed330c5c426644893090cfc3280dc6ed20"
-      },
-      {
-        "path": "third_party/patches/media3-exo-pixel-eac3-joc-guard.patch",
-        "sha256": "3c5b6ca8294603a1dfa12404a236513497afd0a78cef938360304c8484f28791"
-      },
-      {
-        "path": "third_party/patches/media3-exo-dts-14bit-frame-size.patch",
-        "sha256": "328fe823b824fd36e359ea16eea4c77334ea707676e9a2803258f29b661e3d77"
-      },
-      {
-        "path": "third_party/patches/media3-exo-subtitle-byte-safety.patch",
-        "sha256": "8ed566a26b70609262d6c49ada2e8912997f36d75a166825e368182b5b7f35bf"
-      },
-      {
-        "path": "third_party/patches/media3-exo-cue-data-contract.patch",
-        "sha256": "a6389e0c34a9a3e895072f84c9ffd13d0c883c5909d8887873717c337066eb61"
-      },
-      {
-        "path": "third_party/patches/media3-exo-bounded-cache-writer.patch",
-        "sha256": "1b591c618fdbba91b0880284126ac8bd5c55f6fe6532187d891b4225a87cc200"
-      },
-      {
-        "path": "third_party/patches/media3-exo-iso-reader-safety.patch",
-        "sha256": "d042b6c177910604f7f251571909d018d0227abc4af7846b15a0b5d499be5893"
-      },
-      {
-        "path": "third_party/patches/media3-exo-iso-multi-extent.patch",
-        "sha256": "b4954d32f5c98dc5caf2a3cbc8cd72f72d24f4fdeec9425e5061a252d1ccaf68"
+        "path": "third_party/patches/media3-deferred-cues-r2.patch",
+        "sha256": "ca8ea25461af30c71b0915c655a8412ad925460559b40e20ea50e2f72c6b39e0"
       },
       {
         "path": "third_party/patches/media3-precache-hls-safety.patch",
         "sha256": "9b48e895bd3923159f880152a54160e7c937b2b0369d717da559a7ad98fd14f7"
-      },
-      {
-        "path": "third_party/patches/media3-exo-av3a-mp4.patch",
-        "sha256": "b12123fe9dd09c83fc36e106bf7ebe64ab67404b165ceb6b0acbf45706d36874"
       },
       {
         "path": "third_party/patches/media3-exo-av3a-dash-channel-config.patch",
@@ -72,14 +36,6 @@
       {
         "path": "third_party/patches/media3-exo-ass-observer.patch",
         "sha256": "5ceff44d31b67157b84ef2868ed1957279056eca4f0e7aee0ae2809fb53ba3ec"
-      },
-      {
-        "path": "third_party/patches/media3-playback-diagnostics.patch",
-        "sha256": "338ee1df1719d67eb7f679a4ff4f2070a7003ef9cc037ddae57e732e52a52b97"
-      },
-      {
-        "path": "third_party/patches/media3-exo-avs3.patch",
-        "sha256": "d3e867c2e41cb917a1876aef333167a48e369b2174b087e233185fe5bd37dcf3"
       }
     ],
     "artifact_overrides": [
