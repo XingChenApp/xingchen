@@ -191,11 +191,6 @@
       </dependency>
       <dependency>
         <groupId>androidx.media3</groupId>
-        <artifactId>media3-mpvplayer</artifactId>
-        <version>1.11.0-alpha01-fongmi</version>
-      </dependency>
-      <dependency>
-        <groupId>androidx.media3</groupId>
         <artifactId>media3-muxer</artifactId>
         <version>1.11.0-alpha01-fongmi</version>
       </dependency>
@@ -216,17 +211,17 @@
       </dependency>
       <dependency>
         <groupId>androidx.media3</groupId>
+        <artifactId>media3-ui-danmaku</artifactId>
+        <version>1.11.0-alpha01-fongmi</version>
+      </dependency>
+      <dependency>
+        <groupId>androidx.media3</groupId>
         <artifactId>media3-ui-compose</artifactId>
         <version>1.11.0-alpha01-fongmi</version>
       </dependency>
       <dependency>
         <groupId>androidx.media3</groupId>
         <artifactId>media3-ui-compose-material3</artifactId>
-        <version>1.11.0-alpha01-fongmi</version>
-      </dependency>
-      <dependency>
-        <groupId>androidx.media3</groupId>
-        <artifactId>media3-ui-danmaku</artifactId>
         <version>1.11.0-alpha01-fongmi</version>
       </dependency>
       <dependency>
