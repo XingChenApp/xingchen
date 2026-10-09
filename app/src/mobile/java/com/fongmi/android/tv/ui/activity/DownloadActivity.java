@@ -16,8 +16,13 @@ import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivityDownloadBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.utils.Notify;
+import com.fongmi.android.tv.utils.download.DownloadManager;
+import com.fongmi.android.tv.utils.download.DownloadTask;
+
+import androidx.recyclerview.widget.LinearLayoutManager;
 
 import java.io.File;
+import java.util.List;
 
 public class DownloadActivity extends BaseActivity {
 
@@ -82,15 +87,59 @@ public class DownloadActivity extends BaseActivity {
         return binding;
     }
 
+    private DownloadTaskAdapter adapter;
+
     @Override
     protected void initView(Bundle savedInstanceState) {
-        binding.tvCount.setText("共 0 个任务");
-        binding.tvEmpty.setVisibility(View.VISIBLE);
-        binding.rvDownloads.setVisibility(View.GONE);
+        binding.rvDownloads.setLayoutManager(new LinearLayoutManager(this));
+        adapter = new DownloadTaskAdapter();
+        binding.rvDownloads.setAdapter(adapter);
         binding.cbSelectAll.setOnCheckedChangeListener((btn, checked) -> Notify.show(checked ? "全选" : "取消全选"));
         binding.btnDeleteSelected.setOnClickListener(v -> Notify.show("暂无可删除任务"));
         refreshDirSub();
         binding.cardDownloadDir.setOnClickListener(v -> openDirPicker());
+        refreshThreadSub();
+        if (binding.cardDownloadThreads != null) {
+            binding.cardDownloadThreads.setOnClickListener(v -> showThreadDialog());
+        }
+        refreshTasks();
+        DownloadManager.get().addListener(task -> refreshTasks());
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        DownloadManager.get().removeListener(task -> refreshTasks());
+    }
+
+    private void refreshTasks() {
+        List<DownloadTask> tasks = DownloadManager.get().getTasks();
+        binding.tvCount.setText("共 " + tasks.size() + " 个任务");
+        binding.tvEmpty.setVisibility(tasks.isEmpty() ? View.VISIBLE : View.GONE);
+        binding.rvDownloads.setVisibility(tasks.isEmpty() ? View.GONE : View.VISIBLE);
+        if (adapter != null) adapter.setTasks(tasks);
+    }
+
+    private void refreshThreadSub() {
+        if (binding.tvThreadsSub != null) {
+            binding.tvThreadsSub.setText(DownloadManager.getThreadCount(this) + " 线程");
+        }
+    }
+
+    private void showThreadDialog() {
+        int current = DownloadManager.getThreadCount(this);
+        String[] items = new String[32];
+        for (int i = 0; i < 32; i++) items[i] = (i + 1) + " 线程";
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("下载线程数")
+                .setSingleChoiceItems(items, current - 1, (d, which) -> {
+                    DownloadManager.setThreadCount(this, which + 1);
+                    refreshThreadSub();
+                    d.dismiss();
+                    Notify.show("已设为 " + (which + 1) + " 线程，新任务生效");
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     private void refreshDirSub() {
