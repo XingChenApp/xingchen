@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/xc_dialog_light"
+    android:background="@drawable/shape_dialog_glass_white_panel"
     android:orientation="vertical">
 
     <androidx.appcompat.widget.LinearLayoutCompat
@@ -22,7 +22,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/device_select"
-            android:textColor="#202124"
+            android:textColor="#B3000000"
             android:textSize="16sp" />
 
         <androidx.appcompat.widget.AppCompatImageView
@@ -34,7 +34,7 @@
             android:src="@drawable/ic_sync_two"
             android:tag="0"
             android:visibility="gone"
-            app:tint="#5F6368"
+            app:tint="#B3000000"
             tools:visibility="visible" />
 
         <androidx.appcompat.widget.AppCompatImageView
@@ -44,7 +44,7 @@
             android:layout_marginEnd="16dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_action_scan"
-            app:tint="#5F6368" />
+            app:tint="#B3000000" />
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/refresh"
@@ -52,7 +52,7 @@
             android:layout_height="wrap_content"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_action_refresh"
-            app:tint="#5F6368" />
+            app:tint="#B3000000" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 
