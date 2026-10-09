@@ -65,7 +65,17 @@ public class M3u8Downloader {
         try {
             // 1. 下载并解析 m3u8
             String content = fetchText(m3u8Url);
-            List<String> segments = parseSegments(content, m3u8Url);
+            String playlistUrl = m3u8Url;
+            // master 列表：选 BANDWIDTH 最高的变体
+            if (isMasterPlaylist(content)) {
+                String variantUrl = selectBestVariant(content, m3u8Url);
+                if (variantUrl == null) {
+                    throw new IOException("m3u8 无可用变体");
+                }
+                playlistUrl = variantUrl;
+                content = fetchText(variantUrl);
+            }
+            List<String> segments = parseSegments(content, playlistUrl);
             if (segments.isEmpty()) {
                 throw new IOException("m3u8 无分片");
             }
@@ -138,6 +148,52 @@ public class M3u8Downloader {
             }
         }
         return segments;
+    }
+
+    /** 是否为 master 播放列表（含多码率变体） */
+    private boolean isMasterPlaylist(String content) {
+        return content != null && content.contains("#EXT-X-STREAM-INF");
+    }
+
+    /** 从 master 列表中选 BANDWIDTH 最高的变体 URL，失败返回第一条 */
+    private String selectBestVariant(String content, String baseUrl) throws Exception {
+        URI base = new URI(baseUrl);
+        String bestUrl = null;
+        String firstUrl = null;
+        long bestBandwidth = -1;
+        long bandwidth = -1;
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new java.io.ByteArrayInputStream(content.getBytes("UTF-8"))))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.startsWith("#EXT-X-STREAM-INF")) {
+                    bandwidth = parseBandwidth(line);
+                } else if (!line.isEmpty() && !line.startsWith("#")) {
+                    String abs = base.resolve(line).toString();
+                    if (firstUrl == null) firstUrl = abs;
+                    if (bandwidth > bestBandwidth) {
+                        bestBandwidth = bandwidth;
+                        bestUrl = abs;
+                    }
+                    bandwidth = -1;
+                }
+            }
+        }
+        return bestUrl != null ? bestUrl : firstUrl;
+    }
+
+    private long parseBandwidth(String line) {
+        int idx = line.indexOf("BANDWIDTH=");
+        if (idx >= 0) {
+            int start = idx + 10;
+            int end = start;
+            while (end < line.length() && Character.isDigit(line.charAt(end))) end++;
+            try {
+                return Long.parseLong(line.substring(start, end));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return -1;
     }
 
     private void downloadSegment(String url, File file) throws IOException {
