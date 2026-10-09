@@ -79,12 +79,13 @@ public class ShieldWebViewDialog extends BaseAlertDialog {
         WindowManager.LayoutParams params = window.getAttributes();
         int width = Math.min(Math.round(ResUtil.getScreenWidth(requireContext()) * 0.92f), ResUtil.dp2px(620));
         params.width = Math.max(width, ResUtil.dp2px(320));
-        params.height = WindowManager.LayoutParams.WRAP_CONTENT;
+        int height = Math.round(ResUtil.getScreenHeight(requireContext()) * 0.85f);
+        params.height = height;
         params.gravity = Gravity.CENTER;
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         window.getDecorView().setPadding(0, 0, 0, 0);
         window.setAttributes(params);
-        window.setLayout(params.width, WindowManager.LayoutParams.WRAP_CONTENT);
+        window.setLayout(params.width, params.height);
     }
 
     @Override
