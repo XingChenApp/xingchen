@@ -7,6 +7,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 
@@ -107,6 +108,7 @@ public class ImgUtil {
     }
 
     public static Object getUrl(String url) {
+        if (!TextUtils.isEmpty(url)) Log.d("XC-PY", "cover load url=" + url);
         String param = null;
         boolean noParams = !(url.contains("@Headers=") || url.contains("@Cookie=") || url.contains("@Referer=") || url.contains("@User-Agent="));
         url = UrlUtil.convert(url);
@@ -137,6 +139,7 @@ public class ImgUtil {
         return new RequestListener<>() {
             @Override
             public boolean onLoadFailed(@Nullable GlideException e, Object model, @NonNull Target<Drawable> target, boolean isFirstResource) {
+                Log.d("XC-PY", "cover failed url=" + url + " err=" + (e != null ? e.getMessage() : "null"));
                 view.setImageDrawable(getTextDrawable(text, vod));
                 failed.add(url);
                 return true;
