@@ -1,7 +1,6 @@
 package com.fongmi.android.tv.ui.activity;
 import android.app.Activity;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivityPlayerSettingsBinding;
@@ -10,6 +9,7 @@ import com.fongmi.android.tv.setting.DanmakuSetting;
 import com.fongmi.android.tv.setting.BackgroundPlaybackPolicy;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.SubtitleSetting;
+import com.fongmi.android.tv.setting.PlayerButtonSetting;
 import com.fongmi.android.tv.utils.Notify;
 public class PlayerSettingsActivity extends BaseActivity {
     private ActivityPlayerSettingsBinding binding;
@@ -33,6 +33,20 @@ public class PlayerSettingsActivity extends BaseActivity {
         binding.switchAutonext.setOnCheckedChangeListener((b, c) -> { getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("auto_next", c).apply(); PlayerSetting.putAutoPlay(c); });
         binding.switchSkip.setChecked(getSharedPreferences("xingchen", MODE_PRIVATE).getBoolean("skip_intro", false));
         binding.switchSkip.setOnCheckedChangeListener((b, c) -> getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("skip_intro", c).apply());
+        boolean skipOpening = getSharedPreferences("xingchen", MODE_PRIVATE).getBoolean("skip_opening_show", true);
+        PlayerButtonSetting.putVisible(PlayerButtonSetting.OPENING, skipOpening);
+        binding.switchSkipOpening.setChecked(skipOpening);
+        binding.switchSkipOpening.setOnCheckedChangeListener((b, c) -> {
+            getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("skip_opening_show", c).apply();
+            PlayerButtonSetting.putVisible(PlayerButtonSetting.OPENING, c);
+        });
+        boolean skipEnding = getSharedPreferences("xingchen", MODE_PRIVATE).getBoolean("skip_ending_show", true);
+        PlayerButtonSetting.putVisible(PlayerButtonSetting.ENDING, skipEnding);
+        binding.switchSkipEnding.setChecked(skipEnding);
+        binding.switchSkipEnding.setOnCheckedChangeListener((b, c) -> {
+            getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("skip_ending_show", c).apply();
+            PlayerButtonSetting.putVisible(PlayerButtonSetting.ENDING, c);
+        });
         updateSpeedUI();
         binding.speed075.setOnClickListener(v -> { setSpeed(0.75f); updateSpeedUI(); });
         binding.speed100.setOnClickListener(v -> { setSpeed(1.0f); updateSpeedUI(); });
@@ -49,7 +63,6 @@ public class PlayerSettingsActivity extends BaseActivity {
         binding.bpPip.setOnClickListener(v -> { setBgPip("pip"); updateBgPipUI(); });
         binding.cardDanmu.setOnClickListener(v -> DanmakuSettingsActivity.start(this));
         binding.cardSubtitle.setOnClickListener(v -> SubtitleSettingsActivity.start(this));
-        binding.cardSkipSettings.setOnClickListener(v -> SkipSettingsActivity.start(this));
     }
 
     @Override
@@ -57,9 +70,6 @@ public class PlayerSettingsActivity extends BaseActivity {
         super.onResume();
         binding.tvDanmuStatus.setText(DanmakuSetting.isShow() ? "已开启" : "已关闭");
         binding.tvSubtitleStatus.setText(SubtitleSetting.isEnabled() ? "已开启" : "已关闭");
-        SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
-        boolean skipOn = sp.getBoolean("skip_opening_show", true) || sp.getBoolean("skip_ending_show", true);
-        binding.tvSkipStatus.setText(skipOn ? "已开启" : "已关闭");
     }
     private void updateSpeedUI() {
         float s = getSharedPreferences("xingchen", MODE_PRIVATE).getFloat("player_speed", 1.0f);
