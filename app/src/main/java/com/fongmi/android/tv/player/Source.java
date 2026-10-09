@@ -13,6 +13,7 @@ import com.fongmi.android.tv.player.extractor.JianPian;
 import com.fongmi.android.tv.player.extractor.MpdEdlResolver;
 import com.fongmi.android.tv.player.extractor.MpdSanitizer;
 import com.fongmi.android.tv.player.extractor.Pan115;
+import com.fongmi.android.tv.player.extractor.PanQuark;
 import com.fongmi.android.tv.player.extractor.Push;
 import com.fongmi.android.tv.player.extractor.Strm;
 import com.fongmi.android.tv.player.extractor.TVBus;
@@ -43,6 +44,7 @@ public class Source {
         extractors.add(new Force());
         extractors.add(new JianPian());
         extractors.add(new Pan115());
+        extractors.add(new PanQuark());
         extractors.add(new Push());
         extractors.add(new Strm());
         extractors.add(new Thunder());
@@ -69,6 +71,9 @@ public class Source {
             iterator.remove();
         } else if (Pan115.Parser.match(url)) {
             items.add(Pan115.Parser.get(url));
+            iterator.remove();
+        } else if (PanQuark.Parser.match(url)) {
+            items.add(PanQuark.Parser.get(url));
             iterator.remove();
         }
     }
