@@ -120,6 +120,7 @@ import com.fongmi.android.tv.setting.LyricsSetting;
 import com.fongmi.android.tv.setting.PlayerButtonSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.subtitle.SubtitleManager;
 import com.fongmi.android.tv.setting.SiteHealthStore;
 import com.fongmi.android.tv.ui.adapter.EpisodeAdapter;
 import com.fongmi.android.tv.ui.adapter.EpisodeGroupAdapter;
@@ -1394,6 +1395,12 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.control.title.setSelected(true);
         updateHistory(episode);
         showProgress();
+        // 字幕自动匹配：按片名搜索并加载最佳字幕
+        try {
+            String videoTitle = mBinding.name.getText().toString();
+            SubtitleManager.autoMatch(videoTitle);
+        } catch (Throwable ignored) {
+        }
     }
 
     private void setPlayer(Result result) {
