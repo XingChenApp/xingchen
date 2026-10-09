@@ -35,9 +35,14 @@ public class HkEngine {
     public List<HkItem> home(int page, String cls, String area, String year, String sort) {
         try {
             rule.validate();
-            String url = HkHttp.expandUrl(rule.getUrl(), cls, area, year, sort, page);
             String findRule = rule.getFindRule();
-            if (HkSelector.isJsRule(findRule)) {
+            boolean js = HkSelector.isJsRule(findRule);
+            // js: 规则的 MY_URL 必须是原始 url（保留 hiker://empty# 前缀），
+            // 规则 JS 里常写 MY_URL.replace("hiker://empty##", host) 做替换。
+            String url = js
+                    ? HkHttp.expandUrl(rule.getUrl(), cls, area, year, sort, page, false)
+                    : HkHttp.expandUrl(rule.getUrl(), cls, area, year, sort, page);
+            if (js) {
                 return jsRuntime.parseList(findRule, url);
             }
             String html = HkHttp.get(url, rule.resolvedUa());
@@ -59,7 +64,9 @@ public class HkEngine {
             String searchFind = rule.getSearchFind();
             if (TextUtils.isEmpty(searchFind)) return new ArrayList<>();
             if (HkSelector.isJsRule(searchFind)) {
-                return jsRuntime.parseSearch(searchFind, url, keyword);
+                // js: 搜索同理：MY_URL 传原始 url，保留 hiker://empty# 前缀。
+                String rawUrl = HkHttp.expandSearchUrl(rule.getSearchUrl(), keyword, page, false);
+                return jsRuntime.parseSearch(searchFind, rawUrl, keyword);
             }
             String html = HkHttp.get(url, rule.resolvedUa());
             return selector.parseSearch(html, searchFind, url);

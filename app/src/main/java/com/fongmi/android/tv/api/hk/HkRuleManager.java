@@ -89,6 +89,46 @@ public class HkRuleManager {
         return dir;
     }
 
+    private static final String CONFIG_DIR = "plugins/hk/config";
+
+    /** 规则配置目录（海阔"长按规则→设置"的 key-value，如 config.host），不存在则创建。 */
+    public File getConfigDir() {
+        Context ctx = appContext();
+        File dir = ctx == null ? new File(CONFIG_DIR) : new File(ctx.getFilesDir(), CONFIG_DIR);
+        if (!dir.exists()) dir.mkdirs();
+        return dir;
+    }
+
+    /** 某规则的配置文件（JSON 对象），不存在返回 null。 */
+    public File getRuleConfigFile(String title) {
+        File f = new File(getConfigDir(), safeFileName(title) + ".json");
+        return f.exists() ? f : null;
+    }
+
+    /** 读某规则的配置 JSON 文本，不存在/读失败返回 "{}"。 */
+    public String loadRuleConfig(String title) {
+        try {
+            File f = getRuleConfigFile(title);
+            if (f == null) return "{}";
+            byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
+            String s = new String(bytes, java.nio.charset.Charset.forName("UTF-8")).trim();
+            return s.isEmpty() ? "{}" : s;
+        } catch (Throwable ignored) {
+            return "{}";
+        }
+    }
+
+    /** 写某规则的配置 JSON 文本（供后续"规则设置"页用）。 */
+    public void saveRuleConfig(String title, String json) {
+        try {
+            File f = new File(getConfigDir(), safeFileName(title) + ".json");
+            java.nio.file.Files.write(f.toPath(),
+                    (json == null || json.trim().isEmpty() ? "{}" : json.trim()).getBytes("UTF-8"));
+        } catch (Throwable ignored) {
+        }
+    }
+
+
     /**
      * 解析后尚未落盘的规则（含原始 JSON 文本，落盘时原样写入，不丢失未知字段）。
      * 一键导入先全部解析 → 弹窗让用户勾选 → 只把选中的 saveRule 落盘。

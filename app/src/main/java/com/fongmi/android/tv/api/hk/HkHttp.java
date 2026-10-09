@@ -62,14 +62,26 @@ public class HkHttp {
      * @param page     页码（从 1 开始）
      */
     public static String expandUrl(String template, String cls, String area, String year, String sort, int page) {
+        return expandUrl(template, cls, area, year, sort, page, true);
+    }
+
+    /**
+     * 展开首页/分类 URL 模板。
+     *
+     * @param stripEmptyPrefix 是否剥离 {@code hiker://empty#} 前缀。
+     *                       js: 规则必须传 false——规则 JS 里常写
+     *                       {@code MY_URL.replace("hiker://empty##", host)}，
+     *                       MY_URL 必须是原始 url，提前剥离会破坏替换逻辑。
+     */
+    public static String expandUrl(String template, String cls, String area, String year, String sort, int page, boolean stripEmptyPrefix) {
         if (template == null) return "";
         String url = template.trim();
-        if (url.startsWith(EMPTY_PREFIX)) url = url.substring(EMPTY_PREFIX.length());
+        if (stripEmptyPrefix && url.startsWith(EMPTY_PREFIX)) url = url.substring(EMPTY_PREFIX.length());
         Matcher fm = FIRST_PAGE.matcher(url);
         if (fm.find()) {
             String first = fm.group(1);
             url = page <= 1 ? first : fm.replaceAll("");
-            if (url.startsWith(EMPTY_PREFIX)) url = url.substring(EMPTY_PREFIX.length());
+            if (stripEmptyPrefix && url.startsWith(EMPTY_PREFIX)) url = url.substring(EMPTY_PREFIX.length());
         }
         url = url.replace("fyclass", safe(cls));
         url = url.replace("fyarea", safe(area));
@@ -87,7 +99,12 @@ public class HkHttp {
 
     /** 展开搜索 URL：先按 expandUrl 处理，再把 ** 换成编码后的关键词。 */
     public static String expandSearchUrl(String template, String keyword, int page) {
-        String url = expandUrl(template, "", "", "", "", page);
+        return expandSearchUrl(template, keyword, page, true);
+    }
+
+    /** 展开搜索 URL；stripEmptyPrefix=false 时保留 hiker://empty# 前缀（js: 规则用）。 */
+    public static String expandSearchUrl(String template, String keyword, int page, boolean stripEmptyPrefix) {
+        String url = expandUrl(template, "", "", "", "", page, stripEmptyPrefix);
         String kw = keyword == null ? "" : keyword;
         try {
             kw = URLEncoder.encode(kw, "UTF-8");

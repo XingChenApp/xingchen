@@ -97,6 +97,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             ctx = QuickJSContext.create();
             registerApi();
             loadKv();
+            loadConfig();
             runPreRule();
             return null;
         }).get();
@@ -111,7 +112,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             return null;
         });
         ctx.getGlobalObject().setProperty("setHomeResult", args -> {
-            collectResult(args);
+            collectHomeResult(args);
             return null;
         });
         ctx.getGlobalObject().setProperty("setSearchResult", args -> {
@@ -429,11 +430,30 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         String pre = rule.getPreRule();
         if (TextUtils.isEmpty(pre) || TextUtils.isEmpty(pre.trim())) return;
         try {
-            setContext(HkHttp.expandUrl(rule.getUrl(), "", "", "", "", 1));
+            // preRule 的 MY_URL 同样传原始 url（保留 hiker://empty# 前缀）。
+            setContext(HkHttp.expandUrl(rule.getUrl(), "", "", "", "", 1, false));
             ctx.evaluate(pre.trim().startsWith("js:") ? pre.trim().substring(3) : pre);
             Logger.t(TAG).d("preRule done for %s", rule.getTitle());
         } catch (Throwable e) {
             Logger.t(TAG).d("preRule failed for %s: %s", rule.getTitle(), e.getMessage());
+        }
+    }
+
+    /**
+     * 注入海阔规则配置对象 {@code config}（海阔"长按规则→设置"的 key-value，如 config.host）。
+     * 配置持久化在 plugins/hk/config/&lt;规则名&gt;.json；文件不存在时注入空对象，保证
+     * {@code config.xxx} 不抛 ReferenceError（取值为 undefined）。
+     */
+    private void loadConfig() {
+        try {
+            String json = HkRuleManager.get().loadRuleConfig(rule.getTitle());
+            JSObject obj = (JSObject) ctx.parse(json);
+            ctx.getGlobalObject().setProperty("config", obj);
+        } catch (Throwable e) {
+            try {
+                ctx.getGlobalObject().setProperty("config", ctx.createNewJSObject());
+            } catch (Throwable ignored) {
+            }
         }
     }
 
@@ -466,6 +486,37 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
         } catch (Throwable e) {
             Logger.t(TAG).d("collectResult failed: %s", e.getMessage());
+        }
+    }
+
+    /**
+     * 海阔首页专用：{@code setHomeResult(res)}，其中 {@code res = {data: [...]}}，
+     * data 是条目数组。直接传数组的写法也兼容。
+     */
+    private void collectHomeResult(Object[] args) {
+        if (args == null || args.length == 0 || args[0] == null) return;
+        try {
+            if (args[0] instanceof JSArray) {
+                collectResult(args);
+                return;
+            }
+            String json = args[0] instanceof JSObject
+                    ? ((JSObject) args[0]).stringify()
+                    : String.valueOf(args[0]).trim();
+            if (json.startsWith("{")) {
+                Type mapType = new TypeToken<Map<String, Object>>() {}.getType();
+                Map<String, Object> map = GSON.fromJson(json, mapType);
+                Object data = map == null ? null : map.get("data");
+                if (data instanceof List) {
+                    collectResult(new Object[]{GSON.toJson(data)});
+                    return;
+                }
+                Logger.t(TAG).d("setHomeResult: no data array");
+                return;
+            }
+            collectResult(new Object[]{json});
+        } catch (Throwable e) {
+            Logger.t(TAG).d("collectHomeResult failed: %s", e.getMessage());
         }
     }
 
