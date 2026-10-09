@@ -5,12 +5,18 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
+import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.EditText;
 
 import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.databinding.ActivityTmdbBinding;
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.utils.Notify;
 
@@ -63,21 +69,26 @@ public class TmdbActivity extends BaseActivity {
     }
 
     private void showApiKeyInput() {
-        EditText input = new EditText(this);
+        View view = getLayoutInflater().inflate(R.layout.dialog_tmdb_api_key, null);
+        EditText input = view.findViewById(R.id.et_api_key);
         input.setText(getApiKey(this));
-        input.setSingleLine(true);
-        input.setHint("TMDB API Key");
-        int pad = (int) (16 * getResources().getDisplayMetrics().density);
-        input.setPadding(pad, pad, pad, pad);
-        new AlertDialog.Builder(this)
-                .setTitle("TMDB API Key")
-                .setView(input)
-                .setPositiveButton("保存", (d, w) -> {
-                    getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_API_KEY, input.getText().toString().trim()).apply();
-                    refreshSub();
-                    Notify.show("已保存");
-                })
-                .setNegativeButton("取消", null)
-                .show();
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(view)
+                .create();
+        view.findViewById(R.id.btn_cancel).setOnClickListener(v -> dialog.dismiss());
+        view.findViewById(R.id.btn_save).setOnClickListener(v -> {
+            getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_API_KEY, input.getText().toString().trim()).apply();
+            refreshSub();
+            Notify.show("已保存");
+            dialog.dismiss();
+        });
+        dialog.show();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams params = window.getAttributes();
+            int width = (int) (getResources().getDisplayMetrics().widthPixels * 0.88f);
+            window.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT);
+        }
     }
 }
