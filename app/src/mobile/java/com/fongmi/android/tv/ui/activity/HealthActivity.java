@@ -95,7 +95,7 @@ public class HealthActivity extends BaseActivity {
                     String fileName = f.getName();
                     String baseName = fileName.substring(0, fileName.length() - 3);
                     String key = "py_" + baseName;
-                    if (dynamicSites.containsKey(key)) continue;
+                    if (allSites.containsKey(key)) continue;
                     Site pySite = createPySite(baseName);
                     if (pySite != null) {
                         dynamicSites.put(key, pySite);
@@ -160,10 +160,25 @@ public class HealthActivity extends BaseActivity {
             if (site == null || site.isEmpty()) return false;
             Spider spider = site.spider();
             Future<String> future = Task.executor().submit(() -> spider.homeContent(true));
-            String json = future.get(20, TimeUnit.SECONDS);
-            if (json == null || json.isEmpty()) return false;
+            String json;
+            try {
+                json = future.get(60, TimeUnit.SECONDS);
+            } finally {
+                future.cancel(true);
+            }
             Result result = Result.fromJson(json);
-            return result != null && result.getList() != null && !result.getList().isEmpty();
+            if (result != null && result.getList() != null && !result.getList().isEmpty()) return true;
+            // Fallback: some sources return an empty homeContent list but homeVideoContent has data
+            // (same fallback logic as SiteApi.homeContent)
+            Future<String> fVideo = Task.executor().submit(spider::homeVideoContent);
+            String video;
+            try {
+                video = fVideo.get(60, TimeUnit.SECONDS);
+            } finally {
+                fVideo.cancel(true);
+            }
+            Result videoResult = Result.fromJson(video);
+            return videoResult != null && videoResult.getList() != null && !videoResult.getList().isEmpty();
         } catch (Throwable e) {
             return false;
         }
