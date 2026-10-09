@@ -4,6 +4,7 @@ import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.PictureInPictureParams;
 import android.app.RemoteAction;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Rect;
 import android.graphics.drawable.Icon;
@@ -28,6 +29,7 @@ public class PiP {
 
     private PictureInPictureParams.Builder builder;
     private boolean audioMode;
+    private boolean xingchenMode;
 
     public static boolean noPiP() {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.O || !App.get().getPackageManager().hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE);
@@ -36,6 +38,16 @@ public class PiP {
     public PiP() {
         if (noPiP()) return;
         this.builder = new PictureInPictureParams.Builder();
+    }
+
+    /**
+     * Opt in to the XingChen player setting (xingchen.bg_pip_mode: off/bg/pip)
+     * for PiP decisions instead of the legacy FongMi background setting.
+     * The value is read fresh from SharedPreferences on every decision,
+     * so settings changes take effect without recreating the PiP helper.
+     */
+    public void useXingchenBackgroundMode() {
+        this.xingchenMode = true;
     }
 
     @TargetApi(Build.VERSION_CODES.O)
@@ -100,7 +112,7 @@ public class PiP {
 
     public boolean enter(Activity activity, int width, int height, int scale) {
         try {
-            if (noPiP() || activity.isInPictureInPictureMode() || !shouldUsePictureInPicture()) return false;
+            if (noPiP() || activity.isInPictureInPictureMode() || !usePictureInPicture()) return false;
             setAspectRatio(width, height, scale);
             setAutoEnter();
             return activity.enterPictureInPictureMode(builder.build());
@@ -112,8 +124,16 @@ public class PiP {
 
     private void setAutoEnter() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            builder.setAutoEnterEnabled(shouldUsePictureInPicture());
+            builder.setAutoEnterEnabled(usePictureInPicture());
         }
+    }
+
+    private boolean usePictureInPicture() {
+        if (xingchenMode) {
+            String mode = App.get().getSharedPreferences("xingchen", Context.MODE_PRIVATE).getString("bg_pip_mode", "off");
+            return "pip".equals(mode) && !audioMode;
+        }
+        return shouldUsePictureInPicture();
     }
 
     private boolean shouldUsePictureInPicture() {
