@@ -160,7 +160,7 @@ public class HkPageActivity extends BaseActivity {
         if (hasFocus && binding != null && binding.getRoot() != null) {
             binding.getRoot().postDelayed(() -> {
                 if (!isFinishing() && !isDestroyed()) checkClipboardForCloudCode();
-            }, 400);
+            }, 200);
         }
     }
 
@@ -578,8 +578,19 @@ public class HkPageActivity extends BaseActivity {
                 .show();
     }
 
-    /** 导出规则为文件：保存到 Download 目录并调起分享。 */
+    /** 导出为文件：弹窗选择格式（.json / .hkzip），保存到 Download 目录并调起分享。 */
     private void exportAsFile(HkRule rule) {
+        new AlertDialog.Builder(this)
+                .setTitle("选择导出格式")
+                .setItems(new String[]{"导出为 .json 文件", "导出为 .hkzip 包"}, (d, which) -> {
+                    if (which == 0) doExportAsJsonFile(rule);
+                    else doExportAsHkZip(rule);
+                })
+                .show();
+    }
+
+    /** 导出规则为文件：保存到 Download 目录并调起分享。 */
+    private void doExportAsJsonFile(HkRule rule) {
         new Thread(() -> {
             try {
                 File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
@@ -601,8 +612,30 @@ public class HkPageActivity extends BaseActivity {
         }).start();
     }
 
-    private void showDeleteRuleConfirm(HkRule rule) {
-        new AlertDialog.Builder(this)
+    /** 导出规则为 .hkzip 包（含附带资源）：保存到 Download 目录并调起分享。 */
+    private void doExportAsHkZip(HkRule rule) {
+        new Thread(() -> {
+            try {
+                File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                java.io.File out = HkRuleManager.get().exportAsHkZip(rule.getTitle(), dir);
+                App.post(() -> {
+                    Notify.show("已导出到：" + out.getAbsolutePath());
+                    try {
+                        Intent share = new Intent(Intent.ACTION_SEND);
+                        share.setType("application/zip");
+                        share.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(out));
+                        startActivity(Intent.createChooser(share, "分享规则包"));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                });
+            } catch (Exception e) {
+                App.post(() -> Notify.show("导出失败：" + e.getMessage()));
+            }
+        }).start();
+    }
+
+    private void showDeleteRuleConfirm(HkRule rule) {        new AlertDialog.Builder(this)
                 .setTitle("删除规则")
                 .setMessage("确定删除「" + rule.getTitle() + "」吗？")
                 .setPositiveButton("删除", (d, w) -> new Thread(() -> {

@@ -30,6 +30,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import okhttp3.FormBody;
 import okhttp3.OkHttpClient;
@@ -713,6 +714,43 @@ public class HkRuleManager {
         byte[] bytes = Files.readAllBytes(src.toPath());
         Files.write(dest.toPath(), bytes);
         return dest;
+    }
+
+    /**
+     * 导出规则为 .hkzip 包：rule.json + require.json（若有）+ libs.zip（若有附带库）。
+     *
+     * @return 导出的文件
+     */
+    public File exportAsHkZip(String title, File destDir) throws Exception {
+        File src = new File(getDir(), safeFileName(title) + ".json");
+        if (!src.exists()) throw new IllegalArgumentException("规则不存在：" + title);
+        if (destDir != null && !destDir.exists()) destDir.mkdirs();
+        File dest = new File(destDir != null ? destDir : getDir(), safeFileName(title) + ".hkzip");
+        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(dest.toPath()))) {
+            writeZipEntry(zos, "rule.json", Files.readAllBytes(src.toPath()));
+            File dataDir = getDataDir(title);
+            File require = new File(dataDir, "require.json");
+            if (require.exists()) writeZipEntry(zos, "require.json", Files.readAllBytes(require.toPath()));
+            File libsDir = new File(dataDir, "libs");
+            File[] libs = libsDir.isDirectory() ? libsDir.listFiles() : null;
+            if (libs != null && libs.length > 0) {
+                ByteArrayOutputStream libsZip = new ByteArrayOutputStream();
+                try (ZipOutputStream lzos = new ZipOutputStream(libsZip)) {
+                    for (File f : libs) {
+                        if (f.isFile()) writeZipEntry(lzos, f.getName(), Files.readAllBytes(f.toPath()));
+                    }
+                }
+                writeZipEntry(zos, "libs.zip", libsZip.toByteArray());
+            }
+        }
+        return dest;
+    }
+
+    private void writeZipEntry(ZipOutputStream zos, String name, byte[] bytes) throws Exception {
+        ZipEntry entry = new ZipEntry(name);
+        zos.putNextEntry(entry);
+        zos.write(bytes);
+        zos.closeEntry();
     }
 
     /** 列出所有已导入规则（损坏的文件跳过，不影响整体）。 */
