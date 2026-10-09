@@ -1354,7 +1354,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private void setText(TextView view, int resId, String text) {
         if (TextUtils.isEmpty(text) && !TextUtils.isEmpty(view.getText())) return;
         view.setText(Sniffer.buildClickable(resId > 0 ? getString(resId, text) : text, this::clickableSpan), TextView.BufferType.SPANNABLE);
-        view.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
+        view.setVisibility(text.isEmpty() ? View.INVISIBLE : View.VISIBLE);
         view.setLinkTextColor(Color.WHITE);
         CustomMovement.bind(view);
     }
@@ -1383,7 +1383,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             if (sb.length() > 0) sb.append("\n");
             sb.append(line2.toString().trim());
         }
-        mBinding.meta.setVisibility(sb.length() == 0 ? View.GONE : View.VISIBLE);
+        mBinding.meta.setVisibility(sb.length() == 0 ? View.INVISIBLE : View.VISIBLE);
         mBinding.meta.setText(sb.toString());
     }
 
