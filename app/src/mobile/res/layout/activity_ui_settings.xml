@@ -391,7 +391,7 @@
                     android:scaleType="centerCrop"
                     android:background="@drawable/xc_setcard_v2"
         android:layout_marginHorizontal="16dp"
-                    android:src="@drawable/poster_shanjian_blur_v3"/>
+                    android:src="@drawable/poster_shanjian"/>
 
                 <TextView
                     android:layout_width="match_parent"
