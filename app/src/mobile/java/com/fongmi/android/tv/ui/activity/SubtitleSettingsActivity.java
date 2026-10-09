@@ -34,9 +34,10 @@ public class SubtitleSettingsActivity extends BaseActivity {
         binding.switchSubEnable.setChecked(subEnable);
         binding.switchSubEnable.setOnCheckedChangeListener((b, c) -> {
             SubtitleSetting.putEnabled(c);
-            PlayerButtonSetting.putVisible(PlayerButtonSetting.TEXT, c);
             updateSubCardsVisibility(c);
         });
+        // 字幕按钮常驻播放器控制栏，不随开关隐藏
+        PlayerButtonSetting.putVisible(PlayerButtonSetting.TEXT, true);
         updateSubCardsVisibility(subEnable);
 
         updateSubSizeUI();

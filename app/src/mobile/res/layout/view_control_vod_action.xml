@@ -62,12 +62,6 @@
             android:text="@string/play_repeat" />
 
         <com.google.android.material.textview.MaterialTextView
-            android:id="@+id/text"
-            style="@style/Control"
-            android:tag="3"
-            android:text="@string/play_track_text" />
-
-        <com.google.android.material.textview.MaterialTextView
             android:id="@+id/audio"
             style="@style/Control"
             android:tag="1"
@@ -88,6 +82,12 @@
             android:id="@+id/ending"
             style="@style/Control"
             android:text="@string/play_ed" />
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/text"
+            style="@style/Control"
+            android:tag="3"
+            android:text="@string/play_track_text" />
 
         <com.google.android.material.textview.MaterialTextView
             android:id="@+id/danmaku"
