@@ -228,6 +228,21 @@ public class SiteApi {
         }
     }
 
+    /**
+     * CloudFront rejects requests carrying an unexpected Referer (HTTP 403).
+     * The PY sets Referer to its api domain; strip it for CloudFront video URLs
+     * so the request goes out clean (verified: curl with no Referer gets 200).
+     * Other headers (e.g. User-Agent) are kept intact.
+     */
+    private static void stripRefererForCloudFront(@NonNull Result result) {
+        String url = result.getUrl();
+        if (url == null || !url.contains("cloudfront.net")) return;
+        Map<String, String> header = result.getHeader();
+        if (header.isEmpty()) return;
+        header.remove("Referer");
+        header.remove("referer");
+    }
+
     @NonNull
     public static Result playerContent(@NonNull String key, @NonNull String flag, @NonNull String id) throws Exception {
         return playerContent(key, flag, id, PlayerSetting.getPlayer());
@@ -246,6 +261,7 @@ public class SiteApi {
             if (result.getFlag().isEmpty()) result.setFlag(flag);
             result.setUrl(Source.get().fetch(result, playerType));
             result.setHeader(site.getHeader());
+            stripRefererForCloudFront(result);
             result.setKey(key);
             return result;
         } else if (site.getType() == 4) {
@@ -338,5 +354,6 @@ public class SiteApi {
     }
 
 }
+
 
 
