@@ -22,6 +22,7 @@
 
     <!-- Keep -->
     <string name="keep">收藏</string>
+    <string name="detail_download">下载</string>
     <string name="keep_add">已加入收藏</string>
     <string name="keep_del">已取消收藏</string>
     <string name="exit_confirm_title">确定退出应用？</string>

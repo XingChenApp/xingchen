@@ -65,25 +65,36 @@ public final class DanmakuDialog extends BaseBottomSheetDialog implements Danmak
         binding.recycler.addItemDecoration(new SpaceItemDecoration(1, 16));
         binding.recycler.post(() -> binding.recycler.scrollToPosition(adapter.getSelected()));
         binding.recycler.setVisibility(adapter.getItemCount() == 0 ? View.GONE : View.VISIBLE);
+        binding.search.setVisibility(player.getMetadata() == null || !DanmakuSetting.hasValidApiUrl() ? View.GONE : View.VISIBLE);
+        binding.load.setChecked(DanmakuSetting.isLoad());
+        updateLoadUi(DanmakuSetting.isLoad());
     }
 
     @Override
     protected void initEvent() {
         binding.search.setOnClickListener(this::onSearch);
+        binding.load.setOnCheckedChangeListener((button, checked) -> onLoadChanged(checked));
         binding.choose.setOnClickListener(this::onChoose);
         binding.setting.setOnClickListener(this::onSetting);
+    }
+
+    private void onLoadChanged(boolean enabled) {
+        DanmakuSetting.putLoad(enabled);
+        DanmakuSetting.putShow(enabled);
+        player.setDanmakuEnabled(enabled);
+        updateLoadUi(enabled);
+    }
+
+    private void updateLoadUi(boolean enabled) {
+        binding.recycler.setAlpha(enabled ? 1f : 0.45f);
     }
 
     private void onSearch(View view) {
         FragmentActivity activity = getActivity();
         if (activity == null) return;
         dismissAllowingStateLoss();
-        if (DanmakuSetting.hasValidApiUrl()) {
-            if (shouldUseInputDialog(activity)) DanmakuSearchInputDialog.create().player(player).restoreParent(true).show(activity);
-            else DanmakuSearchDialog.create().player(player).restoreParent(true).show(activity);
-        } else {
-            DanDanPlaySearchDialog.create().player(player).restoreParent(true).show(activity);
-        }
+        if (shouldUseInputDialog(activity)) DanmakuSearchInputDialog.create().player(player).restoreParent(true).show(activity);
+        else DanmakuSearchDialog.create().player(player).restoreParent(true).show(activity);
     }
 
     private boolean shouldUseInputDialog(FragmentActivity activity) {

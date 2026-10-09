@@ -666,7 +666,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         }, 12f);
         setVideoView();
         setViewModel();
-        setShortDisplay();
         if (shouldUseImmersiveAudio()) {
             setAudioStageVisible(true);
             mBinding.progressLayout.showContent();
@@ -779,14 +778,12 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     protected void initEvent() {
         mBinding.name.setOnClickListener(view -> onName());
         mBinding.more.setOnClickListener(view -> onMore());
-        mBinding.shortDisplay.setOnClickListener(view -> onShortDisplay());
-        mBinding.search.setOnClickListener(view -> onSearch());
-        mBinding.castAction.setOnClickListener(view -> onCast());
-        mBinding.settingAction.setOnClickListener(view -> onSetting());
-        mBinding.actor.setOnClickListener(view -> onActor());
+        mBinding.playBtn.setOnClickListener(view -> checkPlay());
+        mBinding.keepBtn.setOnClickListener(view -> onKeep());
+        mBinding.downloadBtn.setOnClickListener(view -> onDownload());
+        mBinding.castBtn.setOnClickListener(view -> onCast());
         mBinding.content.setOnClickListener(view -> onContent());
         mBinding.reverse.setOnClickListener(view -> onReverse());
-        mBinding.director.setOnClickListener(view -> onDirector());
         mBinding.name.setOnLongClickListener(view -> onChange());
         mBinding.content.setOnLongClickListener(view -> onCopy());
         mBinding.control.back.setOnClickListener(view -> onBack());
@@ -1333,13 +1330,9 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void setText(Vod item) {
-        setText(mBinding.site, R.string.detail_site, getSite().getName());
-        setText(mBinding.director, R.string.detail_director, item.getDirector());
-        setText(mBinding.actor, R.string.detail_actor, item.getActor());
         setText(mBinding.content, 0, item.getContent());
         setDetailLyrics(item.getContent());
-        setText(mBinding.remark, 0, item.getRemarks());
-        setOther(mBinding.other, item);
+        setMeta(item);
         updateAudioStageText();
         if (mAudioStageVisible) applyAudioPageMode(true);
     }
@@ -1348,13 +1341,8 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         if (TextUtils.isEmpty(text) && !TextUtils.isEmpty(view.getText())) return;
         view.setText(Sniffer.buildClickable(resId > 0 ? getString(resId, text) : text, this::clickableSpan), TextView.BufferType.SPANNABLE);
         view.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
-        if (view == mBinding.content) setContentVisible();
         view.setLinkTextColor(Color.WHITE);
         CustomMovement.bind(view);
-    }
-
-    private void setContentVisible() {
-        mBinding.contentLayout.setVisibility(mBinding.content.getVisibility());
     }
 
     private ClickableSpan clickableSpan(Result result) {
@@ -1368,13 +1356,21 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         };
     }
 
-    private void setOther(TextView view, Vod item) {
+    private void setMeta(Vod item) {
+        StringBuilder line1 = new StringBuilder();
+        if (!item.getDirector().isEmpty()) line1.append(getString(R.string.detail_director, item.getDirector())).append("  ");
+        if (!item.getActor().isEmpty()) line1.append(getString(R.string.detail_actor, item.getActor()));
+        StringBuilder line2 = new StringBuilder();
+        if (!item.getYear().isEmpty()) line2.append(getString(R.string.detail_year, item.getYear())).append("  ");
+        if (!item.getTypeName().isEmpty()) line2.append(getString(R.string.detail_type, item.getTypeName()));
         StringBuilder sb = new StringBuilder();
-        if (!item.getYear().isEmpty()) sb.append(getString(R.string.detail_year, item.getYear())).append("  ");
-        if (!item.getArea().isEmpty()) sb.append(getString(R.string.detail_area, item.getArea())).append("  ");
-        if (!item.getTypeName().isEmpty()) sb.append(getString(R.string.detail_type, item.getTypeName())).append("  ");
-        view.setVisibility(sb.length() == 0 ? View.GONE : View.VISIBLE);
-        view.setText(Util.substring(sb.toString(), 2));
+        if (line1.length() > 0) sb.append(line1.toString().trim());
+        if (line2.length() > 0) {
+            if (sb.length() > 0) sb.append("\n");
+            sb.append(line2.toString().trim());
+        }
+        mBinding.meta.setVisibility(sb.length() == 0 ? View.GONE : View.VISIBLE);
+        mBinding.meta.setText(sb.toString());
     }
 
     private void getPlayer(Flag flag, Episode episode) {
@@ -1805,29 +1801,11 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         if (mLyrics != null) mLyrics.update(target);
     }
 
-    private void onShortDisplay() {
-        Setting.putCompactEpisodeTitle(!Setting.isCompactEpisodeTitle());
-        setShortDisplay();
-        refreshEpisodeTitles();
-    }
-
-    private void setShortDisplay() {
-        mBinding.shortDisplay.setSelected(Setting.isCompactEpisodeTitle());
-    }
-
     private void onMore() {
         Flag flag = getFlag();
         if (flag == null) return;
         syncSelectedEpisode(flag);
         EpisodeGridDialog.create().reverse(mHistory.isRevSort()).episodes(flag.getEpisodes()).show(this);
-    }
-
-    private void onActor() {
-        mBinding.actor.setMaxLines(mBinding.actor.getMaxLines() == 1 ? Integer.MAX_VALUE : 1);
-    }
-
-    private void onDirector() {
-        mBinding.director.setMaxLines(mBinding.director.getMaxLines() == 1 ? Integer.MAX_VALUE : 1);
     }
 
     private void onContent() {
@@ -1900,6 +1878,10 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         if (keep != null) keep.delete();
         else createKeep();
         checkKeepImg();
+    }
+
+    private void onDownload() {
+        DownloadActivity.start(getActivity());
     }
 
     private void checkPlay() {
@@ -4531,6 +4513,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         boolean kept = Keep.find(getHistoryKey()) != null;
         mBinding.control.keep.setImageResource(kept ? R.drawable.ic_control_keep_on : R.drawable.ic_control_keep_off);
         mBinding.audioKeepAction.setSelected(kept);
+        if (mBinding.keepBtn != null) mBinding.keepBtn.setIconResource(kept ? R.drawable.ic_control_keep_on : R.drawable.ic_control_keep_off);
     }
 
     private void checkLockImg() {
@@ -4717,13 +4700,9 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private void applyAudioPageMode(boolean visible) {
         if (mBinding.videoShadow != null) mBinding.videoShadow.setVisibility(visible ? View.GONE : View.VISIBLE);
         mBinding.name.setVisibility(visible ? View.GONE : View.VISIBLE);
-        mBinding.remark.setVisibility(visible ? View.GONE : View.VISIBLE);
-        mBinding.site.setVisibility(visible ? View.GONE : mBinding.site.getText().length() == 0 ? View.GONE : View.VISIBLE);
-        mBinding.other.setVisibility(visible ? View.GONE : mBinding.other.getText().length() == 0 ? View.GONE : View.VISIBLE);
-        mBinding.director.setVisibility(visible ? View.GONE : mBinding.director.getText().length() == 0 ? View.GONE : View.VISIBLE);
-        mBinding.actor.setVisibility(visible ? View.GONE : mBinding.actor.getText().length() == 0 ? View.GONE : View.VISIBLE);
-        mBinding.contentLayout.setVisibility(visible ? View.GONE : mBinding.content.getText().length() == 0 ? View.GONE : View.VISIBLE);
-        mBinding.actionRow.setVisibility(visible ? View.GONE : View.VISIBLE);
+        mBinding.content.setVisibility(visible ? View.GONE : mBinding.content.getText().length() == 0 ? View.GONE : View.VISIBLE);
+        mBinding.meta.setVisibility(visible ? View.GONE : mBinding.meta.getText().length() == 0 ? View.GONE : View.VISIBLE);
+        mBinding.buttonRow.setVisibility(visible ? View.GONE : View.VISIBLE);
         mBinding.flag.setVisibility(visible || mFlagAdapter == null || mFlagAdapter.isEmpty() ? View.GONE : View.VISIBLE);
         boolean qualityVisible = mQualityAdapter != null && mQualityAdapter.getItemCount() > 1;
         boolean episodeGroupVisible = mEpisodeGroupAdapter != null && mEpisodeGroupAdapter.getItemCount() > 1;

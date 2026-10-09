@@ -402,8 +402,10 @@
                 android:textSize="19sp"
                 tools:text="慶餘年第二季" />
 
+
             <com.google.android.material.textview.MaterialTextView
                 android:id="@+id/remark"
+                        android:visibility="gone"
                 style="@style/Video.ContextText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -419,6 +421,7 @@
 
         <com.google.android.material.textview.MaterialTextView
             android:id="@+id/site"
+                        android:visibility="gone"
             style="@style/Video.ContextText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -433,6 +436,7 @@
 
         <com.google.android.material.textview.MaterialTextView
             android:id="@+id/other"
+                        android:visibility="gone"
             style="@style/Video.ContextText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -447,6 +451,7 @@
 
         <com.google.android.material.textview.MaterialTextView
             android:id="@+id/director"
+                        android:visibility="gone"
             style="@style/Video.ContextText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -461,6 +466,7 @@
 
         <com.google.android.material.textview.MaterialTextView
             android:id="@+id/actor"
+                        android:visibility="gone"
             style="@style/Video.ContextText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -528,43 +534,100 @@
                             tools:text="一個身世神秘的少年范閒，因對自身身世的好奇而離開故鄉澹州，前赴南慶京都。" />
 
                     </androidx.appcompat.widget.LinearLayoutCompat>
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/meta"
+            style="@style/Video.ContextText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/titleRow"
+            android:layout_alignStart="@+id/titleRow"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="16dp"
+            android:textColor="@color/white_60"
+            android:textSize="12sp" />
 
                     <androidx.appcompat.widget.LinearLayoutCompat
-                        android:id="@+id/actionRow"
+                        android:id="@+id/buttonRow"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="16dp"
-                        android:layout_marginTop="10dp"
+                        android:layout_marginTop="14dp"
                         android:layout_marginEnd="16dp"
-                        android:gravity="center"
+                        android:gravity="center_vertical"
                         android:orientation="horizontal">
 
-                        <com.google.android.material.textview.MaterialTextView
-                            android:id="@+id/shortDisplay"
-                            style="@style/VideoActionButton"
-                            android:layout_marginEnd="8dp"
-                            android:text="@string/play_short_display"
-                            app:drawableTopCompat="@drawable/ic_action_short_display_shadow" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/playBtn"
+                            android:layout_width="0dp"
+                            android:layout_height="50dp"
+                            android:layout_weight="1.15"
+                            android:background="@drawable/shape_detail_btn_yellow"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:text="@string/play"
+                            android:textColor="@color/black"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            app:icon="@drawable/ic_detail_play"
+                            app:iconGravity="textStart"
+                            app:iconPadding="8dp"
+                            app:iconSize="22dp"
+                            app:iconTint="@color/black" />
 
-                        <com.google.android.material.textview.MaterialTextView
-                            android:id="@+id/search"
-                            style="@style/VideoActionButton"
-                            android:layout_marginEnd="8dp"
-                            android:text="@string/play_search"
-                            app:drawableTopCompat="@drawable/ic_action_search_shadow" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/keepBtn"
+                            android:layout_width="0dp"
+                            android:layout_height="50dp"
+                            android:layout_marginStart="10dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/shape_detail_btn_glass"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:text="@string/keep"
+                            android:textColor="@color/black"
+                            android:textSize="14sp"
+                            app:icon="@drawable/ic_control_keep_off"
+                            app:iconGravity="textStart"
+                            app:iconPadding="6dp"
+                            app:iconSize="20dp"
+                            app:iconTint="@color/black" />
 
-                        <com.google.android.material.textview.MaterialTextView
-                            android:id="@+id/castAction"
-                            style="@style/VideoActionButton"
-                            android:layout_marginEnd="8dp"
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/downloadBtn"
+                            android:layout_width="0dp"
+                            android:layout_height="50dp"
+                            android:layout_marginStart="10dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/shape_detail_btn_glass"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:text="@string/detail_download"
+                            android:textColor="@color/black"
+                            android:textSize="14sp"
+                            app:icon="@drawable/ic_sync_download"
+                            android:padding="6dp"
+                            app:iconGravity="textStart"
+                            app:iconPadding="6dp"
+                            app:iconSize="20dp"
+                            app:iconTint="@color/black" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/castBtn"
+                            android:layout_width="0dp"
+                            android:layout_height="50dp"
+                            android:layout_marginStart="10dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/shape_detail_btn_glass"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
                             android:text="@string/play_cast"
-                            app:drawableTopCompat="@drawable/ic_control_cast_shadow" />
-
-                        <com.google.android.material.textview.MaterialTextView
-                            android:id="@+id/settingAction"
-                            style="@style/VideoActionButton"
-                            android:text="@string/nav_setting"
-                            app:drawableTopCompat="@drawable/ic_control_setting_shadow" />
+                            android:textColor="@color/black"
+                            android:textSize="14sp"
+                            app:icon="@drawable/ic_control_cast_shadow"
+                            app:iconGravity="textStart"
+                            app:iconPadding="6dp"
+                            app:iconSize="20dp"
+                            app:iconTint="@color/black" />
 
                     </androidx.appcompat.widget.LinearLayoutCompat>
 

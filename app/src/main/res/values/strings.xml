@@ -23,6 +23,7 @@
 
     <!-- Keep -->
     <string name="keep">Keep</string>
+    <string name="detail_download">Download</string>
     <string name="keep_add">Added</string>
     <string name="keep_del">Removed</string>
     <string name="exit_confirm_title">Exit app?</string>

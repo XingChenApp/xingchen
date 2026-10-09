@@ -429,5 +429,60 @@
                     android:background="@drawable/xc_seg_selected" />
             </LinearLayout>
         </LinearLayout>
+        <!-- 搜索字幕 -->
+        <LinearLayout
+            android:id="@+id/card_sub_search"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/xc_setcard_v2"
+            android:orientation="vertical"
+            android:padding="15dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="搜索字幕"
+                android:textColor="#171B23"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按片名搜索，或播放时自动匹配"
+                android:textColor="#5A5F68"
+                android:textSize="12sp"
+                android:layout_marginBottom="8dp" />
+            <EditText
+                android:id="@+id/et_sub_search"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="输入片名，如：长安夜行"
+                android:textSize="14sp"
+                android:background="@drawable/xc_seg_container"
+                android:padding="12dp"
+                android:layout_marginBottom="8dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <Button
+                    android:id="@+id/btn_sub_search"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginRight="8dp"
+                    android:text="搜索"
+                    android:background="@drawable/xc_seg_selected" />
+            </LinearLayout>
+            <TextView
+                android:id="@+id/tv_sub_search_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="#5A5F68"
+                android:textSize="12sp"
+                android:layout_marginTop="8dp"
+                android:visibility="gone" />
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>
