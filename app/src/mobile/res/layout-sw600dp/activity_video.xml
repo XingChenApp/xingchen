@@ -557,28 +557,9 @@
                         android:orientation="horizontal">
 
                         <com.google.android.material.button.MaterialButton
-                            android:id="@+id/playBtn"
-                            android:layout_width="0dp"
-                            android:layout_height="50dp"
-                            android:layout_weight="1.15"
-                            android:background="@drawable/shape_detail_btn_yellow"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:text="@string/play"
-                            android:textColor="@color/black"
-                            android:textSize="16sp"
-                            android:textStyle="bold"
-                            app:icon="@drawable/ic_detail_play"
-                            app:iconGravity="textStart"
-                            app:iconPadding="8dp"
-                            app:iconSize="22dp"
-                            app:iconTint="@color/black" />
-
-                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/keepBtn"
                             android:layout_width="0dp"
                             android:layout_height="50dp"
-                            android:layout_marginStart="10dp"
                             android:layout_weight="1"
                             android:background="@drawable/shape_detail_btn_yellow"
                             android:insetTop="0dp"
@@ -619,15 +600,22 @@
                             android:gravity="center_horizontal"
                             android:orientation="vertical">
 
-                            <androidx.appcompat.widget.AppCompatImageButton
+                            <com.google.android.material.button.MaterialButton
                                 android:id="@+id/settingBtn"
-                                android:layout_width="42dp"
-                                android:layout_height="42dp"
+                                android:layout_width="match_parent"
+                                android:layout_height="50dp"
                                 android:layout_marginBottom="8dp"
                                 android:background="@drawable/shape_detail_btn_yellow"
-                                android:contentDescription="@string/nav_setting"
-                                android:padding="10dp"
-                                android:src="@drawable/ic_detail_setting" />
+                                android:insetTop="0dp"
+                                android:insetBottom="0dp"
+                                android:text="@string/nav_setting"
+                                android:textColor="@color/black"
+                                android:textSize="14sp"
+                                app:icon="@drawable/ic_detail_setting"
+                                app:iconGravity="textStart"
+                                app:iconPadding="6dp"
+                                app:iconSize="20dp"
+                                app:iconTint="@color/black" />
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/castBtn"
