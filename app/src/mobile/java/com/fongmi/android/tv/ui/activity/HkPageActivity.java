@@ -150,7 +150,18 @@ public class HkPageActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        checkClipboardForCloudCode();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        // 在窗口获得焦点后延迟检查剪贴板：Android 10+ 限制后台读取剪贴板，
+        // onResume 时窗口焦点可能尚未就绪，onWindowFocusChanged 是可靠时机。
+        if (hasFocus && binding != null && binding.getRoot() != null) {
+            binding.getRoot().postDelayed(() -> {
+                if (!isFinishing() && !isDestroyed()) checkClipboardForCloudCode();
+            }, 400);
+        }
     }
 
     /**
@@ -511,9 +522,10 @@ public class HkPageActivity extends BaseActivity {
 
     private void showRuleMenu(HkRule rule) {
         new AlertDialog.Builder(this)
-                .setItems(new String[]{"导出为云口令", "导出为文件", "删除"}, (d, which) -> {
+                .setItems(new String[]{"导出为云口令（长）", "导出为云口令（短）", "导出为文件", "删除"}, (d, which) -> {
                     if (which == 0) exportAsCloudCode(rule);
-                    else if (which == 1) exportAsFile(rule);
+                    else if (which == 1) exportAsShortCloudCode(rule);
+                    else if (which == 2) exportAsFile(rule);
                     else showDeleteRuleConfirm(rule);
                 })
                 .show();
@@ -525,6 +537,19 @@ public class HkPageActivity extends BaseActivity {
         new Thread(() -> {
             try {
                 String code = HkRuleManager.get().exportAsCloudCode(rule.getTitle());
+                App.post(() -> showExportCodeDialog(rule.getTitle(), code));
+            } catch (Exception e) {
+                App.post(() -> Notify.show("导出失败：" + e.getMessage()));
+            }
+        }).start();
+    }
+
+    /** 导出为云5短口令：走 cmd.im，生成 云5oooole/{id} 短格式。 */
+    private void exportAsShortCloudCode(HkRule rule) {
+        Notify.show("正在上传云端…");
+        new Thread(() -> {
+            try {
+                String code = HkRuleManager.get().exportAsCmdImCode(rule.getTitle());
                 App.post(() -> showExportCodeDialog(rule.getTitle(), code));
             } catch (Exception e) {
                 App.post(() -> Notify.show("导出失败：" + e.getMessage()));

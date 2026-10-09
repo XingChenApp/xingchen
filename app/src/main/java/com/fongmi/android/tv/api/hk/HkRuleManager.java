@@ -49,15 +49,20 @@ public class HkRuleManager {
     private static final String KEY_ENABLED_PREFIX = "enabled_";
 
     // 云口令（云剪贴板）：格式 云{version}oooole/{path}，version 为 1~10。
-    // 逆向自海阔视界官方 App（com.example.hikerviewg v8.83）的 NetCutImporter：
-    //   云Noooole/p/{note_id}   → netcut.cn 云便签
-    //   云Noooole/apidb/{key}   → textdb.online
-    //   云Noooole/{id}/{pwd}    → netcut 带密码（云6 新格式）
+    // 逆向自海阔视界官方 App（com.example.hikerviewg v8.83）各 Importer 的真实通道（2026-10-10 实测）：
+    //   云1oooole/{id}        → pastebin.com（需官方内嵌 API Key，本 App 不用）
+    //   云2oooole/apidb/{key} → textdb.online（可用）
+    //   云2oooole/p/{note_id} → netcut.cn（官方已下线 API，失效）
+    //   云5oooole/{id}        → cmd.im（可用：GET https://cmd.im/{id} 取 .test_box 文本）
+    //   云6oooole/xxxxxx/{path}(@{pwd}) → pasteme.tyrantg.com（可用：GET /api/getContent/{path}(@{pwd})）
+    //   云7/9/10              → note.ms / txtpad.cn / hastebin（未验证，暂不支持）
     private static final Pattern CLOUD_CODE_PATTERN =
             Pattern.compile("^云([1-9]|10)oooole(/.*)$");
-    private static final String NETCUT_API = "http://netcut.cn/api/note2/info/?note_id=";
     private static final String TEXTDB_API_UPDATE = "https://api.textdb.online/update/";
     private static final String TEXTDB_GET = "https://textdb.online/";
+    private static final String PASTEME_API = "https://pasteme.tyrantg.com/api/getContent/";
+    private static final String PASTEME_REFERER = "https://pasteme.tyrantg.com/";
+    private static final String CMDIM_BASE = "https://cmd.im";
 
     private static volatile HkRuleManager instance;
 
@@ -127,7 +132,6 @@ public class HkRuleManager {
         } catch (Throwable ignored) {
         }
     }
-
 
     /**
      * 解析后尚未落盘的规则（含原始 JSON 文本，落盘时原样写入，不丢失未知字段）。
@@ -485,19 +489,20 @@ public class HkRuleManager {
         String raw = code.trim();
         Matcher m = CLOUD_CODE_PATTERN.matcher(raw);
         if (!m.matches()) throw new IllegalArgumentException("不是有效的云口令（需云1~云10开头）");
-        String path = m.group(2); // 如 /p/xxxx、/apidb/yyyy、/id/pwd
-        String json = fetchCloudJson(path);
+        String version = m.group(1);
+        String path = m.group(2); // 如 /p/xxxx、/apidb/yyyy、/xxxxxx/pppp、/f7c6
+        String json = fetchCloudJson(path, version);
         if (json == null || json.trim().isEmpty()) throw new IllegalArgumentException("云端返回内容为空");
         return importJson(json.trim());
     }
 
-    /** 按口令 path 从云端拉取 rule.json 文本。 */
-    private String fetchCloudJson(String path) throws Exception {
+    /** 按口令 path 从云端拉取 rule.json 文本（通道按官方 App 逆向结果路由）。 */
+    private String fetchCloudJson(String path, String version) throws Exception {
         OkHttpClient client = new OkHttpClient.Builder()
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(20, TimeUnit.SECONDS)
                 .build();
-        // 1) /apidb/{key} → textdb.online（官方分享走的通道，已验证可用）
+        // 1) /apidb/{key} → textdb.online（官方云2分享通道，已验证可用）
         if (path.startsWith("/apidb/")) {
             String key = path.substring("/apidb/".length()).split("[\\s/]")[0];
             if (key.isEmpty()) throw new IllegalArgumentException("口令中 apidb key 为空");
@@ -512,71 +517,94 @@ public class HkRuleManager {
                 return json;
             }
         }
-        // 2) /p/{note_id} → netcut.cn 云便签（官方旧通道，可能已失效，best effort）
+        // 2) /xxxxxx/{path}(@{pwd}) → pasteme.tyrantg.com（官方云6通道，白阑剪贴板，已验证可用）
+        if (path.startsWith("/xxxxxx/")) {
+            String rest = path.substring("/xxxxxx/".length()).split("\\s")[0];
+            if (rest.isEmpty()) throw new IllegalArgumentException("口令中缺少便签ID");
+            Request req = new Request.Builder().url(PASTEME_API + rest)
+                    .header("referer", PASTEME_REFERER)
+                    .header("cookie", "")
+                    .header("User-Agent", "Mozilla/5.0").build();
+            try (Response resp = client.newCall(req).execute()) {
+                if (!resp.isSuccessful() || resp.body() == null)
+                    throw new IllegalArgumentException("云端请求失败（HTTP " + resp.code() + "）");
+                String json = extractRuleJsonFromPasteme(resp.body().string());
+                if (json == null) throw new IllegalArgumentException("云端未返回有效规则（便签不存在或密码错误）");
+                return json;
+            }
+        }
+        // 3) 云5 → cmd.im（官方云5通道，已验证可用）
+        if ("5".equals(version)) {
+            String id = path.substring(1).split("[\\s/]")[0];
+            if (id.isEmpty()) throw new IllegalArgumentException("口令中缺少便签ID");
+            Request req = new Request.Builder().url(CMDIM_BASE + "/" + id)
+                    .header("User-Agent", "Mozilla/5.0").build();
+            try (Response resp = client.newCall(req).execute()) {
+                if (!resp.isSuccessful() || resp.body() == null)
+                    throw new IllegalArgumentException("云端请求失败（HTTP " + resp.code() + "）");
+                String json = extractRuleJsonFromCmdIm(resp.body().string());
+                if (json == null) throw new IllegalArgumentException("云端未返回有效规则（便签不存在或内容格式不对）");
+                return json;
+            }
+        }
+        // 4) /p/{note_id} → netcut.cn：官方已下线该接口，通道失效，给明确提示
         if (path.startsWith("/p/")) {
-            String noteId = path.substring("/p/".length()).split("[\\s/]")[0];
-            if (noteId.isEmpty()) throw new IllegalArgumentException("口令中 note_id 为空");
-            FormBody body = new FormBody.Builder().build();
-            Request req = new Request.Builder().url(NETCUT_API + noteId).post(body)
-                    .header("User-Agent", "Mozilla/5.0").build();
-            try (Response resp = client.newCall(req).execute()) {
-                if (!resp.isSuccessful() || resp.body() == null)
-                    throw new IllegalArgumentException("云端请求失败（HTTP " + resp.code() + "）");
-                String text = resp.body().string();
-                String json = extractRuleJsonFromNetcut(text);
-                if (json == null) throw new IllegalArgumentException("云端未返回有效规则（netcut 接口可能已变更）");
-                return json;
-            }
+            throw new IllegalArgumentException("该口令走 netcut 通道，netcut 已停止开放接口，无法拉取。"
+                    + "请让分享者用「导出为云口令」（云5/云6通道）重新分享，或索取规则文件导入。");
         }
-        // 3) /{id}/{pwd} → 云6 新格式：netcut 带密码便签（best effort）
-        String[] segs = path.split("/");
-        // segs[0] 为空（path 以 / 开头），segs[1]=id，segs[2]=pwd（可选）
-        if (segs.length >= 2 && !segs[1].isEmpty()) {
-            String noteId = segs[1];
-            FormBody.Builder fb = new FormBody.Builder();
-            if (segs.length >= 3 && !segs[2].isEmpty()) fb.add("password", segs[2]);
-            Request req = new Request.Builder().url(NETCUT_API + noteId).post(fb.build())
-                    .header("User-Agent", "Mozilla/5.0").build();
-            try (Response resp = client.newCall(req).execute()) {
-                if (!resp.isSuccessful() || resp.body() == null)
-                    throw new IllegalArgumentException("云端请求失败（HTTP " + resp.code() + "）");
-                String text = resp.body().string();
-                String json = extractRuleJsonFromNetcut(text);
-                if (json == null) throw new IllegalArgumentException("云端未返回有效规则（netcut 接口可能已变更）");
-                return json;
-            }
-        }
-        throw new IllegalArgumentException("无法识别的云口令路径格式");
+        throw new IllegalArgumentException("暂不支持该云口令通道（当前支持：云2/apidb、云5、云6）");
     }
 
-    /** 从 netcut API 响应中提取 rule.json（JSON 字段 data.content 或直接内容）。 */
-    private String extractRuleJsonFromNetcut(String text) {
+    /** 从 pasteme API 响应中提取规则内容：{"return_code":0,"data":"...rule.json..."}。 */
+    private String extractRuleJsonFromPasteme(String text) {
         if (text == null) return null;
-        String t = text.trim();
-        // 可能是直接返回的 JSON 文本
-        if (t.startsWith("{") && t.contains("\"title\"")) return t;
-        // 可能是包装过的 JSON：{"data": {"content": "..."}} 等形态，尽力提取
         try {
-            JsonObject obj = JsonParser.parseString(t).getAsJsonObject();
-            if (obj.has("data")) {
-                JsonObject data = obj.getAsJsonObject("data");
-                if (data.has("content")) {
-                    String content = data.get("content").getAsString();
-                    if (content.contains("\"title\"")) return content;
-                }
-                // content 可能是 base64
-                if (data.has("content")) {
-                    String decoded = safeBase64Decode(data.get("content").getAsString());
-                    if (decoded != null && decoded.contains("\"title\"")) return decoded;
-                }
-            }
-            if (obj.has("content")) {
-                String content = obj.get("content").getAsString();
-                if (content.contains("\"title\"")) return content;
-            }
+            JsonObject obj = JsonParser.parseString(text.trim()).getAsJsonObject();
+            if (obj.has("return_code") && obj.get("return_code").getAsInt() != 0) return null;
+            if (!obj.has("data") || obj.get("data").isJsonNull()) return null;
+            String data = obj.get("data").getAsString().trim();
+            if (data.isEmpty()) return null;
+            return unwrapShareText(data);
         } catch (Exception ignored) {
         }
         return null;
+    }
+
+    /** 从 cmd.im 页面中提取 .test_box 文本（规则内容）。 */
+    private String extractRuleJsonFromCmdIm(String html) {
+        if (html == null) return null;
+        try {
+            Matcher m = Pattern.compile("class=\"test_box\"[^>]*>(.*?)</div>", Pattern.DOTALL).matcher(html);
+            if (!m.find()) return null;
+            String text = m.group(1).replaceAll("<[^>]+>", "").trim();
+            // HTML 转义还原
+            text = text.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+                    .replace("&quot;", "\"").replace("&#39;", "'");
+            if (text.isEmpty()) return null;
+            return unwrapShareText(text);
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    /**
+     * 还原分享包装：内容可能是 ￥…￥base64://@标题@BASE64 包装（cmd.im 常见），
+     * 也可能是裸 rule.json / 规则数组 / js: 文本。
+     */
+    private String unwrapShareText(String text) {
+        if (text == null) return null;
+        String t = text.trim();
+        int idx = t.indexOf("base64://");
+        if (idx >= 0) {
+            // base64://@标题@BASE64 → 取 @ 分隔的第 3 段解码（官方 importRuleByRuleText 同款）
+            String[] segs = t.substring(idx + "base64://".length()).split("@");
+            if (segs.length >= 3) {
+                String decoded = safeBase64Decode(segs[2].replaceAll("\\s+", ""));
+                if (decoded != null) return decoded;
+            }
+            return null;
+        }
+        return t;
     }
 
     /** 兼容标准 / URL 安全两种 base64 的解码，失败返回 null。 */
@@ -600,8 +628,8 @@ public class HkRuleManager {
     }
 
     /**
-     * 导出规则为云口令：rule.json → base64 → 上传 textdb.online → 返回 云6oooole/apidb/{key}。
-     * 与官方分享走同一通道，官方 App 也可导入。
+     * 导出规则为云口令（textdb 通道）：rule.json → base64 → 上传 textdb.online
+     * → 返回 云2oooole/apidb/{key}（与官方 App 的云2分享格式一致，官方 App 可导入）。
      *
      * @return 生成的云口令
      */
@@ -630,11 +658,44 @@ public class HkRuleManager {
             try {
                 JsonObject obj = JsonParser.parseString(respText).getAsJsonObject();
                 if (obj.has("status") && obj.get("status").getAsInt() == 1) {
-                    return "云6oooole/apidb/" + key;
+                    return "云2oooole/apidb/" + key;
                 }
             } catch (Exception ignored) {
             }
             throw new IllegalArgumentException("上传失败：服务器返回异常");
+        }
+    }
+
+    /**
+     * 导出规则为云5短口令（cmd.im 通道）：POST rule.json → 302 跳转取短 ID
+     * → 返回 云5oooole/{id}（短格式，与官方 App 的云5分享格式一致，官方 App 可导入）。
+     *
+     * @return 生成的云口令
+     */
+    public String exportAsCmdImCode(String title) throws Exception {
+        File f = new File(getDir(), safeFileName(title) + ".json");
+        if (!f.exists()) throw new IllegalArgumentException("规则不存在：" + title);
+        byte[] bytes = Files.readAllBytes(f.toPath());
+        String json = new String(bytes, StandardCharsets.UTF_8);
+
+        OkHttpClient client = new OkHttpClient.Builder()
+                .followRedirects(false)
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(20, TimeUnit.SECONDS)
+                .build();
+        FormBody body = new FormBody.Builder().add("txt", json).build();
+        Request req = new Request.Builder().url(CMDIM_BASE + "/").post(body)
+                .header("Origin", CMDIM_BASE)
+                .header("Referer", CMDIM_BASE + "/")
+                .header("User-Agent", "Mozilla/5.0").build();
+        try (Response resp = client.newCall(req).execute()) {
+            String loc = resp.header("Location");
+            if (loc == null || loc.isEmpty())
+                throw new IllegalArgumentException("上传失败：未返回短链接（HTTP " + resp.code() + "）");
+            // Location 形如 /8xwm
+            String id = loc.substring(loc.lastIndexOf('/') + 1).split("[\\s?]")[0];
+            if (id.isEmpty()) throw new IllegalArgumentException("上传失败：短链接格式异常");
+            return "云5oooole/" + id;
         }
     }
 
