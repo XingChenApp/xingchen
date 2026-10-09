@@ -8,6 +8,9 @@ import androidx.collection.ArrayMap;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.VodConfig;
+import com.fongmi.android.tv.api.hk.HkDetailBridge;
+import com.fongmi.android.tv.api.hk.HkPlay;
+import com.fongmi.android.tv.api.hk.HkRouter;
 import com.fongmi.android.tv.api.loader.BaseLoader;
 import com.fongmi.android.tv.bean.Class;
 import com.fongmi.android.tv.bean.Result;
@@ -253,6 +256,7 @@ public class SiteApi {
         SpiderDebug.log("player", "key=%s,flag=%s,id=%s", key, flag, id);
         Source.get().stop();
         if (WebHomeInlineVodStore.KEY.equals(key)) return WebHomeInlineVodStore.player(flag, id);
+        if (HkDetailBridge.isHkKey(key)) return hkPlayerContent(key, flag, id);
         Site site = VodConfig.get().getSite(key);
         if (isSpider(key, site)) {
             String playerContent = site.recent().spider().playerContent(flag, id, VodConfig.get().getFlags());
@@ -293,6 +297,32 @@ public class SiteApi {
             result.setUrl(Source.get().fetch(result, playerType));
             SpiderDebug.log("player", result.toString());
             return result;
+        }
+    }
+
+    /**
+     * 海阔小程序播放（M4）：{@code hk_<规则名>} key 拦截 → {@link HkRouter#play(String)}
+     * 分流链解析出真地址 → 直接组装 Result，不走 spider/嗅探。
+     *
+     * <p>详情页点选集（VideoActivity → SiteViewModel.playerContent → 本方法）统一走这里，
+     * 因此选集、下一集、历史续播都会先经过海阔分流链。</p>
+     */
+    @NonNull
+    private static Result hkPlayerContent(@NonNull String key, @NonNull String flag, @NonNull String id) throws Exception {
+        String title = key.substring(HkDetailBridge.KEY_PREFIX.length());
+        HkRouter router = HkRouter.open(title);
+        try {
+            HkPlay play = router.play(id);
+            Result result = new Result();
+            result.setUrl(play.getUrl());
+            result.setParse(0);
+            result.setFlag(flag);
+            if (!play.getHeaders().isEmpty()) result.setHeader(play.getHeaders());
+            result.setKey(key);
+            SpiderDebug.log("player", "hk play resolved: %s", play.getUrl());
+            return result;
+        } finally {
+            router.destroy();
         }
     }
 

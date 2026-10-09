@@ -318,6 +318,31 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     }
 
     /**
+     * M4：lazyRule / 播放 js 的独立作用域求值。
+     *
+     * <p>按"独立作用域"铁律：只注入全局 Hiker API，外加 {@code MY_URL}/{@code input}
+     * 两个形参（均为当前页面地址），不依赖 JS 闭包。返回代码求值结果的字符串；
+     * 若求值为空则兜底取 {@code setResult} 收集到的第一条 url。</p>
+     */
+    public String evalLazy(String jsCode, String pageUrl) throws Exception {
+        return submit(() -> {
+            error = null;
+            setContext(pageUrl);
+            ctx.getGlobalObject().setProperty("input", pageUrl == null ? "" : pageUrl);
+            Object r = ctx.evaluate(stripJsPrefix(jsCode));
+            String s = r == null ? "" : String.valueOf(r).trim();
+            if (s.isEmpty() || "undefined".equals(s) || "null".equals(s)) {
+                List<HkItem> items = drainResults();
+                if (!items.isEmpty() && !TextUtils.isEmpty(items.get(0).getUrl())) {
+                    return items.get(0).getUrl().trim();
+                }
+                return "";
+            }
+            return s;
+        }).get();
+    }
+
+    /**
      * 给 HkSelector 配一个带 JS 求值能力的实例（M1 的 null 透传升级为真求值）。
      */
     public HkSelector newSelector() {
