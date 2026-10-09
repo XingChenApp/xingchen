@@ -193,6 +193,7 @@ public class HomeActivity extends BaseActivity implements NavigationBarView.OnIt
         mBinding.navigation.getMenu().findItem(R.id.vod).setVisible(true);
         mBinding.navigation.getMenu().findItem(R.id.setting).setVisible(true);
         mBinding.navigation.getMenu().findItem(R.id.live).setVisible(LiveConfig.hasUrl());
+        mBinding.navigation.getMenu().findItem(R.id.miniapp).setVisible(FeaturesActivity.isMiniAppEnabled(this));
         syncNavigationSelection();
     }
 
@@ -262,6 +263,10 @@ public class HomeActivity extends BaseActivity implements NavigationBarView.OnIt
         if (item.getItemId() == R.id.setting) return changeFragment(1);
         if (item.getItemId() == R.id.vod) return changeFragment(0);
         if (item.getItemId() == R.id.live) return openLive();
+        if (item.getItemId() == R.id.miniapp) {
+            Notify.show("小程序");
+            return true;
+        }
         return false;
     }
 

@@ -24,6 +24,10 @@ public class FeaturesActivity extends BaseActivity {
         activity.startActivity(new Intent(activity, FeaturesActivity.class));
     }
 
+    public static boolean isMiniAppEnabled(Context context) {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_MINIAPP, false);
+    }
+
     @Override
     protected ViewBinding getBinding() {
         binding = ActivityFeaturesBinding.inflate(getLayoutInflater());
@@ -67,7 +71,7 @@ public class FeaturesActivity extends BaseActivity {
     }
 
     private void refreshMiniApp() {
-        boolean enabled = getPrefs().getBoolean(KEY_MINIAPP, false);
+        boolean enabled = isMiniAppEnabled(this);
         binding.swMiniapp.setChecked(enabled);
         binding.tvMiniappSub.setText(enabled ? "已启用" : "未启用");
     }
