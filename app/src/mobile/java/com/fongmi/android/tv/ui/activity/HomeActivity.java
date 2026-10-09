@@ -122,7 +122,13 @@ public class HomeActivity extends BaseActivity implements NavigationBarView.OnIt
             change(intent.getIntExtra(EXTRA_NAV_POSITION, 0));
             intent.removeExtra(EXTRA_NAV_POSITION);
         } else if (Intent.ACTION_SEND.equals(intent.getAction())) {
-            VideoActivity.push(this, intent.getStringExtra(Intent.EXTRA_TEXT));
+            String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
+            String url = com.fongmi.android.tv.utils.Sniffer.getUrl(sharedText);
+            if (url == null || url.isEmpty()) url = sharedText;
+            if (url != null && !url.isEmpty()) {
+                com.fongmi.android.tv.utils.download.DownloadManager.get().add(url, null);
+                com.fongmi.android.tv.ui.activity.DownloadActivity.start(this);
+            }
         } else if (Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) {
             PermissionUtil.requestFile(this, allGranted -> checkType(intent));
         } else if (Intent.ACTION_SEARCH.equals(intent.getAction())) {
