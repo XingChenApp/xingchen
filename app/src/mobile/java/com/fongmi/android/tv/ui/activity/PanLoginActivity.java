@@ -64,6 +64,7 @@ public class PanLoginActivity extends BaseActivity {
                 .title("115")
                 .loginUrl("https://115.com/")
                 .cookieDomain("115.com")
+                .userAgent(PanLoginDialog.DESKTOP_UA)
                 .hint("请在下方页面完成 115 登录，然后点「完成登录」")
                 .cookieValidator(PanAuth::is115CookieValid)
                 .onLogin(cookie -> {
@@ -92,6 +93,7 @@ public class PanLoginActivity extends BaseActivity {
                 .title("夸克")
                 .loginUrl("https://pan.quark.cn/")
                 .cookieDomain("quark.cn")
+                .userAgent(PanLoginDialog.DESKTOP_UA)
                 .hint("请在下方页面完成夸克登录，然后点「完成登录」")
                 .onLogin(cookie -> {
                     PanAuth.putQuarkCookie(cookie);
