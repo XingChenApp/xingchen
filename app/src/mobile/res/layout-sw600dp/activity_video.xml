@@ -40,7 +40,8 @@
                 style="@style/Player.Vod"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                app:surface_type="none" />
+                app:surface_type="none"
+                app:resize_mode="fill" />
 
             <FrameLayout
                 android:id="@+id/audioStage"
