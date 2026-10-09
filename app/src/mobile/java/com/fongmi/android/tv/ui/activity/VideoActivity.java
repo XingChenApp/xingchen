@@ -629,6 +629,8 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         configureAudioLandscapeActions();
         mObserveDetail = this::setDetail;
         mObservePlayer = this::setPlayer;
+        // 标题跑马灯：选中后超长标题自动横向滚动，短标题保持不动
+        mBinding.name.setSelected(true);
         mObserveSearch = this::setSearch;
         mBroken = new ArrayList<>();
         mClock = Clock.create();
