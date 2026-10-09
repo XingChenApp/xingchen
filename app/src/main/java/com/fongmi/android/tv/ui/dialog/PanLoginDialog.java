@@ -112,8 +112,11 @@ public class PanLoginDialog extends BaseAlertDialog {
         WindowManager.LayoutParams params = window.getAttributes();
         int width = Math.min(Math.round(ResUtil.getScreenWidth(requireContext()) * 0.92f), ResUtil.dp2px(620));
         params.width = Math.max(width, ResUtil.dp2px(320));
-        int height = Math.round(ResUtil.getScreenHeight(requireContext()) * 0.85f);
-        params.height = height;
+        if (optionsMode) {
+            params.height = WindowManager.LayoutParams.WRAP_CONTENT;
+        } else {
+            params.height = Math.round(ResUtil.getScreenHeight(requireContext()) * 0.85f);
+        }
         params.gravity = Gravity.CENTER;
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         window.getDecorView().setPadding(0, 0, 0, 0);
@@ -127,7 +130,9 @@ public class PanLoginDialog extends BaseAlertDialog {
         if (!TextUtils.isEmpty(hint)) binding.tvHint.setText(hint);
         if (optionsMode) {
             binding.webview.setVisibility(View.GONE);
+            ((View) binding.webview.getParent()).setVisibility(View.GONE);
             binding.progress.setVisibility(View.GONE);
+            binding.tvHint.setText("当前已登录，可重新登录或退出");
             binding.btnReload.setText("重新登录");
             binding.btnDone.setText("退出登录");
         } else {
@@ -141,8 +146,7 @@ public class PanLoginDialog extends BaseAlertDialog {
         binding.ivClose.setOnClickListener(v -> dismissAllowingStateLoss());
         binding.btnReload.setOnClickListener(v -> {
             if (optionsMode) {
-                dismissAllowingStateLoss();
-                if (reloginListener != null) reloginListener.run();
+                switchToLoginMode();
             } else {
                 binding.webview.reload();
             }
@@ -157,11 +161,23 @@ public class PanLoginDialog extends BaseAlertDialog {
         });
     }
 
-    private Runnable reloginListener;
-
-    public PanLoginDialog onRelogin(Runnable r) {
-        this.reloginListener = r;
-        return this;
+    /**
+     * 已登录态点"重新登录"：复用当前弹窗直接切到登录模式，
+     * 避免 dismiss+重建的竞态导致新弹窗被去重 guard 拦掉。
+     */
+    private void switchToLoginMode() {
+        if (TextUtils.isEmpty(loginUrl)) return;
+        optionsMode = false;
+        binding.tvTitle.setText(title + "登录");
+        binding.tvHint.setText(TextUtils.isEmpty(hint) ? "请在下方页面完成登录，然后点「完成登录」" : hint);
+        ((View) binding.webview.getParent()).setVisibility(View.VISIBLE);
+        binding.webview.setVisibility(View.VISIBLE);
+        binding.progress.setVisibility(View.VISIBLE);
+        binding.btnReload.setText("刷新");
+        binding.btnDone.setText("完成登录");
+        setupWebView();
+        binding.webview.loadUrl(loginUrl);
+        configureWindow();
     }
 
     private void setupWebView() {
