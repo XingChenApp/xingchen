@@ -38,6 +38,8 @@ public class PanLoginDialog extends BaseAlertDialog {
         boolean isValid(String cookie);
     }
 
+    private static final String MOBILE_UA = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+
     private DialogPanLoginBinding binding;
     private String title;
     private String loginUrl;
@@ -194,6 +196,7 @@ public class PanLoginDialog extends BaseAlertDialog {
         WebView webView = binding.webview;
         WebViewUtil.configureBase(webView, "panlogin");
         WebSettingsHolder.apply(webView);
+        webView.getSettings().setUserAgentString(MOBILE_UA);
         CookieManager cm = CookieManager.getInstance();
         cm.setAcceptCookie(true);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
