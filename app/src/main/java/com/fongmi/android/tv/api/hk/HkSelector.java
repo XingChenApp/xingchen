@@ -85,6 +85,35 @@ public class HkSelector {
     }
 
     /**
+     * 解析详情页：detail_find_rule 6 段 = 列表;标题;图片;描述;链接;样式。
+     * M3 约定：标题段为空时回退取首个 a 的文本；链接段为空/* 时回退取 a&&href。
+     * 每条解析结果为一个选集候选，线路分组由 HkRouter 按 line 字段完成。
+     */
+    public List<HkDetailItem> parseDetail(String html, String detailRule, String baseUrl) {
+        List<HkDetailItem> result = new ArrayList<>();
+        if (html == null || detailRule == null || isJsRule(detailRule)) return result;
+        String trimmed = detailRule.trim();
+        if (trimmed.isEmpty() || "*".equals(trimmed)) return result;
+        String[] seg = splitSegments(detailRule, 6);
+        List<String> items = evalList(html, seg[0]);
+        for (String itemHtml : items) {
+            HkDetailItem it = new HkDetailItem();
+            String title = evalField(itemHtml, seg[1], baseUrl);
+            if (title.isEmpty()) title = evalField(itemHtml, "a&&Text", baseUrl);
+            if (title.isEmpty()) title = evalField(itemHtml, "Text", baseUrl);
+            it.setTitle(title);
+            it.setPic(evalField(itemHtml, seg[2], baseUrl));
+            it.setDesc(evalField(itemHtml, seg[3], baseUrl));
+            String url = evalField(itemHtml, seg[4], baseUrl);
+            if (url.isEmpty()) url = evalField(itemHtml, "a&&href", baseUrl);
+            it.setUrl(url);
+            it.setColType(evalField(itemHtml, seg[5], baseUrl));
+            if (!it.getTitle().isEmpty() || !it.getUrl().isEmpty()) result.add(it);
+        }
+        return result;
+    }
+
+    /**
      * 对单个条目 HTML 求一个字段规则的值（M3 详情页复用）。
      * 支持 * 占位、|| 候选、&,n 索引、.js: 后加工。
      */

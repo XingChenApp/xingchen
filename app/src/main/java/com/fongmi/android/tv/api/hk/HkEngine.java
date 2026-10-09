@@ -73,6 +73,18 @@ public class HkEngine {
         return jsRuntime.getError();
     }
 
+    public HkRule getRule() {
+        return rule;
+    }
+
+    public HkJsRuntime getJsRuntime() {
+        return jsRuntime;
+    }
+
+    public HkSelector getSelector() {
+        return selector;
+    }
+
     public void destroy() {
         jsRuntime.destroy();
     }

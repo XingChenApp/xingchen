@@ -75,6 +75,12 @@ import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.DanmakuApi;
 import com.fongmi.android.tv.api.SiteApi;
 import com.fongmi.android.tv.api.config.VodConfig;
+import com.fongmi.android.tv.api.hk.HkDetail;
+import com.fongmi.android.tv.api.hk.HkDetailBridge;
+import com.fongmi.android.tv.api.hk.HkItem;
+import com.fongmi.android.tv.api.hk.HkRouter;
+import com.fongmi.android.tv.api.hk.HkRule;
+import com.fongmi.android.tv.api.hk.HkRuleManager;
 import com.fongmi.android.tv.bean.CastVideo;
 import com.fongmi.android.tv.bean.Danmaku;
 import com.fongmi.android.tv.bean.Episode;
@@ -402,6 +408,21 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     public static void collect(Activity activity, String key, String id, String name, String pic) {
         start(activity, key, id, name, pic, null, true);
+    }
+
+    /**
+     * 海阔分支入口（M3）：单页点条目打开星辰详情页。
+     * extras: hk_rule=规则名, hk_item_url=条目URL；key 命名空间为 hk_&lt;规则名&gt;。
+     */
+    public static void startHk(Activity activity, String ruleTitle, String itemUrl, String name, String pic) {
+        Intent intent = new Intent(activity, VideoActivity.class);
+        intent.putExtra("key", HkDetailBridge.siteKey(ruleTitle));
+        intent.putExtra("id", itemUrl);
+        intent.putExtra("name", name);
+        intent.putExtra("pic", pic);
+        intent.putExtra("hk_rule", ruleTitle);
+        intent.putExtra("hk_item_url", itemUrl);
+        activity.startActivity(intent);
     }
 
     public static void collect(Activity activity, String key, String id, String name, String pic, String wallPic) {
@@ -1248,9 +1269,49 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void checkId() {
+        if (!TextUtils.isEmpty(getIntent().getStringExtra("hk_rule"))) {
+            getHkDetail();
+            return;
+        }
         if (getId().startsWith("push://")) getIntent().putExtra("key", SiteApi.PUSH).putExtra("id", getId().substring(7));
         if (getId().isEmpty() || getId().startsWith("msearch:")) setEmpty(false);
         else getDetail();
+    }
+
+    /**
+     * 海阔分支：HkRouter.detail() 取数 → HkDetailBridge 转 Vod → 走现有详情渲染。
+     * 播放拦截是 M4 内容，本期点选集走原有播放链（可能失败，属预期）。
+     */
+    private void getHkDetail() {
+        mBinding.swipeLayout.setRefreshing(true);
+        new Thread(() -> {
+            try {
+                String ruleTitle = getIntent().getStringExtra("hk_rule");
+                String itemUrl = getIntent().getStringExtra("hk_item_url");
+                HkRule rule = HkRuleManager.get().getRule(ruleTitle);
+                if (rule == null) throw new IllegalStateException("hk rule missing: " + ruleTitle);
+                HkRouter router = new HkRouter(rule);
+                HkItem item = new HkItem(getName(), itemUrl, getPic(), getContent());
+                HkDetail detail = router.detail(itemUrl, item, false);
+                router.destroy();
+                Vod vod = HkDetailBridge.toVod(rule, getId(), detail);
+                App.post(() -> {
+                    mBinding.swipeLayout.setRefreshing(false);
+                    if (detail.isEmpty()) {
+                        showError(getString(R.string.error_detail));
+                        mBinding.progressLayout.showEmpty();
+                    } else {
+                        setDetail(vod);
+                    }
+                });
+            } catch (Throwable e) {
+                App.post(() -> {
+                    mBinding.swipeLayout.setRefreshing(false);
+                    showError(getString(R.string.error_detail));
+                    mBinding.progressLayout.showEmpty();
+                });
+            }
+        }).start();
     }
 
     private void checkLand() {

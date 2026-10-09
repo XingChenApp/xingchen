@@ -64,6 +64,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     private final Parser parser;
     private final Map<String, String> vars;
     private final List<HkItem> results;
+    /** 明细原始条目收集（parseDetailRaw 用，保留 line/col_type 等扩展字段）。 */
+    private final List<Map<String, String>> rawResults = new ArrayList<>();
+    private volatile boolean collectRaw;
 
     private QuickJSContext ctx;
     private Map<String, String> kv;
@@ -398,6 +401,14 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             List<Map<String, Object>> list = GSON.fromJson(json, MAP_LIST_TYPE);
             if (list == null) return;
             for (Map<String, Object> m : list) {
+                if (collectRaw) {
+                    Map<String, String> raw = new HashMap<>();
+                    for (Map.Entry<String, Object> e : m.entrySet()) {
+                        raw.put(e.getKey(), e.getValue() == null ? "" : String.valueOf(e.getValue()));
+                    }
+                    rawResults.add(raw);
+                    continue;
+                }
                 HkItem item = new HkItem();
                 item.setTitle(str(m, "title"));
                 item.setUrl(str(m, "url"));
@@ -422,6 +433,29 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         List<HkItem> out = new ArrayList<>(results);
         results.clear();
         return out;
+    }
+
+    /**
+     * 执行详情的 js: 规则，返回原始条目（含 line/col_type 等扩展字段，M3）。
+     * setResult 项约定：title/url/pic_url/desc + 可选 line（线路名）/col_type。
+     */
+    public List<Map<String, String>> parseDetailRaw(String jsCode, String myUrl) throws Exception {
+        return submit(() -> {
+            rawResults.clear();
+            results.clear();
+            error = null;
+            collectRaw = true;
+            try {
+                setContext(myUrl);
+                ctx.evaluate(stripJsPrefix(jsCode));
+            } finally {
+                collectRaw = false;
+            }
+            List<Map<String, String>> out = new ArrayList<>(rawResults);
+            rawResults.clear();
+            results.clear();
+            return out;
+        }).get();
     }
 
     private String stringifyArg(Object arg) {
