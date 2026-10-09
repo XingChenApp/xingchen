@@ -4,9 +4,9 @@
     android:id="@+id/text"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/selector_player_child_sheet_button"
+    android:background="@drawable/selector_control_sheet_button_light"
     android:ellipsize="marquee"
     android:singleLine="true"
-    android:textColor="@color/selector_control_sheet_text"
+    android:textColor="@color/selector_control_sheet_text_dark"
     android:textSize="14sp"
     tools:text="中文、哥斯拉.srt" />

@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/shape_player_child_sheet_panel"
+    android:background="@drawable/shape_dialog_glass_white_sheet"
     android:orientation="vertical">
 
     <androidx.appcompat.widget.LinearLayoutCompat
@@ -21,7 +21,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textColor="@color/white_70"
+            android:textColor="#B3000000"
             android:textSize="16sp"
             tools:text="選擇字幕" />
 
@@ -33,7 +33,7 @@
             android:gravity="center"
             android:paddingHorizontal="12dp"
             android:text="@string/play_track_secondary_subtitle"
-            android:textColor="@color/white_90"
+            android:textColor="#B3000000"
             android:textSize="13sp"
             android:visibility="gone"
             tools:visibility="visible" />
@@ -45,7 +45,7 @@
             android:layout_marginEnd="16dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_action_search"
-            app:tint="@color/white_90"
+            app:tint="#B3000000"
             android:visibility="gone"
             tools:visibility="visible" />
 
@@ -55,7 +55,7 @@
             android:layout_height="wrap_content"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_action_choose"
-            app:tint="@color/white_90"
+            app:tint="#B3000000"
             android:visibility="gone"
             tools:visibility="visible" />
 
@@ -66,7 +66,7 @@
             android:layout_marginStart="16dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_action_subtitle"
-            app:tint="@color/white_90"
+            app:tint="#B3000000"
             android:visibility="gone"
             tools:visibility="visible" />
 
@@ -77,7 +77,7 @@
             android:layout_marginStart="16dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_action_offset"
-            app:tint="@color/white_90"
+            app:tint="#B3000000"
             android:visibility="gone"
             tools:visibility="visible" />
 
