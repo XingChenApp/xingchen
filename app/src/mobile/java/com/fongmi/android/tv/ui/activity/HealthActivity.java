@@ -109,6 +109,7 @@ public class HealthActivity extends BaseActivity {
                 testing = false;
                 binding.btnRetest.setText("重新检测");
                 updateSummary();
+                saveHealthResult();
                 Notify.show("检测完成");
             });
         });
@@ -142,6 +143,23 @@ public class HealthActivity extends BaseActivity {
         } else {
             binding.tvSummary.setText(ok + " 正常 · " + fail + " 异常" + (unsupported > 0 ? " · " + unsupported + " 未支持" : ""));
         }
+    }
+
+    private void saveHealthResult() {
+        try {
+            int ok = 0, fail = 0, unsupported = 0;
+            for (SiteItem item : items) {
+                if (item.status == SiteItem.STATUS_OK) ok++;
+                else if (item.status == SiteItem.STATUS_FAIL) fail++;
+                else if (item.status == SiteItem.STATUS_UNSUPPORTED) unsupported++;
+            }
+            getSharedPreferences("xingchen", MODE_PRIVATE).edit()
+                    .putInt("health_ok", ok)
+                    .putInt("health_fail", fail)
+                    .putInt("health_unsupported", unsupported)
+                    .putLong("health_time", System.currentTimeMillis())
+                    .apply();
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     static class SiteItem {
