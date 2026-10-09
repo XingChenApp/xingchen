@@ -37,7 +37,7 @@ public class DanmakuSettingsActivity extends BaseActivity {
         binding.switchDanmuLoad.setOnCheckedChangeListener((b, c) -> DanmakuSetting.putLoad(c));
 
         updateApiDesc();
-        binding.cardDanmuApi.setOnClickListener(v -> showApiDialog());
+        binding.cardDanmuApi.setOnClickListener(v -> showServerDialog());
 
         binding.switchDanmuAutosearch.setChecked(DanmakuSetting.isAuto());
         binding.switchDanmuAutosearch.setOnCheckedChangeListener((b, c) -> DanmakuSetting.putAuto(c));
@@ -117,28 +117,28 @@ public class DanmakuSettingsActivity extends BaseActivity {
     }
 
     private void updateApiDesc() {
-        String url = DanmakuSetting.getEffectiveApiUrl();
-        binding.tvDanmuApiDesc.setText(url == null || url.isEmpty() ? "未设置" : url);
+        binding.tvDanmuApiDesc.setText(DanmakuSetting.hasSourceServer() ? "弹弹play" : "弹弹play（未配置）");
     }
 
-    private void showApiDialog() {
+    private void showServerDialog() {
         EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-        input.setText(DanmakuSetting.getApiUrl());
-        input.setHint("https://");
+        input.setText(DanmakuSetting.getSourceServer());
+        input.setHint("https://xxx.workers.dev");
         input.setSelection(input.getText().length());
         int pad = (int) (16 * getResources().getDisplayMetrics().density);
         input.setPadding(pad, pad, pad, pad);
         new AlertDialog.Builder(this)
-                .setTitle("弹幕搜索接口")
+                .setTitle("弹弹play 服务器地址")
+                .setMessage("填写你部署的弹幕 API 地址（Cloudflare Workers）")
                 .setView(input)
                 .setPositiveButton("保存", (d, w) -> {
-                    DanmakuSetting.putApiUrl(input.getText().toString());
+                    DanmakuSetting.putSourceServer(input.getText().toString());
                     updateApiDesc();
                 })
                 .setNegativeButton("取消", null)
                 .setNeutralButton("清空", (d, w) -> {
-                    DanmakuSetting.putApiUrl("");
+                    DanmakuSetting.putSourceServer("");
                     updateApiDesc();
                 })
                 .show();

@@ -43,6 +43,27 @@ public class DanmakuSetting {
         Prefers.put("danmaku_api_url", url == null ? "" : url.trim());
     }
 
+    /** 弹幕源默认就是弹弹play（DanDanPlay 兼容接口），用户手动输入自定义源才用自定义的 */
+    public static final String SOURCE_DANDANPLAY = "弹弹play";
+    private static final String SOURCE_API_PATH = "/api/v2/fongmi/danmaku";
+
+    /** 弹幕源服务器地址（用户自己部署的 DanDanPlay 兼容服务，如 Cloudflare Workers） */
+    public static String getSourceServer() {
+        String server = Prefers.getString("danmaku_source_server", "").trim();
+        while (server.endsWith("/")) server = server.substring(0, server.length() - 1);
+        return server;
+    }
+
+    public static void putSourceServer(String server) {
+        server = server == null ? "" : server.trim();
+        while (server.endsWith("/")) server = server.substring(0, server.length() - 1);
+        Prefers.put("danmaku_source_server", server);
+    }
+
+    public static boolean hasSourceServer() {
+        return !TextUtils.isEmpty(getSourceServer());
+    }
+
     public static boolean isShow() {
         return Prefers.getBoolean("danmaku_show", true);
     }
@@ -309,6 +330,8 @@ public class DanmakuSetting {
     }
 
     public static String getEffectiveApiUrl() {
+        String server = getSourceServer();
+        if (!TextUtils.isEmpty(server)) return server + SOURCE_API_PATH + "?name={name}&episode={episode}";
         String userUrl = getApiUrl();
         if (!TextUtils.isEmpty(userUrl)) return userUrl.trim();
         String configUrl = VodConfig.get().getConfig().getDanmaku();
