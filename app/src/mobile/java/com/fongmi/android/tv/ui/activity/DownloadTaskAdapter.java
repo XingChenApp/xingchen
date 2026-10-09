@@ -7,6 +7,12 @@ import android.view.ViewGroup;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import android.app.AlertDialog;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.view.Window;
+import android.view.WindowManager;
+
 import androidx.annotation.NonNull;
 import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
@@ -57,9 +63,9 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
                 openCompletedFile(v, task);
             }
         });
-        // 长按删除
+        // 长按删除（先弹确认框）
         holder.itemView.setOnLongClickListener(v -> {
-            DownloadManager.get().delete(task.getId());
+            showDeleteConfirm(v, task);
             return true;
         });
     }
@@ -67,6 +73,30 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
     @Override
     public int getItemCount() {
         return tasks.size();
+    }
+
+    /** 长按删除确认：白毛玻璃弹窗，确认后才删除任务及文件 */
+    private void showDeleteConfirm(View view, DownloadTask task) {
+        Context context = view.getContext();
+        if (!(context instanceof FragmentActivity)) return;
+        FragmentActivity activity = (FragmentActivity) context;
+        if (activity.isFinishing()) return;
+        View dialogView = LayoutInflater.from(activity).inflate(R.layout.dialog_download_delete_confirm, null);
+        AlertDialog dialog = new AlertDialog.Builder(activity).setView(dialogView).create();
+        dialogView.findViewById(R.id.btn_cancel).setOnClickListener(v -> dialog.dismiss());
+        dialogView.findViewById(R.id.btn_delete).setOnClickListener(v -> {
+            DownloadManager.get().delete(task.getId());
+            Notify.show("已删除");
+            dialog.dismiss();
+        });
+        dialog.show();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams params = window.getAttributes();
+            params.width = (int) (activity.getResources().getDisplayMetrics().widthPixels * 0.88f);
+            window.setAttributes(params);
+        }
     }
 
     /** 已完成：用应用内播放器打开本地文件 */
