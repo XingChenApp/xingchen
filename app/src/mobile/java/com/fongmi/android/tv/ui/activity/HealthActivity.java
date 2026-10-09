@@ -24,7 +24,9 @@ import com.fongmi.android.tv.utils.Task;
 import com.github.catvod.crawler.Spider;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -66,14 +68,20 @@ public class HealthActivity extends BaseActivity {
     private void collectSites() {
         items.clear();
         try {
-            List<Site> sites = VodConfig.get().getSites();
-            for (Site site : sites) {
+            Map<String, Site> allSites = new LinkedHashMap<>();
+            for (Site site : VodConfig.get().getSites()) {
+                if (site != null && site.getKey() != null) allSites.put(site.getKey(), site);
+            }
+            Site home = VodConfig.get().getHome();
+            if (home != null && !home.isEmpty() && home.getKey() != null) allSites.put(home.getKey(), home);
+            for (Site site : allSites.values()) {
+                String key = site.getKey();
                 String api = site.getApi();
                 if (api == null) continue;
                 String type = null;
-                if (api.contains(".py")) type = "PY";
-                else if (api.contains(".js") || api.contains(".wv")) type = "JS";
-                if (type != null) items.add(new SiteItem(site.getKey(), site.getName(), type));
+                if ((site.getType() != null && site.getType() == 3) || key.startsWith("py_") || api.contains(".py")) type = "PY";
+                else if (key.startsWith("js_") || api.contains(".js") || api.contains(".wv")) type = "JS";
+                if (type != null) items.add(new SiteItem(key, site.getName(), type));
             }
         } catch (Throwable ignored) {}
     }
@@ -87,8 +95,8 @@ public class HealthActivity extends BaseActivity {
         Task.execute(() -> {
             int done = 0;
             for (SiteItem item : items) {
-                boolean ok = testSite(item);
-                item.status = ok ? SiteItem.STATUS_OK : SiteItem.STATUS_FAIL;
+                if ("JS".equals(item.type)) item.status = SiteItem.STATUS_UNSUPPORTED;
+                else item.status = testSite(item) ? SiteItem.STATUS_OK : SiteItem.STATUS_FAIL;
                 done++;
                 final int progress = done;
                 runOnUiThread(() -> {
@@ -122,16 +130,17 @@ public class HealthActivity extends BaseActivity {
     }
 
     private void updateSummary() {
-        int ok = 0, fail = 0, testingCount = 0;
+        int ok = 0, fail = 0, unsupported = 0, testingCount = 0;
         for (SiteItem item : items) {
             if (item.status == SiteItem.STATUS_OK) ok++;
             else if (item.status == SiteItem.STATUS_FAIL) fail++;
+            else if (item.status == SiteItem.STATUS_UNSUPPORTED) unsupported++;
             else testingCount++;
         }
         if (testingCount > 0) {
             binding.tvSummary.setText("检测中… " + ok + " 正常");
         } else {
-            binding.tvSummary.setText(ok + " 正常 · " + fail + " 异常");
+            binding.tvSummary.setText(ok + " 正常 · " + fail + " 异常" + (unsupported > 0 ? " · " + unsupported + " 未支持" : ""));
         }
     }
 
@@ -139,6 +148,7 @@ public class HealthActivity extends BaseActivity {
         static final int STATUS_TESTING = 0;
         static final int STATUS_OK = 1;
         static final int STATUS_FAIL = 2;
+        static final int STATUS_UNSUPPORTED = 3;
         final String key;
         final String name;
         final String type;
@@ -171,6 +181,9 @@ public class HealthActivity extends BaseActivity {
             } else if (item.status == SiteItem.STATUS_FAIL) {
                 holder.tvStatus.setText("异常");
                 holder.tvStatus.setTextColor(0xFFE5484D);
+            } else if (item.status == SiteItem.STATUS_UNSUPPORTED) {
+                holder.tvStatus.setText("未支持");
+                holder.tvStatus.setTextColor(0xFF8A8F99);
             } else {
                 holder.tvStatus.setText("检测中…");
                 holder.tvStatus.setTextColor(0xFF8A8F99);
