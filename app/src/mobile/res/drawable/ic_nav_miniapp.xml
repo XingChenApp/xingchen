@@ -4,16 +4,14 @@
     android:tint="?attr/colorControlNormal"
     android:viewportWidth="960"
     android:viewportHeight="960">
+    <!-- Handle: inverted U with hollow center -->
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M220,400L340,400Q400,400 400,340L400,220Q400,160 340,160L220,160Q160,160 160,220L160,340Q160,400 220,400Z" />
+        android:fillType="evenOdd"
+        android:pathData="M360,440 L360,300 Q360,140 480,140 Q600,140 600,300 L600,440 L528,440 L528,300 Q528,212 480,212 Q432,212 432,300 L432,440 Z" />
+    <!-- Body: rounded box with latch cutout -->
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M620,400L740,400Q800,400 800,340L800,220Q800,160 740,160L620,160Q560,160 560,220L560,340Q560,400 620,400Z" />
-    <path
-        android:fillColor="@android:color/white"
-        android:pathData="M220,800L340,800Q400,800 400,740L400,620Q400,560 340,560L220,560Q160,560 160,620L160,740Q160,800 220,800Z" />
-    <path
-        android:fillColor="@android:color/white"
-        android:pathData="M620,800L740,800Q800,800 800,740L800,620Q800,560 740,560L620,560Q560,560 560,620L560,740Q560,800 620,800Z" />
+        android:fillType="evenOdd"
+        android:pathData="M200,820 L760,820 Q830,820 830,750 L830,490 Q830,420 760,420 L200,420 Q130,420 130,490 L130,750 Q130,820 200,820 Z M440,630 L520,630 Q548,630 548,602 L548,498 Q548,470 520,470 L440,470 Q412,470 412,498 L412,602 Q412,630 440,630 Z" />
 </vector>
