@@ -58,6 +58,11 @@ public class ShieldBypass {
         }
     }
 
+    /** providerId -> 请求时用的 UA（验证 WebView 必须用同一个，否则 Cloudflare 不认） */
+    public static String userAgent(String providerId) {
+        return "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36";
+    }
+
     /** providerId -> 显示名 */
     public static String providerName(String providerId) {
         switch (providerId) {
