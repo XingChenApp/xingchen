@@ -67,7 +67,7 @@ public class OkDns implements Dns {
         // no IPv4 address exists at all so IPv6-only hosts keep working.
         List<InetAddress> ipv4 = new ArrayList<>(addresses.size());
         for (InetAddress address : addresses) {
-            if (address instanceof Inet4Address) ipv4.add(address);
+            if (address instanceof Inet4Address && !address.isLoopbackAddress() && !address.isAnyLocalAddress()) ipv4.add(address);
         }
         return ipv4.isEmpty() ? addresses : ipv4;
     }
