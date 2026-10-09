@@ -27,7 +27,9 @@ public final class AboutDialog {
         binding.version.setText(activity.getString(R.string.about_version, AppVersion.fullName(), BuildConfig.FLAVOR_mode, BuildConfig.FLAVOR_abi));
         configureContentHeight(activity, binding);
 
-        Dialog dialog = LightDialog.create(activity, null, binding.getRoot());
+        Dialog dialog = new Dialog(activity);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(binding.getRoot());
         binding.confirm.setOnClickListener(v -> dialog.dismiss());
         dialog.setCanceledOnTouchOutside(false);
         dialog.show();
@@ -51,7 +53,10 @@ public final class AboutDialog {
         params.width = (int) (ResUtil.getScreenWidth(activity) * (ResUtil.isLand(activity) ? 0.62f : 0.92f));
         params.height = WindowManager.LayoutParams.WRAP_CONTENT;
         params.gravity = Gravity.CENTER;
+        params.dimAmount = 0.58f;
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        window.getDecorView().setPadding(0, 0, 0, 0);
         window.setAttributes(params);
         window.setLayout(params.width, WindowManager.LayoutParams.WRAP_CONTENT);
         return true;
