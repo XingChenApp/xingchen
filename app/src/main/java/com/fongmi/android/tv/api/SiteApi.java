@@ -173,18 +173,6 @@ public class SiteApi {
 
     @NonNull
     public static Result detailContent(@NonNull String key, @NonNull String id, boolean forceRefresh) throws Exception {
-        // TEMP-DIAG-ENTRY-REMOVE-AFTER
-        try {
-            java.io.File logFile = new java.io.File(App.get().getExternalFilesDir(null), "py_entry_log.txt");
-            java.io.FileWriter fw = new java.io.FileWriter(logFile, true);
-            fw.write("detailContent called: key=" + key + " id=" + id + " time=" + System.currentTimeMillis() + "\n");
-            try {
-                Site site = VodConfig.get().getSite(key);
-                if (site != null) fw.write("  site type=" + site.getType() + " name=" + site.getName() + "\n");
-            } catch (Exception ignored) {}
-            fw.close();
-        } catch (Exception ignored) {}
-        // TEMP-DIAG-ENTRY-REMOVE-AFTER-END
         SpiderDebug.log("detail", "key=%s,id=%s", key, id);
         if (WebHomeInlineVodStore.KEY.equals(key)) return WebHomeInlineVodStore.detail(id);
         Site site = VodConfig.get().getSite(key);
@@ -207,16 +195,7 @@ public class SiteApi {
                     return result;
                 }
             }
-            String detailContent;
-            // TEMP-DIAG-REMOVE-AFTER
-            try {
-                detailContent = site.recent().spider().detailContent(Arrays.asList(id));
-                tempDiagLog("detailContent OK key=" + key + " id=" + id + " len=" + (detailContent == null ? -1 : detailContent.length()));
-            } catch (Exception e) {
-                tempDiagLog("detailContent FAIL key=" + key + " id=" + id + " err=" + android.util.Log.getStackTraceString(e));
-                throw e;
-            }
-            // TEMP-DIAG-REMOVE-AFTER-END
+            String detailContent = site.recent().spider().detailContent(Arrays.asList(id));
             SpiderDebug.log("detail", detailContent);
             Result result = Result.fromJson(detailContent);
             Vod vod = result.getVod();
@@ -248,22 +227,6 @@ public class SiteApi {
             return result;
         }
     }
-
-    // TEMP-DIAG-REMOVE-AFTER
-    private static void tempDiagLog(String msg) {
-        String line = "[" + System.currentTimeMillis() + "] " + msg + "\n";
-        android.util.Log.e("PY_DIAG", msg);
-        try {
-            android.content.Context ctx = App.get();
-            if (ctx == null) return;
-            java.io.File dir = ctx.getExternalFilesDir(null);
-            if (dir == null) return;
-            java.io.FileWriter fw = new java.io.FileWriter(new java.io.File(dir, "py_java_log.txt"), true);
-            fw.write(line);
-            fw.close();
-        } catch (Throwable ignored) {}
-    }
-    // TEMP-DIAG-REMOVE-AFTER-END
 
     @NonNull
     public static Result playerContent(@NonNull String key, @NonNull String flag, @NonNull String id) throws Exception {
