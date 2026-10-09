@@ -64,6 +64,7 @@ public final class SubtitleSearchDialog extends DialogFragment {
     private CustomRecyclerView recycler;
     private CircularProgressIndicator progress;
     private TextView empty;
+    private LinearLayout statusRow;
     private PlayerManager player;
     private CharSequence keyword;
     private boolean restoreParent;
@@ -215,6 +216,14 @@ public final class SubtitleSearchDialog extends DialogFragment {
         empty.setVisibility(GONE);
         frame.addView(empty, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(72), Gravity.CENTER));
 
+        statusRow = new LinearLayout(requireContext());
+        statusRow.setOrientation(LinearLayout.HORIZONTAL);
+        statusRow.setGravity(Gravity.CENTER);
+        statusRow.setVisibility(GONE);
+        FrameLayout.LayoutParams statusParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
+        statusParams.setMargins(0, dp(16), 0, dp(16));
+        frame.addView(statusRow, statusParams);
+
         recycler = new CustomRecyclerView(requireContext());
         recycler.setLayoutManager(new LinearLayoutManager(requireContext()));
         recycler.setItemAnimator(null);
@@ -262,6 +271,7 @@ public final class SubtitleSearchDialog extends DialogFragment {
         adapter.clear();
         empty.setVisibility(GONE);
         empty.setOnClickListener(null);
+        statusRow.setVisibility(GONE);
         recycler.setVisibility(GONE);
         progress.setVisibility(VISIBLE);
     }
@@ -269,6 +279,7 @@ public final class SubtitleSearchDialog extends DialogFragment {
     private void hideProgress(boolean emptyResult) {
         progress.setVisibility(GONE);
         recycler.setVisibility(emptyResult ? GONE : VISIBLE);
+        statusRow.setVisibility(GONE);
         empty.setVisibility(emptyResult ? VISIBLE : GONE);
         if (emptyResult) {
             empty.setText(R.string.error_empty);
@@ -287,33 +298,71 @@ public final class SubtitleSearchDialog extends DialogFragment {
         });
     }
 
-    /** 空态：列出全部字幕源状态，点击可处理（过验证 / 填 Token） */
+    /** 空态：四个字幕源横排显示，每行独立可点击（过验证 / 填 Token / 填 Key） */
     private void showSourceStatus() {
         progress.setVisibility(GONE);
         recycler.setVisibility(GONE);
-        empty.setVisibility(VISIBLE);
+        empty.setVisibility(GONE);
+        statusRow.setVisibility(VISIBLE);
+        statusRow.removeAllViews();
         List<String> blocked = ShieldBypass.getBlocked();
-        StringBuilder sb = new StringBuilder();
         String[] ids = {"subhd", "shooter", "zimuku", "opensubtitles"};
         for (String id : ids) {
-            if (sb.length() > 0) sb.append("\n");
-            sb.append(ShieldBypass.providerName(id)).append("：").append(statusOf(id, blocked));
+            statusRow.addView(createSourceItem(id, blocked));
         }
-        empty.setText(sb.toString());
-        empty.setOnClickListener(v -> {
-            if (!blocked.isEmpty()) {
-                openShieldVerify(blocked.get(0));
-            } else if (ShooterProvider.needsToken()) {
-                showAssrtTokenInput();
-            }
-        });
+    }
+
+    private View createSourceItem(String id, List<String> blocked) {
+        LinearLayout item = new LinearLayout(requireContext());
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setGravity(Gravity.CENTER);
+        item.setPadding(dp(8), dp(10), dp(8), dp(10));
+        item.setBackground(round(Color.parseColor("#18FFFFFF"), 8, Color.parseColor("#24FFFFFF")));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        params.setMarginStart(dp(4));
+        params.setMarginEnd(dp(4));
+        item.setLayoutParams(params);
+
+        MaterialTextView nameView = new MaterialTextView(requireContext());
+        nameView.setText(ShieldBypass.providerName(id));
+        nameView.setTextColor(Color.WHITE);
+        nameView.setTextSize(13);
+        nameView.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        nameView.setGravity(Gravity.CENTER);
+        item.addView(nameView);
+
+        MaterialTextView statusView = new MaterialTextView(requireContext());
+        statusView.setText(statusOf(id, blocked));
+        statusView.setTextColor(Color.parseColor("#99FFFFFF"));
+        statusView.setTextSize(11);
+        statusView.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        statusParams.topMargin = dp(4);
+        item.addView(statusView, statusParams);
+
+        Runnable action = actionOf(id, blocked);
+        if (action != null) {
+            item.setClickable(true);
+            item.setFocusable(true);
+            item.setOnClickListener(v -> action.run());
+        }
+        return item;
+    }
+
+    /** 每行独立的点击动作，无动作返回 null（不可点） */
+    private Runnable actionOf(String id, List<String> blocked) {
+        if (blocked.contains(id)) return () -> openShieldVerify(id);
+        if (!SubtitleSetting.isSrcEnabled(id)) return null;
+        if ("shooter".equals(id) && ShooterProvider.needsToken()) return this::showAssrtTokenInput;
+        if ("opensubtitles".equals(id) && TextUtils.isEmpty(SubtitleSetting.getOpenSubtitlesKey())) return this::showOpenSubtitlesKeyInput;
+        return null;
     }
 
     private String statusOf(String id, List<String> blocked) {
         if (blocked.contains(id)) return "需要过验证（点击验证）";
         if (!SubtitleSetting.isSrcEnabled(id)) return "已关闭";
         if ("shooter".equals(id) && ShooterProvider.needsToken()) return "未填写 Token（点击填写）";
-        if ("opensubtitles".equals(id) && TextUtils.isEmpty(SubtitleSetting.getOpenSubtitlesKey())) return "未填写 Key";
+        if ("opensubtitles".equals(id) && TextUtils.isEmpty(SubtitleSetting.getOpenSubtitlesKey())) return "未填写 Key（点击填写）";
         return "无结果";
     }
 
@@ -328,6 +377,31 @@ public final class SubtitleSearchDialog extends DialogFragment {
         view.findViewById(R.id.btn_cancel).setOnClickListener(v -> dialog.dismiss());
         view.findViewById(R.id.btn_save).setOnClickListener(v -> {
             SubtitleSetting.putAssrtToken(input.getText().toString());
+            Notify.show("已保存");
+            dialog.dismiss();
+            search();
+        });
+        dialog.show();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams params = window.getAttributes();
+            params.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.88f);
+            window.setAttributes(params);
+        }
+    }
+
+    /** OpenSubtitles Key 输入：仿照射手 Token 弹窗，保存后自动重试 */
+    private void showOpenSubtitlesKeyInput() {
+        FragmentActivity activity = getActivity();
+        if (activity == null || activity.isFinishing()) return;
+        android.view.View view = android.view.LayoutInflater.from(activity).inflate(R.layout.dialog_opensubtitles_key, null);
+        android.widget.EditText input = view.findViewById(R.id.et_token);
+        input.setText(SubtitleSetting.getOpenSubtitlesKey());
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(activity).setView(view).create();
+        view.findViewById(R.id.btn_cancel).setOnClickListener(v -> dialog.dismiss());
+        view.findViewById(R.id.btn_save).setOnClickListener(v -> {
+            SubtitleSetting.putOpenSubtitlesKey(input.getText().toString());
             Notify.show("已保存");
             dialog.dismiss();
             search();
