@@ -17,7 +17,7 @@
 
     <View
         android:layout_width="match_parent"
-        android:layout_height="320dp"
+        android:layout_height="240dp"
         android:layout_below="@id/video"
         android:background="@drawable/shape_video_context_scrim_top" />
 
@@ -30,7 +30,7 @@
     <FrameLayout
         android:id="@+id/video"
         android:layout_width="match_parent"
-        android:layout_height="220dp"
+        android:layout_height="160dp"
         android:layout_below="@+id/statusBar"
         android:background="@color/black"
         android:clickable="true"
@@ -541,7 +541,7 @@
                             android:layout_height="50dp"
                             android:layout_marginStart="10dp"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_detail_btn_glass"
+                            android:background="@drawable/shape_detail_btn_yellow"
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
                             android:text="@string/keep"
@@ -559,7 +559,7 @@
                             android:layout_height="50dp"
                             android:layout_marginStart="10dp"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_detail_btn_glass"
+                            android:background="@drawable/shape_detail_btn_yellow"
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
                             android:text="@string/detail_download"
@@ -577,7 +577,7 @@
                             android:layout_height="50dp"
                             android:layout_marginStart="10dp"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_detail_btn_glass"
+                            android:background="@drawable/shape_detail_btn_yellow"
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
                             android:text="@string/play_cast"
