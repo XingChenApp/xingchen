@@ -6423,7 +6423,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     @Override
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
-        String mode = getSharedPreferences("xingchen", MODE_PRIVATE).getString("bg_pip_mode", "off");
+        String mode = getBgPipMode();
         if (!"pip".equals(mode)) return;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             preparePiP("userLeaveHint");
@@ -6434,7 +6434,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     @Override
     public void onBackPressed() {
-        String mode = getSharedPreferences("xingchen", MODE_PRIVATE).getString("bg_pip_mode", "off");
+        String mode = getBgPipMode();
         if ("pip".equals(mode)) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (preparePiP("backPress")) return;
@@ -6450,7 +6450,13 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     @Override
     public boolean onPictureInPictureRequested() {
+        String mode = getSharedPreferences("xingchen", MODE_PRIVATE).getString("bg_pip_mode", "off");
+        if (!"pip".equals(mode)) return false;
         return requestPiP("systemRequest");
+    }
+
+    private String getBgPipMode() {
+        return getSharedPreferences("xingchen", MODE_PRIVATE).getString("bg_pip_mode", "off");
     }
 
     private boolean preparePiP(String reason) {
