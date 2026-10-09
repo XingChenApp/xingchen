@@ -4,6 +4,7 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -24,7 +25,9 @@ import com.fongmi.android.tv.utils.download.DownloadTask;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 下载任务列表适配器
@@ -32,11 +35,54 @@ import java.util.List;
 public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapter.Holder> {
 
     private final List<DownloadTask> tasks = new ArrayList<>();
+    private final Set<String> selectedIds = new LinkedHashSet<>();
+    private OnSelectionChangeListener selectionListener;
+
+    public interface OnSelectionChangeListener {
+        void onSelectionChanged(int selectedCount, int totalCount);
+    }
+
+    public void setOnSelectionChangeListener(OnSelectionChangeListener l) {
+        selectionListener = l;
+    }
 
     public void setTasks(List<DownloadTask> list) {
         tasks.clear();
         if (list != null) tasks.addAll(list);
+        // 清理已不存在任务的选中态
+        Set<String> alive = new LinkedHashSet<>();
+        for (DownloadTask t : tasks) alive.add(t.getId());
+        selectedIds.retainAll(alive);
         notifyDataSetChanged();
+        notifySelectionChanged();
+    }
+
+    /** 全选 */
+    public void selectAll() {
+        selectedIds.clear();
+        for (DownloadTask t : tasks) selectedIds.add(t.getId());
+        notifyDataSetChanged();
+        notifySelectionChanged();
+    }
+
+    /** 清空选中 */
+    public void clearSelection() {
+        if (selectedIds.isEmpty()) return;
+        selectedIds.clear();
+        notifyDataSetChanged();
+        notifySelectionChanged();
+    }
+
+    public Set<String> getSelectedIds() {
+        return new LinkedHashSet<>(selectedIds);
+    }
+
+    public int getSelectedCount() {
+        return selectedIds.size();
+    }
+
+    private void notifySelectionChanged() {
+        if (selectionListener != null) selectionListener.onSelectionChanged(selectedIds.size(), tasks.size());
     }
 
     @NonNull
@@ -53,6 +99,14 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
         holder.tvStatus.setText(task.getStatusText());
         holder.progress.setProgress(task.getProgress());
         holder.progress.setVisibility(task.getStatus() == DownloadTask.STATUS_DOWNLOADING ? View.VISIBLE : View.GONE);
+        // 选中框：先解绑再设值，避免 ViewHolder 复用误触发
+        holder.cbSelect.setOnCheckedChangeListener(null);
+        holder.cbSelect.setChecked(selectedIds.contains(task.getId()));
+        holder.cbSelect.setOnCheckedChangeListener((btn, checked) -> {
+            if (checked) selectedIds.add(task.getId());
+            else selectedIds.remove(task.getId());
+            notifySelectionChanged();
+        });
         // 点击暂停/继续/播放
         holder.itemView.setOnClickListener(v -> {
             if (task.getStatus() == DownloadTask.STATUS_DOWNLOADING || task.getStatus() == DownloadTask.STATUS_WAITING) {
@@ -120,12 +174,14 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
     }
 
     static class Holder extends RecyclerView.ViewHolder {
+        CheckBox cbSelect;
         TextView tvName;
         TextView tvStatus;
         ProgressBar progress;
 
         Holder(@NonNull View itemView) {
             super(itemView);
+            cbSelect = itemView.findViewById(R.id.cb_select);
             tvName = itemView.findViewById(R.id.tv_task_name);
             tvStatus = itemView.findViewById(R.id.tv_task_status);
             progress = itemView.findViewById(R.id.pb_task_progress);
