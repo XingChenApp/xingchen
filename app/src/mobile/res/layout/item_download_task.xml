@@ -39,6 +39,17 @@
         android:textColor="#2E3A4E"
         android:textSize="13sp" />
 
+    <TextView
+        android:id="@+id/tv_task_size"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textColor="#8A93A6"
+        android:textSize="13sp"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:visibility="gone" />
+
     <ProgressBar
         android:id="@+id/pb_task_progress"
         style="?android:attr/progressBarStyleHorizontal"

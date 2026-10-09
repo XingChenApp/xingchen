@@ -68,4 +68,49 @@ public class DownloadTask {
             default: return "";
         }
     }
+
+    /** 文件大小/已下载量展示文案（下载列表小字行） */
+    public String getSizeText() {
+        if (isM3u8) {
+            if (status == STATUS_COMPLETED) {
+                long size = getFileSize();
+                return size > 0 ? "已完成 · " + formatSize(size) : "已完成";
+            }
+            if (totalBytes > 0) return "分片 " + downloadedBytes + "/" + totalBytes;
+            return "";
+        }
+        switch (status) {
+            case STATUS_COMPLETED: {
+                long size = getFileSize();
+                return size > 0 ? "已完成 · " + formatSize(size) : "已完成";
+            }
+            case STATUS_ERROR:
+                return downloadedBytes > 0 ? "已下载 " + formatSize(downloadedBytes) : "";
+            default:
+                if (totalBytes > 0) return "已下载 " + formatSize(downloadedBytes) + " / " + formatSize(totalBytes);
+                if (downloadedBytes > 0) return "已下载 " + formatSize(downloadedBytes) + "（大小未知）";
+                return "";
+        }
+    }
+
+    /** 磁盘实际文件大小（字节），文件不存在返回 0 */
+    private long getFileSize() {
+        if (filePath == null || filePath.isEmpty()) return 0;
+        File f = new File(filePath);
+        return f.exists() ? f.length() : 0;
+    }
+
+    /** 字节数格式化：B/KB/MB/GB/TB */
+    public static String formatSize(long bytes) {
+        if (bytes < 0) return "未知";
+        if (bytes < 1024) return bytes + "B";
+        double v = bytes;
+        String[] units = {"B", "KB", "MB", "GB", "TB"};
+        int i = 0;
+        while (v >= 1024 && i < units.length - 1) {
+            v /= 1024;
+            i++;
+        }
+        return String.format(java.util.Locale.US, "%.1f%s", v, units[i]);
+    }
 }

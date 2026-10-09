@@ -99,6 +99,10 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
         holder.tvStatus.setText(task.getStatusText());
         holder.progress.setProgress(task.getProgress());
         holder.progress.setVisibility(task.getStatus() == DownloadTask.STATUS_DOWNLOADING ? View.VISIBLE : View.GONE);
+        // 大小/已下载量小字行
+        String sizeText = task.getSizeText();
+        holder.tvSize.setText(sizeText);
+        holder.tvSize.setVisibility(sizeText.isEmpty() ? View.GONE : View.VISIBLE);
         // 选中框：先解绑再设值，避免 ViewHolder 复用误触发
         holder.cbSelect.setOnCheckedChangeListener(null);
         holder.cbSelect.setChecked(selectedIds.contains(task.getId()));
@@ -177,6 +181,7 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
         CheckBox cbSelect;
         TextView tvName;
         TextView tvStatus;
+        TextView tvSize;
         ProgressBar progress;
 
         Holder(@NonNull View itemView) {
@@ -184,6 +189,7 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
             cbSelect = itemView.findViewById(R.id.cb_select);
             tvName = itemView.findViewById(R.id.tv_task_name);
             tvStatus = itemView.findViewById(R.id.tv_task_status);
+            tvSize = itemView.findViewById(R.id.tv_task_size);
             progress = itemView.findViewById(R.id.pb_task_progress);
         }
     }
