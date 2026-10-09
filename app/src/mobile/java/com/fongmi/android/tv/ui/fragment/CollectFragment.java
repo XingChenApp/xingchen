@@ -151,16 +151,20 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
     private void setSites() {
         String siteKey = getSiteKey();
         mSites = new ArrayList<>();
+        java.util.Set<String> selected = com.fongmi.android.tv.ui.dialog.SearchSourceDialog.hasSelection()
+                ? com.fongmi.android.tv.ui.dialog.SearchSourceDialog.getSelectedKeys() : null;
         // Include home site (user-selected PY script via source popup, or VOD source)
         // setHome() only sets the home field without adding to sites list,
         // so we must add it here explicitly, otherwise search finds nothing.
         Site home = VodConfig.get().getHome();
         if (home != null && home.isSearchable()) {
             if (TextUtils.isEmpty(siteKey) || home.getKey().equals(siteKey)) {
-                if (isJsSite(home)) {
-                    App.post(() -> android.widget.Toast.makeText(requireContext(), "JS 暂未支持", android.widget.Toast.LENGTH_SHORT).show());
-                } else {
-                    mSites.add(home);
+                if (selected == null || selected.contains(home.getKey())) {
+                    if (isJsSite(home)) {
+                        App.post(() -> android.widget.Toast.makeText(requireContext(), "JS 暂未支持", android.widget.Toast.LENGTH_SHORT).show());
+                    } else {
+                        mSites.add(home);
+                    }
                 }
             }
         }
@@ -168,13 +172,44 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
             if (!site.isSearchable()) continue;
             if (!TextUtils.isEmpty(siteKey) && !site.getKey().equals(siteKey)) continue;
             if (isJsSite(site)) continue;
+            if (selected != null && !selected.contains(site.getKey())) continue;
             boolean exists = false;
             for (Site s : mSites) {
                 if (s.getKey().equals(site.getKey())) { exists = true; break; }
             }
             if (!exists) mSites.add(site);
         }
+        // Add selected PY scripts that are not in sites/home (from plugins/py/)
+        if (selected != null) {
+            for (String key : selected) {
+                if (!key.startsWith("py_")) continue;
+                boolean exists = false;
+                for (Site s : mSites) {
+                    if (s.getKey().equals(key)) { exists = true; break; }
+                }
+                if (exists) continue;
+                Site pySite = createPySite(key.substring(3));
+                if (pySite != null) mSites.add(pySite);
+            }
+        }
         SiteHealthStore.sortSites(mSites);
+    }
+
+    private Site createPySite(String baseName) {
+        try {
+            java.io.File file = new java.io.File(requireContext().getFilesDir(), "plugins/py/" + baseName + ".py");
+            if (!file.exists()) return null;
+            Site site = new Site();
+            site.setKey("py_" + baseName);
+            site.setName(baseName);
+            site.setApi(file.getAbsolutePath());
+            site.setType(3);
+            site.setExt("{}");
+            site.setJar("");
+            return site;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private boolean isJsSite(Site site) {
