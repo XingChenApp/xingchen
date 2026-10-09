@@ -1904,7 +1904,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             return;
         }
         // 磁力/ed2k/thunder 走迅雷，不进下载器
-        String scheme = com.github.catvod.utils.UrlUtil.scheme(url);
+        String scheme = com.fongmi.android.tv.utils.UrlUtil.scheme(url);
         if ("magnet".equals(scheme) || "ed2k".equals(scheme) || "thunder".equals(scheme)) {
             com.fongmi.android.tv.utils.Notify.show("磁力/ed2k 请用播放器直接播放");
             return;
