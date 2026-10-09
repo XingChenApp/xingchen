@@ -20,6 +20,7 @@ import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.databinding.ActivityHealthBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.utils.Notify;
+import com.fongmi.android.tv.utils.PyExtConfig;
 import com.fongmi.android.tv.utils.Task;
 import com.github.catvod.crawler.Spider;
 
@@ -35,6 +36,8 @@ public class HealthActivity extends BaseActivity {
     private ActivityHealthBinding binding;
     private SiteAdapter adapter;
     private final List<SiteItem> items = new ArrayList<>();
+    // Dynamically created PY sites scanned from plugins/py/ (not in VodConfig)
+    private final Map<String, Site> dynamicSites = new LinkedHashMap<>();
     private volatile boolean testing = false;
 
     public static void start(Activity activity) {
@@ -67,6 +70,7 @@ public class HealthActivity extends BaseActivity {
 
     private void collectSites() {
         items.clear();
+        dynamicSites.clear();
         try {
             Map<String, Site> allSites = new LinkedHashMap<>();
             for (Site site : VodConfig.get().getSites()) {
@@ -83,7 +87,41 @@ public class HealthActivity extends BaseActivity {
                 else if (key.startsWith("js_") || api.contains(".js") || api.contains(".wv")) type = "JS";
                 if (type != null) items.add(new SiteItem(key, site.getName(), type));
             }
+            // Scan plugins/py/ for all PY scripts, not just the current home (same as search)
+            java.io.File pyDir = new java.io.File(getFilesDir(), "plugins/py");
+            java.io.File[] pyFiles = pyDir.listFiles((dir, name) -> name.endsWith(".py"));
+            if (pyFiles != null) {
+                for (java.io.File f : pyFiles) {
+                    String fileName = f.getName();
+                    String baseName = fileName.substring(0, fileName.length() - 3);
+                    String key = "py_" + baseName;
+                    if (dynamicSites.containsKey(key)) continue;
+                    Site pySite = createPySite(baseName);
+                    if (pySite != null) {
+                        dynamicSites.put(key, pySite);
+                        items.add(new SiteItem(key, pySite.getName(), "PY"));
+                    }
+                }
+            }
         } catch (Throwable ignored) {}
+    }
+
+    private Site createPySite(String baseName) {
+        try {
+            java.io.File file = new java.io.File(getFilesDir(), "plugins/py/" + baseName + ".py");
+            if (!file.exists()) return null;
+            Site site = new Site();
+            site.setKey("py_" + baseName);
+            site.setName(baseName);
+            site.setApi(file.getAbsolutePath());
+            site.setType(3);
+            String savedExt = PyExtConfig.load(this, "py_" + baseName);
+            site.setExt(savedExt == null || savedExt.isEmpty() ? "{}" : savedExt);
+            site.setJar("");
+            return site;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private void startTest() {
@@ -118,6 +156,7 @@ public class HealthActivity extends BaseActivity {
     private boolean testSite(SiteItem item) {
         try {
             Site site = VodConfig.get().getSite(item.key);
+            if (site == null || site.isEmpty()) site = dynamicSites.get(item.key);
             if (site == null || site.isEmpty()) return false;
             Spider spider = site.spider();
             Future<String> future = Task.executor().submit(() -> spider.homeContent(true));
