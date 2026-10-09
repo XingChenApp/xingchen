@@ -149,6 +149,7 @@
 
         <activity
             android:name=".ui.activity.HkPageActivity"
+            android:theme="@style/Theme.XingChen.HkPage"
             android:configChanges="screenSize|smallestScreenSize|screenLayout"
             android:screenOrientation="fullUser" />
 

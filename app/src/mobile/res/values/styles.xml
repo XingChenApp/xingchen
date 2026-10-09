@@ -173,4 +173,27 @@
         <item name="android:windowBackground">@drawable/dialog_glass</item>
     </style>
 
+    <!-- 海阔小程序弹窗：深色毛玻璃（用户不要白色底） -->
+    <style name="XingChen.DialogEditText.Dark" parent="android:Widget.EditText">
+        <item name="android:background">@drawable/bg_input_dark</item>
+        <item name="android:textColor">#F2F4F8</item>
+        <item name="android:textColorHint">#6E7686</item>
+        <item name="android:padding">12dp</item>
+    </style>
+
+    <style name="ThemeOverlay.XingChen.GlassDialog.Dark" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="dialogCornerRadius">16dp</item>
+        <item name="android:windowBackground">@drawable/dialog_glass_dark</item>
+        <item name="android:textColor">#F2F4F8</item>
+        <item name="android:textColorPrimary">#F2F4F8</item>
+        <item name="android:textColorSecondary">#A8B0C0</item>
+        <item name="android:colorAccent">#D4A017</item>
+        <item name="android:editTextStyle">@style/XingChen.DialogEditText.Dark</item>
+    </style>
+
+    <!-- 海阔单页 Activity 主题：所有 AlertDialog 走深色毛玻璃 -->
+    <style name="Theme.XingChen.HkPage" parent="Theme.XingChen">
+        <item name="android:alertDialogTheme">@style/ThemeOverlay.XingChen.GlassDialog.Dark</item>
+    </style>
+
 </resources>
