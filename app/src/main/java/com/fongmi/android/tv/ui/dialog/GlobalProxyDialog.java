@@ -55,7 +55,7 @@ public class GlobalProxyDialog extends BaseAlertDialog {
 
     @Override
     protected MaterialAlertDialogBuilder getBuilder() {
-        return builder().setView(binding.getRoot());
+        return builder().setView(getBinding().getRoot());
     }
 
     @Override
