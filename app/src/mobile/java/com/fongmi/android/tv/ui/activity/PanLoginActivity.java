@@ -59,24 +59,8 @@ public class PanLoginActivity extends BaseActivity {
         }
     }
 
-    private void on115Click() {
-        if (PanAuth.is115LoggedIn()) {
-            PanLoginDialog.create()
-                    .title("115")
-                    .logoutAction(() -> {
-                        PanAuth.clear115();
-                        refreshSub();
-                        Notify.show("已退出 115 登录");
-                    })
-                    .onRelogin(this::show115Login)
-                    .showOptions(this);
-        } else {
-            show115Login();
-        }
-    }
-
-    private void show115Login() {
-        PanLoginDialog.create()
+    private PanLoginDialog base115Dialog() {
+        return PanLoginDialog.create()
                 .title("115")
                 .loginUrl("https://115.com/")
                 .cookieDomain("115.com")
@@ -85,28 +69,25 @@ public class PanLoginActivity extends BaseActivity {
                     PanAuth.put115Cookie(cookie);
                     refreshSub();
                     Notify.show("115 登录成功");
-                })
-                .showLogin(this);
+                });
     }
 
-    private void onQuarkClick() {
-        if (PanAuth.isQuarkLoggedIn()) {
-            PanLoginDialog.create()
-                    .title("夸克")
+    private void on115Click() {
+        if (PanAuth.is115LoggedIn()) {
+            base115Dialog()
                     .logoutAction(() -> {
-                        PanAuth.clearQuark();
+                        PanAuth.clear115();
                         refreshSub();
-                        Notify.show("已退出夸克登录");
+                        Notify.show("已退出 115 登录");
                     })
-                    .onRelogin(this::showQuarkLogin)
                     .showOptions(this);
         } else {
-            showQuarkLogin();
+            base115Dialog().showLogin(this);
         }
     }
 
-    private void showQuarkLogin() {
-        PanLoginDialog.create()
+    private PanLoginDialog baseQuarkDialog() {
+        return PanLoginDialog.create()
                 .title("夸克")
                 .loginUrl("https://pan.quark.cn/")
                 .cookieDomain("quark.cn")
@@ -115,7 +96,20 @@ public class PanLoginActivity extends BaseActivity {
                     PanAuth.putQuarkCookie(cookie);
                     refreshSub();
                     Notify.show("夸克登录成功");
-                })
-                .showLogin(this);
+                });
+    }
+
+    private void onQuarkClick() {
+        if (PanAuth.isQuarkLoggedIn()) {
+            baseQuarkDialog()
+                    .logoutAction(() -> {
+                        PanAuth.clearQuark();
+                        refreshSub();
+                        Notify.show("已退出夸克登录");
+                    })
+                    .showOptions(this);
+        } else {
+            baseQuarkDialog().showLogin(this);
+        }
     }
 }
