@@ -254,10 +254,6 @@ apply_media_patches() {
     "$patch_dir/media3-danmaku-live-r2.patch"
     "$patch_dir/media3-playback-diagnostics-r2.patch"
     "$patch_dir/media3-deferred-cues-r2.patch"
-    "$patch_dir/media3-precache-hls-safety.patch"
-    "$patch_dir/media3-exo-av3a-dash-channel-config.patch"
-    "$patch_dir/media3-exo-alac-wave.patch"
-    "$patch_dir/media3-exo-ass-observer.patch"
   )
   for patch_file in "${patches[@]}"; do
     [[ -f "$patch_file" ]] || continue

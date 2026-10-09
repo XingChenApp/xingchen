@@ -20,22 +20,6 @@
       {
         "path": "third_party/patches/media3-deferred-cues-r2.patch",
         "sha256": "a16892cde4cf444f5f92e0116d75f88876efec25d72d9d22e9bd4d56c82044d2"
-      },
-      {
-        "path": "third_party/patches/media3-precache-hls-safety.patch",
-        "sha256": "9b48e895bd3923159f880152a54160e7c937b2b0369d717da559a7ad98fd14f7"
-      },
-      {
-        "path": "third_party/patches/media3-exo-av3a-dash-channel-config.patch",
-        "sha256": "76a1a876c8d8493a54826ad54a789ed487e9d11fe324c701af58821b4539b987"
-      },
-      {
-        "path": "third_party/patches/media3-exo-alac-wave.patch",
-        "sha256": "2b6de52af60d16f705c03963c3e40b872f899f1c1b17b21c48851f7ecfe571f3"
-      },
-      {
-        "path": "third_party/patches/media3-exo-ass-observer.patch",
-        "sha256": "5ceff44d31b67157b84ef2868ed1957279056eca4f0e7aee0ae2809fb53ba3ec"
       }
     ],
     "artifact_overrides": [
