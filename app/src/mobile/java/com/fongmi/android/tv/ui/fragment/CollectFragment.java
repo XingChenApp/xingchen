@@ -227,6 +227,9 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
             String savedExt = com.fongmi.android.tv.utils.PyExtConfig.load(requireContext(), extKey);
             site.setExt(savedExt == null || savedExt.isEmpty() ? "{}" : savedExt);
             site.setJar("");
+            // Register in VodConfig so detail/playback can resolve this dynamic source via getSite()
+            // (search result click passes only the key; without registration detail would get an empty Site and finish()).
+            VodConfig.get().registerDynamicSite(site);
             return site;
         } catch (Exception e) {
             return null;

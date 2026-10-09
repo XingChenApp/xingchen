@@ -26,6 +26,7 @@ import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -44,6 +45,10 @@ public class VodConfig extends BaseConfig {
     private List<String> ads;
     private List<String> flags;
     private List<Parse> parses;
+    // Transient runtime registry for dynamically created Sites (e.g. plugins/py scripts from search).
+    // Search creates Site objects in memory without adding them to the config; detail/playback resolve
+    // them through getSite(), so register them here as a fallback. Never persisted.
+    private final Map<String, Site> dynamicSites = new LinkedHashMap<>();
 
     public static VodConfig get() {
         return Loader.INSTANCE;
@@ -303,7 +308,18 @@ public class VodConfig extends BaseConfig {
     public Site getSite(String key) {
         Site home = getHome();
         if (key != null && key.trim().equals(home.getKey().trim())) return home;
-        return getSites().stream().filter(item -> item.getKey().equals(key)).findFirst().orElse(new Site());
+        Site site = getSites().stream().filter(item -> item.getKey().equals(key)).findFirst().orElse(null);
+        if (site == null) site = dynamicSites.get(key);
+        return site == null ? new Site() : site;
+    }
+
+    /**
+     * Register a dynamically created Site (e.g. a plugins/py script built in memory by search)
+     * so that detail/playback can resolve it via {@link #getSite(String)}.
+     * Memory-only, never written to the config.
+     */
+    public void registerDynamicSite(Site site) {
+        if (site != null && !TextUtils.isEmpty(site.getKey())) dynamicSites.put(site.getKey(), site);
     }
 
     private void setParse(Config config, Parse parse, boolean save) {
