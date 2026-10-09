@@ -103,6 +103,15 @@ public class HkRouter {
         HkPlay out = new HkPlay();
         if (episodeUrl == null) return out;
         String u = episodeUrl.trim();
+        // 0. @lazyRule= 优先提取（必须在 splitEnhancement 之前：JS 代码里含 {}/; 等字符）
+        int lr0 = u.indexOf("@lazyRule=");
+        String lazyRuleText = null;
+        String lazyPageUrl = null;
+        if (lr0 >= 0) {
+            lazyPageUrl = u.substring(0, lr0).trim();
+            lazyRuleText = decodeConflict(u.substring(lr0 + 10).trim());
+            u = lazyPageUrl;
+        }
         // 1. # 页面标识
         int hash = u.indexOf('#');
         if (hash >= 0) u = u.substring(0, hash).trim();
@@ -110,14 +119,11 @@ public class HkRouter {
         u = splitEnhancement(u, out);
         // 3. video://
         if (u.startsWith("video://")) u = u.substring(8).trim();
-        // 4. @lazyRule=
-        int lr = u.indexOf("@lazyRule=");
-        if (lr >= 0) {
-            String pageUrl = u.substring(0, lr).trim();
-            String ruleText = decodeConflict(u.substring(lr + 10).trim());
-            resolveLazyRule(pageUrl, ruleText, out);
+        // 4. @lazyRule=（已在步骤0提取）
+        if (lazyRuleText != null) {
+            resolveLazyRule(lazyPageUrl, lazyRuleText, out);
             if (!out.isEmpty()) return out;
-            u = pageUrl;
+            // lazyRule 未解析出地址时，继续用 pageUrl 走后续分流
         }
         // 5. @rule=js:
         int ar = u.indexOf("@rule=");

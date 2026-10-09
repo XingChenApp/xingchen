@@ -139,6 +139,14 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             options = mergeMethod(options, "post");
             return fetchSync(url, options);
         });
+        ctx.getGlobalObject().setProperty("request", args -> {
+            if (args == null || args.length == 0) return "";
+            String url = String.valueOf(args[0]);
+            // hiker://page/<path> 内部协议：从规则 pages 里按 path 取页面规则，返回 {"rule": "..."}
+            if (url.startsWith("hiker://page/")) return handlePageRequest(url);
+            String options = args.length > 1 && args[1] != null ? stringifyArg(args[1]) : null;
+            return fetchSync(url, options);
+        });
         ctx.getGlobalObject().setProperty("getResCode", args -> resCode);
         ctx.getGlobalObject().setProperty("getUrl", args -> lastUrl == null ? "" : lastUrl);
 
@@ -213,6 +221,61 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             return null;
         });
 
+        // ---- 交互/配置（海阔规则常用，preRule 里调） ----
+        ctx.getGlobalObject().setProperty("confirm", args -> {
+            // 官方弹确认框；我们无 UI，直接走 confirm 回调（若有）并返回 true
+            try {
+                if (args != null && args.length > 0 && args[0] != null) {
+                    String json = stringifyArg(args[0]);
+                    Logger.t(TAG).d("confirm: %s", json);
+                }
+            } catch (Throwable ignored) {
+            }
+            return true;
+        });
+        ctx.getGlobalObject().setProperty("initConfig", args -> {
+            // initConfig({host: ...})：把配置持久化到 plugins/hk/config/<规则名>.json，供 config.xxx 读取
+            try {
+                if (args != null && args.length > 0 && args[0] != null) {
+                    String json = stringifyArg(args[0]);
+                    if (!TextUtils.isEmpty(json) && json.startsWith("{")) {
+                        HkRuleManager.get().saveRuleConfig(rule.getTitle(), json);
+                        // 同步刷新当前 ctx 的 config 对象
+                        try {
+                            JSObject obj = (JSObject) ctx.parse(json);
+                            ctx.getGlobalObject().setProperty("config", obj);
+                        } catch (Throwable ignored) {
+                        }
+                        Logger.t(TAG).d("initConfig saved for %s", rule.getTitle());
+                    }
+                }
+            } catch (Throwable e) {
+                Logger.t(TAG).d("initConfig failed: %s", e.getMessage());
+            }
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("getParam", args -> {
+            // getParam('word')：从 MY_URL 的 query 里取值（$('...').rule(fn) 场景）
+            if (args == null || args.length == 0) return "";
+            String key = String.valueOf(args[0]);
+            try {
+                String u = lastUrl == null ? "" : lastUrl;
+                int q = u.indexOf('?');
+                if (q < 0) return "";
+                String query = u.substring(q + 1);
+                int h = query.indexOf('#');
+                if (h >= 0) query = query.substring(0, h);
+                for (String kv : query.split("&")) {
+                    int eq = kv.indexOf('=');
+                    if (eq > 0 && kv.substring(0, eq).equals(key)) {
+                        return java.net.URLDecoder.decode(kv.substring(eq + 1), "UTF-8");
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+            return "";
+        });
+
         // ---- 编解码 ----
         ctx.getGlobalObject().setProperty("base64Encode", args -> {
             if (args == null || args.length == 0) return "";
@@ -270,6 +333,66 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             return null;
         });
+
+        // ---- $ 选择器助手：$('').lazyRule(fn) / $('...').rule(fn) / $.toString(fn, ...args) ----
+        // lazyRule 把函数序列化为 @lazyRule=.js:... 字符串，拼到 URL 上由 HkRouter.play() 求值；
+        // $.toString 把函数+绑定参数序列化为 js:... 字符串，点击时由 evalLazy 求值（input 为全局）。
+        try {
+            ctx.evaluate(
+                "function $(selector) {\n" +
+                "  return {\n" +
+                "    lazyRule: function(fn) {\n" +
+                "      return '@lazyRule=.js:(' + fn.toString() + ')()';\n" +
+                "    },\n" +
+                "    rule: function(fn) {\n" +
+                "      return 'js:(' + fn.toString() + ')();';\n" +
+                "    }\n" +
+                "  };\n" +
+                "}\n" +
+                "$.toString = function(fn) {\n" +
+                "  var args = [];\n" +
+                "  for (var i = 1; i < arguments.length; i++) {\n" +
+                "    try { args.push(JSON.stringify(arguments[i])); } catch (e) { args.push('null'); }\n" +
+                "  }\n" +
+                "  return 'js:(' + fn.toString() + ')(' + args.join(',') + ');';\n" +
+                "};\n"
+            );
+        } catch (Throwable e) {
+            Logger.t(TAG).d("$ helper failed: %s", e.getMessage());
+        }
+    }
+
+    /**
+     * hiker://page/&lt;path&gt; 内部协议：从规则 pages（JSON 数组）里按 path 找页面规则，
+     * 返回 {@code {"rule": "..."}} JSON 字符串。官方 JSEngine.fetchByHiker 同款语义。
+     */
+    private String handlePageRequest(String url) {
+        try {
+            String path = url.substring("hiker://page/".length());
+            int q = path.indexOf('?');
+            if (q >= 0) path = path.substring(0, q);
+            int h = path.indexOf('#');
+            if (h >= 0) path = path.substring(0, h);
+            path = path.trim();
+            String pagesJson = rule.getPages();
+            if (!TextUtils.isEmpty(pagesJson)) {
+                List<Map<String, Object>> pages = GSON.fromJson(pagesJson, MAP_LIST_TYPE);
+                if (pages != null) {
+                    for (Map<String, Object> p : pages) {
+                        if (path.equals(String.valueOf(p.get("path")))) {
+                            Map<String, String> out = new HashMap<>();
+                            Object r = p.get("rule");
+                            out.put("rule", r == null ? "" : String.valueOf(r));
+                            return GSON.toJson(out);
+                        }
+                    }
+                }
+            }
+            Logger.t(TAG).d("handlePageRequest: no page rule for path=%s", path);
+        } catch (Throwable e) {
+            Logger.t(TAG).d("handlePageRequest failed: %s", e.getMessage());
+        }
+        return "{}";
     }
 
     /**
