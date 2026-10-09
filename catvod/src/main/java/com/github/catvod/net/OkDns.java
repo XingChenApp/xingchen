@@ -5,8 +5,10 @@ import androidx.annotation.NonNull;
 import com.github.catvod.bean.Doh;
 import com.github.catvod.utils.Util;
 
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -59,7 +61,15 @@ public class OkDns implements Dns {
     public List<InetAddress> lookup(@NonNull String hostname) throws UnknownHostException {
         Supplier<Doh> supplier = this.supplier;
         if (supplier != null) initDoh(supplier);
-        return (doh != null ? doh : Dns.SYSTEM).lookup(get(hostname));
+        List<InetAddress> addresses = (doh != null ? doh : Dns.SYSTEM).lookup(get(hostname));
+        // Force IPv4: some phones' system DNS returns broken IPv6 (e.g. [::]) for CDN hosts,
+        // which makes every connection fail. Prefer IPv4; keep the original list only when
+        // no IPv4 address exists at all so IPv6-only hosts keep working.
+        List<InetAddress> ipv4 = new ArrayList<>(addresses.size());
+        for (InetAddress address : addresses) {
+            if (address instanceof Inet4Address) ipv4.add(address);
+        }
+        return ipv4.isEmpty() ? addresses : ipv4;
     }
 
     private synchronized void initDoh(Supplier<Doh> supplier) {
