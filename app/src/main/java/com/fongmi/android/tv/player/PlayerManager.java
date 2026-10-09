@@ -5675,9 +5675,6 @@ public class PlayerManager implements ParseCallback {
         }
 
         @Override
-
-
-        @Override
         public void onTimelineChanged(@NonNull Timeline timeline, int reason) {
             if (isExo()) scheduleNetworkProtection(0);
         }
