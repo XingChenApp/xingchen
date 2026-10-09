@@ -24,6 +24,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 import java.io.File;
 import java.util.List;
+import java.util.Set;
 
 public class DownloadActivity extends BaseActivity {
 
@@ -90,14 +91,33 @@ public class DownloadActivity extends BaseActivity {
 
     private DownloadTaskAdapter adapter;
     private final DownloadManager.Listener downloadListener = task -> refreshTasks();
+    /** 同步全选框状态时屏蔽监听回环 */
+    private boolean updatingSelectAll = false;
 
     @Override
     protected void initView(Bundle savedInstanceState) {
         binding.rvDownloads.setLayoutManager(new LinearLayoutManager(this));
         adapter = new DownloadTaskAdapter();
         binding.rvDownloads.setAdapter(adapter);
-        binding.cbSelectAll.setOnCheckedChangeListener((btn, checked) -> Notify.show(checked ? "全选" : "取消全选"));
-        binding.btnDeleteSelected.setOnClickListener(v -> Notify.show("暂无可删除任务"));
+        adapter.setOnSelectionChangeListener((selectedCount, totalCount) -> {
+            updatingSelectAll = true;
+            binding.cbSelectAll.setChecked(totalCount > 0 && selectedCount == totalCount);
+            updatingSelectAll = false;
+        });
+        binding.cbSelectAll.setOnCheckedChangeListener((btn, checked) -> {
+            if (updatingSelectAll || adapter == null) return;
+            if (checked) adapter.selectAll();
+            else adapter.clearSelection();
+        });
+        binding.btnDeleteSelected.setOnClickListener(v -> {
+            if (adapter == null) return;
+            Set<String> ids = adapter.getSelectedIds();
+            if (ids.isEmpty()) {
+                Notify.show("请先勾选要删除的任务");
+                return;
+            }
+            showDeleteSelectedConfirm(ids);
+        });
         refreshDirSub();
         binding.cardDownloadDir.setOnClickListener(v -> openDirPicker());
         refreshThreadSub();
@@ -170,6 +190,30 @@ public class DownloadActivity extends BaseActivity {
         android.view.View cancel = dialog.findViewById(R.id.cancel);
         cancel.setOnClickListener(v -> dialog.dismiss());
         dialog.show();
+    }
+
+    /** 批量删除选中：白毛玻璃确认弹窗 */
+    private void showDeleteSelectedConfirm(Set<String> ids) {
+        int count = ids.size();
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_download_delete_confirm, null);
+        android.widget.TextView tvMessage = dialogView.findViewById(R.id.tv_message);
+        if (tvMessage != null) tvMessage.setText("确定删除选中的 " + count + " 个任务及已下载文件吗？");
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(this).setView(dialogView).create();
+        dialogView.findViewById(R.id.btn_cancel).setOnClickListener(v -> dialog.dismiss());
+        dialogView.findViewById(R.id.btn_delete).setOnClickListener(v -> {
+            for (String id : ids) DownloadManager.get().delete(id);
+            if (adapter != null) adapter.clearSelection();
+            Notify.show("已删除 " + count + " 个任务");
+            dialog.dismiss();
+        });
+        dialog.show();
+        android.view.Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            android.view.WindowManager.LayoutParams params = window.getAttributes();
+            params.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.88f);
+            window.setAttributes(params);
+        }
     }
 
     private void refreshDirSub() {
