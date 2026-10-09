@@ -24,7 +24,7 @@ public final class AboutDialog {
 
     public static void show(FragmentActivity activity, Runnable updateAction) {
         DialogAboutBinding binding = DialogAboutBinding.inflate(LayoutInflater.from(activity));
-        binding.version.setText(activity.getString(R.string.about_version, AppVersion.fullName(), BuildConfig.FLAVOR_mode, BuildConfig.FLAVOR_abi));
+        binding.version.setText(activity.getString(R.string.about_version, BuildConfig.VERSION_NAME));
         configureContentHeight(activity, binding);
 
         Dialog dialog = new Dialog(activity);
