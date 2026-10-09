@@ -40,7 +40,8 @@
         android:id="@+id/switch_enable"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp" />
+        android:layout_marginEnd="8dp"
+        android:thumb="@drawable/xc_switch_thumb" />
 
     <TextView
         android:id="@+id/tv_delete"
