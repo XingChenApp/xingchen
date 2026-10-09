@@ -253,9 +253,7 @@ index 9cae8be..a381097 100644
 +            bitstreamChromaBitdepth = avs3Config.bitdepth;
 +          }
 +          break;
-@@ -2909,0 +3016 @@ public class MatroskaExtractor implements Extractor {
-+        trueHdAtmosAnalysisComplete = false;
-@@ -2910,0 +3018 @@ public class MatroskaExtractor implements Extractor {
+@@ -2910,0 +3017 @@ public class MatroskaExtractor implements Extractor {
 +      pendingDolbyVisionBlockAdditionalData = null;
 diff --git a/libraries/extractor/src/main/java/androidx/media3/extractor/mp4/BoxParser.java b/libraries/extractor/src/main/java/androidx/media3/extractor/mp4/BoxParser.java
 index f16d019..c2deb50 100644
