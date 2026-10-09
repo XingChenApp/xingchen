@@ -163,6 +163,7 @@ import com.fongmi.android.tv.utils.Task;
 import com.fongmi.android.tv.utils.Timer;
 import com.fongmi.android.tv.utils.Traffic;
 import com.fongmi.android.tv.utils.Util;
+import com.fongmi.android.tv.utils.VodDetailCache;
 import com.github.catvod.crawler.SpiderDebug;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
@@ -268,6 +269,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private String mArtworkRequestUrl;
     private String mArtworkRequestOwner;
     private Vod mPendingDetailVod;
+    private boolean mDetailCacheShown;
     private Result mPendingPlayerResult;
     private int mAudioArtworkColor = Color.rgb(55, 45, 68);
     private final Map<String, String> mAudioQueueFlags = new HashMap<>();
@@ -1258,6 +1260,13 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         detailStartTime = System.currentTimeMillis();
         detailHealthRecorded = false;
         SpiderDebug.log("video-flow", "detail start key=%s id=%s name=%s", getKey(), getId(), getName());
+        mDetailCacheShown = false;
+        Vod cached = VodDetailCache.get(this, getKey(), getId());
+        if (cached != null) {
+            mDetailCacheShown = true;
+            SpiderDebug.log("video-flow", "detail cache hit key=%s id=%s", getKey(), getId());
+            setDetail(cached);
+        }
         mViewModel.detailContent(getKey(), getId());
     }
 
@@ -1286,8 +1295,14 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         SpiderDebug.log("video-flow", "detail finish cost=%dms empty=%s msg=%s", cost, result.getList().isEmpty(), result.getMsg());
         recordDetailHealth(result, cost);
         mBinding.swipeLayout.setRefreshing(false);
-        if (result.getList().isEmpty()) setEmpty(result.hasMsg());
-        else setDetail(result.getVod());
+        if (result.getList().isEmpty()) {
+            if (mDetailCacheShown) return;
+            setEmpty(result.hasMsg());
+        } else {
+            mDetailCacheShown = false;
+            VodDetailCache.put(this, getKey(), getId(), result.getVod());
+            setDetail(result.getVod());
+        }
         Notify.show(result.getMsg());
     }
 
