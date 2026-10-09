@@ -13,6 +13,7 @@ import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.AboutDialog;
 import com.fongmi.android.tv.ui.dialog.ChoiceDialog;
+import com.fongmi.android.tv.ui.dialog.ProxyDialog;
 import com.fongmi.android.tv.utils.AppVersion;
 import com.fongmi.android.tv.utils.FileUtil;
 import com.fongmi.android.tv.utils.Notify;
@@ -43,7 +44,7 @@ public class XingChenSettingsActivity extends BaseActivity {
         binding.tvVersionSub.setText(AppVersion.fullName());
         binding.cardVersion.setOnClickListener(v -> AboutDialog.show(this, () -> Updater.create().force().start(this)));
         updateProxySub();
-        binding.cardProxy.setOnClickListener(v -> ProxyActivity.start(this));
+        binding.cardProxy.setOnClickListener(v -> ProxyDialog.create().show(this));
         updateDohSub();
         binding.cardDoh.setOnClickListener(v -> ChoiceDialog.showSingle(getSupportFragmentManager(), "DoH", XingChenDoh.NAMES, XingChenDoh.getIndex(this), which -> {
             XingChenDoh.setIndex(this, which);
