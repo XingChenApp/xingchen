@@ -49,11 +49,11 @@
         {
           "name": "media3-ui-1.11.0-alpha01-fongmi.aar",
           "url": "media3-ui-1.11.0-alpha01-fongmi.aar",
-          "size": 436614,
-          "sha512": "9e285a516fcdf7383e0e9204b4c44e943c21fb2cd1eb013427e49f0ea46ce2ae3bacd6d9dc636f3a30ce9be79ac68e9fe3ccfc76eed13dfd45e147ca41cf615e",
-          "sha256": "1091bb833e29ce3fcc55dfd2d6c30ad4cd18c68414f0957a4e3b0e695db2a088",
-          "sha1": "b8fe9b30c794af077cf62a858f40234f07dd5bae",
-          "md5": "0196c912f3e5263cf09c71e960afc25a"
+          "size": 369310,
+          "sha512": "228f236dfc135eae2a1542472329168ca5f034d84784aa3b131840ebcdd44c24a512e96f199db7e55e5d0ccfbf8ea0e2b746fcc531b717783f677ac147912875",
+          "sha256": "da5b513a10aa6400703cb2d692ddb8b1c5a970aa31a47278fe8a38b6497dfae9",
+          "sha1": "ebb668fa325e26afceda668a0a4e3ba1d12e82ab",
+          "md5": "9dc225a33937fbd410b5ef7ca89fc68e"
         }
       ]
     },
@@ -106,11 +106,11 @@
         {
           "name": "media3-ui-1.11.0-alpha01-fongmi.aar",
           "url": "media3-ui-1.11.0-alpha01-fongmi.aar",
-          "size": 436614,
-          "sha512": "9e285a516fcdf7383e0e9204b4c44e943c21fb2cd1eb013427e49f0ea46ce2ae3bacd6d9dc636f3a30ce9be79ac68e9fe3ccfc76eed13dfd45e147ca41cf615e",
-          "sha256": "1091bb833e29ce3fcc55dfd2d6c30ad4cd18c68414f0957a4e3b0e695db2a088",
-          "sha1": "b8fe9b30c794af077cf62a858f40234f07dd5bae",
-          "md5": "0196c912f3e5263cf09c71e960afc25a"
+          "size": 369310,
+          "sha512": "228f236dfc135eae2a1542472329168ca5f034d84784aa3b131840ebcdd44c24a512e96f199db7e55e5d0ccfbf8ea0e2b746fcc531b717783f677ac147912875",
+          "sha256": "da5b513a10aa6400703cb2d692ddb8b1c5a970aa31a47278fe8a38b6497dfae9",
+          "sha1": "ebb668fa325e26afceda668a0a4e3ba1d12e82ab",
+          "md5": "9dc225a33937fbd410b5ef7ca89fc68e"
         }
       ]
     },
@@ -126,11 +126,11 @@
         {
           "name": "media3-ui-1.11.0-alpha01-fongmi-sources.jar",
           "url": "media3-ui-1.11.0-alpha01-fongmi-sources.jar",
-          "size": 121580,
-          "sha512": "a01d15909cc9e222d5db93a4cf9d7d0fc780f816db1549f12e3d6939c6ddac5121b04396beb61165c9b6ffe5733d80cbaa4629b455be2e9566fcf0b5f400d02f",
-          "sha256": "dc6eb9410c2ffa7f19c1c6dfb783915cba9b71199c4d48ccccf1005ffaf32ece",
-          "sha1": "3eeca6bb72b0a3208762acb0770a95a56c0d419a",
-          "md5": "4900642e652b80759878706a5dd97015"
+          "size": 135891,
+          "sha512": "87a5a69791c67a767967e18b1734233b5a336f6c3118f7406b68089f95d4a458ad0c9b8772fc91150d14aabec2ab68bb97033f634869d98f3e6fba3fa8ecbf57",
+          "sha256": "ee6c8a58a91f585685016e13703945ecf865af36ba1e4998b0b71bb295d41a71",
+          "sha1": "7d331dd026a8d36520939ab98ebf731676591d6c",
+          "md5": "fe6f9a6267107085ef9689019d085d23"
         }
       ]
     }

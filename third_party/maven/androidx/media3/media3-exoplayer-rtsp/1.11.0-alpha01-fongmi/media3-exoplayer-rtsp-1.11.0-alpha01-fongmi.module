@@ -35,11 +35,11 @@
         {
           "name": "media3-exoplayer-rtsp-1.11.0-alpha01-fongmi.aar",
           "url": "media3-exoplayer-rtsp-1.11.0-alpha01-fongmi.aar",
-          "size": 165448,
-          "sha512": "b25edb48cc0f3ba168250ea0c33967916c5ca33de17d87b580febd0c6aa5df5e56e26afe6e17dff89b6b8e09957737fdf9679b030ebb464d550b445249f39fd3",
-          "sha256": "171e9b8e6bc43cb02be959ad3c59e335448e80740845660e0531836dddb01c7b",
-          "sha1": "935cf7e2187982b45fe49c7c716cb12208730315",
-          "md5": "f231c0470e405b1aa7fee1e9a00de4d0"
+          "size": 165543,
+          "sha512": "c260f072e38907644a9ffb922b75955824210a644445b3c5d43a9b9741cb8116aa9b970766f92527b3e3b5ca316f96cc4f117ef06007d711273deb37a1919e4d",
+          "sha256": "4d9c19231d4a629c01ac601da1fbc452fea86fab87d0c709008cd307076d1952",
+          "sha1": "89db830b6b4b4c2fdc892ede6d7771382134559f",
+          "md5": "4eb5b7abc20b43e678848edd2ebac624"
         }
       ]
     },
@@ -71,11 +71,11 @@
         {
           "name": "media3-exoplayer-rtsp-1.11.0-alpha01-fongmi.aar",
           "url": "media3-exoplayer-rtsp-1.11.0-alpha01-fongmi.aar",
-          "size": 165448,
-          "sha512": "b25edb48cc0f3ba168250ea0c33967916c5ca33de17d87b580febd0c6aa5df5e56e26afe6e17dff89b6b8e09957737fdf9679b030ebb464d550b445249f39fd3",
-          "sha256": "171e9b8e6bc43cb02be959ad3c59e335448e80740845660e0531836dddb01c7b",
-          "sha1": "935cf7e2187982b45fe49c7c716cb12208730315",
-          "md5": "f231c0470e405b1aa7fee1e9a00de4d0"
+          "size": 165543,
+          "sha512": "c260f072e38907644a9ffb922b75955824210a644445b3c5d43a9b9741cb8116aa9b970766f92527b3e3b5ca316f96cc4f117ef06007d711273deb37a1919e4d",
+          "sha256": "4d9c19231d4a629c01ac601da1fbc452fea86fab87d0c709008cd307076d1952",
+          "sha1": "89db830b6b4b4c2fdc892ede6d7771382134559f",
+          "md5": "4eb5b7abc20b43e678848edd2ebac624"
         }
       ]
     },
@@ -91,11 +91,11 @@
         {
           "name": "media3-exoplayer-rtsp-1.11.0-alpha01-fongmi-sources.jar",
           "url": "media3-exoplayer-rtsp-1.11.0-alpha01-fongmi-sources.jar",
-          "size": 125731,
-          "sha512": "bc61f0e427307d71d2c6400996ff5866de0373078ecce1befc707ab80d6a0b34452f53548850647c2b409a5c0a5f721d8b412a04521615f38f8a673f536c1c1d",
-          "sha256": "ca7f04fc4eef48af5ce60d3851f04d4686ff80f3ed38844d6556001d9cb35a35",
-          "sha1": "aea6006e60d07d6441c4dbdd96195d065428605d",
-          "md5": "274cc72bfa2502bb79e1ceb166eb67c6"
+          "size": 125836,
+          "sha512": "d53cb1955504d782e6216bceb0997ba54f07e09b4bdbcbdb25e4ac40743d9218677360929482f5e23a2158e4c03a2defa0efdfd6dacf26bca7983718f9399833",
+          "sha256": "a5f20793fbab278afd2a51d1e737174545730d2f1d99ba6be9ed4fad92ef7f7d",
+          "sha1": "624474e4dbea4196c20e99fa835b8b872f485956",
+          "md5": "683518ef2ca107767627e02ec49a298c"
         }
       ]
     }
