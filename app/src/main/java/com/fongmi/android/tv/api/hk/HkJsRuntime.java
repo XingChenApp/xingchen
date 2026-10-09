@@ -1,5 +1,8 @@
 package com.fongmi.android.tv.api.hk;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.text.TextUtils;
 import android.util.Base64;
 
@@ -21,14 +24,18 @@ import com.whl.quickjs.wrapper.QuickJSContext;
 
 import java.io.File;
 import java.lang.reflect.Type;
+import java.net.NetworkInterface;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.Response;
 import okhttp3.ResponseBody;
@@ -67,6 +74,38 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     /** 明细原始条目收集（parseDetailRaw 用，保留 line/col_type 等扩展字段）。 */
     private final List<Map<String, String>> rawResults = new ArrayList<>();
     private volatile boolean collectRaw;
+    /** 规则内会话变量（getMyVar/putMyVar，官方 key 形态为 ruleTitle@key；单规则单实例，等价）。 */
+    private final Map<String, String> myVars = new HashMap<>();
+    /** 跨规则公共持久化（setPublicItem/getPublicItem）。 */
+    private final Map<String, String> publicKv = new HashMap<>();
+    /** addListener 注册的事件回调（事件名 → 回调描述）。 */
+    private final Map<String, String> listeners = new HashMap<>();
+    /** fc/rc 的内存缓存（url → 数据+过期时间）。 */
+    private final Map<String, MemCache> memCache = new HashMap<>();
+    /** setPreResult 预返回 staging：下一记 setResult/setSearchResult 先清空。 */
+    private boolean preResultActive;
+    /** setPageTitle/getPageTitle 的页标题状态。 */
+    private String pageTitle = "";
+    /** 当前页码（MY_PAGE 注入用）。 */
+    private int page = 1;
+
+    /** evalPrivateJS 的 AES 密钥（官方 AesUtil.decrypt 写死值）。 */
+    private static final String AES_PRIVATE_KEY = "hk6666666109";
+    private static final String UA_MOBILE = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+    private static final String UA_PC = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+    /** 内存缓存条目。 */
+    private static class MemCache {
+        final String data;
+        final long expireAt;
+        MemCache(String data, long expireAt) {
+            this.data = data;
+            this.expireAt = expireAt;
+        }
+        boolean alive() {
+            return System.currentTimeMillis() < expireAt;
+        }
+    }
 
     private QuickJSContext ctx;
     private Map<String, String> kv;
@@ -83,6 +122,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         this.vars = new HashMap<>();
         this.results = new ArrayList<>();
         this.kv = new HashMap<>();
+        loadPublicKv();
     }
 
     private <T> Future<T> submit(java.util.concurrent.Callable<T> callable) {
@@ -108,20 +148,39 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     private void registerApi() {
         // ---- 结果返回 ----
         ctx.getGlobalObject().setProperty("setResult", args -> {
+            beginResult();
             collectResult(args);
             return null;
         });
         ctx.getGlobalObject().setProperty("setHomeResult", args -> {
+            beginResult();
             collectHomeResult(args);
             return null;
         });
         ctx.getGlobalObject().setProperty("setSearchResult", args -> {
+            beginResult();
             collectResult(args);
+            return null;
+        });
+        // setPreResult：预返回（官方要求与 setResult 成对、顺序固定）。
+        // 语义：先占位展示，下一记 setResult/setSearchResult 到达时整体替换。
+        ctx.getGlobalObject().setProperty("setPreResult", args -> {
+            results.clear();
+            rawResults.clear();
+            collectResult(args);
+            preResultActive = true;
+            Logger.t(TAG).d("setPreResult: %d items staged", results.size());
             return null;
         });
         ctx.getGlobalObject().setProperty("setError", args -> {
             error = args != null && args.length > 0 ? String.valueOf(args[0]) : "";
             Logger.t(TAG).d("setError: %s", error);
+            return null;
+        });
+        // 官方别名：error 即 setError
+        ctx.getGlobalObject().setProperty("error", args -> {
+            error = args != null && args.length > 0 ? String.valueOf(args[0]) : "";
+            Logger.t(TAG).d("error: %s", error);
             return null;
         });
 
@@ -148,6 +207,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             return fetchSync(url, options);
         });
         ctx.getGlobalObject().setProperty("getResCode", args -> resCode);
+        // 官方别名：getCode 即 getResCode
+        ctx.getGlobalObject().setProperty("getCode", args -> resCode);
         ctx.getGlobalObject().setProperty("getUrl", args -> lastUrl == null ? "" : lastUrl);
 
         // ---- DOM 解析（复用 Parser，即海阔 parseHikerToJq 路径） ----
@@ -334,9 +395,627 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             return null;
         });
 
-        // ---- $ 选择器助手：$('').lazyRule(fn) / $('...').rule(fn) / $.toString(fn, ...args) ----
+        // ---- __hkRequirePage：$.require(path) 的 Java 实现 ----
+        // hiker://page/<path>：从规则 pages 按 path 找页面代码，IIFE 包裹求值（防顶层 const 重声明），
+        // 页面代码以 $.exports = xxx 导出，JS 层 $.require 直接返回 $.exports（官方同款语义）。
+        // 其他路径：复用 require 的远程/本地库逻辑。
+        ctx.getGlobalObject().setProperty("__hkRequirePage", args -> {
+            if (args == null || args.length == 0) return null;
+            String path = String.valueOf(args[0]);
+            try {
+                if (path.startsWith("hiker://page/")) {
+                    String p = path.substring("hiker://page/".length());
+                    int q = p.indexOf('?');
+                    if (q >= 0) p = p.substring(0, q);
+                    int h = p.indexOf('#');
+                    if (h >= 0) p = p.substring(0, h);
+                    String code = findPageCode(p.trim());
+                    if (code == null) {
+                        Logger.t(TAG).d("$.require: no page for path=%s", p);
+                        return null;
+                    }
+                    ctx.evaluate("(function(){\n" + stripJsPrefix(code) + "\n})();");
+                } else {
+                    String code = loadLibLocal(path);
+                    if (code == null) code = fetchSync(path, null);
+                    if (TextUtils.isEmpty(code)) {
+                        Logger.t(TAG).d("$.require: empty lib %s", path);
+                        return null;
+                    }
+                    ctx.evaluate(stripJsPrefix(code));
+                }
+            } catch (Throwable e) {
+                Logger.t(TAG).d("$.require failed %s: %s", path, e.getMessage());
+            }
+            return null;
+        });
+
+        // ---- 规则内会话变量（getMyVar/putMyVar/clearMyVar/listMyVarKeys） ----
+        ctx.getGlobalObject().setProperty("putMyVar", args -> {
+            if (args != null && args.length > 1) myVars.put(String.valueOf(args[0]), String.valueOf(args[1]));
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("getMyVar", args -> {
+            if (args == null || args.length == 0) return "";
+            String v = myVars.get(String.valueOf(args[0]));
+            if (v == null && args.length > 1) v = String.valueOf(args[1]);
+            return v == null ? "" : v;
+        });
+        ctx.getGlobalObject().setProperty("clearMyVar", args -> {
+            if (args != null && args.length > 0) myVars.remove(String.valueOf(args[0]));
+            else myVars.clear();
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("listMyVarKeys", args -> GSON.toJson(new ArrayList<>(myVars.keySet())));
+        ctx.getGlobalObject().setProperty("clearVar", args -> {
+            vars.clear();
+            return null;
+        });
+
+        // ---- 跨规则公共持久化（setPublicItem/getPublicItem/clearPublicItem） ----
+        ctx.getGlobalObject().setProperty("setPublicItem", args -> {
+            if (args != null && args.length > 1) {
+                publicKv.put(String.valueOf(args[0]), String.valueOf(args[1]));
+                savePublicKv();
+            }
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("getPublicItem", args -> {
+            if (args == null || args.length == 0) return "";
+            String v = publicKv.get(String.valueOf(args[0]));
+            if (v == null && args.length > 1) v = String.valueOf(args[1]);
+            return v == null ? "" : v;
+        });
+        ctx.getGlobalObject().setProperty("clearPublicItem", args -> {
+            if (args != null && args.length > 0) publicKv.remove(String.valueOf(args[0]));
+            else publicKv.clear();
+            savePublicKv();
+            return null;
+        });
+
+        // ---- 当前结果列表的动态修改（官方经 EventBus 改 UI 列表；本宿主直接改 results） ----
+        ctx.getGlobalObject().setProperty("updateItem", args -> {
+            // updateItem(id, obj) 或 updateItem(obj)（obj.extra.id / obj.url 作 id）
+            try {
+                String id = null;
+                Object obj = null;
+                if (args != null && args.length >= 2) {
+                    id = String.valueOf(args[0]);
+                    obj = args[1];
+                } else if (args != null && args.length == 1) {
+                    obj = args[0];
+                }
+                Map<String, Object> m = toStrMap(obj);
+                if (id == null && m != null) {
+                    id = str(m, "url");
+                    if (TextUtils.isEmpty(id)) {
+                        Object extra = m.get("extra");
+                        if (extra instanceof Map) id = str((Map<String, Object>) extra, "id");
+                    }
+                }
+                if (!TextUtils.isEmpty(id) && m != null) {
+                    int idx = findResultIndex(id);
+                    if (idx >= 0) {
+                        mergeItem(results.get(idx), m);
+                        Logger.t(TAG).d("updateItem: %s", id);
+                    }
+                    if (collectRaw) {
+                        for (Map<String, String> raw : rawResults) {
+                            if (id.equals(raw.get("url"))) {
+                                for (Map.Entry<String, Object> e : m.entrySet()) {
+                                    if (!"extra".equals(e.getKey())) raw.put(e.getKey(), String.valueOf(e.getValue()));
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Throwable e) {
+                Logger.t(TAG).d("updateItem failed: %s", e.getMessage());
+            }
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("addItemAfter", args -> {
+            addItemAt(args, true);
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("addItemBefore", args -> {
+            addItemAt(args, false);
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("deleteItem", args -> {
+            if (args != null && args.length > 0) {
+                String id = String.valueOf(args[0]);
+                int idx = findResultIndex(id);
+                if (idx >= 0) results.remove(idx);
+                if (collectRaw) rawResults.removeIf(r -> id.equals(r.get("url")));
+                Logger.t(TAG).d("deleteItem: %s", id);
+            }
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("deleteItemByCls", args -> {
+            if (args != null && args.length > 0) {
+                String cls = String.valueOf(args[0]);
+                results.removeIf(it -> cls.equals(it.getColType()));
+                if (collectRaw) rawResults.removeIf(r -> cls.equals(r.get("col_type")));
+                Logger.t(TAG).d("deleteItemByCls: %s", cls);
+            }
+            return null;
+        });
+        // 官方 clearItem(key) 清的是规则持久化存储里的 key；本宿主 kv.json 即规则存储，对其删 key 等价。
+        ctx.getGlobalObject().setProperty("clearItem", args -> {
+            if (args != null && args.length > 0 && args[0] != null) {
+                kv.remove(String.valueOf(args[0]));
+                saveKv();
+                Logger.t(TAG).d("clearItem: %s", args[0]);
+            }
+            return null;
+        });
+
+        // ---- 私有加密 JS：AES/ECB/PKCS5Padding，key=hk6666666109 补 0 到 32 字节，base64 输入 ----
+        ctx.getGlobalObject().setProperty("evalPrivateJS", args -> {
+            if (args == null || args.length == 0) return null;
+            try {
+                String plain = aesDecryptECB(String.valueOf(args[0]).trim(), AES_PRIVATE_KEY);
+                if (TextUtils.isEmpty(plain)) return null;
+                return ctx.evaluate(plain);
+            } catch (Throwable e) {
+                Logger.t(TAG).d("evalPrivateJS failed: %s", e.getMessage());
+                return null;
+            }
+        });
+
+        // ---- 带缓存的网络（fc=fetchCache，rc=requireCache，key=url，hours 小时过期） ----
+        ctx.getGlobalObject().setProperty("fc", args -> {
+            if (args == null || args.length == 0) return "";
+            String url = String.valueOf(args[0]);
+            double hours = args.length > 1 ? toDouble(args[1]) : 0;
+            return memCached("fc:" + url, hours, () -> fetchSync(url, null));
+        });
+        ctx.getGlobalObject().setProperty("rc", args -> {
+            if (args == null || args.length == 0) return null;
+            String url = String.valueOf(args[0]);
+            double hours = args.length > 1 ? toDouble(args[1]) : 0;
+            String code = memCached("rc:" + url, hours, () -> {
+                String c = loadLibLocal(url);
+                return c == null ? fetchSync(url, null) : c;
+            });
+            try {
+                if (!TextUtils.isEmpty(code)) ctx.evaluate(stripJsPrefix(code));
+            } catch (Throwable e) {
+                Logger.t(TAG).d("rc evaluate failed: %s", e.getMessage());
+            }
+            return null;
+        });
+        // ---- 批量（bf=batchFetch 并发取回 body 数组；be=batchExecute 预加载，宿主 no-op；bcm 返回原地址） ----
+        ctx.getGlobalObject().setProperty("bf", args -> {
+            if (args == null || args.length == 0) return "[]";
+            try {
+                String json = args[0] instanceof JSArray ? ((JSArray) args[0]).stringify() : String.valueOf(args[0]);
+                List<Object> list = GSON.fromJson(json.trim().startsWith("[") ? json : "[]",
+                        new com.google.gson.reflect.TypeToken<List<Object>>() {}.getType());
+                if (list == null || list.isEmpty()) return "[]";
+                int n = list.size();
+                int threads = 4;
+                if (args.length > 1) {
+                    try { threads = Math.max(1, (int) toDouble(args[1])); } catch (Throwable ignored) {}
+                }
+                threads = Math.min(n, threads);
+                java.util.concurrent.ExecutorService pool = Executors.newFixedThreadPool(threads);
+                try {
+                    List<Future<String>> futures = new ArrayList<>(n);
+                    for (Object o : list) {
+                        final String u;
+                        final String opt;
+                        if (o instanceof Map) {
+                            Map<String, Object> m = (Map<String, Object>) o;
+                            u = String.valueOf(m.get("url"));
+                            Object op = m.get("options");
+                            opt = op == null ? null : GSON.toJson(op);
+                        } else {
+                            u = String.valueOf(o);
+                            opt = null;
+                        }
+                        futures.add(pool.submit(() -> fetchSync(u, opt)));
+                    }
+                    List<String> out = new ArrayList<>(n);
+                    for (Future<String> f : futures) {
+                        try { out.add(f.get(30, TimeUnit.SECONDS)); }
+                        catch (Throwable ignored) { out.add(""); }
+                    }
+                    return GSON.toJson(out);
+                } finally {
+                    pool.shutdownNow();
+                }
+            } catch (Throwable e) {
+                Logger.t(TAG).d("bf failed: %s", e.getMessage());
+                return "[]";
+            }
+        });
+        ctx.getGlobalObject().setProperty("be", args -> {
+            Logger.t(TAG).d("be(batchExecute): no-op in host");
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("bcm", args -> {
+            String url = args != null && args.length > 0 ? String.valueOf(args[0]) : "";
+            Logger.t(TAG).d("bcm: passthrough %s", url);
+            return url;
+        });
+        // ---- PC 模式请求（桌面 UA）与 postRequest（即 post） ----
+        ctx.getGlobalObject().setProperty("fetchPC", args -> {
+            if (args == null || args.length == 0) return "";
+            String url = String.valueOf(args[0]);
+            String options = args.length > 1 && args[1] != null ? stringifyArg(args[1]) : "{}";
+            return fetchSync(url, mergeDesktopUa(options));
+        });
+        ctx.getGlobalObject().setProperty("postRequest", args -> {
+            if (args == null || args.length == 0) return "";
+            String url = String.valueOf(args[0]);
+            String options = args.length > 1 && args[1] != null ? stringifyArg(args[1]) : "{}";
+            return fetchSync(url, mergeMethod(options, "post"));
+        });
+        // fcbw/ewr：WebView 取码与 Web 规则执行，宿主不支持，走空
+        stub("fcbw", "");
+        stub("ewr", "");
+
+        // ---- 文件（作用域限定 App 文件目录；hiker://files/ 映射到 filesDir） ----
+        ctx.getGlobalObject().setProperty("writeFile", args -> {
+            if (args != null && args.length > 1) writeFileContent(resolveHikerPath(String.valueOf(args[0])), String.valueOf(args[1]));
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("readFile", args -> {
+            if (args == null || args.length == 0) return "";
+            return readFileContent(resolveHikerPath(String.valueOf(args[0])));
+        });
+        ctx.getGlobalObject().setProperty("fileExist", args -> {
+            if (args == null || args.length == 0) return "false";
+            // 官方返回 STRING "true"/"false"
+            return new File(resolveHikerPath(String.valueOf(args[0]))).exists() ? "true" : "false";
+        });
+        // 官方别名：exist 即 fileExist
+        ctx.getGlobalObject().setProperty("exist", args -> {
+            if (args == null || args.length == 0) return "false";
+            return new File(resolveHikerPath(String.valueOf(args[0]))).exists() ? "true" : "false";
+        });
+        ctx.getGlobalObject().setProperty("getPath", args -> {
+            if (args == null || args.length == 0) return "";
+            return resolveHikerPath(String.valueOf(args[0]));
+        });
+        ctx.getGlobalObject().setProperty("saveFile", args -> {
+            // saveFile(name, content, mode)：存到规则数据目录
+            if (args != null && args.length > 1) {
+                File f = new File(HkRuleManager.get().getDataDir(rule.getTitle()), String.valueOf(args[0]));
+                writeFileContent(f.getAbsolutePath(), String.valueOf(args[1]));
+            }
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("deleteFile", args -> {
+            try {
+                if (args != null && args.length > 0) new File(resolveHikerPath(String.valueOf(args[0]))).delete();
+            } catch (Throwable ignored) {}
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("downloadFile", args -> {
+            if (args == null || args.length < 2) return null;
+            try {
+                String url = String.valueOf(args[0]);
+                String dest = resolveHikerPath(String.valueOf(args[1]));
+                File f = new File(dest);
+                if (f.isDirectory() || dest.endsWith("/")) {
+                    String name = url.replaceAll("[?#].*$", "").replaceAll("^.*/", "");
+                    if (TextUtils.isEmpty(name)) name = "download.bin";
+                    f = new File(f, name);
+                }
+                if (f.getParentFile() != null) f.getParentFile().mkdirs();
+                try (okhttp3.Response res = com.fongmi.quickjs.utils.Connect.to(url,
+                        com.fongmi.quickjs.bean.Req.objectFrom("{}")).execute()) {
+                    if (res.isSuccessful() && res.body() != null) {
+                        java.nio.file.Files.write(f.toPath(), res.body().bytes());
+                        Logger.t(TAG).d("downloadFile ok: %s", f.getAbsolutePath());
+                    }
+                }
+            } catch (Throwable e) {
+                Logger.t(TAG).d("downloadFile failed: %s", e.getMessage());
+            }
+            return null;
+        });
+
+        // ---- 剪贴板 / 分享 ----
+        ctx.getGlobalObject().setProperty("copy", args -> {
+            try {
+                if (args != null && args.length > 0) {
+                    ClipboardManager cm = (ClipboardManager) App.get().getSystemService(Context.CLIPBOARD_SERVICE);
+                    if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("hk", String.valueOf(args[0])));
+                }
+            } catch (Throwable e) {
+                Logger.t(TAG).d("copy failed: %s", e.getMessage());
+            }
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("parsePaste", args -> {
+            // 解析分享文本：云口令则拉取规则 JSON 返回，否则原文返回
+            if (args == null || args.length == 0) return "";
+            String t = String.valueOf(args[0]).trim();
+            try {
+                if (HkRuleManager.isCloudCode(t)) {
+                    HkRule r = HkRuleManager.get().importByCloudCode(t);
+                    Logger.t(TAG).d("parsePaste: cloud code imported %s", r.getTitle());
+                    return GSON.toJson(r);
+                }
+            } catch (Throwable e) {
+                Logger.t(TAG).d("parsePaste cloud failed: %s", e.getMessage());
+            }
+            return t;
+        });
+        ctx.getGlobalObject().setProperty("getPastes", args -> "[]");
+        ctx.getGlobalObject().setProperty("sharePaste", args -> {
+            Logger.t(TAG).d("sharePaste: no-op in host");
+            return "";
+        });
+
+        // ---- m3u8 ----
+        ctx.getGlobalObject().setProperty("fixM3u8", args -> {
+            if (args == null || args.length < 2) return args != null && args.length > 0 ? String.valueOf(args[0]) : "";
+            return fixM3u8Content(String.valueOf(args[0]), String.valueOf(args[1]));
+        });
+        ctx.getGlobalObject().setProperty("cacheM3u8", args -> {
+            String url = args != null && args.length > 0 ? String.valueOf(args[0]) : "";
+            Logger.t(TAG).d("cacheM3u8: passthrough %s", url);
+            return url;
+        });
+        ctx.getGlobalObject().setProperty("proxyClearM3u8", args -> "");
+
+        // ---- 页面信息 ----
+        ctx.getGlobalObject().setProperty("setPageTitle", args -> {
+            if (args != null && args.length > 0) pageTitle = String.valueOf(args[0]);
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("getPageTitle", args -> pageTitle);
+        ctx.getGlobalObject().setProperty("getHome", args -> {
+            if (args == null || args.length == 0) return "";
+            return homeOf(String.valueOf(args[0]));
+        });
+        ctx.getGlobalObject().setProperty("buildUrl", args -> {
+            if (args == null || args.length == 0) return "";
+            String url = String.valueOf(args[0]);
+            if (args.length < 2 || args[1] == null) return url;
+            try {
+                String json = stringifyArg(args[1]);
+                Map<String, Object> map = GSON.fromJson(json, new com.google.gson.reflect.TypeToken<Map<String, Object>>() {}.getType());
+                if (map == null || map.isEmpty()) return url;
+                StringBuilder sb = new StringBuilder(url);
+                boolean hasQ = url.contains("?");
+                for (Map.Entry<String, Object> e : map.entrySet()) {
+                    if (e.getValue() == null) continue;
+                    sb.append(hasQ ? '&' : '?');
+                    hasQ = true;
+                    sb.append(java.net.URLEncoder.encode(e.getKey(), "UTF-8"));
+                    sb.append('=');
+                    sb.append(java.net.URLEncoder.encode(String.valueOf(e.getValue()), "UTF-8"));
+                }
+                return sb.toString();
+            } catch (Throwable ex) {
+                return url;
+            }
+        });
+        ctx.getGlobalObject().setProperty("joinUrl", args -> {
+            if (args == null || args.length < 2) return args != null && args.length > 0 ? String.valueOf(args[0]) : "";
+            try {
+                return new java.net.URI(String.valueOf(args[0])).resolve(String.valueOf(args[1])).toString();
+            } catch (Throwable e) {
+                return String.valueOf(args[1]);
+            }
+        });
+        ctx.getGlobalObject().setProperty("getColTypes", args -> GSON.toJson(COL_TYPES));
+
+        // ---- 编解码补充 ----
+        ctx.getGlobalObject().setProperty("md5", args -> {
+            if (args == null || args.length == 0) return "";
+            String v = com.fongmi.quickjs.utils.Util.md5(String.valueOf(args[0]));
+            return v == null ? "" : v;
+        });
+        ctx.getGlobalObject().setProperty("hexToBase64", args -> {
+            if (args == null || args.length == 0) return "";
+            return hexToB64(String.valueOf(args[0]));
+        });
+        ctx.getGlobalObject().setProperty("hexToBytes", args -> {
+            if (args == null || args.length == 0) return JSUtil.toArray(ctx, new byte[0]);
+            try {
+                String h = String.valueOf(args[0]).trim();
+                byte[] b = new byte[h.length() / 2];
+                for (int i = 0; i < b.length; i++) b[i] = (byte) Integer.parseInt(h.substring(i * 2, i * 2 + 2), 16);
+                return JSUtil.toArray(ctx, b);
+            } catch (Throwable e) {
+                return JSUtil.toArray(ctx, new byte[0]);
+            }
+        });
+        ctx.getGlobalObject().setProperty("rsaEncrypt", args -> {
+            if (args == null || args.length < 2) return "";
+            return rsaCrypto(true, String.valueOf(args[0]), String.valueOf(args[1]));
+        });
+        ctx.getGlobalObject().setProperty("rsaDecrypt", args -> {
+            if (args == null || args.length < 2) return "";
+            return rsaCrypto(false, String.valueOf(args[0]), String.valueOf(args[1]));
+        });
+        ctx.getGlobalObject().setProperty("getCryptoJS", args -> {
+            // 宿主未内置 CryptoJS 资源；规则如需请走 require 远程加载
+            Logger.t(TAG).d("getCryptoJS: empty in host");
+            return "";
+        });
+        ctx.getGlobalObject().setProperty("toCorrectJSONString", args -> {
+            if (args == null || args.length == 0) return "";
+            String t = String.valueOf(args[0]).trim();
+            try {
+                GSON.fromJson(t, Object.class);
+                return t;
+            } catch (Throwable e) {
+                return "";
+            }
+        });
+        ctx.getGlobalObject().setProperty("justTestSign", args -> {
+            Logger.t(TAG).d("justTestSign: no-op in host");
+            return "";
+        });
+
+        // ---- 网络杂项 ----
+        ctx.getGlobalObject().setProperty("getCookie", args -> {
+            // 宿主 fetch 未维护 cookie 池，返回空（规则多用 getCookie 做登录态判断，空即未登录）
+            Logger.t(TAG).d("getCookie: empty in host");
+            return "";
+        });
+        ctx.getGlobalObject().setProperty("getIP", args -> getLocalIp());
+        ctx.getGlobalObject().setProperty("ipping", args -> false);
+        ctx.getGlobalObject().setProperty("isLogin", args -> false);
+
+        // ---- 事件监听（官方 onClose 等；宿主仅记录，不触发） ----
+        ctx.getGlobalObject().setProperty("addListener", args -> {
+            try {
+                if (args != null && args.length > 1) {
+                    listeners.put(String.valueOf(args[0]), String.valueOf(args[1]));
+                    Logger.t(TAG).d("addListener: %s", args[0]);
+                }
+            } catch (Throwable ignored) {}
+            return null;
+        });
+        // 官方别名：listen 即 addListener
+        ctx.getGlobalObject().setProperty("listen", args -> {
+            try {
+                if (args != null && args.length > 1) listeners.put(String.valueOf(args[0]), String.valueOf(args[1]));
+            } catch (Throwable ignored) {}
+            return null;
+        });
+
+        // ---- 选择弹窗（官方弹 UI；宿主无 UI，no-op） ----
+        ctx.getGlobalObject().setProperty("showSelectOptions", args -> {
+            Logger.t(TAG).d("showSelectOptions: no-op in host");
+            return null;
+        });
+
+        // ---- 下划线内部别名（兼容老规则写法） ----
+        ctx.getGlobalObject().setProperty("_pd", args -> {
+            if (args == null || args.length < 2) return "";
+            return parser.pdfh(String.valueOf(args[0]), String.valueOf(args[1]), "");
+        });
+        ctx.getGlobalObject().setProperty("_pdfh", args -> {
+            if (args == null || args.length < 2) return "";
+            return parser.pdfh(String.valueOf(args[0]), String.valueOf(args[1]), "");
+        });
+        ctx.getGlobalObject().setProperty("_pdfa", args -> {
+            if (args == null || args.length < 2) return JSUtil.toArray(ctx, new ArrayList<>());
+            return JSUtil.toArray(ctx, parser.pdfa(String.valueOf(args[0]), String.valueOf(args[1])));
+        });
+        ctx.getGlobalObject().setProperty("_pdfl", args -> {
+            if (args == null || args.length < 2) return JSUtil.toArray(ctx, new ArrayList<>());
+            return JSUtil.toArray(ctx, parser.pdfa(String.valueOf(args[0]), String.valueOf(args[1])));
+        });
+        ctx.getGlobalObject().setProperty("_findItem", args -> "");
+        ctx.getGlobalObject().setProperty("_findItemsByCls", args -> "[]");
+
+        // ---- xpath（宿主 Parser 基于 jsoup，不支持 xpath，走空） ----
+        ctx.getGlobalObject().setProperty("xpath", args -> "");
+        ctx.getGlobalObject().setProperty("xpa", args -> JSUtil.toArray(ctx, new ArrayList<>()));
+
+        // ---- 其余官方 API：宿主无对应能力，一律安全桩（防 ReferenceError，中断规则） ----
+        // 导航/UI 类
+        stub("back", null);
+        stub("backToHome", null);
+        stub("closeMe", null);
+        stub("refresh", null);
+        stub("setPageParams", null);
+        stub("setPagePicUrl", null);
+        stub("showLoading", null);
+        stub("hideLoading", null);
+        stub("refreshReadData", null);
+        stub("refreshVideoSource", null);
+        stub("refreshVideoUrl", null);
+        stub("refreshX5Desc", null);
+        stub("refreshX5WebView", null);
+        stub("startQRScanPage", null);
+        stub("createQRCode", null);
+        stub("createQRCodeToFile", "");
+        stub("openAppIntent", false);
+        stub("initChaquopy", null);
+        // 文件/下载类
+        stub("requireDownload", null);
+        stub("saveImage", null);
+        stub("copyFiles", null);
+        stub("deleteCache", null);
+        stub("shareDirectory", null);
+        stub("writeHexFile", null);
+        // 代理/服务类
+        stub("startProxyServer", "");
+        stub("registerDNS", null);
+        stub("addWebProxyRule", null);
+        stub("removeWebProxyRule", null);
+        stub("refreshWebProxyRule", null);
+        stub("png2Ts", null);
+        stub("buildWebDav", null);
+        // 阅读类（第二期再做）
+        stub("getEpubChapters", "[]");
+        stub("getEpubContent0", "");
+        stub("getEpubMetadata", "{}");
+        stub("setStrResult", null);
+        stub("setLastChapterResult", null);
+        stub("setLastChapterRule", null);
+        // 搜索/隐私
+        stub("getSearchMode", "");
+        stub("setSearchMode", null);
+        stub("searchContains", false);
+        stub("checkPrivacyPassword", false);
+        stub("getPrivacyPasswordLen", 0);
+        // 规则管理
+        stub("getLastRules", "[]");
+        stub("publishRule", null);
+        stub("getRuleCount", "0");
+        stub("isVideoOrMusic", false);
+        stub("isShorthand", false);
+        // 任务调度
+        stub("registerTask", null);
+        stub("unRegisterTask", null);
+        // Java 互操作（宿主不开放）
+        stub("getCurrentActivity", null);
+        stub("findJavaClass", null);
+        stub("loadJavaClass", null);
+        stub("getPrivateJS", "");
+        stub("getJsPlugin", "");
+        stub("getJsLazyPlugin", "");
+        stub("getMyType", "");
+        stub("getMyCallbackKey", "");
+        stub("getMyInput", "");
+        stub("getMyJs", "");
+        stub("syncExecute", null);
+        // 首页子模块
+        stub("hasHomeSub", false);
+        stub("getHomeSub", "[]");
+        // 应用信息（真实现）
+        ctx.getGlobalObject().setProperty("getAppVersion", args -> {
+            try {
+                android.content.pm.PackageInfo pi = App.get().getPackageManager()
+                        .getPackageInfo(App.get().getPackageName(), 0);
+                return pi.versionName == null ? "" : pi.versionName;
+            } catch (Throwable ignored) {
+                return "";
+            }
+        });
+        ctx.getGlobalObject().setProperty("getCpuAbi", args -> {
+            try {
+                String[] abis = android.os.Build.SUPPORTED_ABIS;
+                return abis != null && abis.length > 0 ? abis[0] : "";
+            } catch (Throwable ignored) {
+                return "";
+            }
+        });
+        ctx.getGlobalObject().setProperty("getUaObject", args -> {
+            Map<String, String> ua = new HashMap<>();
+            ua.put("mobileUa", UA_MOBILE);
+            ua.put("pcUa", UA_PC);
+            return GSON.toJson(ua);
+        });
+
+        // ---- $ 选择器助手：$('').lazyRule(fn) / $('...').rule(fn) / $.toString(fn, ...args) / $.require(path) ----
         // lazyRule 把函数序列化为 @lazyRule=.js:... 字符串，拼到 URL 上由 HkRouter.play() 求值；
         // $.toString 把函数+绑定参数序列化为 js:... 字符串，点击时由 evalLazy 求值（input 为全局）。
+        // $.require(path)：hiker://page/<path> 从规则 pages 取页面代码求值返回 $.exports，
+        // 其他路径复用 require 的远程/本地库逻辑（__hkRequirePage 为 Java 实现）。
         try {
             ctx.evaluate(
                 "function $(selector) {\n" +
@@ -355,12 +1034,38 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 "    try { args.push(JSON.stringify(arguments[i])); } catch (e) { args.push('null'); }\n" +
                 "  }\n" +
                 "  return 'js:(' + fn.toString() + ')(' + args.join(',') + ');';\n" +
-                "};\n"
+                "};\n" +
+                "$.require = function(path) {\n" +
+                "  $.exports = undefined;\n" +
+                "  __hkRequirePage(path);\n" +
+                "  return $.exports;\n" +
+                "};\n" +
+                "function Uint8Array(a) {\n" +
+                "  var r = [];\n" +
+                "  if (typeof a === 'number') { for (var i = 0; i < a; i++) r.push(0); }\n" +
+                "  else if (a && typeof a.length === 'number') { for (var j = 0; j < a.length; j++) r.push(a[j] & 255); }\n" +
+                "  return r;\n" +
+                "}\n"
             );
         } catch (Throwable e) {
             Logger.t(TAG).d("$ helper failed: %s", e.getMessage());
         }
     }
+
+    /**
+     * 安全桩：官方有但宿主无对应能力的 API，返回类型合适的默认值并打日志，
+     * 保证任何规则都不会因 ReferenceError 中断。
+     */
+    private void stub(String name, Object ret) {
+        try {
+            ctx.getGlobalObject().setProperty(name, args -> {
+                Logger.t(TAG).d("stub %s called (no-op in host)", name);
+                return ret;
+            });
+        } catch (Throwable ignored) {
+        }
+    }
+
 
     /**
      * hiker://page/&lt;path&gt; 内部协议：从规则 pages（JSON 数组）里按 path 找页面规则，
@@ -396,6 +1101,321 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     }
 
     /**
+     * setPreResult 之后的第一记 setResult/setSearchResult/setHomeResult：清空预返回占位。
+     */
+    private void beginResult() {
+        if (preResultActive) {
+            results.clear();
+            rawResults.clear();
+            preResultActive = false;
+        }
+    }
+
+    /**
+     * $.require('hiker://page/xxx') 的页面代码查找：从规则 pages（JSON 数组）按 path 取 rule 字段。
+     */
+    private String findPageCode(String path) {
+        try {
+            String pagesJson = rule.getPages();
+            if (TextUtils.isEmpty(pagesJson)) return null;
+            List<Map<String, Object>> pages = GSON.fromJson(pagesJson, MAP_LIST_TYPE);
+            if (pages == null) return null;
+            for (Map<String, Object> p : pages) {
+                if (path.equals(String.valueOf(p.get("path")))) {
+                    Object r = p.get("rule");
+                    return r == null ? null : String.valueOf(r);
+                }
+            }
+        } catch (Throwable e) {
+            Logger.t(TAG).d("findPageCode failed: %s", e.getMessage());
+        }
+        return null;
+    }
+
+    /** 把 JS 传来的对象参数转成 Map<String,Object>（JSObject/stringify/JSON 字符串均可）。 */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> toStrMap(Object o) {
+        if (o == null) return null;
+        try {
+            if (o instanceof Map) return (Map<String, Object>) o;
+            String json = o instanceof JSObject ? ((JSObject) o).stringify() : String.valueOf(o).trim();
+            if (!json.startsWith("{")) return null;
+            return GSON.fromJson(json, new com.google.gson.reflect.TypeToken<Map<String, Object>>() {}.getType());
+        } catch (Throwable e) {
+            return null;
+        }
+    }
+
+    /** 在当前 results 里按 url 找条目下标。 */
+    private int findResultIndex(String id) {
+        for (int i = 0; i < results.size(); i++) {
+            if (id.equals(results.get(i).getUrl())) return i;
+        }
+        return -1;
+    }
+
+    /** updateItem：把 obj 里的 title/url/pic/pic_url/img/desc/col_type 合并进条目。 */
+    private void mergeItem(HkItem item, Map<String, Object> m) {
+        String t = str(m, "title");
+        if (!TextUtils.isEmpty(t)) item.setTitle(t);
+        String u = str(m, "url");
+        if (!TextUtils.isEmpty(u)) item.setUrl(u);
+        String pic = str(m, "pic_url");
+        if (TextUtils.isEmpty(pic)) pic = str(m, "img");
+        if (TextUtils.isEmpty(pic)) pic = str(m, "pic");
+        if (!TextUtils.isEmpty(pic)) item.setPic(pic);
+        String d = str(m, "desc");
+        if (!TextUtils.isEmpty(d)) item.setDesc(d);
+        String c = str(m, "col_type");
+        if (!TextUtils.isEmpty(c)) item.setColType(c);
+    }
+
+    /** addItemAfter/addItemBefore(id, obj)：在匹配 url 的条目之后/之前插入。 */
+    private void addItemAt(Object[] args, boolean after) {
+        try {
+            if (args == null || args.length < 2) return;
+            String id = String.valueOf(args[0]);
+            Map<String, Object> m = toStrMap(args[1]);
+            if (m == null) return;
+            HkItem item = new HkItem();
+            mergeItem(item, m);
+            if (TextUtils.isEmpty(item.getUrl())) item.setUrl(id);
+            int idx = findResultIndex(id);
+            if (idx < 0) {
+                results.add(item);
+            } else {
+                results.add(after ? idx + 1 : idx, item);
+            }
+            Logger.t(TAG).d("addItem%s: %s", after ? "After" : "Before", id);
+        } catch (Throwable e) {
+            Logger.t(TAG).d("addItemAt failed: %s", e.getMessage());
+        }
+    }
+
+    /** 官方 AesUtil.decrypt 同款：base64 → AES/ECB/PKCS5Padding，key 补 '0' 到 32 字节。 */
+    private static String aesDecryptECB(String b64, String key) {
+        try {
+            byte[] data = Base64.decode(b64, Base64.DEFAULT);
+            byte[] keyBytes = new byte[32];
+            byte[] kb = key.getBytes(Charset.forName("UTF-8"));
+            System.arraycopy(kb, 0, keyBytes, 0, Math.min(kb.length, 32));
+            for (int i = kb.length; i < 32; i++) keyBytes[i] = '0';
+            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("AES/ECB/PKCS5Padding");
+            cipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(keyBytes, "AES"));
+            return new String(cipher.doFinal(data), Charset.forName("UTF-8"));
+        } catch (Throwable e) {
+            return "";
+        }
+    }
+
+    /** fc/rc 的内存缓存：hours<=0 不缓存；命中且未过期直接返回。 */
+    private String memCached(String key, double hours, java.util.concurrent.Callable<String> loader) {
+        try {
+            if (hours > 0) {
+                MemCache hit = memCache.get(key);
+                if (hit != null && hit.alive()) {
+                    Logger.t(TAG).d("memCache hit: %s", key);
+                    return hit.data;
+                }
+            }
+            String data = loader.call();
+            if (data == null) data = "";
+            if (hours > 0) memCache.put(key, new MemCache(data, System.currentTimeMillis() + (long) (hours * 3600_000)));
+            return data;
+        } catch (Throwable e) {
+            Logger.t(TAG).d("memCached failed: %s", e.getMessage());
+            return "";
+        }
+    }
+
+    private static double toDouble(Object o) {
+        try {
+            if (o instanceof Number) return ((Number) o).doubleValue();
+            return Double.parseDouble(String.valueOf(o));
+        } catch (Throwable e) {
+            return 0;
+        }
+    }
+
+    /** fetchPC：options 里没有 UA 时补桌面 UA（规则自带的 UA 优先保留）。 */
+    private static String mergeDesktopUa(String optionsJson) {
+        try {
+            Map<String, Object> map = GSON.fromJson(
+                    TextUtils.isEmpty(optionsJson) ? "{}" : optionsJson,
+                    new com.google.gson.reflect.TypeToken<Map<String, Object>>() {}.getType());
+            if (map == null) map = new HashMap<>();
+            Object headers = map.get("headers");
+            Map<String, Object> hm = headers instanceof Map ? (Map<String, Object>) headers : new HashMap<>();
+            boolean hasUa = false;
+            for (String k : hm.keySet()) {
+                if ("user-agent".equalsIgnoreCase(k)) { hasUa = true; break; }
+            }
+            if (!hasUa) {
+                hm.put("User-Agent", UA_PC);
+                map.put("headers", hm);
+            }
+            return GSON.toJson(map);
+        } catch (Throwable e) {
+            return "{\"headers\":{\"User-Agent\":\"" + UA_PC + "\"}}";
+        }
+    }
+
+    /**
+     * 文件路径解析：hiker://files/... → App filesDir；绝对路径原样；相对路径 → 规则数据目录。
+     * 全部钳制在 App 文件目录内。
+     */
+    private String resolveHikerPath(String p) {
+        try {
+            if (TextUtils.isEmpty(p)) return "";
+            File base = App.get().getFilesDir();
+            if (p.startsWith("hiker://files/")) {
+                return new File(base, p.substring("hiker://files/".length())).getAbsolutePath();
+            }
+            if (p.startsWith("file://")) p = p.substring("file://".length());
+            File f = new File(p);
+            if (!f.isAbsolute()) f = new File(HkRuleManager.get().getDataDir(rule.getTitle()), p);
+            return f.getAbsolutePath();
+        } catch (Throwable ignored) {
+            return p == null ? "" : p;
+        }
+    }
+
+    private String readFileContent(String absPath) {
+        try {
+            File f = new File(absPath);
+            if (!f.exists() || !f.isFile()) return "";
+            return new String(java.nio.file.Files.readAllBytes(f.toPath()), Charset.forName("UTF-8"));
+        } catch (Throwable e) {
+            return "";
+        }
+    }
+
+    private void writeFileContent(String absPath, String content) {
+        try {
+            File f = new File(absPath);
+            if (f.getParentFile() != null) f.getParentFile().mkdirs();
+            java.nio.file.Files.write(f.toPath(), (content == null ? "" : content).getBytes(Charset.forName("UTF-8")));
+        } catch (Throwable e) {
+            Logger.t(TAG).d("writeFile failed %s: %s", absPath, e.getMessage());
+        }
+    }
+
+    /** fixM3u8(url, content)：把 m3u8 里相对分片地址按 url 补全。 */
+    private static String fixM3u8Content(String url, String content) {
+        if (TextUtils.isEmpty(content)) return "";
+        try {
+            java.net.URI base = new java.net.URI(url);
+            StringBuilder sb = new StringBuilder();
+            for (String line : content.split("\n")) {
+                String t = line.trim();
+                if (!t.isEmpty() && !t.startsWith("#") && !t.matches("^[a-zA-Z][a-zA-Z0-9+.-]*:.*")) {
+                    try { t = base.resolve(t).toString(); } catch (Throwable ignored) {}
+                    sb.append(t).append('\n');
+                } else {
+                    sb.append(line).append('\n');
+                }
+            }
+            return sb.toString();
+        } catch (Throwable e) {
+            return content;
+        }
+    }
+
+    private static String hexToB64(String hex) {
+        try {
+            String h = hex.trim();
+            byte[] b = new byte[h.length() / 2];
+            for (int i = 0; i < b.length; i++) b[i] = (byte) Integer.parseInt(h.substring(i * 2, i * 2 + 2), 16);
+            return Base64.encodeToString(b, Base64.NO_WRAP);
+        } catch (Throwable e) {
+            return "";
+        }
+    }
+
+    /** RSA 加解密（best-effort）：公钥加密 X.509 / 私钥解密 PKCS8，PKCS1Padding，base64 出入。 */
+    private static String rsaCrypto(boolean encrypt, String input, String keyB64) {
+        try {
+            byte[] keyBytes = Base64.decode(keyB64.trim(), Base64.DEFAULT);
+            javax.crypto.Cipher c = javax.crypto.Cipher.getInstance("RSA/ECB/PKCS1Padding");
+            java.security.KeyFactory kf = java.security.KeyFactory.getInstance("RSA");
+            if (encrypt) {
+                java.security.PublicKey pub = kf.generatePublic(new java.security.spec.X509EncodedKeySpec(keyBytes));
+                c.init(javax.crypto.Cipher.ENCRYPT_MODE, pub);
+                return Base64.encodeToString(c.doFinal(input.getBytes(Charset.forName("UTF-8"))), Base64.NO_WRAP);
+            } else {
+                java.security.PrivateKey prv = kf.generatePrivate(new java.security.spec.PKCS8EncodedKeySpec(keyBytes));
+                c.init(javax.crypto.Cipher.DECRYPT_MODE, prv);
+                return new String(c.doFinal(Base64.decode(input.trim(), Base64.DEFAULT)), Charset.forName("UTF-8"));
+            }
+        } catch (Throwable e) {
+            return "";
+        }
+    }
+
+    private static String getLocalIp() {
+        try {
+            Enumeration<NetworkInterface> nis = NetworkInterface.getNetworkInterfaces();
+            while (nis.hasMoreElements()) {
+                NetworkInterface ni = nis.nextElement();
+                Enumeration<java.net.InetAddress> addrs = ni.getInetAddresses();
+                while (addrs.hasMoreElements()) {
+                    java.net.InetAddress a = addrs.nextElement();
+                    if (!a.isLoopbackAddress() && a.getHostAddress() != null && a.getHostAddress().indexOf(':') < 0) {
+                        return a.getHostAddress();
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return "";
+    }
+
+    // ================= setPublicItem/getPublicItem 持久化（跨规则） =================
+
+    private File publicKvFile() {
+        File dataDir = HkRuleManager.get().getDataDir(rule.getTitle());
+        File parent = dataDir.getParentFile();
+        if (parent == null) parent = dataDir;
+        return new File(parent, "public_kv.json");
+    }
+
+    private void loadPublicKv() {
+        try {
+            File f = publicKvFile();
+            if (!f.exists()) return;
+            byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
+            Map<String, String> map = GSON.fromJson(new String(bytes, "UTF-8"),
+                    new com.google.gson.reflect.TypeToken<Map<String, String>>() {}.getType());
+            if (map != null) publicKv.putAll(map);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void savePublicKv() {
+        try {
+            File f = publicKvFile();
+            if (f.getParentFile() != null) f.getParentFile().mkdirs();
+            java.nio.file.Files.write(f.toPath(), GSON.toJson(publicKv).getBytes("UTF-8"));
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** 官方 ArticleColTypeEnum 的全部 col_type code（getColTypes 用）。 */
+    private static final List<String> COL_TYPES = java.util.Arrays.asList(
+            "text_1", "text_2", "text_3", "text_4", "text_5", "text_center_1", "text_icon",
+            "movie_1", "movie_2", "movie_3", "movie_1_left_pic", "movie_1_vertical_pic",
+            "movie_1_vertical_pic_blur", "movie_3_marquee",
+            "pic_1", "pic_2", "pic_3", "pic_1_full", "pic_1_center", "pic_3_square", "pic_1_card", "pic_2_card",
+            "icon_1_search", "icon_2_round", "icon_3_fill", "icon_4", "icon_small_4", "icon_round_small_4",
+            "icon_5_no_crop", "icon_1_left_pic", "icon_2", "icon_3_round_fill", "icon_4_card", "icon_5",
+            "icon_round_4", "icon_small_3",
+            "rich_text", "long_text", "avatar", "video", "header", "footer", "line", "line_blank",
+            "blank_block", "big_blank_block", "big_big_blank_block", "scroll_button", "flex_button", "input",
+            "card_pic_1", "card_pic_2", "card_pic_2_2", "card_pic_2_2_left", "card_pic_3", "card_pic_3_center",
+            "x5_webview_single"
+    );
+
+    /**
      * require() 本地库优先：找规则数据目录 data/&lt;规则名&gt;/libs/&lt;md5(url)&gt;.js，
      * 命中则直接加载（.hkzip 导入时已解压，无网络也能用）；未命中返回 null 走远程。
      */
@@ -420,9 +1440,18 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
      * 执行首页/分类的 js: 规则，返回条目列表。
      */
     public List<HkItem> parseList(String jsCode, String myUrl) throws Exception {
+        return parseList(jsCode, myUrl, 1);
+    }
+
+    /**
+     * 执行首页/分类的 js: 规则，返回条目列表（带页码，注入 MY_PAGE）。
+     */
+    public List<HkItem> parseList(String jsCode, String myUrl, int page) throws Exception {
         return submit(() -> {
             results.clear();
             error = null;
+            preResultActive = false;
+            this.page = Math.max(1, page);
             setContext(myUrl);
             ctx.evaluate(stripJsPrefix(jsCode));
             return drainResults();
@@ -433,9 +1462,18 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
      * 执行搜索的 js: 规则，返回条目列表。
      */
     public List<HkItem> parseSearch(String jsCode, String myUrl, String keyword) throws Exception {
+        return parseSearch(jsCode, myUrl, keyword, 1);
+    }
+
+    /**
+     * 执行搜索的 js: 规则，返回条目列表（带页码，注入 MY_PAGE）。
+     */
+    public List<HkItem> parseSearch(String jsCode, String myUrl, String keyword, int page) throws Exception {
         return submit(() -> {
             results.clear();
             error = null;
+            preResultActive = false;
+            this.page = Math.max(1, page);
             setContext(myUrl);
             ctx.getGlobalObject().setProperty("MY_KEYWORD", keyword == null ? "" : keyword);
             ctx.evaluate(stripJsPrefix(jsCode));
@@ -521,6 +1559,17 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         lastUrl = myUrl == null ? "" : myUrl;
         ctx.getGlobalObject().setProperty("MY_URL", lastUrl);
         ctx.getGlobalObject().setProperty("MY_HOME", homeOf(lastUrl));
+        ctx.getGlobalObject().setProperty("MY_PAGE", page);
+        ctx.getGlobalObject().setProperty("MY_TICKET", "");
+        ctx.getGlobalObject().setProperty("MOBILE_UA", UA_MOBILE);
+        ctx.getGlobalObject().setProperty("PC_UA", UA_PC);
+        try {
+            Map<String, String> ua = new HashMap<>();
+            ua.put("mobileUa", UA_MOBILE);
+            ua.put("pcUa", UA_PC);
+            ctx.getGlobalObject().setProperty("MY_UA", (JSObject) ctx.parse(GSON.toJson(ua)));
+        } catch (Throwable ignored) {
+        }
         try {
             ctx.getGlobalObject().setProperty("MY_RULE", (JSObject) ctx.parse(GSON.toJson(rule)));
         } catch (Throwable e) {
@@ -605,6 +1654,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 if (TextUtils.isEmpty(pic)) pic = str(m, "pic");
                 item.setPic(pic);
                 item.setDesc(str(m, "desc"));
+                item.setColType(str(m, "col_type"));
                 results.add(item);
             }
         } catch (Throwable e) {

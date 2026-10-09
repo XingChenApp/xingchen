@@ -10,6 +10,8 @@ public class HkItem {
     private String url;
     private String pic;
     private String desc;
+    /** 海阔 col_type（movie_3/pic_1_full/input 等，deleteItemByCls/updateItem 用）。 */
+    private String colType = "";
 
     public HkItem() {
     }
@@ -51,6 +53,14 @@ public class HkItem {
 
     public void setDesc(String desc) {
         this.desc = desc;
+    }
+
+    public String getColType() {
+        return colType == null ? "" : colType;
+    }
+
+    public void setColType(String colType) {
+        this.colType = colType;
     }
 
     @Override

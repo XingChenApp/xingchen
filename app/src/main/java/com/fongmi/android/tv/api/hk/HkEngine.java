@@ -43,7 +43,7 @@ public class HkEngine {
                     ? HkHttp.expandUrl(rule.getUrl(), cls, area, year, sort, page, false)
                     : HkHttp.expandUrl(rule.getUrl(), cls, area, year, sort, page);
             if (js) {
-                return jsRuntime.parseList(findRule, url);
+                return jsRuntime.parseList(findRule, url, page);
             }
             String html = HkHttp.get(url, rule.resolvedUa());
             return selector.parseList(html, findRule, url);
@@ -66,7 +66,7 @@ public class HkEngine {
             if (HkSelector.isJsRule(searchFind)) {
                 // js: 搜索同理：MY_URL 传原始 url，保留 hiker://empty# 前缀。
                 String rawUrl = HkHttp.expandSearchUrl(rule.getSearchUrl(), keyword, page, false);
-                return jsRuntime.parseSearch(searchFind, rawUrl, keyword);
+                return jsRuntime.parseSearch(searchFind, rawUrl, keyword, page);
             }
             String html = HkHttp.get(url, rule.resolvedUa());
             return selector.parseSearch(html, searchFind, url);
