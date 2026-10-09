@@ -195,7 +195,7 @@ public class SubtitleSettingsActivity extends BaseActivity {
                 .setItems(names, (d, which) -> {
                     SubtitleInfo info = items.get(which);
                     Toast.makeText(this, "下载中…", Toast.LENGTH_SHORT).show();
-                    SubtitleManager.downloadAndApply(info, file -> {
+                    SubtitleManager.downloadAndApply(info, null, file -> {
                         if (file != null) {
                             Toast.makeText(this, "字幕已加载", Toast.LENGTH_SHORT).show();
                             binding.tvSubSearchStatus.setText("已加载：" + info.getName());

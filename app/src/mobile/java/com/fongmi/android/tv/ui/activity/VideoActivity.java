@@ -1398,7 +1398,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         // 字幕自动匹配：按片名搜索并加载最佳字幕
         try {
             String videoTitle = mBinding.name.getText().toString();
-            SubtitleManager.autoMatch(videoTitle);
+            SubtitleManager.autoMatch(player(), videoTitle);
         } catch (Throwable ignored) {
         }
     }

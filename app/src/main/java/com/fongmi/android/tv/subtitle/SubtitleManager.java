@@ -75,10 +75,10 @@ public class SubtitleManager {
         });
     }
 
-    /** 下载并应用到当前播放器 */
-    public static void downloadAndApply(SubtitleInfo info, DownloadCallback callback) {
+    /** 下载并应用到指定播放器（player 为 null 时只下载不应用） */
+    public static void downloadAndApply(SubtitleInfo info, PlayerManager player, DownloadCallback callback) {
         download(info, file -> {
-            if (file != null) applyToPlayer(file);
+            if (file != null) applyToPlayer(player, file);
             callback.onDone(file);
         });
     }
@@ -87,7 +87,7 @@ public class SubtitleManager {
      * 播放时自动匹配：按偏好语言搜第一个可用字幕并加载。
      * 在后台线程执行，成功后自动应用到播放器。
      */
-    public static void autoMatch(String title) {
+    public static void autoMatch(PlayerManager player, String title) {
         if (TextUtils.isEmpty(title)) return;
         if (!SubtitleSetting.isAutoMatch()) return;
         EXECUTOR.execute(() -> {
@@ -105,14 +105,15 @@ public class SubtitleManager {
             Collections.sort(all, Comparator.comparingInt(a -> a.matchScore(pref)));
             SubtitleInfo best = all.get(0);
             File file = downloadSync(best);
-            if (file != null) MAIN.post(() -> applyToPlayer(file));
+            final PlayerManager pm = player;
+            if (file != null) MAIN.post(() -> applyToPlayer(pm, file));
         });
     }
 
-    /** 把本地字幕文件应用到当前播放器（Exo/MPV 通用） */
-    public static void applyToPlayer(File file) {
+    /** 把本地字幕文件应用到播放器（Exo/MPV 通用），player 为 null 时跳过 */
+    public static void applyToPlayer(PlayerManager player, File file) {
         try {
-            PlayerManager.get().setSub(Sub.from(file.getAbsolutePath()));
+            if (player != null && file != null) player.setSub(Sub.from(file.getAbsolutePath()));
         } catch (Throwable ignored) {
         }
     }
