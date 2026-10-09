@@ -3,9 +3,12 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.SeekBar;
 import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivityDanmakuSettingsBinding;
+import com.fongmi.android.tv.setting.DanmakuSetting;
+import com.fongmi.android.tv.setting.PlayerButtonSetting;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 public class DanmakuSettingsActivity extends BaseActivity {
     private ActivityDanmakuSettingsBinding binding;
@@ -24,15 +27,30 @@ public class DanmakuSettingsActivity extends BaseActivity {
     }
     @Override
     protected void initView(Bundle savedInstanceState) {
-        binding.switchDanmuLoad.setChecked(prefs().getBoolean("danmu_load", true));
-        binding.switchDanmuLoad.setOnCheckedChangeListener((b, c) -> prefs().edit().putBoolean("danmu_load", c).apply());
+        boolean load = prefs().getBoolean("danmu_load", true);
+        DanmakuSetting.putLoad(load);
+        binding.switchDanmuLoad.setChecked(load);
+        binding.switchDanmuLoad.setOnCheckedChangeListener((b, c) -> { prefs().edit().putBoolean("danmu_load", c).apply(); DanmakuSetting.putLoad(c); });
         binding.cardDanmuApi.setOnClickListener(v -> {});
-        binding.switchDanmuAutosearch.setChecked(prefs().getBoolean("danmu_autosearch", true));
-        binding.switchDanmuAutosearch.setOnCheckedChangeListener((b, c) -> prefs().edit().putBoolean("danmu_autosearch", c).apply());
-        binding.switchDanmuSpiderFirst.setChecked(prefs().getBoolean("danmu_spider_first", false));
-        binding.switchDanmuSpiderFirst.setOnCheckedChangeListener((b, c) -> prefs().edit().putBoolean("danmu_spider_first", c).apply());
-        binding.switchDanmuEnable.setChecked(prefs().getBoolean("danmu_enable", true));
-        binding.switchDanmuEnable.setOnCheckedChangeListener((b, c) -> prefs().edit().putBoolean("danmu_enable", c).apply());
+        boolean auto = prefs().getBoolean("danmu_autosearch", true);
+        DanmakuSetting.putAuto(auto);
+        binding.switchDanmuAutosearch.setChecked(auto);
+        binding.switchDanmuAutosearch.setOnCheckedChangeListener((b, c) -> { prefs().edit().putBoolean("danmu_autosearch", c).apply(); DanmakuSetting.putAuto(c); });
+        boolean spiderFirst = prefs().getBoolean("danmu_spider_first", false);
+        DanmakuSetting.putSpiderFirst(spiderFirst);
+        binding.switchDanmuSpiderFirst.setChecked(spiderFirst);
+        binding.switchDanmuSpiderFirst.setOnCheckedChangeListener((b, c) -> { prefs().edit().putBoolean("danmu_spider_first", c).apply(); DanmakuSetting.putSpiderFirst(c); });
+        boolean enable = prefs().getBoolean("danmu_enable", true);
+        DanmakuSetting.putShow(enable);
+        PlayerButtonSetting.putVisible(PlayerButtonSetting.DANMAKU, enable);
+        binding.switchDanmuEnable.setChecked(enable);
+        binding.switchDanmuEnable.setOnCheckedChangeListener((b, c) -> {
+            prefs().edit().putBoolean("danmu_enable", c).apply();
+            DanmakuSetting.putShow(c);
+            PlayerButtonSetting.putVisible(PlayerButtonSetting.DANMAKU, c);
+            updateSubCardsVisibility(c);
+        });
+        updateSubCardsVisibility(enable);
         int alpha = prefs().getInt("danmu_alpha", 70);
         binding.seekDanmuAlpha.setProgress(alpha);
         binding.tvDanmuAlpha.setText(alpha + "%");
@@ -56,6 +74,13 @@ public class DanmakuSettingsActivity extends BaseActivity {
         binding.areaTop.setOnClickListener(v -> { setArea("top"); updateAreaUI(); });
         binding.areaFull.setOnClickListener(v -> { setArea("full"); updateAreaUI(); });
         binding.areaBottom.setOnClickListener(v -> { setArea("bottom"); updateAreaUI(); });
+    }
+    private void updateSubCardsVisibility(boolean enable) {
+        int v = enable ? View.VISIBLE : View.GONE;
+        binding.cardDanmuAlpha.setVisibility(v);
+        binding.cardDanmuSpeed.setVisibility(v);
+        binding.cardDanmuSize.setVisibility(v);
+        binding.cardDanmuArea.setVisibility(v);
     }
     private void updateSpeedUI() {
         String s = prefs().getString("danmu_speed", "normal");

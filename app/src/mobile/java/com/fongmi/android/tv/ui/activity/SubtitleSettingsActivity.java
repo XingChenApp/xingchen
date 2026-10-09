@@ -3,8 +3,10 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.view.View;
 import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivitySubtitleSettingsBinding;
+import com.fongmi.android.tv.setting.PlayerButtonSetting;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 public class SubtitleSettingsActivity extends BaseActivity {
     private ActivitySubtitleSettingsBinding binding;
@@ -23,8 +25,15 @@ public class SubtitleSettingsActivity extends BaseActivity {
     }
     @Override
     protected void initView(Bundle savedInstanceState) {
-        binding.switchSubEnable.setChecked(prefs().getBoolean("sub_enable", true));
-        binding.switchSubEnable.setOnCheckedChangeListener((b, c) -> prefs().edit().putBoolean("sub_enable", c).apply());
+        boolean subEnable = prefs().getBoolean("sub_enable", true);
+        PlayerButtonSetting.putVisible(PlayerButtonSetting.TEXT, subEnable);
+        binding.switchSubEnable.setChecked(subEnable);
+        binding.switchSubEnable.setOnCheckedChangeListener((b, c) -> {
+            prefs().edit().putBoolean("sub_enable", c).apply();
+            PlayerButtonSetting.putVisible(PlayerButtonSetting.TEXT, c);
+            updateSubCardsVisibility(c);
+        });
+        updateSubCardsVisibility(subEnable);
         updateSubSizeUI();
         binding.subSizeSmall.setOnClickListener(v -> { setSubSize("small"); updateSubSizeUI(); });
         binding.subSizeMedium.setOnClickListener(v -> { setSubSize("medium"); updateSubSizeUI(); });
@@ -72,6 +81,17 @@ public class SubtitleSettingsActivity extends BaseActivity {
             binding.etOpensubKey.setText("");
             updateOpensubUI();
         });
+    }
+    private void updateSubCardsVisibility(boolean enable) {
+        int v = enable ? View.VISIBLE : View.GONE;
+        binding.cardSubSize.setVisibility(v);
+        binding.cardSubColor.setVisibility(v);
+        binding.cardSubPos.setVisibility(v);
+        binding.cardSubDelay.setVisibility(v);
+        binding.cardSubAutomatch.setVisibility(v);
+        binding.cardSubLang.setVisibility(v);
+        binding.cardSubSrc.setVisibility(v);
+        binding.cardSubOpensub.setVisibility(v);
     }
     private void updateSubSizeUI() {
         String s = prefs().getString("sub_size", "medium");

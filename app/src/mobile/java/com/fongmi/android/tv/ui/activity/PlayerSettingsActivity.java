@@ -47,6 +47,7 @@ public class PlayerSettingsActivity extends BaseActivity {
         binding.bpPip.setOnClickListener(v -> { setBgPip("pip"); updateBgPipUI(); });
         binding.cardDanmu.setOnClickListener(v -> DanmakuSettingsActivity.start(this));
         binding.cardSubtitle.setOnClickListener(v -> SubtitleSettingsActivity.start(this));
+        binding.cardSkipSettings.setOnClickListener(v -> SkipSettingsActivity.start(this));
     }
     private void updateSpeedUI() {
         float s = getSharedPreferences("xingchen", MODE_PRIVATE).getFloat("player_speed", 1.0f);

@@ -51,6 +51,7 @@
         </LinearLayout>
         <!-- 字幕字号 -->
         <LinearLayout
+            android:id="@+id/card_sub_size"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
@@ -89,6 +90,7 @@
         </LinearLayout>
         <!-- 字幕颜色 -->
         <LinearLayout
+            android:id="@+id/card_sub_color"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
@@ -129,6 +131,7 @@
         </LinearLayout>
         <!-- 字幕位置 -->
         <LinearLayout
+            android:id="@+id/card_sub_pos"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
@@ -167,6 +170,7 @@
         </LinearLayout>
         <!-- 字幕延迟 -->
         <LinearLayout
+            android:id="@+id/card_sub_delay"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
@@ -207,6 +211,7 @@
         </LinearLayout>
         <!-- 自动匹配字幕 -->
         <LinearLayout
+            android:id="@+id/card_sub_automatch"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
@@ -237,6 +242,7 @@
         </LinearLayout>
         <!-- 偏好语言 -->
         <LinearLayout
+            android:id="@+id/card_sub_lang"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
@@ -276,6 +282,7 @@
         </LinearLayout>
         <!-- 字幕源 -->
         <LinearLayout
+            android:id="@+id/card_sub_src"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
@@ -370,6 +377,7 @@
         </LinearLayout>
         <!-- OpenSubtitles API 密钥 -->
         <LinearLayout
+            android:id="@+id/card_sub_opensub"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"

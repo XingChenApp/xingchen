@@ -175,6 +175,7 @@
         </LinearLayout>
         <!-- 弹幕透明度 -->
         <LinearLayout
+            android:id="@+id/card_danmu_alpha"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
@@ -218,6 +219,7 @@
         </LinearLayout>
         <!-- 弹幕速度 -->
         <LinearLayout
+            android:id="@+id/card_danmu_speed"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
@@ -256,6 +258,7 @@
         </LinearLayout>
         <!-- 弹幕字号 -->
         <LinearLayout
+            android:id="@+id/card_danmu_size"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
@@ -294,6 +297,7 @@
         </LinearLayout>
         <!-- 弹幕显示区域 -->
         <LinearLayout
+            android:id="@+id/card_danmu_area"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
