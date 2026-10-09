@@ -20,6 +20,7 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.viewbinding.ViewBinding;
 
+import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Product;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.VodConfig;
@@ -150,12 +151,37 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
     private void setSites() {
         String siteKey = getSiteKey();
         mSites = new ArrayList<>();
+        // Include home site (user-selected PY script via source popup, or VOD source)
+        // setHome() only sets the home field without adding to sites list,
+        // so we must add it here explicitly, otherwise search finds nothing.
+        Site home = VodConfig.get().getHome();
+        if (home != null && home.isSearchable()) {
+            if (TextUtils.isEmpty(siteKey) || home.getKey().equals(siteKey)) {
+                if (isJsSite(home)) {
+                    App.post(() -> android.widget.Toast.makeText(requireContext(), "JS 暂未支持", android.widget.Toast.LENGTH_SHORT).show());
+                } else {
+                    mSites.add(home);
+                }
+            }
+        }
         for (Site site : VodConfig.get().getSites()) {
             if (!site.isSearchable()) continue;
             if (!TextUtils.isEmpty(siteKey) && !site.getKey().equals(siteKey)) continue;
-            mSites.add(site);
+            if (isJsSite(site)) continue;
+            boolean exists = false;
+            for (Site s : mSites) {
+                if (s.getKey().equals(site.getKey())) { exists = true; break; }
+            }
+            if (!exists) mSites.add(site);
         }
         SiteHealthStore.sortSites(mSites);
+    }
+
+    private boolean isJsSite(Site site) {
+        if (site == null) return false;
+        String key = site.getKey();
+        String api = site.getApi();
+        return (key != null && key.startsWith("js_")) || (api != null && (api.endsWith(".js") || api.endsWith(".wv")));
     }
 
     private void setWidth() {
