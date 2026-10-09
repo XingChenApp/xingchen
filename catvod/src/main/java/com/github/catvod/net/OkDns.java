@@ -26,7 +26,7 @@ public class OkDns implements Dns {
     private final ConcurrentHashMap<String, String> map;
     private volatile Supplier<Doh> supplier;
     private volatile DnsOverHttps doh;
-    private volatile DnsOverHttps fallbackDoh;
+    private volatile List<DnsOverHttps> fallbackDohList;
 
     public OkDns() {
         this.map = new ConcurrentHashMap<>();
@@ -81,17 +81,13 @@ public class OkDns implements Dns {
             addresses = (doh != null ? doh : Dns.SYSTEM).lookup(target);
         } catch (UnknownHostException e) {
             // System mode with broken system DNS (NXDOMAIN / timeout / poisoned
-            // resolver): try a public DoH once before giving up, so System mode
-            // keeps working on such networks. Provider modes rethrow unchanged.
-            // The fallback client uses plain system DNS (never this wrapper),
-            // so there is no recursion.
-            DnsOverHttps fallback = (doh == null) ? getFallbackDoh() : null;
-            if (fallback == null) throw e;
-            try {
-                addresses = fallback.lookup(target);
-            } catch (Exception ex) {
-                throw e;
-            }
+            // resolver): try public DoH fallbacks before giving up, so System
+            // mode keeps working on such networks. Provider modes rethrow
+            // unchanged. Fallback clients carry bootstrap IPs for the DoH
+            // servers themselves, so they never touch system DNS (which is
+            // exactly what's broken here) and never this wrapper: no recursion.
+            if (doh != null) throw e;
+            addresses = fallbackLookup(target, e);
         }
         // Prefer IPv4: some networks' DNS returns broken IPv6 (e.g. [::]) or hijacked
         // loopback (e.g. 127.0.1.1) for CDN/API hosts, which makes every connection fail.
@@ -103,12 +99,41 @@ public class OkDns implements Dns {
         return ipv4.isEmpty() ? addresses : ipv4;
     }
 
-    private synchronized DnsOverHttps getFallbackDoh() {
-        if (fallbackDoh == null) {
-            HttpUrl url = HttpUrl.parse("https://doh.pub/dns-query");
-            if (url != null) fallbackDoh = new DnsOverHttps.Builder().client(new OkHttpClient()).url(url).build();
+    private List<InetAddress> fallbackLookup(String target, UnknownHostException original) throws UnknownHostException {
+        for (DnsOverHttps fallback : getFallbackDohList()) {
+            try {
+                return fallback.lookup(target);
+            } catch (Exception ignored) {
+            }
         }
-        return fallbackDoh;
+        throw original;
+    }
+
+    private synchronized List<DnsOverHttps> getFallbackDohList() {
+        if (fallbackDohList == null) {
+            List<DnsOverHttps> list = new ArrayList<>();
+            DnsOverHttps tencent = buildFallbackDoh("https://doh.pub/dns-query", "119.29.29.29", "1.12.12.12", "120.53.53.53");
+            if (tencent != null) list.add(tencent);
+            DnsOverHttps ali = buildFallbackDoh("https://dns.alidns.com/dns-query", "223.5.5.5", "223.6.6.6");
+            if (ali != null) list.add(ali);
+            fallbackDohList = list;
+        }
+        return fallbackDohList;
+    }
+
+    private DnsOverHttps buildFallbackDoh(String url, String... bootstrapIps) {
+        HttpUrl parsed = HttpUrl.parse(url);
+        if (parsed == null) return null;
+        List<InetAddress> bootstrap = new ArrayList<>(bootstrapIps.length);
+        for (String ip : bootstrapIps) {
+            try {
+                bootstrap.add(InetAddress.getByName(ip));
+            } catch (Exception ignored) {
+            }
+        }
+        DnsOverHttps.Builder builder = new DnsOverHttps.Builder().client(new OkHttpClient()).url(parsed);
+        if (!bootstrap.isEmpty()) builder.bootstrapDnsHosts(bootstrap);
+        return builder.build();
     }
 
     private synchronized void initDoh(Supplier<Doh> supplier) {
