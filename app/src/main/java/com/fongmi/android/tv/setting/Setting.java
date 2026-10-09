@@ -529,7 +529,10 @@ public class Setting {
     }
 
     public static int getCspWarmupMode() {
-        if (!Prefers.getBoolean("csp_warmup")) return CSP_WARMUP_DISABLED;
+        // Default ON: preloading the home spider (including PY sources) in the
+        // background after config load removes the multi-second first-open stall.
+        // An explicit putCspWarmup(false) still disables it.
+        if (!Prefers.getBoolean("csp_warmup", true)) return CSP_WARMUP_DISABLED;
         return getCspWarmupSelectedMode();
     }
 

@@ -91,6 +91,10 @@ public final class CspWarmup {
 
     private static List<Site> pickSites() {
         if (Setting.getCspWarmupMode() == Setting.CSP_WARMUP_CUSTOM) return pickCustomSites();
+        // Warm the home site first: it is the first spider the user actually opens.
+        // (Previously a non-home CSP site was preferred, which missed PY home sources entirely.)
+        Site home = VodConfig.get().getHome();
+        if (isWarmable(home)) return Collections.singletonList(home);
         Site site = pickSite();
         return site == null ? Collections.emptyList() : Collections.singletonList(site);
     }
@@ -102,7 +106,9 @@ public final class CspWarmup {
             Site site = VodConfig.get().getSite(key);
             if (!isWarmable(site)) continue;
             String jar = jarKey(site);
-            if (!jars.add(jar)) continue;
+            // PY sites have no jar; only de-duplicate when a jar key actually exists,
+            // otherwise only the first PY site would ever be warmed.
+            if (!jar.isEmpty() && !jars.add(jar)) continue;
             result.add(site);
         }
         return result;
@@ -119,9 +125,14 @@ public final class CspWarmup {
     }
 
     public static boolean isWarmable(Site site) {
-        if (site == null || site.isEmpty() || site.getType() != 3) return false;
+        if (site == null || site.isEmpty()) return false;
         String api = site.getApi();
-        return !TextUtils.isEmpty(api) && api.startsWith("csp_") && !"csp_Builtin".equalsIgnoreCase(api) && !TextUtils.isEmpty(jarKey(site));
+        if (TextUtils.isEmpty(api)) return false;
+        // PY sources use the same routing predicate as BaseLoader.isPy(api):
+        // warming them here pre-imports the script and runs init() in the
+        // background, so the first homeContent() no longer blocks on it.
+        if (api.contains(".py")) return true;
+        return site.getType() == 3 && api.startsWith("csp_") && !"csp_Builtin".equalsIgnoreCase(api) && !TextUtils.isEmpty(jarKey(site));
     }
 
     public static String jarKey(Site site) {
