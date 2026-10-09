@@ -3,6 +3,7 @@ package com.fongmi.android.tv.player.engine;
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecList;
 import android.os.Build;
+import android.util.Log;
 
 import androidx.media3.common.C;
 import androidx.media3.common.Effect;
@@ -17,6 +18,7 @@ import androidx.media3.common.Timeline;
 import androidx.media3.common.Tracks;
 import androidx.media3.exoplayer.ExoPlaybackException;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.datasource.HttpDataSource;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
@@ -139,12 +141,21 @@ public class ExoPlayerEngine implements PlayerEngine {
 
         @Override
         public void onPlayerError(@androidx.annotation.NonNull PlaybackException error) {
+            Log.d("XC-PY", "exo onPlayerError code=" + error.errorCode + " http=" + getHttpResponseCode(error) + " msg=" + error.getMessage());
             tunnelingWatchdog.onError();
             App.removeCallbacks(tunnelingWatchdogRunnable);
             cancelTunnelingProgressWatchdog();
             cancelDecoderRuntimeStableWindow();
         }
     };
+
+    private static int getHttpResponseCode(Throwable e) {
+        while (e != null) {
+            if (e instanceof HttpDataSource.HttpDataSourceException) return ((HttpDataSource.HttpDataSourceException) e).responseCode;
+            e = e.getCause();
+        }
+        return -1;
+    }
 
     public ExoPlayerEngine(int decode, Player.Listener listener) {
         this.decoderRuntimeSession = ExoDecoderRuntimeProfiles.process().newSession();
