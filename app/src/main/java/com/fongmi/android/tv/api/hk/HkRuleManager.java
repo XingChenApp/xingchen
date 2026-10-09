@@ -446,14 +446,15 @@ public class HkRuleManager {
     }
 
     /**
-     * 从 JS 规则文本导入：内容以 "js:" 开头，后面是 JS 代码。
-     * 包装成 rule.json（type=video，find_rule=js 内容），标题取自文件名。
+     * 从 JS 规则文本解析：内容以 "js:" 开头，后面是 JS 代码。
+     * 包装成 rule.json（type=video，find_rule=js 内容），标题取自文件名。不落盘。
      *
      * @param jsContent js: 开头的规则文本
      * @param fileName  来源文件名（可为 null），用于取标题
-     * @return 导入成功的规则
+     * @return 解析通过的规则
+     * @throws Exception 格式错误或校验不通过时抛出
      */
-    public HkRule importJsRule(String jsContent, String fileName) throws Exception {
+    public ParsedRule parseJsRule(String jsContent, String fileName) throws Exception {
         if (jsContent == null || jsContent.trim().isEmpty()) throw new IllegalArgumentException("JS 规则内容为空");
         String t = jsContent.trim();
         if (!t.startsWith("js:")) throw new IllegalArgumentException("不是 js: 格式的规则");
@@ -470,7 +471,22 @@ public class HkRuleManager {
         obj.addProperty("type", "video");
         obj.addProperty("url", "");
         obj.addProperty("find_rule", t);
-        return importJson(new Gson().toJson(obj));
+        String json = new Gson().toJson(obj);
+        return new ParsedRule(parseJson(json), json);
+    }
+
+    /**
+     * 从 JS 规则文本导入：内容以 "js:" 开头，后面是 JS 代码。
+     * 包装成 rule.json（type=video，find_rule=js 内容），标题取自文件名。
+     *
+     * @param jsContent js: 开头的规则文本
+     * @param fileName  来源文件名（可为 null），用于取标题
+     * @return 导入成功的规则
+     */
+    public HkRule importJsRule(String jsContent, String fileName) throws Exception {
+        ParsedRule p = parseJsRule(jsContent, fileName);
+        saveRule(p.rule, p.json);
+        return p.rule;
     }
 
     /** 是否为云口令格式（云1~云10 开头）。 */

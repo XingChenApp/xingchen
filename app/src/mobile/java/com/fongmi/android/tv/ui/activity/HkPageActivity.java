@@ -281,12 +281,28 @@ public class HkPageActivity extends BaseActivity {
         }).start();
     }
 
+    /**
+     * 多文件导入的勾选项：解析结果 + 其所属 .hkzip 的附带资源（非 hkzip 时为 null）。
+     * 附带资源只给本条目选中的规则落盘，避免多包混淆。
+     */
+    private static class PickEntry {
+        final HkRuleManager.ParsedRule parsed;
+        final HkRuleManager.HkZipData hkZipData;
+
+        PickEntry(HkRuleManager.ParsedRule parsed, HkRuleManager.HkZipData hkZipData) {
+            this.parsed = parsed;
+            this.hkZipData = hkZipData;
+        }
+    }
+
     private void pickRuleFile() {
         try {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
             intent.setType("*/*");
             intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
                     "application/json", "application/zip", "application/javascript", "text/javascript"});
+            // 支持一次选多个文件（系统文件选择器长按多选）
+            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             startActivityForResult(intent, REQ_IMPORT_FILE);
         } catch (Exception e) {
@@ -315,53 +331,94 @@ public class HkPageActivity extends BaseActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQ_IMPORT_FILE && resultCode == RESULT_OK && data != null && data.getData() != null) {
-            importRuleFile(data.getData());
+        if (requestCode == REQ_IMPORT_FILE && resultCode == RESULT_OK && data != null) {
+            List<Uri> uris = new ArrayList<>();
+            ClipData clip = data.getClipData();
+            if (clip != null) {
+                // 多选：ClipData 里每个 item 是一个文件
+                for (int i = 0; i < clip.getItemCount(); i++) {
+                    Uri u = clip.getItemAt(i).getUri();
+                    if (u != null) uris.add(u);
+                }
+            } else if (data.getData() != null) {
+                uris.add(data.getData());
+            }
+            if (!uris.isEmpty()) importRuleFiles(uris);
         }
     }
 
-    private void importRuleFile(Uri uri) {
+    /**
+     * 多文件导入：逐个解析（zip/.hkzip/JSON/JSON 数组/js:），全部合并后走统一勾选弹窗（带全选）。
+     * 单个文件解析失败只跳过该文件，不影响其他文件。
+     *
+     * @param uris 待导入的文件 Uri 列表
+     */
+    private void importRuleFiles(List<Uri> uris) {
+        if (uris.size() > 1) Notify.show("正在解析 " + uris.size() + " 个文件…");
         new Thread(() -> {
-            File tmp = null;
-            try (InputStream in = getContentResolver().openInputStream(uri)) {
-                // 先落到临时文件：需要按后缀/魔数判断是否为 zip
-                tmp = File.createTempFile("hkimport", ".tmp", getCacheDir());
-                try (FileOutputStream out = new FileOutputStream(tmp)) {
-                    byte[] buf = new byte[8192];
-                    int n;
-                    while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-                }
+            List<PickEntry> entries = new ArrayList<>();
+            List<String> errors = new ArrayList<>();
+            for (Uri uri : uris) {
+                File tmp = null;
                 String displayName = getDisplayName(uri);
-                if (isZipFile(tmp, displayName)) {
-                    // 多规则包：先全部解析 → 弹窗让用户勾选 → 只导入选中的
-                    boolean hkzip = displayName != null && displayName.toLowerCase().endsWith(".hkzip");
-                    List<HkRuleManager.ParsedRule> parsed;
-                    HkRuleManager.HkZipData hkZipData = null;
-                    if (hkzip) {
-                        hkZipData = HkRuleManager.get().parseHkZip(tmp);
-                        parsed = hkZipData.rules;
-                    } else {
-                        parsed = HkRuleManager.get().parseZip(tmp);
-                    }
-                    List<HkRuleManager.ParsedRule> result = parsed;
-                    HkRuleManager.HkZipData data = hkZipData;
-                    App.post(() -> {
-                        if (result.size() == 1) {
-                            // 单个规则直接导入（.hkzip 的附带资源一并落盘）
-                            importPickedRules(result, data);
+                try {
+                    // 先落到临时文件：需要按后缀/魔数判断是否为 zip
+                    tmp = copyToTemp(uri);
+                    if (isZipFile(tmp, displayName)) {
+                        // 多规则包：先全部解析 → 弹窗让用户勾选 → 只导入选中的
+                        boolean hkzip = displayName != null && displayName.toLowerCase().endsWith(".hkzip");
+                        if (hkzip) {
+                            HkRuleManager.HkZipData zipData = HkRuleManager.get().parseHkZip(tmp);
+                            for (HkRuleManager.ParsedRule p : zipData.rules) entries.add(new PickEntry(p, zipData));
                         } else {
-                            showPickRulesDialog(result, data);
+                            for (HkRuleManager.ParsedRule p : HkRuleManager.get().parseZip(tmp)) {
+                                entries.add(new PickEntry(p, null));
+                            }
                         }
-                    });
-                } else {
-                    importRuleText(readAll(new FileInputStream(tmp)), displayName);
+                    } else {
+                        String text = readAll(new FileInputStream(tmp));
+                        if (HkRuleManager.isJsRuleText(text)) {
+                            entries.add(new PickEntry(HkRuleManager.get().parseJsRule(text, displayName), null));
+                        } else {
+                            for (HkRuleManager.ParsedRule p : HkRuleManager.get().parseJsonList(text)) {
+                                entries.add(new PickEntry(p, null));
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    errors.add((displayName == null ? "文件" : displayName) + "：" + e.getMessage());
+                } finally {
+                    if (tmp != null) tmp.delete();
                 }
-            } catch (Exception e) {
-                App.post(() -> Notify.show("导入失败：" + e.getMessage()));
-            } finally {
-                if (tmp != null) tmp.delete();
             }
+            final List<PickEntry> result = entries;
+            final List<String> failList = errors;
+            App.post(() -> {
+                if (!failList.isEmpty()) {
+                    Notify.show("跳过 " + failList.size() + " 个失败文件：" + TextUtils.join("；", failList));
+                }
+                if (result.isEmpty()) {
+                    if (failList.isEmpty()) Notify.show("未解析到任何规则");
+                } else if (result.size() == 1) {
+                    // 单个规则直接导入（.hkzip 的附带资源一并落盘）
+                    importPickedRules(result);
+                } else {
+                    showPickRulesDialog(result);
+                }
+            });
         }).start();
+    }
+
+    /** content uri 落盘到临时文件（便于按魔数判断 zip）。 */
+    private File copyToTemp(Uri uri) throws Exception {
+        File tmp = File.createTempFile("hkimport", ".tmp", getCacheDir());
+        try (InputStream in = getContentResolver().openInputStream(uri);
+             FileOutputStream out = new FileOutputStream(tmp)) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        }
+        return tmp;
     }
 
     /**
@@ -386,11 +443,12 @@ public class HkPageActivity extends BaseActivity {
                 } else {
                     // 一键导入：先全部解析，多个则弹窗让用户勾选要导入哪些（带全选）
                     List<HkRuleManager.ParsedRule> parsed = HkRuleManager.get().parseJsonList(text);
+                    final List<PickEntry> entries = wrapParsed(parsed, null);
                     App.post(() -> {
-                        if (parsed.size() == 1) {
-                            importPickedRules(parsed, null);
+                        if (entries.size() == 1) {
+                            importPickedRules(entries);
                         } else {
-                            showPickRulesDialog(parsed, null);
+                            showPickRulesDialog(entries);
                         }
                     });
                 }
@@ -400,13 +458,19 @@ public class HkPageActivity extends BaseActivity {
         }).start();
     }
 
+    /** 把解析结果包装成勾选项（附带资源统一传入，传 null 表示无）。 */
+    private static List<PickEntry> wrapParsed(List<HkRuleManager.ParsedRule> parsed, HkRuleManager.HkZipData hkZipData) {
+        List<PickEntry> list = new ArrayList<>(parsed.size());
+        for (HkRuleManager.ParsedRule p : parsed) list.add(new PickEntry(p, hkZipData));
+        return list;
+    }
+
     /**
-     * 把选中的解析结果落盘导入（.hkzip 的附带资源一并落盘）。
+     * 把选中的解析结果落盘导入（各 .hkzip 的附带资源按所属包分别落盘）。
      *
-     * @param picked    选中的规则
-     * @param hkZipData .hkzip 解析数据（可为 null）
+     * @param picked 选中的勾选项
      */
-    private void importPickedRules(List<HkRuleManager.ParsedRule> picked, HkRuleManager.HkZipData hkZipData) {
+    private void importPickedRules(List<PickEntry> picked) {
         if (picked.isEmpty()) {
             Notify.show("未选中任何规则");
             return;
@@ -414,11 +478,22 @@ public class HkPageActivity extends BaseActivity {
         new Thread(() -> {
             try {
                 List<HkRule> rules = new ArrayList<>();
-                for (HkRuleManager.ParsedRule p : picked) {
-                    HkRuleManager.get().saveRule(p.rule, p.json);
-                    rules.add(p.rule);
+                Map<HkRuleManager.HkZipData, List<HkRule>> assets = new HashMap<>();
+                for (PickEntry e : picked) {
+                    HkRuleManager.get().saveRule(e.parsed.rule, e.parsed.json);
+                    rules.add(e.parsed.rule);
+                    if (e.hkZipData != null) {
+                        List<HkRule> g = assets.get(e.hkZipData);
+                        if (g == null) {
+                            g = new ArrayList<>();
+                            assets.put(e.hkZipData, g);
+                        }
+                        g.add(e.parsed.rule);
+                    }
                 }
-                if (hkZipData != null) HkRuleManager.get().saveHkZipAssets(hkZipData, rules);
+                for (Map.Entry<HkRuleManager.HkZipData, List<HkRule>> en : assets.entrySet()) {
+                    HkRuleManager.get().saveHkZipAssets(en.getKey(), en.getValue());
+                }
                 String msg = rules.size() == 1
                         ? "导入成功：" + rules.get(0).getTitle()
                         : "导入成功 " + rules.size() + " 个小程序";
@@ -436,10 +511,9 @@ public class HkPageActivity extends BaseActivity {
      * 一键导入勾选弹窗：多选列表（标题+作者）+ 顶部"全选"复选框。
      * 确定后只导入勾选中的规则。
      *
-     * @param parsed    解析好的全部规则
-     * @param hkZipData .hkzip 解析数据（可为 null）
+     * @param entries 解析好的全部勾选项
      */
-    private void showPickRulesDialog(List<HkRuleManager.ParsedRule> parsed, HkRuleManager.HkZipData hkZipData) {
+    private void showPickRulesDialog(List<PickEntry> entries) {
         float density = getResources().getDisplayMetrics().density;
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -453,7 +527,8 @@ public class HkPageActivity extends BaseActivity {
         root.addView(cbAll);
 
         List<String> labels = new ArrayList<>();
-        for (HkRuleManager.ParsedRule p : parsed) {
+        for (PickEntry e : entries) {
+            HkRuleManager.ParsedRule p = e.parsed;
             String author = p.rule.getAuthor();
             labels.add(TextUtils.isEmpty(author) ? p.rule.getTitle() : p.rule.getTitle() + "（" + author + "）");
         }
@@ -480,11 +555,11 @@ public class HkPageActivity extends BaseActivity {
                 .setView(root)
                 .setPositiveButton("导入", (d, w) -> {
                     SparseBooleanArray checked = listView.getCheckedItemPositions();
-                    List<HkRuleManager.ParsedRule> picked = new ArrayList<>();
+                    List<PickEntry> picked = new ArrayList<>();
                     for (int i = 0; i < labels.size(); i++) {
-                        if (checked.get(i)) picked.add(parsed.get(i));
+                        if (checked.get(i)) picked.add(entries.get(i));
                     }
-                    importPickedRules(picked, hkZipData);
+                    importPickedRules(picked);
                 })
                 .setNegativeButton("取消", null)
                 .show();
