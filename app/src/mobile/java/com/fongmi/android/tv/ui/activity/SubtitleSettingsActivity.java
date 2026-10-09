@@ -8,18 +8,11 @@ import android.view.View;
 
 import androidx.viewbinding.ViewBinding;
 
-import android.app.AlertDialog;
-import android.widget.Toast;
-
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.databinding.ActivitySubtitleSettingsBinding;
 import com.fongmi.android.tv.setting.PlayerButtonSetting;
 import com.fongmi.android.tv.setting.SubtitleSetting;
-import com.fongmi.android.tv.subtitle.SubtitleInfo;
-import com.fongmi.android.tv.subtitle.SubtitleManager;
 import com.fongmi.android.tv.ui.base.BaseActivity;
-
-import java.util.List;
 
 public class SubtitleSettingsActivity extends BaseActivity {
 
@@ -162,51 +155,6 @@ public class SubtitleSettingsActivity extends BaseActivity {
             binding.etOpensubKey.setText("");
             updateOpensubUI();
         });
-
-        binding.btnSubSearch.setOnClickListener(v -> {
-            String keyword = binding.etSubSearch.getText().toString().trim();
-            if (keyword.isEmpty()) {
-                Toast.makeText(this, "请输入片名", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            binding.tvSubSearchStatus.setVisibility(View.VISIBLE);
-            binding.tvSubSearchStatus.setText("搜索中…");
-            binding.btnSubSearch.setEnabled(false);
-            SubtitleManager.search(keyword, items -> {
-                binding.btnSubSearch.setEnabled(true);
-                if (items == null || items.isEmpty()) {
-                    binding.tvSubSearchStatus.setText("未找到字幕，换个关键词试试");
-                    return;
-                }
-                binding.tvSubSearchStatus.setText("找到 " + items.size() + " 个字幕");
-                showSubtitleResults(items);
-            });
-        });
-    }
-
-    private void showSubtitleResults(List<SubtitleInfo> items) {
-        String[] names = new String[items.size()];
-        for (int i = 0; i < items.size(); i++) {
-            SubtitleInfo it = items.get(i);
-            names[i] = it.getName() + " [" + it.getLang() + "]";
-        }
-        new AlertDialog.Builder(this)
-                .setTitle("选择字幕")
-                .setItems(names, (d, which) -> {
-                    SubtitleInfo info = items.get(which);
-                    Toast.makeText(this, "下载中…", Toast.LENGTH_SHORT).show();
-                    SubtitleManager.downloadAndApply(info, null, file -> {
-                        if (file != null) {
-                            Toast.makeText(this, "字幕已加载", Toast.LENGTH_SHORT).show();
-                            binding.tvSubSearchStatus.setText("已加载：" + info.getName());
-                        } else {
-                            Toast.makeText(this, "下载失败", Toast.LENGTH_SHORT).show();
-                            binding.tvSubSearchStatus.setText("下载失败，换一个试试");
-                        }
-                    });
-                })
-                .setNegativeButton("取消", null)
-                .show();
     }
 
     private void updateSubCardsVisibility(boolean enable) {
@@ -219,7 +167,6 @@ public class SubtitleSettingsActivity extends BaseActivity {
         binding.cardSubLang.setVisibility(v);
         binding.cardSubSrc.setVisibility(v);
         binding.cardSubOpensub.setVisibility(v);
-        binding.cardSubSearch.setVisibility(v);
     }
 
     private void updateSubSizeUI() {

@@ -65,7 +65,6 @@ public final class DanmakuDialog extends BaseBottomSheetDialog implements Danmak
         binding.recycler.addItemDecoration(new SpaceItemDecoration(1, 16));
         binding.recycler.post(() -> binding.recycler.scrollToPosition(adapter.getSelected()));
         binding.recycler.setVisibility(adapter.getItemCount() == 0 ? View.GONE : View.VISIBLE);
-        binding.search.setVisibility(player.getMetadata() == null || !DanmakuSetting.hasValidApiUrl() ? View.GONE : View.VISIBLE);
     }
 
     @Override
@@ -79,8 +78,12 @@ public final class DanmakuDialog extends BaseBottomSheetDialog implements Danmak
         FragmentActivity activity = getActivity();
         if (activity == null) return;
         dismissAllowingStateLoss();
-        if (shouldUseInputDialog(activity)) DanmakuSearchInputDialog.create().player(player).restoreParent(true).show(activity);
-        else DanmakuSearchDialog.create().player(player).restoreParent(true).show(activity);
+        if (DanmakuSetting.hasValidApiUrl()) {
+            if (shouldUseInputDialog(activity)) DanmakuSearchInputDialog.create().player(player).restoreParent(true).show(activity);
+            else DanmakuSearchDialog.create().player(player).restoreParent(true).show(activity);
+        } else {
+            DanDanPlaySearchDialog.create().player(player).restoreParent(true).show(activity);
+        }
     }
 
     private boolean shouldUseInputDialog(FragmentActivity activity) {
