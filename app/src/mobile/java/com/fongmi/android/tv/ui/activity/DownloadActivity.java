@@ -88,6 +88,7 @@ public class DownloadActivity extends BaseActivity {
     }
 
     private DownloadTaskAdapter adapter;
+    private final DownloadManager.Listener downloadListener = task -> refreshTasks();
 
     @Override
     protected void initView(Bundle savedInstanceState) {
@@ -103,13 +104,13 @@ public class DownloadActivity extends BaseActivity {
             binding.cardDownloadThreads.setOnClickListener(v -> showThreadDialog());
         }
         refreshTasks();
-        DownloadManager.get().addListener(task -> refreshTasks());
+        DownloadManager.get().addListener(downloadListener);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        DownloadManager.get().removeListener(task -> refreshTasks());
+        DownloadManager.get().removeListener(downloadListener);
     }
 
     private void refreshTasks() {
