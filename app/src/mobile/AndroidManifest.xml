@@ -123,11 +123,6 @@
             android:screenOrientation="fullUser" />
 
         <activity
-            android:name=".ui.activity.SkipSettingsActivity"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout"
-            android:screenOrientation="fullUser" />
-
-        <activity
             android:name=".ui.activity.DownloadActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout"
             android:screenOrientation="fullUser" />
