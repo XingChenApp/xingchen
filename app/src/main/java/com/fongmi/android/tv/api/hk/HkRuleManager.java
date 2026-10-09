@@ -6,17 +6,30 @@ import android.util.Base64;
 
 import com.fongmi.android.tv.App;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 import okhttp3.FormBody;
 import okhttp3.OkHttpClient;
@@ -35,13 +48,13 @@ public class HkRuleManager {
     private static final String PREFS = "hk_rule";
     private static final String KEY_ENABLED_PREFIX = "enabled_";
 
-    // 云口令（云剪贴板）：格式 云{version}oooole/{path}，version 常见 2/5/6。
+    // 云口令（云剪贴板）：格式 云{version}oooole/{path}，version 为 1~10。
     // 逆向自海阔视界官方 App（com.example.hikerviewg v8.83）的 NetCutImporter：
     //   云Noooole/p/{note_id}   → netcut.cn 云便签
     //   云Noooole/apidb/{key}   → textdb.online
     //   云Noooole/{id}/{pwd}    → netcut 带密码（云6 新格式）
     private static final Pattern CLOUD_CODE_PATTERN =
-            Pattern.compile("^云([256])oooole(/.*)$");
+            Pattern.compile("^云([1-9]|10)oooole(/.*)$");
     private static final String NETCUT_API = "http://netcut.cn/api/note2/info/?note_id=";
     private static final String TEXTDB_API_UPDATE = "https://api.textdb.online/update/";
     private static final String TEXTDB_GET = "https://textdb.online/";
@@ -105,7 +118,219 @@ public class HkRuleManager {
         return importJson(new String(bytes, StandardCharsets.UTF_8));
     }
 
-    /** 是否为云口令格式（云2/云5/云6 开头）。 */
+    /**
+     * 从 zip 包导入规则：解压后找出所有 rule.json（根目录或子目录均可），逐个导入。
+     * 一个 zip 可包含多个规则；zip 内条目也可能是规则数组；单个损坏的条目只跳过、不影响其它。
+     *
+     * @return 导入成功的规则列表
+     * @throws Exception zip 损坏 / 其中没有合法规则时抛出，message 可直接提示用户
+     */
+    public List<HkRule> importZip(File zipFile) throws Exception {
+        if (zipFile == null || !zipFile.exists()) throw new IllegalArgumentException("zip 文件不存在");
+        List<HkRule> imported = new ArrayList<>();
+        List<String> failed = new ArrayList<>();
+        try (ZipFile zip = new ZipFile(zipFile)) {
+            Enumeration<? extends ZipEntry> entries = zip.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                if (entry.isDirectory()) continue;
+                String name = entry.getName();
+                // 跳过 macOS 垃圾与隐藏文件
+                String base = name.substring(name.lastIndexOf('/') + 1);
+                if (base.startsWith(".")) continue;
+                if (name.startsWith("__MACOSX/")) continue;
+                // 只认 .json
+                if (!base.toLowerCase(Locale.ROOT).endsWith(".json")) continue;
+                byte[] bytes = readStream(zip.getInputStream(entry));
+                try {
+                    // 条目可能是单个规则，也可能是规则数组
+                    imported.addAll(importJsonList(new String(bytes, StandardCharsets.UTF_8)));
+                } catch (Exception e) {
+                    failed.add(base + "（" + e.getMessage() + "）");
+                }
+            }
+        } catch (ZipException e) {
+            throw new IllegalArgumentException("不是有效的 zip 包或文件已损坏");
+        }
+        if (imported.isEmpty()) {
+            if (!failed.isEmpty()) throw new IllegalArgumentException("zip 中没有合法规则：" + failed.get(0));
+            throw new IllegalArgumentException("zip 中没有找到 rule.json");
+        }
+        return imported;
+    }
+
+    /**
+     * 从 .hkzip 包导入：内容为 rule.json + require.json + libs.zip。
+     * rule.json 走导入；require.json 与 libs.zip 解压到规则数据目录（data/&lt;规则名&gt;/），
+     * 供 require() 本地优先加载（无网络时也能用）。
+     *
+     * @return 导入成功的规则列表
+     */
+    public List<HkRule> importHkZip(File hkzipFile) throws Exception {
+        if (hkzipFile == null || !hkzipFile.exists()) throw new IllegalArgumentException("hkzip 文件不存在");
+        List<HkRule> imported = new ArrayList<>();
+        List<String> failed = new ArrayList<>();
+        byte[] requireJson = null;
+        Map<String, byte[]> libs = new LinkedHashMap<>();
+        try (ZipFile zip = new ZipFile(hkzipFile)) {
+            Enumeration<? extends ZipEntry> entries = zip.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                if (entry.isDirectory()) continue;
+                String name = entry.getName();
+                String base = name.substring(name.lastIndexOf('/') + 1);
+                if (base.startsWith(".") || name.startsWith("__MACOSX/")) continue;
+                String lower = base.toLowerCase(Locale.ROOT);
+                byte[] bytes = readStream(zip.getInputStream(entry));
+                if (lower.equals("require.json")) {
+                    requireJson = bytes;
+                } else if (lower.equals("libs.zip")) {
+                    // 内层 zip：解出所有 js 库
+                    try (ZipInputStream zin = new ZipInputStream(new ByteArrayInputStream(bytes))) {
+                        ZipEntry e;
+                        while ((e = zin.getNextEntry()) != null) {
+                            if (!e.isDirectory()) {
+                                String en = e.getName();
+                                String eb = en.substring(en.lastIndexOf('/') + 1);
+                                if (!eb.startsWith(".") && eb.toLowerCase(Locale.ROOT).endsWith(".js")) {
+                                    libs.put(eb, readStream(zin));
+                                }
+                            }
+                            zin.closeEntry();
+                        }
+                    } catch (Exception ignored) {
+                    }
+                } else if (lower.endsWith(".json")) {
+                    try {
+                        imported.addAll(importJsonList(new String(bytes, StandardCharsets.UTF_8)));
+                    } catch (Exception e) {
+                        failed.add(base + "（" + e.getMessage() + "）");
+                    }
+                }
+            }
+        } catch (ZipException e) {
+            throw new IllegalArgumentException("不是有效的 hkzip 包或文件已损坏");
+        }
+        if (imported.isEmpty()) {
+            if (!failed.isEmpty()) throw new IllegalArgumentException("hkzip 中没有合法规则：" + failed.get(0));
+            throw new IllegalArgumentException("hkzip 中没有找到 rule.json");
+        }
+        // 落盘 require.json 与 libs，供 require() 本地加载
+        for (HkRule rule : imported) {
+            File dataDir = getDataDir(rule.getTitle());
+            if (requireJson != null) {
+                try {
+                    Files.write(new File(dataDir, "require.json").toPath(), requireJson);
+                } catch (Exception ignored) {
+                }
+            }
+            if (!libs.isEmpty()) {
+                File libsDir = new File(dataDir, "libs");
+                libsDir.mkdirs();
+                for (Map.Entry<String, byte[]> e : libs.entrySet()) {
+                    try {
+                        Files.write(new File(libsDir, e.getKey()).toPath(), e.getValue());
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+        }
+        return imported;
+    }
+
+    /** 经典 IO 读流（API 24 可用，不依赖 java.nio）。 */
+    private static byte[] readStream(InputStream in) throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        in.close();
+        return out.toByteArray();
+    }
+
+    /**
+     * 导入 JSON 文本：兼容单个规则对象与规则数组（一个文件多个小程序）。
+     * 数组中单个损坏/不合规的条目只跳过、不影响其它。
+     *
+     * @return 导入成功的规则列表（单个对象时为 1 个元素的列表）
+     * @throws Exception 没有任何合法规则时抛出，message 可直接提示用户
+     */
+    public List<HkRule> importJsonList(String json) throws Exception {
+        if (json == null || json.trim().isEmpty()) throw new IllegalArgumentException("规则内容为空");
+        String t = json.trim();
+        if (!t.startsWith("[")) {
+            List<HkRule> single = new ArrayList<>();
+            single.add(importJson(t));
+            return single;
+        }
+        JsonArray arr;
+        try {
+            arr = JsonParser.parseString(t).getAsJsonArray();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("规则 JSON 数组解析失败：" + e.getMessage());
+        }
+        List<HkRule> imported = new ArrayList<>();
+        List<String> failed = new ArrayList<>();
+        Gson gson = new Gson();
+        int idx = 0;
+        for (JsonElement el : arr) {
+            idx++;
+            if (!el.isJsonObject()) {
+                failed.add("第" + idx + "项不是对象");
+                continue;
+            }
+            String title = "";
+            try {
+                if (el.getAsJsonObject().has("title")) title = el.getAsJsonObject().get("title").getAsString();
+            } catch (Exception ignored) {
+            }
+            String label = title.isEmpty() ? "第" + idx + "项" : "「" + title + "」";
+            try {
+                imported.add(importJson(gson.toJson(el)));
+            } catch (Exception e) {
+                failed.add(label + "：" + e.getMessage());
+            }
+        }
+        if (imported.isEmpty()) {
+            throw new IllegalArgumentException("没有合法规则" + (failed.isEmpty() ? "" : "，" + failed.get(0)));
+        }
+        return imported;
+    }
+
+    /** 是否为 js: 规则文本（以 "js:" 开头，后面是 JS 代码）。 */
+    public static boolean isJsRuleText(String text) {
+        return text != null && text.trim().startsWith("js:");
+    }
+
+    /**
+     * 从 JS 规则文本导入：内容以 "js:" 开头，后面是 JS 代码。
+     * 包装成 rule.json（type=video，find_rule=js 内容），标题取自文件名。
+     *
+     * @param jsContent js: 开头的规则文本
+     * @param fileName  来源文件名（可为 null），用于取标题
+     * @return 导入成功的规则
+     */
+    public HkRule importJsRule(String jsContent, String fileName) throws Exception {
+        if (jsContent == null || jsContent.trim().isEmpty()) throw new IllegalArgumentException("JS 规则内容为空");
+        String t = jsContent.trim();
+        if (!t.startsWith("js:")) throw new IllegalArgumentException("不是 js: 格式的规则");
+        String title = fileName;
+        if (title != null) {
+            int slash = Math.max(title.lastIndexOf('/'), title.lastIndexOf('\\'));
+            if (slash >= 0) title = title.substring(slash + 1);
+            if (title.toLowerCase(Locale.ROOT).endsWith(".js")) title = title.substring(0, title.length() - 3);
+            title = title.trim();
+        }
+        if (title == null || title.isEmpty()) title = "JS规则";
+        JsonObject obj = new JsonObject();
+        obj.addProperty("title", title);
+        obj.addProperty("type", "video");
+        obj.addProperty("url", "");
+        obj.addProperty("find_rule", t);
+        return importJson(new Gson().toJson(obj));
+    }
+
+    /** 是否为云口令格式（云1~云10 开头）。 */
     public static boolean isCloudCode(String text) {
         if (text == null) return false;
         return CLOUD_CODE_PATTERN.matcher(text.trim()).matches();
@@ -121,7 +346,7 @@ public class HkRuleManager {
         if (code == null || code.trim().isEmpty()) throw new IllegalArgumentException("口令为空");
         String raw = code.trim();
         Matcher m = CLOUD_CODE_PATTERN.matcher(raw);
-        if (!m.matches()) throw new IllegalArgumentException("不是有效的云口令（需云2/云5/云6开头）");
+        if (!m.matches()) throw new IllegalArgumentException("不是有效的云口令（需云1~云10开头）");
         String path = m.group(2); // 如 /p/xxxx、/apidb/yyyy、/id/pwd
         String json = fetchCloudJson(path);
         if (json == null || json.trim().isEmpty()) throw new IllegalArgumentException("云端返回内容为空");

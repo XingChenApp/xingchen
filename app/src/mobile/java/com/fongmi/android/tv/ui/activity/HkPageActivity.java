@@ -178,7 +178,7 @@ public class HkPageActivity extends BaseActivity {
         }
     }
 
-    /** 从文本中提取云口令（云2/云5/云6 开头，取连续的一段）。 */
+    /** 从文本中提取云口令（云1~云10 开头，取连续的一段）。 */
     private static String extractCloudCode(String text) {
         if (TextUtils.isEmpty(text)) return null;
         // 按空白切分，找第一段云口令
@@ -231,7 +231,7 @@ public class HkPageActivity extends BaseActivity {
                 }).show();
     }
 
-    /** 云口令导入对话框（支持 云2/云5/云6 开头，如 云6oooole/apidb/xxxx）。 */
+    /** 云口令导入对话框（支持 云1~云10 开头，如 云6oooole/apidb/xxxx）。 */
     private void showCloudCodeDialog(String preset) {
         EditText et = new EditText(this);
         et.setHint("粘贴云口令，如：云6oooole/apidb/xxxx");
@@ -270,7 +270,8 @@ public class HkPageActivity extends BaseActivity {
         try {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
             intent.setType("*/*");
-            intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"application/json", "application/zip"});
+            intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+                    "application/json", "application/zip", "application/javascript", "text/javascript"});
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             startActivityForResult(intent, REQ_IMPORT_FILE);
         } catch (Exception e) {
@@ -280,34 +281,20 @@ public class HkPageActivity extends BaseActivity {
 
     private void showPasteDialog() {
         EditText et = new EditText(this);
-        et.setHint("粘贴 rule.json 内容");
+        et.setHint("粘贴 rule.json / 规则数组 / js: 规则内容");
         et.setMinLines(4);
         et.setTextColor(0xFFF2F4F8);
         et.setHintTextColor(0xFF6E7686);
         new AlertDialog.Builder(this)
                 .setTitle("从口令导入")
                 .setView(et)
-                .setPositiveButton("导入", (d, w) -> importRuleJson(et.getText().toString()))
+                .setPositiveButton("导入", (d, w) -> importRuleText(et.getText().toString(), null))
                 .setNegativeButton("取消", null)
                 .show();
     }
 
     private void importRuleJson(String json) {
-        if (TextUtils.isEmpty(json)) {
-            Notify.show("内容为空");
-            return;
-        }
-        new Thread(() -> {
-            try {
-                HkRuleManager.get().importJson(json);
-                App.post(() -> {
-                    Notify.show("导入成功");
-                    refreshRules();
-                });
-            } catch (Exception e) {
-                App.post(() -> Notify.show("导入失败：" + e.getMessage()));
-            }
-        }).start();
+        importRuleText(json, null);
     }
 
     @Override
@@ -329,8 +316,12 @@ public class HkPageActivity extends BaseActivity {
                     int n;
                     while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
                 }
-                if (isZipFile(tmp, getDisplayName(uri))) {
-                    List<HkRule> rules = HkRuleManager.get().importZip(tmp);
+                String displayName = getDisplayName(uri);
+                if (isZipFile(tmp, displayName)) {
+                    boolean hkzip = displayName != null && displayName.toLowerCase().endsWith(".hkzip");
+                    List<HkRule> rules = hkzip
+                            ? HkRuleManager.get().importHkZip(tmp)
+                            : HkRuleManager.get().importZip(tmp);
                     StringBuilder sb = new StringBuilder("导入成功 " + rules.size() + " 个：");
                     for (HkRule r : rules) sb.append("\n").append(r.getTitle());
                     String msg = sb.toString();
@@ -339,12 +330,47 @@ public class HkPageActivity extends BaseActivity {
                         refreshRules();
                     });
                 } else {
-                    importRuleJson(readAll(new FileInputStream(tmp)));
+                    importRuleText(readAll(new FileInputStream(tmp)), displayName);
                 }
             } catch (Exception e) {
                 App.post(() -> Notify.show("导入失败：" + e.getMessage()));
             } finally {
                 if (tmp != null) tmp.delete();
+            }
+        }).start();
+    }
+
+    /**
+     * 统一文本导入路由：js: 开头 → JS 规则包装导入；否则按 JSON（单个对象或数组）导入。
+     *
+     * @param text     规则文本
+     * @param fileName 来源文件名（可为 null），js: 规则用于取标题
+     */
+    private void importRuleText(String text, String fileName) {
+        if (TextUtils.isEmpty(text)) {
+            App.post(() -> Notify.show("内容为空"));
+            return;
+        }
+        new Thread(() -> {
+            try {
+                if (HkRuleManager.isJsRuleText(text)) {
+                    HkRule rule = HkRuleManager.get().importJsRule(text, fileName);
+                    App.post(() -> {
+                        Notify.show("导入成功：" + rule.getTitle());
+                        refreshRules();
+                    });
+                } else {
+                    List<HkRule> rules = HkRuleManager.get().importJsonList(text);
+                    String msg = rules.size() == 1
+                            ? "导入成功：" + rules.get(0).getTitle()
+                            : "导入成功 " + rules.size() + " 个小程序";
+                    App.post(() -> {
+                        Notify.show(msg);
+                        refreshRules();
+                    });
+                }
+            } catch (Exception e) {
+                App.post(() -> Notify.show("导入失败：" + e.getMessage()));
             }
         }).start();
     }

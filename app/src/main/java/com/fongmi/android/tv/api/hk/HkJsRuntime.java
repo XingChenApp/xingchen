@@ -256,18 +256,38 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             return Crypto.aes("AES/CBC/PKCS5Padding", false, String.valueOf(args[0]), true, key, iv, false);
         });
 
-        // ---- require：远程库加载（preRule 常用） ----
+        // ---- require：远程库加载（preRule 常用）；本地 libs/<md5(url)>.js 优先（.hkzip 自带库） ----
         ctx.getGlobalObject().setProperty("require", args -> {
             if (args == null || args.length == 0) return null;
             try {
                 String libUrl = String.valueOf(args[0]);
-                String code = fetchSync(libUrl, null);
+                String code = loadLibLocal(libUrl);
+                if (code == null) code = fetchSync(libUrl, null);
                 if (!TextUtils.isEmpty(code)) ctx.evaluate(code);
             } catch (Throwable e) {
                 Logger.t(TAG).d("require failed: %s", e.getMessage());
             }
             return null;
         });
+    }
+
+    /**
+     * require() 本地库优先：找规则数据目录 data/&lt;规则名&gt;/libs/&lt;md5(url)&gt;.js，
+     * 命中则直接加载（.hkzip 导入时已解压，无网络也能用）；未命中返回 null 走远程。
+     */
+    private String loadLibLocal(String libUrl) {
+        try {
+            if (libUrl == null || !libUrl.startsWith("http")) return null;
+            String md5 = Util.md5(libUrl);
+            if (TextUtils.isEmpty(md5)) return null;
+            File f = new File(new File(HkRuleManager.get().getDataDir(rule.getTitle()), "libs"), md5 + ".js");
+            if (!f.exists()) return null;
+            byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
+            String code = new String(bytes, Charset.forName("UTF-8"));
+            return TextUtils.isEmpty(code) ? null : code;
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     // ================= 对外接口 =================

@@ -72,14 +72,11 @@ public class HkRule {
     /** 运行时启用开关，不序列化进 rule.json，由 HkRuleManager 持久化。 */
     private transient boolean enabled = true;
 
-    /** 导入校验：title/url/find_rule 非空；第一期 type 必须为 video。 */
+    /** 导入校验：title/find_rule 非空；js: 规则允许 url 为空（自包含）。type 不限制（video/music/cartoon 等均可导入）。 */
     public void validate() {
         if (isEmpty(title)) throw new IllegalArgumentException("规则缺少 title");
-        if (isEmpty(url)) throw new IllegalArgumentException("规则缺少 url");
+        if (isEmpty(url) && !HkSelector.isJsRule(findRule)) throw new IllegalArgumentException("规则缺少 url");
         if (isEmpty(findRule)) throw new IllegalArgumentException("规则缺少 find_rule");
-        if (!isEmpty(type) && !"video".equalsIgnoreCase(type.trim())) {
-            throw new IllegalArgumentException("第一期只支持 video 类型，当前 type=" + type);
-        }
     }
 
     private static boolean isEmpty(String s) {
