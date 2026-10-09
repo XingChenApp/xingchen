@@ -219,6 +219,17 @@ patch_media_build_tools() {
 }
 
 patch_media_pom_workaround() {
+  # New base uses Kotlin (aarTypeWorkaround.kt), old base used Gradle file.
+  local kt_file="$MEDIA_DIR/build-logic/src/main/kotlin/androidx/media3/buildlogic/aarTypeWorkaround.kt"
+  if [[ -f "$kt_file" ]]; then
+    for dep in "com.googlecode.juniversalchardet:juniversalchardet" "com.hierynomus:smbj" "org.brotli:dec"; do
+      if ! grep -q ""$dep"" "$kt_file"; then
+        # Insert into jarOnlyDependencies set (keep-sorted block)
+        perl -0pi -e "s/(\/\/ go\/keep-sorted start\n)/$1      \"$dep\",\n/" "$kt_file"
+      fi
+    done
+    return 0
+  fi
   if [[ ! -f "$MEDIA_DIR/missing_aar_type_workaround.gradle" ]]; then
     return 0
   fi
