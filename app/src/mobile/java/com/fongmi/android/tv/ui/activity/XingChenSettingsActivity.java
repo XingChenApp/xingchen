@@ -9,6 +9,7 @@ import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.Updater;
 import com.fongmi.android.tv.databinding.ActivityXingchenSettingsBinding;
 import com.fongmi.android.tv.impl.Callback;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.AboutDialog;
 import com.fongmi.android.tv.ui.dialog.ChoiceDialog;
@@ -41,6 +42,8 @@ public class XingChenSettingsActivity extends BaseActivity {
     protected void initView(Bundle savedInstanceState) {
         binding.tvVersionSub.setText(AppVersion.fullName());
         binding.cardVersion.setOnClickListener(v -> AboutDialog.show(this, () -> Updater.create().force().start(this)));
+        updateProxySub();
+        binding.cardProxy.setOnClickListener(v -> ProxyActivity.start(this));
         updateDohSub();
         binding.cardDoh.setOnClickListener(v -> ChoiceDialog.showSingle(getSupportFragmentManager(), "DoH", XingChenDoh.NAMES, XingChenDoh.getIndex(this), which -> {
             XingChenDoh.setIndex(this, which);
@@ -58,8 +61,19 @@ public class XingChenSettingsActivity extends BaseActivity {
         binding.tvRestore.setOnClickListener(v -> doRestore());
     }
 
+    private void updateProxySub() {
+        binding.tvProxySub.setText(Setting.isShellProxy() ? "已启用" : "未启用");
+    }
+
     private void updateDohSub() {
         binding.tvDohSub.setText(XingChenDoh.getName(this));
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateProxySub();
+        updateDohSub();
     }
 
     private void refreshCacheSize() {
