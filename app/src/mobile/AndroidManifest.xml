@@ -149,7 +149,7 @@
             android:launchMode="singleTop"
             android:parentActivityName=".ui.activity.HomeActivity"
             android:screenOrientation="fullUser"
-            android:supportsPictureInPicture="false" />
+            android:supportsPictureInPicture="true" />
 
         <activity
             android:name=".ui.activity.ScanActivity"
@@ -162,7 +162,7 @@
             android:launchMode="singleTop"
             android:parentActivityName=".ui.activity.HomeActivity"
             android:screenOrientation="fullUser"
-            android:supportsPictureInPicture="false" />
+            android:supportsPictureInPicture="true" />
 
         <receiver
             android:name=".receiver.ShortcutReceiver"
