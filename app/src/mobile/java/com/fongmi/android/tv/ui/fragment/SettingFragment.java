@@ -35,6 +35,7 @@ import com.fongmi.android.tv.ui.dialog.RestoreDialog;
 import com.fongmi.android.tv.ui.dialog.BackupProgressDialog;
 import com.fongmi.android.tv.ui.dialog.SiteDialog;
 import com.fongmi.android.tv.utils.FileUtil;
+import com.fongmi.android.tv.utils.AppVersion;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.PermissionUtil;
 import com.github.catvod.bean.Doh;
@@ -375,6 +376,12 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
             } catch (Exception e) { e.printStackTrace(); }
             if (mBinding.textPluginSub != null) {
                 mBinding.textPluginSub.setText("PY " + pyCount + " · JS " + jsCount);
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        // XingChen version subtitle - isolated
+        try {
+            if (mBinding.textXingchenSub != null) {
+                mBinding.textXingchenSub.setText(AppVersion.fullName());
             }
         } catch (Exception e) { e.printStackTrace(); }
     }
