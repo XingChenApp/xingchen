@@ -118,7 +118,6 @@ public class ImgUtil {
         if (url.contains("@User-Agent=")) builder.addHeader(HttpHeaders.USER_AGENT, param = url.split("@User-Agent=")[1].split("@")[0]);
         url = param == null ? url : url.split("@")[0];
         if (noParams && !TextUtils.isEmpty(url) && url.contains("doubanio.com")) builder.addHeader(HttpHeaders.REFERER, "https://movie.douban.com/");
-        if (noParams && !TextUtils.isEmpty(url) && url.contains("lwncnss3api.cc")) builder.addHeader(HttpHeaders.REFERER, "https://lwncnss3api.cc/");
         return TextUtils.isEmpty(url) ? null : new GlideUrl(url, builder.build());
     }
 
