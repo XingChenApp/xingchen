@@ -168,7 +168,8 @@ public class ThemeManager {
         try {
             String type = theme.wallpaperType;
             String value = theme.wallpaperValue;
-            String cacheKey = type + ":" + value;
+            boolean blur = theme.wallpaperBlur;
+            String cacheKey = type + ":" + value + (blur ? ":blur" : "");
             // Check cache first - avoids re-decoding on every page switch (black flash fix)
             if (cacheKey.equals(sCachedKey) && sCachedWallpaper != null) {
                 flog("getWallpaperDrawable: cache HIT for " + cacheKey);
@@ -191,7 +192,11 @@ public class ThemeManager {
                     android.graphics.Bitmap bm = android.graphics.BitmapFactory.decodeFile(value);
                     if (bm != null) {
                         flog("getWallpaperDrawable: local bitmap loaded, " + bm.getWidth() + "x" + bm.getHeight());
-                        return new android.graphics.drawable.BitmapDrawable(activity.getResources(), bm);
+                        if (blur) bm = WallpaperBlur.blurredWallpaper(bm);
+                        android.graphics.drawable.BitmapDrawable bd = new android.graphics.drawable.BitmapDrawable(activity.getResources(), bm);
+                        sCachedWallpaper = bd;
+                        sCachedKey = cacheKey;
+                        return bd;
                     } else {
                         flog("getWallpaperDrawable: local decode failed, fallback to builtin");
                     }
@@ -202,7 +207,11 @@ public class ThemeManager {
                 try {
                     android.graphics.Bitmap bm = android.graphics.BitmapFactory.decodeFile(value);
                     if (bm != null) {
-                        return new android.graphics.drawable.BitmapDrawable(activity.getResources(), bm);
+                        if (blur) bm = WallpaperBlur.blurredWallpaper(bm);
+                        android.graphics.drawable.BitmapDrawable bd = new android.graphics.drawable.BitmapDrawable(activity.getResources(), bm);
+                        sCachedWallpaper = bd;
+                        sCachedKey = cacheKey;
+                        return bd;
                     }
                 } catch (Exception e) {}
             }
@@ -225,6 +234,7 @@ public class ThemeManager {
                     flog("getWallpaperDrawable: decoding with sample=" + sample + " for " + opts.outWidth + "x" + opts.outHeight);
                     android.graphics.Bitmap bm = android.graphics.BitmapFactory.decodeResource(activity.getResources(), id, opts);
                     if (bm != null) {
+                        if (blur) bm = WallpaperBlur.blurredWallpaper(bm);
                         android.graphics.drawable.BitmapDrawable bd = new android.graphics.drawable.BitmapDrawable(activity.getResources(), bm);
                         bd.setTintList(null);
                         flog("getWallpaperDrawable: builtin bitmap decoded, " + bm.getWidth() + "x" + bm.getHeight() + ", caching");
@@ -236,6 +246,12 @@ public class ThemeManager {
                     flog("ERROR builtin decode: " + e);
                 }
                 android.graphics.drawable.Drawable fallback = activity.getResources().getDrawable(id, null);
+                if (blur) {
+                    android.graphics.Bitmap fbm = drawableToBitmap(activity, fallback);
+                    if (fbm != null) {
+                        fallback = new android.graphics.drawable.BitmapDrawable(activity.getResources(), WallpaperBlur.blurredWallpaper(fbm));
+                    }
+                }
                 sCachedWallpaper = fallback;
                 sCachedKey = cacheKey;
                 return fallback;
@@ -243,6 +259,21 @@ public class ThemeManager {
             return null;
         } catch (Exception e) {
             flog("ERROR getWallpaperDrawable: " + e);
+            return null;
+        }
+    }
+
+    private android.graphics.Bitmap drawableToBitmap(Activity activity, android.graphics.drawable.Drawable d) {
+        try {
+            int w = d.getIntrinsicWidth() > 0 ? d.getIntrinsicWidth() : activity.getResources().getDisplayMetrics().widthPixels;
+            int h = d.getIntrinsicHeight() > 0 ? d.getIntrinsicHeight() : activity.getResources().getDisplayMetrics().heightPixels;
+            android.graphics.Bitmap bm = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas c = new android.graphics.Canvas(bm);
+            d.setBounds(0, 0, w, h);
+            d.draw(c);
+            return bm;
+        } catch (Exception e) {
+            flog("ERROR drawableToBitmap: " + e);
             return null;
         }
     }

@@ -140,11 +140,9 @@ public class UiSettingsActivity extends BaseActivity {
         boolean blur = getSharedPreferences("xingchen", MODE_PRIVATE).getBoolean("wallpaper_blur", false);
         binding.switchBlur.setChecked(blur);
         binding.switchBlur.setOnCheckedChangeListener((btn, isChecked) -> {
-            getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("wallpaper_blur", isChecked).apply();
             try {
                 XingChenTheme theme = XingChenTheme.load(this);
-                // theme.wallpaperBlur = isChecked; // TODO: Fix field name
-                getSharedPreferences("xingchen", MODE_PRIVATE).edit().putBoolean("wallpaper_blur", isChecked).apply();
+                theme.wallpaperBlur = isChecked;
                 theme.save(this);
                 com.xingchen.tv.theme.ThemeManager.get().setTheme(theme);
                 com.xingchen.tv.theme.ThemeManager.get().apply(this);

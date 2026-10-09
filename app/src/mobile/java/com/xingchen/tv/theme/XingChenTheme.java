@@ -13,6 +13,7 @@ public class XingChenTheme {
     public String wallpaperType = WP_BUILTIN;
     public String wallpaperValue = "shanjian";
     public int glassAlpha = 55;
+    public boolean wallpaperBlur = false;
 
     public static XingChenTheme load(android.content.Context ctx) {
         XingChenTheme t = new XingChenTheme();
@@ -28,6 +29,7 @@ public class XingChenTheme {
             }
         }
         t.glassAlpha = sp.getInt("glass_alpha", 55);
+        t.wallpaperBlur = sp.getBoolean("wallpaper_blur", false);
         return t;
     }
 
@@ -37,6 +39,7 @@ public class XingChenTheme {
         e.putString("wallpaper_type", wallpaperType);
         e.putString("wallpaper_value", wallpaperValue);
         e.putInt("glass_alpha", glassAlpha);
+        e.putBoolean("wallpaper_blur", wallpaperBlur);
         e.apply();
     }
 }
