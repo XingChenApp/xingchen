@@ -87,6 +87,21 @@ public class OkHttp {
         new Thread(OkHttp::evictIdleConnections, "okhttp-evict-idle").start();
     }
 
+    /**
+     * Drop the cached clients so the next use rebuilds them (picks up DNS
+     * mode changes, e.g. System <-> DoH provider). In-flight calls keep
+     * working on their own client references.
+     */
+    public static synchronized void resetClients() {
+        try {
+            if (get().client != null) get().client.connectionPool().evictAll();
+            if (get().player != null) get().player.connectionPool().evictAll();
+        } catch (Throwable ignored) {
+        }
+        get().client = null;
+        get().player = null;
+    }
+
     private static synchronized void evictIdleConnections() {
         try {
             if (get().client != null) get().client.connectionPool().evictAll();
@@ -236,7 +251,10 @@ public class OkHttp {
     }
 
     private static OkHttpClient.Builder getBuilder() {
-        OkHttpClient.Builder builder = new OkHttpClient.Builder().addInterceptor(requestInterceptor()).addInterceptor(authInterceptor()).addNetworkInterceptor(responseInterceptor()).connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS).readTimeout(TIMEOUT, TimeUnit.MILLISECONDS).writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS).dns(dns()).hostnameVerifier((hostname, session) -> true).sslSocketFactory(getSSLContext().getSocketFactory(), trustAllCertificates());
+        // Use Dns.SYSTEM directly when no custom DNS is active (no DoH provider,
+        // no host overrides), so System mode behaves exactly like a stock client.
+        Dns dns = dns().isCustom() ? dns() : Dns.SYSTEM;
+        OkHttpClient.Builder builder = new OkHttpClient.Builder().addInterceptor(requestInterceptor()).addInterceptor(authInterceptor()).addNetworkInterceptor(responseInterceptor()).connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS).readTimeout(TIMEOUT, TimeUnit.MILLISECONDS).writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS).dns(dns).hostnameVerifier((hostname, session) -> true).sslSocketFactory(getSSLContext().getSocketFactory(), trustAllCertificates());
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY);
         builder.proxyAuthenticator(authenticator());
         //builder.addNetworkInterceptor(logging);
