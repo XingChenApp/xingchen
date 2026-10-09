@@ -240,7 +240,7 @@ public class Pan115 implements Source.Extractor {
     }
 
     static String getCookie() {
-        return PanAuth.get115Cookie();
+        return PanAuth.get115CookieForParser();
     }
 
     private static String readAll(File f) throws Exception {

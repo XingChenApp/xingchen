@@ -34,6 +34,10 @@ public class PanLoginDialog extends BaseAlertDialog {
         void onLogout();
     }
 
+    public interface CookieValidator {
+        boolean isValid(String cookie);
+    }
+
     private DialogPanLoginBinding binding;
     private String title;
     private String loginUrl;
@@ -41,6 +45,7 @@ public class PanLoginDialog extends BaseAlertDialog {
     private String hint;
     private OnLoginListener loginListener;
     private OnLogoutListener logoutListener;
+    private CookieValidator cookieValidator;
     private boolean optionsMode;
 
     public static PanLoginDialog create() {
@@ -74,6 +79,11 @@ public class PanLoginDialog extends BaseAlertDialog {
 
     public PanLoginDialog logoutAction(OnLogoutListener listener) {
         this.logoutListener = listener;
+        return this;
+    }
+
+    public PanLoginDialog cookieValidator(CookieValidator validator) {
+        this.cookieValidator = validator;
         return this;
     }
 
@@ -214,6 +224,10 @@ public class PanLoginDialog extends BaseAlertDialog {
         }
         if (TextUtils.isEmpty(cookie)) {
             Notify.show("未检测到登录 Cookie，请先在页面内完成登录");
+            return;
+        }
+        if (cookieValidator != null && !cookieValidator.isValid(cookie)) {
+            Notify.show("未检测到有效登录，请确认已在页面内完成登录");
             return;
         }
         if (loginListener != null) loginListener.onLogin(cookie);

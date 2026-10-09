@@ -25,10 +25,26 @@ public class PanAuth {
         return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
+    /**
+     * App 内登录流程的 115 cookie，只看 SharedPreferences。
+     * 用于 UI 登录态判定。
+     */
     public static String get115Cookie() {
         try {
             String c = prefs().getString(KEY_115_COOKIE, "");
-            if (c != null && !c.isEmpty()) return c;
+            return c == null ? "" : c;
+        } catch (Throwable ignored) {
+            return "";
+        }
+    }
+
+    /**
+     * 115 分享解析用的 cookie，App 自身没有时回退读取用户 PY 脚本的 115_cookie.json。
+     */
+    public static String get115CookieForParser() {
+        String c = get115Cookie();
+        if (!c.isEmpty()) return c;
+        try {
             Context ctx = App.get();
             if (ctx != null) {
                 File f = new File(ctx.getFilesDir(), "plugins/py/115_cookie.json");
@@ -41,6 +57,24 @@ public class PanAuth {
         } catch (Throwable ignored) {
         }
         return "";
+    }
+
+    /**
+     * 115 登录态 cookie 必须包含 UID / CID / SEID。
+     */
+    public static boolean is115CookieValid(String cookie) {
+        if (cookie == null || cookie.isEmpty()) return false;
+        boolean uid = false, cid = false, seid = false;
+        for (String pair : cookie.split(";")) {
+            String name = pair.trim();
+            int eq = name.indexOf('=');
+            if (eq > 0) name = name.substring(0, eq).trim();
+            if ("UID".equals(name)) uid = true;
+            else if ("CID".equals(name)) cid = true;
+            else if ("SEID".equals(name)) seid = true;
+            if (uid && cid && seid) return true;
+        }
+        return false;
     }
 
     public static void put115Cookie(String cookie) {

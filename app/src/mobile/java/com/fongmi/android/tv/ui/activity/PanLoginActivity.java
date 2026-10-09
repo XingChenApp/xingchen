@@ -65,6 +65,7 @@ public class PanLoginActivity extends BaseActivity {
                 .loginUrl("https://115.com/")
                 .cookieDomain("115.com")
                 .hint("请在下方页面完成 115 登录，然后点「完成登录」")
+                .cookieValidator(PanAuth::is115CookieValid)
                 .onLogin(cookie -> {
                     PanAuth.put115Cookie(cookie);
                     refreshSub();
