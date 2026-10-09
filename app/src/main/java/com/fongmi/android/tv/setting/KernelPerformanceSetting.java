@@ -1,5 +1,8 @@
 package com.fongmi.android.tv.setting;
 
+import android.content.Context;
+
+import com.github.catvod.Init;
 import com.github.catvod.utils.Prefers;
 
 public final class KernelPerformanceSetting {
@@ -147,7 +150,33 @@ public final class KernelPerformanceSetting {
 
     public static boolean isVideoPrefer(int kernel) {
         ensureMigrated();
+        syncVideoPreferFromUi(kernel);
         return Prefers.getBoolean(key(kernel, "video_prefer"), true);
+    }
+
+    /**
+     * Self-healing read: the settings UI shows the "xingchen" player_decode pref
+     * (hard/soft) as the single source of truth. If the per-kernel value ever
+     * desyncs (old buggy migration, unknown writer), correct it here so the
+     * playback engine always matches what the user sees.
+     */
+    private static void syncVideoPreferFromUi(int kernel) {
+        boolean uiHard = isUiDecodeHard();
+        String k = key(kernel, "video_prefer");
+        if (Prefers.getBoolean(k, true) != uiHard) {
+            Prefers.put(k, uiHard);
+        }
+    }
+
+    static boolean isUiDecodeHard() {
+        try {
+            Context ctx = Init.context();
+            if (ctx == null) return true;
+            return !"soft".equals(ctx.getSharedPreferences("xingchen", Context.MODE_PRIVATE)
+                    .getString("player_decode", "hard"));
+        } catch (Throwable ignored) {
+            return true;
+        }
     }
 
     public static void putVideoPrefer(int kernel, boolean value) {

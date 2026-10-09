@@ -1,9 +1,11 @@
 package com.fongmi.android.tv.setting;
 
+import android.content.Context;
 import android.content.Intent;
 import android.provider.Settings;
 
 import com.fongmi.android.tv.App;
+import com.github.catvod.Init;
 import com.github.catvod.utils.Prefers;
 
 public class PlayerSetting {
@@ -388,6 +390,16 @@ public class PlayerSetting {
     public static void putVideoPrefer(boolean videoPrefer) {
         for (int kernel : new int[]{EXO, MPV, IJK}) {
             KernelPerformanceSetting.putVideoPrefer(kernel, videoPrefer);
+        }
+        // Keep the user-facing "xingchen" player_decode pref in sync: it is the
+        // single source of truth shown by the settings UI.
+        try {
+            Context ctx = Init.context();
+            if (ctx != null) {
+                ctx.getSharedPreferences("xingchen", Context.MODE_PRIVATE)
+                        .edit().putString("player_decode", videoPrefer ? "hard" : "soft").apply();
+            }
+        } catch (Throwable ignored) {
         }
     }
 
