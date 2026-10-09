@@ -14,9 +14,10 @@ jobs:
         with:
           distribution: 'jetbrains'
           java-version: '21.0.3'
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
       - name: Build Media3 AARs
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
           chmod +x scripts/build_media_deps.sh
           bash scripts/build_media_deps.sh
