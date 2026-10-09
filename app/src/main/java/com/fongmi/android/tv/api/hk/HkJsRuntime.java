@@ -378,7 +378,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         ctx.getGlobalObject().setProperty("MY_URL", lastUrl);
         ctx.getGlobalObject().setProperty("MY_HOME", homeOf(lastUrl));
         try {
-            ctx.getGlobalObject().setProperty("MY_RULE", ctx.parse(GSON.toJson(rule)));
+            ctx.getGlobalObject().setProperty("MY_RULE", (JSObject) ctx.parse(GSON.toJson(rule)));
         } catch (Throwable e) {
             ctx.getGlobalObject().setProperty("MY_RULE", ctx.createNewJSObject());
         }
