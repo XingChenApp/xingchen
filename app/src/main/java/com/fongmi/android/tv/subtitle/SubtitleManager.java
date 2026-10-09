@@ -51,6 +51,7 @@ public class SubtitleManager {
     /** 后台搜索全部可用源，按用户语言偏好排序 */
     public static void search(String query, SearchCallback callback) {
         EXECUTOR.execute(() -> {
+            ShieldBypass.clearBlocked();
             List<SubtitleInfo> all = new ArrayList<>();
             for (SubtitleProvider p : PROVIDERS) {
                 if (!p.isAvailable()) continue;

@@ -53,6 +53,10 @@ public class SubHDProvider implements SubtitleProvider {
         try {
             String url = BASE + "/search/" + Uri.encode(query);
             String html = OkHttp.string(url, headers());
+            if (ShieldBypass.isShieldPage(html)) {
+                ShieldBypass.setBlocked(getId());
+                return result;
+            }
             if (TextUtils.isEmpty(html)) return result;
             Matcher m = ITEM.matcher(html);
             int count = 0;
@@ -132,6 +136,7 @@ public class SubHDProvider implements SubtitleProvider {
         h.put("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36");
         h.put("Accept", "text/html,application/xhtml+xml");
         h.put("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
+        ShieldBypass.injectCookie(h, "subhd.tv");
         return h;
     }
 }

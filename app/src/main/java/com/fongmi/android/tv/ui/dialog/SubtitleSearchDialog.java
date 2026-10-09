@@ -35,6 +35,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.player.PlayerManager;
+import com.fongmi.android.tv.subtitle.ShieldBypass;
 import com.fongmi.android.tv.subtitle.SubtitleInfo;
 import com.fongmi.android.tv.subtitle.SubtitleManager;
 import com.fongmi.android.tv.ui.custom.CustomRecyclerView;
@@ -258,6 +259,7 @@ public final class SubtitleSearchDialog extends DialogFragment {
     private void showProgress() {
         adapter.clear();
         empty.setVisibility(GONE);
+        empty.setOnClickListener(null);
         recycler.setVisibility(GONE);
         progress.setVisibility(VISIBLE);
     }
@@ -266,6 +268,10 @@ public final class SubtitleSearchDialog extends DialogFragment {
         progress.setVisibility(GONE);
         recycler.setVisibility(emptyResult ? GONE : VISIBLE);
         empty.setVisibility(emptyResult ? VISIBLE : GONE);
+        if (emptyResult) {
+            empty.setText(R.string.error_empty);
+            empty.setOnClickListener(null);
+        }
     }
 
     private void search() {
@@ -274,8 +280,30 @@ public final class SubtitleSearchDialog extends DialogFragment {
         SubtitleManager.search(getKeywordText(), items -> {
             results = items == null ? new ArrayList<>() : items;
             adapter.setItems(results);
-            hideProgress(results.isEmpty());
+            if (results.isEmpty() && ShieldBypass.hasBlocked()) showShieldEmpty();
+            else hideProgress(results.isEmpty());
         });
+    }
+
+    /** 盾拦截空态：点文字打开 WebView 过验证，验证完自动重试 */
+    private void showShieldEmpty() {
+        progress.setVisibility(GONE);
+        recycler.setVisibility(GONE);
+        empty.setVisibility(VISIBLE);
+        List<String> blocked = ShieldBypass.getBlocked();
+        StringBuilder names = new StringBuilder();
+        for (String id : blocked) {
+            if (names.length() > 0) names.append("、");
+            names.append(ShieldBypass.providerName(id));
+        }
+        empty.setText("「" + names + "」需要过验证\n点击完成验证后自动重试");
+        empty.setOnClickListener(v -> openShieldVerify(blocked.get(0)));
+    }
+
+    private void openShieldVerify(String providerId) {
+        FragmentActivity activity = getActivity();
+        if (activity == null || activity.isFinishing()) return;
+        ShieldWebViewDialog.create().provider(providerId).listener(this::search).show(activity);
     }
 
     private void setKeyword(CharSequence text) {

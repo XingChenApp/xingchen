@@ -56,7 +56,11 @@ public class ZimukuProvider implements SubtitleProvider {
         List<SubtitleInfo> result = new ArrayList<>();
         try {
             String url = base + "/search?q=" + Uri.encode(query);
-            String html = OkHttp.string(url, headers());
+            String html = OkHttp.string(url, headers(base));
+            if (ShieldBypass.isShieldPage(html)) {
+                ShieldBypass.setBlocked(getId());
+                return result;
+            }
             if (TextUtils.isEmpty(html)) return result;
             Matcher m = ITEM.matcher(html);
             int count = 0;
@@ -91,7 +95,7 @@ public class ZimukuProvider implements SubtitleProvider {
             if (at < 0) return "";
             String path = rest.substring(0, at);
             String base = rest.substring(at + 1);
-            String html = OkHttp.string(base + path, headers());
+            String html = OkHttp.string(base + path, headers(base));
             if (TextUtils.isEmpty(html)) return "";
             // 找下载链接：down_url / download 按钮
             Matcher m = Pattern.compile("href=\"([^\"]*(?:down|download)[^\"]*)\"").matcher(html);
@@ -130,11 +134,12 @@ public class ZimukuProvider implements SubtitleProvider {
         return TAG.matcher(s).replaceAll("").replace("&nbsp;", " ").trim();
     }
 
-    private static Map<String, String> headers() {
+    private static Map<String, String> headers(String base) {
         Map<String, String> h = new HashMap<>();
         h.put("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36");
         h.put("Accept", "text/html,application/xhtml+xml");
         h.put("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
+        ShieldBypass.injectCookie(h, ShieldBypass.hostOf(base));
         return h;
     }
 }
