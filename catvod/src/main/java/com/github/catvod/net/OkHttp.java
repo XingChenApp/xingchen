@@ -25,7 +25,6 @@ import javax.net.ssl.X509TrustManager;
 
 import okhttp3.Call;
 import okhttp3.Connection;
-import okhttp3.Dns;
 import okhttp3.EventListener;
 import okhttp3.FormBody;
 import okhttp3.Headers;
@@ -252,10 +251,11 @@ public class OkHttp {
     }
 
     private static OkHttpClient.Builder getBuilder() {
-        // Use Dns.SYSTEM directly when no custom DNS is active (no DoH provider,
-        // no host overrides), so System mode behaves exactly like a stock client.
-        Dns dns = dns().isCustom() ? dns() : Dns.SYSTEM;
-        OkHttpClient.Builder builder = new OkHttpClient.Builder().addInterceptor(requestInterceptor()).addInterceptor(authInterceptor()).addNetworkInterceptor(responseInterceptor()).connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS).readTimeout(TIMEOUT, TimeUnit.MILLISECONDS).writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS).dns(dns).hostnameVerifier((hostname, session) -> true).sslSocketFactory(getSSLContext().getSocketFactory(), trustAllCertificates());
+        // Always route through the OkDns wrapper: with no DoH provider selected
+        // ("System" mode) it delegates to Dns.SYSTEM, but still sanitizes broken
+        // results (bad IPv6, hijacked loopback) that raw Dns.SYSTEM would hand
+        // straight to the connection layer and fail on.
+        OkHttpClient.Builder builder = new OkHttpClient.Builder().addInterceptor(requestInterceptor()).addInterceptor(authInterceptor()).addNetworkInterceptor(responseInterceptor()).connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS).readTimeout(TIMEOUT, TimeUnit.MILLISECONDS).writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS).dns(dns()).hostnameVerifier((hostname, session) -> true).sslSocketFactory(getSSLContext().getSocketFactory(), trustAllCertificates());
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY);
         builder.proxyAuthenticator(authenticator());
         //builder.addNetworkInterceptor(logging);
