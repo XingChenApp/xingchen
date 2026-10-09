@@ -47,10 +47,13 @@ public class CheckableAdapter extends RecyclerView.Adapter<CheckableAdapter.View
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         holder.binding.checkbox.setText(items.get(position));
+        holder.binding.checkbox.setOnCheckedChangeListener(null);
         holder.binding.checkbox.setChecked(selected.contains(position));
         holder.binding.checkbox.setOnCheckedChangeListener((v, checked) -> {
-            if (checked) selected.add(holder.getAdapterPosition());
-            else selected.remove(holder.getAdapterPosition());
+            int pos = holder.getAdapterPosition();
+            if (pos == androidx.recyclerview.widget.RecyclerView.NO_POSITION) return;
+            if (checked) selected.add(pos);
+            else selected.remove((Integer) pos);
         });
     }
 
