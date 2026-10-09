@@ -30,13 +30,24 @@ public class OkDns implements Dns {
     }
 
     public synchronized void setDoh(Doh item) {
+        boolean wasCustom = isCustom();
         HttpUrl url = HttpUrl.parse(item.getUrl());
         this.doh = url == null ? null : new DnsOverHttps.Builder().client(new OkHttpClient()).url(url).bootstrapDnsHosts(item.getHosts()).build();
         this.supplier = null;
+        if (wasCustom != isCustom()) OkHttp.resetClients();
     }
 
     public synchronized void setDoh(Supplier<Doh> supplier) {
         this.supplier = supplier;
+    }
+
+    /**
+     * True when this wrapper actually customizes resolution (DoH provider
+     * selected or host overrides present). When false, callers should use
+     * {@link Dns#SYSTEM} directly so behavior is identical to a stock client.
+     */
+    public boolean isCustom() {
+        return doh != null || !map.isEmpty();
     }
 
     public void clear() {
@@ -44,7 +55,9 @@ public class OkDns implements Dns {
     }
 
     public void addAll(List<String> hosts) {
+        boolean wasCustom = isCustom();
         map.putAll(hosts.stream().filter(Objects::nonNull).map(host -> host.split("=", 2)).filter(splits -> splits.length == 2).collect(Collectors.toMap(s -> s[0].trim(), s -> s[1].trim(), (oldHost, newHost) -> newHost)));
+        if (!wasCustom && isCustom()) OkHttp.resetClients();
     }
 
     private String get(String hostname) {
