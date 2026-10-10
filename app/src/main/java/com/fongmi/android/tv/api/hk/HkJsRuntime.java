@@ -1118,6 +1118,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 "      return url + '@rule=js:(' + fn.toString() + ')();';\n" +
                 "    },\n" +
                 "    image: function(fn) {\n" +
+                "      if (typeof fn !== 'function') return url;\n" +
                 "      var _a = [];\n" +
                 "      for (var _i = 1; _i < arguments.length; _i++) {\n" +
                 "        try { _a.push(JSON.stringify(arguments[_i])); } catch (_e) { _a.push('null'); }\n" +
@@ -1683,6 +1684,11 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         boolean r = refreshRequested;
         refreshRequested = false;
         return r;
+    }
+
+    /** refreshPage 请求标记当前是否为 true（不读后清零，供调用方做"变化检测"）。 */
+    public boolean isRefreshRequested() {
+        return refreshRequested;
     }
 
     public boolean isRefreshToTop() {

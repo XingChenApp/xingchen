@@ -1004,6 +1004,7 @@ public class HkPageActivity extends BaseActivity {
             page = 1;
             noMore = false;
             videos.clear();
+            contentAdapter.refreshGroups();
             contentAdapter.notifyDataSetChanged();
             binding.tvContentEmpty.setVisibility(View.GONE);
             binding.rvVideos.setVisibility(View.GONE);
@@ -1048,6 +1049,7 @@ public class HkPageActivity extends BaseActivity {
                     videos.addAll(contents);
                     page = p + 1;
                     binding.rvVideos.setVisibility(View.VISIBLE);
+                    contentAdapter.refreshGroups();
                     contentAdapter.notifyDataSetChanged();
                 }
                 updateFooter();
@@ -1261,6 +1263,12 @@ public class HkPageActivity extends BaseActivity {
             App.post(() -> {
                 if (lazyPrecheck) binding.loadingContent.setVisibility(View.GONE);
                 else binding.tvDetailLoading.setVisibility(View.GONE);
+                // 分类切换（官方 refreshPage 语义：putMyVar 后重刷列表，不进 V4）
+                if (result != null && result.isTabSwitch()) {
+                    if (!lazyPrecheck) onBackInvoked(); // 弹出已推的 V4 空 loading
+                    loadContent(true);
+                    return;
+                }
                 String direct = result == null ? "" : result.getDirectPlayUrl();
                 if (!TextUtils.isEmpty(direct)) {
                     // 直接播放：若已推 V4 先弹出，保证播放器返回时回到列表
@@ -1905,18 +1913,30 @@ public class HkPageActivity extends BaseActivity {
         static final int T_WEB = 10;
         static final int T_BUTTONS = 11;
 
-        private final List<HkItem> items;
+        private final List<HkItem> source;
+        /** 分组后的展示列表（groupButtons 快照；videos 变更后必须调 refreshGroups() 重算）。 */
+        private List<HkItem> items;
         /** 按钮组：合成条目 → 子条目列表（连续 scroll_button/flex_button 的横向胶囊行）。 */
         private final java.util.Map<HkItem, List<HkItem>> buttonGroups = new java.util.HashMap<>();
         private final int videoImgH;
         private final int picH;
 
         ContentAdapter(List<HkItem> items) {
+            this.source = items;
             this.items = groupButtons(items);
             DisplayMetrics dm = getResources().getDisplayMetrics();
             int itemW = (dm.widthPixels - dp(16) * 2 - dp(12) * 2) / 3;
             videoImgH = itemW * 3 / 2;
             picH = (dm.widthPixels - dp(16) * 2) * 9 / 16;
+        }
+
+        /**
+         * videos 增删后重算按钮分组。groupButtons 返回的是快照，不调此方法
+         * 适配器将恒显示首次构造时的空列表（V2"分类页没数据"的根因）。
+         */
+        void refreshGroups() {
+            buttonGroups.clear();
+            this.items = groupButtons(source);
         }
 
         /**

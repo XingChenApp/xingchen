@@ -121,6 +121,21 @@ public class HkDetail {
         if (dealUrl != null) this.dealUrl = dealUrl;
     }
 
+    /**
+     * 分类切换标记：条目 URL 的 @lazyRule= 求值时调了 refreshPage（官方语义 =
+     * putMyVar 设分类变量后刷新列表，如探色 Cate tab、粉嫩小BB 分类行）。
+     * 为 true 时调用方不应进 V4，而应重刷当前列表（对官方 OnRefreshPageEvent 的等价实现）。
+     */
+    private boolean tabSwitch;
+
+    public boolean isTabSwitch() {
+        return tabSwitch;
+    }
+
+    public void setTabSwitch(boolean tabSwitch) {
+        this.tabSwitch = tabSwitch;
+    }
+
     public String getTitle() {
         return title;
     }

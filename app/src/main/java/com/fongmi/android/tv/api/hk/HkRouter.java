@@ -85,7 +85,16 @@ public class HkRouter {
             // ① @lazyRule= 条目：先求值 → dealWithUrl 分流（官方：不进 V4）
             int lr = u.indexOf("@lazyRule=");
             if (lr >= 0) {
+                // 官方 clickItem → dealLazyRule：分类切换类回调（putMyVar + refreshPage）
+                // 只起副作用，靠 OnRefreshPageEvent 重刷列表，不进 V4。这里做"变化检测"：
+                // 仅当本次求值新产生了 refreshPage 请求时才标记为分类切换，
+                // 避免把之前残留的标记误判（consume 保证每次只消费一次）。
+                boolean hadRefresh = engine.getJsRuntime().isRefreshRequested();
                 String v = evalEntryLazy(u, lr);
+                if (engine.getJsRuntime().consumeRefreshRequest() && !hadRefresh) {
+                    detail.setTabSwitch(true);
+                    return detail;
+                }
                 if (v != null) {
                     String vt = v.trim();
                     if (!vt.isEmpty() && !"hiker://empty".equals(vt)) {
