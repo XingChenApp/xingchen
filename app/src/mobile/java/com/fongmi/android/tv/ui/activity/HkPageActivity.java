@@ -1319,38 +1319,25 @@ public class HkPageActivity extends BaseActivity {
     }
 
     /**
-     * 直接播放：从当前列表的视频条目拼选集（官方 getChapters：每条=一集，当前点击的 use=true），
-     * 把选集传给播放器，解决"没有线路没有选集"。
-     * 只收录视频卡片条目（movie_*），过滤分类/按钮/文本等非视频条目（如粉嫩小BB的
-     * "制服情景""国产情色"等分类按钮不能混进选集）。
+     * 直接播放：只把被点击的这 1 条目作为选集传给播放器。
+     * 列表页其他视频不是当前视频的选集，不能伪装成多集（否则出现 1-20/21-40 等假选集）。
      */
     private void startHkDirectPlay(HkItem item, String directUrl) {
-        java.util.List<HkItem> eps = new java.util.ArrayList<>();
-        for (HkItem it : videos) {
-            if (it == null || TextUtils.isEmpty(it.getUrl())) continue;
-            if (contentTypeOf(it) != ContentAdapter.T_VIDEO) continue;
-            eps.add(it);
-        }
-        // 兜底：被点击条目若因类型特殊被过滤，仍把它加入，保证当前集可播可切
-        if (item != null && !TextUtils.isEmpty(item.getUrl()) && !eps.contains(item)) {
-            eps.add(item);
-        }
         org.json.JSONArray arr = new org.json.JSONArray();
         try {
-            for (HkItem it : eps) {
+            if (item != null && !TextUtils.isEmpty(item.getUrl())) {
                 org.json.JSONObject o = new org.json.JSONObject();
-                o.put("name", stripHtml(it.getTitle()));
-                o.put("url", it.getUrl());
-                o.put("pic", it.getPic() == null ? "" : it.getPic());
+                o.put("name", stripHtml(item.getTitle()));
+                o.put("url", item.getUrl());
+                o.put("pic", item.getPic() == null ? "" : item.getPic());
                 arr.put(o);
             }
         } catch (Throwable ignored) {
         }
-        int selIdx = Math.max(0, eps.indexOf(item));
         VideoActivity.startHkPlay(HkPageActivity.this,
                 currentRule == null ? "" : currentRule.getTitle(), "默认",
                 directUrl, item.getTitle(), item.getTitle(), item.getPic(),
-                arr.toString(), selIdx);
+                arr.toString(), 0);
     }
 
     /**
