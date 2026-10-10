@@ -1589,7 +1589,14 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             preResultActive = false;
             this.page = Math.max(1, page);
             setContext(myUrl);
-            ctx.evaluate(stripJsPrefix(jsCode));
+            try {
+                ctx.evaluate(stripJsPrefix(jsCode));
+            } catch (Throwable e) {
+                // 之前异常直接上抛到 HkEngine.home() 被吞掉只剩 debug 日志，
+                // UI 永远只显示"加载失败"。先把根因记下来，供 getError()/空态展示。
+                error = jsErrorMsg(e);
+                throw e;
+            }
             return drainResults();
         }).get();
     }
@@ -1612,7 +1619,12 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             this.page = Math.max(1, page);
             setContext(myUrl);
             ctx.getGlobalObject().setProperty("MY_KEYWORD", keyword == null ? "" : keyword);
-            ctx.evaluate(stripJsPrefix(jsCode));
+            try {
+                ctx.evaluate(stripJsPrefix(jsCode));
+            } catch (Throwable e) {
+                error = jsErrorMsg(e);
+                throw e;
+            }
             return drainResults();
         }).get();
     }
@@ -1684,6 +1696,26 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
 
     public String getError() {
         return error;
+    }
+
+    /**
+     * 取异常链上第一条非空 message（ExecutionException 包裝后的根因），
+     * 供 parseList/parseSearch 在 JS 求值失败时记录，避免"加载失败"无从查起。
+     */
+    private static String jsErrorMsg(Throwable e) {
+        Throwable t = e;
+        while (t != null) {
+            String m = t.getMessage();
+            if (m != null && !m.trim().isEmpty()) {
+                String s = m.trim();
+                // QuickJS 异常常带 "exception: " 前缀或堆栈，截短到一行
+                int nl = s.indexOf('\n');
+                if (nl > 0) s = s.substring(0, nl);
+                return s.length() > 160 ? s.substring(0, 160) : s;
+            }
+            t = t.getCause();
+        }
+        return e == null ? "" : String.valueOf(e.getClass().getSimpleName());
     }
 
     /**
@@ -1848,8 +1880,30 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             String json = args[0] instanceof JSArray
                     ? ((JSArray) args[0]).stringify()
                     : String.valueOf(args[0]);
-            List<Map<String, Object>> list = GSON.fromJson(json, MAP_LIST_TYPE);
-            if (list == null) return;
+            if (json == null) return;
+            String t = json.trim();
+            // 官方 callbackHomeResult 兼容：setResult({data:[...]}) 的对象形式。
+            // 之前只认顶层数组，对象形式会被 GSON 抛错静默丢弃 → 整个列表为空（"加载失败"）。
+            if (t.startsWith("{")) {
+                Map<String, Object> obj = GSON.fromJson(t, new TypeToken<Map<String, Object>>() {}.getType());
+                Object data = obj == null ? null : obj.get("data");
+                if (data instanceof List) {
+                    appendResultItems(GSON.toJson(data));
+                } else {
+                    Logger.t(TAG).d("collectResult: object without data array");
+                }
+                return;
+            }
+            appendResultItems(t);
+        } catch (Throwable e) {
+            Logger.t(TAG).d("collectResult failed: %s", e.getMessage());
+        }
+    }
+
+    /** 把 JSON 数组字符串解析为条目并追加到 results（collectResult 的实际落子逻辑）。 */
+    private void appendResultItems(String jsonArray) {
+        List<Map<String, Object>> list = GSON.fromJson(jsonArray, MAP_LIST_TYPE);
+        if (list == null) return;
             for (Map<String, Object> m : list) {
                 if (collectRaw) {
                     Map<String, String> raw = new HashMap<>();
@@ -1900,9 +1954,6 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 }
                 results.add(item);
             }
-        } catch (Throwable e) {
-            Logger.t(TAG).d("collectResult failed: %s", e.getMessage());
-        }
     }
 
     /**

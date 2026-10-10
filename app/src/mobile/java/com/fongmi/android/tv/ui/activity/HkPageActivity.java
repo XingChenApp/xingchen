@@ -1040,6 +1040,20 @@ public class HkPageActivity extends BaseActivity {
                 if (p == 1 && !tabs.isEmpty()) buildDynamicTabs(tabs);
                 if (contents.isEmpty()) {
                     if (p == 1 && videos.isEmpty()) {
+                        // 空态：若引擎记录了 JS 失败原因则展示，否则保持原文案。
+                        // 之前任何失败都只显示"加载失败"，根因只能靠 debug 日志，用户无法反馈。
+                        String hkErr = null;
+                        try {
+                            hkErr = getRouter().getEngine().getError();
+                        } catch (Throwable ignored) {
+                        }
+                        if (!TextUtils.isEmpty(hkErr)) {
+                            String e = hkErr.trim();
+                            if (e.length() > 80) e = e.substring(0, 80);
+                            binding.tvContentEmpty.setText("加载失败：" + e + "，点我重试");
+                        } else {
+                            binding.tvContentEmpty.setText("加载失败，点我重试");
+                        }
                         binding.tvContentEmpty.setVisibility(View.VISIBLE);
                         binding.rvVideos.setVisibility(View.GONE);
                     } else {
