@@ -172,13 +172,33 @@ public class HkDetail {
     }
 
     public void setContent(String content) {
-        if (content != null && !content.isEmpty()) this.content = content;
+        if (content != null && !content.isEmpty()) this.content = cleanContent(content);
     }
 
     /** 追加一段简介/文本（多条 long_text/text_1 时换行拼接，而非覆盖）。 */
     public void appendContent(String c) {
         if (c == null || c.isEmpty()) return;
+        c = cleanContent(c);
+        if (c.isEmpty()) return;
         this.content = this.content.isEmpty() ? c : this.content + "\n" + c;
+    }
+
+    /**
+     * 简介导航文字过滤：规则详情解析常把页面导航（如"首页 日韩AV 国产系列 欧美 目录"）
+     * 带进简介。启发式：找到"首页"后若紧跟一串短词并以"目录/导航/分类"收尾，则整段视为导航删除；
+     * 兜底去掉孤立的"首页"/"目录"等导航词。
+     */
+    public static String cleanContent(String c) {
+        if (c == null) return "";
+        String s = c.trim();
+        if (s.isEmpty()) return s;
+        // "首页 ... 目录/导航/分类"：中间为 1~15 个短词（每词 ≤8 字）则整段删除
+        s = s.replaceAll("首页(\\s+\\S{1,8}){1,15}?\\s+(目录|导航|分类)(?=\\s|$)", " ");
+        // 残留的孤立导航词（保留前导空白/行首）
+        s = s.replaceAll("(^|\\s)(首页|目录|导航)(?=\\s|$)", "$1");
+        // 连续空白归一
+        s = s.replaceAll("\\s{2,}", " ").trim();
+        return s;
     }
 
     public List<Line> getLines() {
