@@ -485,7 +485,11 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                         Logger.t(TAG).d("$.require: no built-in asset for %s", assetPath);
                         return null;
                     }
-                    ctx.evaluate(stripJsPrefix(code));
+                    try {
+                        ctx.evaluate(stripJsPrefix(code));
+                    } catch (Throwable e) {
+                        Logger.t(TAG).d("$.require: asset eval failed %s: %s", assetPath, e.getMessage());
+                    }
                     return null;
                 } else if (path.startsWith("hiker://page/")) {
                     String p = path.substring("hiker://page/".length());

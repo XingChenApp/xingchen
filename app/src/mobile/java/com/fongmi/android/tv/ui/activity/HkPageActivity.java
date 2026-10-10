@@ -1913,6 +1913,12 @@ public class HkPageActivity extends BaseActivity {
             case "movie_1":
                 // 官方 movie_1 span=60 整宽左图右文
                 return ContentAdapter.T_MOVIE_LEFT_PIC;
+            case "movie_1_left_pic":
+                // 官方 movie_1_left_pic span=60 整宽左图右文（同 movie_1）
+                return ContentAdapter.T_MOVIE_LEFT_PIC;
+            case "movie_3_marquee":
+                // 官方 movie_3_marquee span=20 三列，标题跑马灯（bindVideo 里按 col_type 开 marquee）
+                return ContentAdapter.T_VIDEO;
             case "movie_2":
                 // 官方 movie_2 span=30 两列（走 T_VIDEO，spanFor 按 col_type 给 30）
                 return ContentAdapter.T_VIDEO;
@@ -1920,6 +1926,8 @@ public class HkPageActivity extends BaseActivity {
                 if (ct.startsWith("icon")) {
                     // icon_3_fill / icon_3_round_fill：对照 8.83 item_icon_3_fill 横向 CardView 布局
                     if ("icon_3_fill".equals(ct) || "icon_3_round_fill".equals(ct)) return ContentAdapter.T_ICON_FILL;
+                    // icon_2_round：对照 8.83 item_icon_two_round_col 横向圆角卡片（左 32dp 图右文字）
+                    if ("icon_2_round".equals(ct)) return ContentAdapter.T_ICON_2_ROUND;
                     return ContentAdapter.T_ICON;
                 }
                 if (ct.startsWith("pic") || ct.startsWith("card_pic")) return ContentAdapter.T_PIC;
@@ -2293,6 +2301,7 @@ public class HkPageActivity extends BaseActivity {
         static final int T_TEXT_ICON = 13;
         static final int T_CARD = 14;
         static final int T_MOVIE_LEFT_PIC = 15;
+        static final int T_ICON_2_ROUND = 16;
 
         private final List<HkItem> source;
         /** 分组后的展示列表（groupButtons 快照；videos 变更后必须调 refreshGroups() 重算）。 */
@@ -2392,6 +2401,8 @@ public class HkPageActivity extends BaseActivity {
                     return 15; // icon_4 / icon_small_4 / icon_round_4 / icon_round_small_4 / icon_4_card
                 case T_ICON_FILL:
                     return 20; // icon_3_fill / icon_3_round_fill：3/行
+                case T_ICON_2_ROUND:
+                    return 30; // icon_2_round：2/行（官方 spanCount=30）
                 case T_TEXT_ICON:
                     return 60; // text_icon 全宽
                 case T_CARD:
@@ -2459,6 +2470,7 @@ public class HkPageActivity extends BaseActivity {
                         break;
                     case T_ICON:
                     case T_ICON_FILL:
+                    case T_ICON_2_ROUND:
                         cover = v.findViewById(R.id.iv_icon);
                         title = v.findViewById(R.id.tv_title);
                         break;
@@ -2533,6 +2545,9 @@ public class HkPageActivity extends BaseActivity {
                 case T_ICON_FILL:
                     layout = R.layout.item_hk_icon_3_fill;
                     break;
+                case T_ICON_2_ROUND:
+                    layout = R.layout.item_hk_icon_2_round;
+                    break;
                 case T_TEXT_ICON:
                     layout = R.layout.item_hk_text_icon;
                     break;
@@ -2593,6 +2608,7 @@ public class HkPageActivity extends BaseActivity {
                     break;
                 case T_ICON:
                 case T_ICON_FILL:
+                case T_ICON_2_ROUND:
                     bindIcon(h, item);
                     break;
                 case T_TEXT_ICON:
@@ -2631,6 +2647,19 @@ public class HkPageActivity extends BaseActivity {
         private void bindVideo(Holder h, HkItem item) {
             if (h.title == null || h.cover == null) return; // 防 ViewHolder 类型错配
             h.title.setText(titleSpan(item.getTitle()));
+            // movie_3_marquee：标题跑马灯（对照 8.83 item_movie_tools_marquee，marqueeRepeatLimit=3）；
+            // 非 marquee 时复位（防复用串台）
+            String ct = item.getColType() == null ? "" : item.getColType().trim().toLowerCase();
+            if ("movie_3_marquee".equals(ct)) {
+                h.title.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+                h.title.setSingleLine(true);
+                h.title.setMarqueeRepeatLimit(3);
+                h.title.setSelected(true);
+            } else {
+                h.title.setEllipsize(TextUtils.TruncateAt.END);
+                h.title.setSingleLine(false);
+                h.title.setSelected(false);
+            }
             // desc 压在封面上（原版样式），不再放标题下面
             String d = stripHtml(item.getDesc());
             if (h.overlay != null) {
