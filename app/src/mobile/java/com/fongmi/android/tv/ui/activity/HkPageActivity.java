@@ -932,7 +932,7 @@ public class HkPageActivity extends BaseActivity {
             HkItem it = tabs.get(i);
             String raw = it.getTitle() == null ? "" : it.getTitle();
             if (raw.toLowerCase().contains("#ff1493")) sel = i;
-            String name = raw.replaceAll("<[^>]*>", "").replace("‘", "").replace("’", "").trim();
+            String name = stripHtml(raw);
             if (name.isEmpty()) name = "分类" + (i + 1);
             pairs.add(new String[]{name, it.getUrl() == null ? "" : it.getUrl()});
         }
@@ -1031,7 +1031,7 @@ public class HkPageActivity extends BaseActivity {
                 List<HkItem> tabs = new ArrayList<>();
                 List<HkItem> contents = new ArrayList<>();
                 for (HkItem it : result) {
-                    String ct = it.getColType() == null ? "" : it.getColType().trim();
+                    String ct = it.getColType() == null ? "" : it.getColType().trim().toLowerCase();
                     if ("scroll_button".equals(ct) || "flex_button".equals(ct)) tabs.add(it);
                     else if ("blank_block".equals(ct) || "line_blank".equals(ct) || "line".equals(ct)) continue;
                     else contents.add(it);
@@ -1224,17 +1224,32 @@ public class HkPageActivity extends BaseActivity {
     }
 
     private void openDetail(HkItem item, boolean fromSearch) {
+        openDetail(item, fromSearch, false);
+    }
+
+    /**
+     * V4 详情。
+     *
+     * @param lazyPrecheck true=条目 URL 自带 {@code @lazyRule=}（如粉嫩小BB点封面即播）：
+     *                     先后台求值，不预推 V4；若判定为直接播放则根本不进 V4，
+     *                     避免 V4 loading 闪一下。非直接播放时再补推 V4 展示结果。
+     */
+    private void openDetail(HkItem item, boolean fromSearch, boolean lazyPrecheck) {
         detailItem = item;
         detailFromSearch = fromSearch;
         currentDetail = null;
         currentLine = null;
         episodes.clear();
         if (episodeAdapter != null) episodeAdapter.notifyDataSetChanged();
-        binding.tvDetailTitle.setText(item.getTitle());
-        binding.detailScroll.setVisibility(View.GONE);
-        binding.tvDetailEmpty.setVisibility(View.GONE);
-        binding.tvDetailLoading.setVisibility(View.VISIBLE);
-        pushView(V_DETAIL);
+        if (!lazyPrecheck) {
+            binding.tvDetailTitle.setText(item.getTitle());
+            binding.detailScroll.setVisibility(View.GONE);
+            binding.tvDetailEmpty.setVisibility(View.GONE);
+            binding.tvDetailLoading.setVisibility(View.VISIBLE);
+            pushView(V_DETAIL);
+        } else {
+            binding.loadingContent.setVisibility(View.VISIBLE);
+        }
         new Thread(() -> {
             HkDetail detail;
             try {
@@ -1244,25 +1259,38 @@ public class HkPageActivity extends BaseActivity {
             }
             final HkDetail result = detail;
             App.post(() -> {
-                binding.tvDetailLoading.setVisibility(View.GONE);
+                if (lazyPrecheck) binding.loadingContent.setVisibility(View.GONE);
+                else binding.tvDetailLoading.setVisibility(View.GONE);
                 String direct = result == null ? "" : result.getDirectPlayUrl();
                 if (!TextUtils.isEmpty(direct)) {
-                    // 条目自带 @lazyRule= 且求值为 #isVideo=true#：跳过 V4，直接播放
-                    // （directPlayUrl 检查必须在 isEmpty() 之前：直接播放的 detail 无线路）
-                    onBackInvoked(); // 弹出已 push 的 V_DETAIL，播放器返回时回到列表
+                    // 直接播放：若已推 V4 先弹出，保证播放器返回时回到列表
+                    if (!lazyPrecheck) onBackInvoked();
                     VideoActivity.startHkPlay(HkPageActivity.this,
                             currentRule == null ? "" : currentRule.getTitle(), "默认",
                             direct, item.getTitle(), item.getTitle(), item.getPic());
                     return;
                 }
-                if (result == null || result.isEmpty()) {
+                if (lazyPrecheck) {
+                    // 预检非直接播放：补推 V4 再展示（复用已算出的 result，不二次求值）
+                    binding.tvDetailTitle.setText(item.getTitle());
                     binding.detailScroll.setVisibility(View.GONE);
-                    binding.tvDetailEmpty.setVisibility(View.VISIBLE);
-                } else {
-                    bindDetail(result);
+                    binding.tvDetailEmpty.setVisibility(View.GONE);
+                    binding.tvDetailLoading.setVisibility(View.GONE);
+                    pushView(V_DETAIL);
                 }
+                showDetailResult(result);
             });
         }).start();
+    }
+
+    /** V4 结果展示：无线路但有标题/封面/简介时仍渲染，不直接"加载失败"。 */
+    private void showDetailResult(HkDetail result) {
+        if (result == null || (result.isEmpty() && !result.hasBasicInfo())) {
+            binding.detailScroll.setVisibility(View.GONE);
+            binding.tvDetailEmpty.setVisibility(View.VISIBLE);
+        } else {
+            bindDetail(result);
+        }
     }
 
     private void bindDetail(HkDetail detail) {
@@ -1284,23 +1312,32 @@ public class HkPageActivity extends BaseActivity {
         if (hasContent) binding.tvDetailContent.setText(content);
         renderCopyButtons(detail.getCopyItems());
         List<HkDetail.Line> lines = detail.getLines();
-        List<String[]> pairs = new ArrayList<>();
-        for (HkDetail.Line l : lines) pairs.add(new String[]{l.getName(), l.getName()});
-        binding.rvDetailLines.setAdapter(new ChipAdapter(pairs, 0, value -> {
-            if (currentDetail == null) return;
-            for (HkDetail.Line l : currentDetail.getLines()) {
-                if (l.getName().equals(value)) {
-                    currentLine = l;
-                    refreshEpisodes();
-                    break;
+        boolean hasLines = !lines.isEmpty();
+        // 无线路时隐藏线路/选集区，只展示标题/封面/简介（有基本信息才走到这里）
+        binding.tvDetailLineLabel.setVisibility(View.GONE);
+        binding.rvDetailLines.setVisibility(View.GONE);
+        if (hasLines) {
+            List<String[]> pairs = new ArrayList<>();
+            for (HkDetail.Line l : lines) pairs.add(new String[]{l.getName(), l.getName()});
+            binding.rvDetailLines.setAdapter(new ChipAdapter(pairs, 0, value -> {
+                if (currentDetail == null) return;
+                for (HkDetail.Line l : currentDetail.getLines()) {
+                    if (l.getName().equals(value)) {
+                        currentLine = l;
+                        refreshEpisodes();
+                        break;
+                    }
                 }
-            }
-        }));
-        boolean multiLine = lines.size() > 1;
-        binding.tvDetailLineLabel.setVisibility(multiLine ? View.VISIBLE : View.GONE);
-        binding.rvDetailLines.setVisibility(multiLine ? View.VISIBLE : View.GONE);
-        currentLine = lines.get(0);
-        refreshEpisodes();
+            }));
+            boolean multiLine = lines.size() > 1;
+            binding.tvDetailLineLabel.setVisibility(multiLine ? View.VISIBLE : View.GONE);
+            binding.rvDetailLines.setVisibility(multiLine ? View.VISIBLE : View.GONE);
+            currentLine = lines.get(0);
+            refreshEpisodes();
+        } else {
+            currentLine = null;
+            if (episodeAdapter != null) episodeAdapter.notifyDataSetChanged();
+        }
         binding.detailScroll.scrollTo(0, 0);
     }
 
@@ -1487,7 +1524,8 @@ public class HkPageActivity extends BaseActivity {
                 int pos = h.getBindingAdapterPosition();
                 if (pos == RecyclerView.NO_POSITION || currentRule == null) return;
                 HkItem it = items.get(pos);
-                openDetail(it, !fromContent);
+                String mu = it.getUrl() == null ? "" : it.getUrl();
+                openDetail(it, !fromContent, mu.contains("@lazyRule="));
             });
         }
 
@@ -1505,7 +1543,9 @@ public class HkPageActivity extends BaseActivity {
     /** 去 HTML 标签（col_type 标题里常带 <font> 等），逻辑同 buildDynamicTabs。 */
     private String stripHtml(String s) {
         if (s == null) return "";
-        return s.replaceAll("<[^>]*>", "").replace("‘", "").replace("’", "").trim();
+        return s.replaceAll("<[^>]*>", "").replace("‘", "").replace("’", "").trim()
+                // 规则里常把标题包在引号里（"""最新上传"""），去掉首尾引号
+                .replaceAll("^\"+|\"+$", "").replaceAll("^'+|'+$", "").trim();
     }
 
     /** col_type → viewType：空/movie_3/未知 → 视频卡片。 */
@@ -1531,26 +1571,31 @@ public class HkPageActivity extends BaseActivity {
                 return ContentAdapter.T_SEARCH;
             case "x5_webview_single":
                 return ContentAdapter.T_WEB;
+            case "button_group":
+                return ContentAdapter.T_BUTTONS;
             case "":
             case "movie_3":
                 return ContentAdapter.T_VIDEO;
             default:
                 if (ct.startsWith("icon")) return ContentAdapter.T_ICON;
                 if (ct.startsWith("pic")) return ContentAdapter.T_PIC;
-                if (ct.startsWith("movie")) return ContentAdapter.T_MOVIE;
+                // movie_1/movie_2 等按视频卡片网格渲染（原版粉嫩小BB为 3 列网格，
+                // 全宽横向图文与原版差距大）
+                if (ct.startsWith("movie")) return ContentAdapter.T_VIDEO;
                 return ContentAdapter.T_VIDEO;
         }
     }
 
     /**
      * V2 非视频条目的统一点击：无 url 的纯展示行无反应；有 url 先过动作协议，
-     * 未消费则走 openDetail（其内部已含 @lazyRule= 直接播放分支）。
+     * 未消费则走 openDetail。条目自带 {@code @lazyRule=} 时用 lazy 预检模式，
+     * 直接播放就不推 V4（粉嫩小BB点封面即播，不闪 V4 loading）。
      */
     private void onContentItemClick(HkItem it) {
         if (it == null || currentRule == null || TextUtils.isEmpty(it.getUrl())) return;
         String url = it.getUrl().trim();
         if (handleActionUrl(url, it)) return;
-        openDetail(it, true);
+        openDetail(it, true, url.contains("@lazyRule="));
     }
 
     /**
@@ -1739,17 +1784,51 @@ public class HkPageActivity extends BaseActivity {
         static final int T_INPUT = 8;
         static final int T_SEARCH = 9;
         static final int T_WEB = 10;
+        static final int T_BUTTONS = 11;
 
         private final List<HkItem> items;
+        /** 按钮组：合成条目 → 子条目列表（连续 scroll_button/flex_button 的横向胶囊行）。 */
+        private final java.util.Map<HkItem, List<HkItem>> buttonGroups = new java.util.HashMap<>();
         private final int videoImgH;
         private final int picH;
 
         ContentAdapter(List<HkItem> items) {
-            this.items = items;
+            this.items = groupButtons(items);
             DisplayMetrics dm = getResources().getDisplayMetrics();
             int itemW = (dm.widthPixels - dp(16) * 2 - dp(12) * 2) / 3;
             videoImgH = itemW * 3 / 2;
             picH = (dm.widthPixels - dp(16) * 2) * 9 / 16;
+        }
+
+        /**
+         * 把连续的 scroll_button/flex_button 条目合并为一个横向胶囊行
+         * （正常应已被 loadContent 拆为顶部 tab；这里是兜底）。
+         */
+        private List<HkItem> groupButtons(List<HkItem> src) {
+            List<HkItem> out = new ArrayList<>();
+            List<HkItem> buf = new ArrayList<>();
+            for (HkItem it : src) {
+                String ct = it.getColType() == null ? "" : it.getColType().trim().toLowerCase();
+                if ("scroll_button".equals(ct) || "flex_button".equals(ct)) {
+                    buf.add(it);
+                } else {
+                    if (!buf.isEmpty()) {
+                        out.add(makeButtonGroup(buf));
+                        buf = new ArrayList<>();
+                    }
+                    out.add(it);
+                }
+            }
+            if (!buf.isEmpty()) out.add(makeButtonGroup(buf));
+            return out;
+        }
+
+        private HkItem makeButtonGroup(List<HkItem> subs) {
+            HkItem g = new HkItem();
+            g.setColType("button_group");
+            g.setTitle("");
+            buttonGroups.put(g, new ArrayList<>(subs));
+            return g;
         }
 
         int spanFor(int position) {
@@ -1782,6 +1861,7 @@ public class HkPageActivity extends BaseActivity {
                         desc = v.findViewById(R.id.tv_desc);
                         break;
                     case T_COLS:
+                    case T_BUTTONS:
                         cols = v.findViewById(R.id.cols_container);
                         break;
                     case T_AVATAR:
@@ -1843,6 +1923,9 @@ public class HkPageActivity extends BaseActivity {
                 case T_COLS:
                     layout = R.layout.item_hk_cols;
                     break;
+                case T_BUTTONS:
+                    layout = R.layout.item_hk_cols;
+                    break;
                 case T_AVATAR:
                     layout = R.layout.item_hk_avatar;
                     break;
@@ -1888,6 +1971,9 @@ public class HkPageActivity extends BaseActivity {
                 case T_COLS:
                     bindCols(h, item);
                     break;
+                case T_BUTTONS:
+                    bindButtons(h, item);
+                    break;
                 case T_AVATAR:
                     bindAvatar(h, item);
                     break;
@@ -1919,14 +2005,16 @@ public class HkPageActivity extends BaseActivity {
 
         /** 视频卡片：保持原 VideoAdapter 行为。 */
         private void bindVideo(Holder h, HkItem item) {
-            h.title.setText(item.getTitle());
-            h.desc.setText(item.getDesc());
+            h.title.setText(stripHtml(item.getTitle()));
+            h.desc.setText(stripHtml(item.getDesc()));
             h.desc.setVisibility(TextUtils.isEmpty(item.getDesc()) ? View.GONE : View.VISIBLE);
             ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
             h.itemView.setOnClickListener(v -> {
                 int pos = h.getBindingAdapterPosition();
                 if (pos == RecyclerView.NO_POSITION || currentRule == null) return;
-                openDetail(items.get(pos), true);
+                HkItem it = items.get(pos);
+                String u = it.getUrl() == null ? "" : it.getUrl();
+                openDetail(it, true, u.contains("@lazyRule="));
             });
         }
 
@@ -2018,6 +2106,45 @@ public class HkPageActivity extends BaseActivity {
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             }
             setContentClick(h, item);
+        }
+
+        /** 横向胶囊按钮组：连续 scroll_button/flex_button 的兜底渲染（横滑）。 */
+        private void bindButtons(Holder h, HkItem item) {
+            h.cols.removeAllViews();
+            List<HkItem> subs = buttonGroups.get(item);
+            if (subs == null || subs.isEmpty()) return;
+            Context ctx = h.itemView.getContext();
+            // 横向滚动容器
+            android.widget.HorizontalScrollView hsv = new android.widget.HorizontalScrollView(ctx);
+            hsv.setHorizontalScrollBarEnabled(false);
+            LinearLayout row = new LinearLayout(ctx);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            int padH = dp(14), padV = dp(7);
+            for (HkItem sub : subs) {
+                TextView tv = new TextView(ctx);
+                tv.setText(stripHtml(sub.getTitle()));
+                tv.setTextColor(0xFF1A1D24);
+                tv.setTextSize(13);
+                tv.setGravity(Gravity.CENTER);
+                tv.setMaxLines(1);
+                tv.setEllipsize(TextUtils.TruncateAt.END);
+                tv.setPadding(padH, padV, padH, padV);
+                GradientDrawable bg = new GradientDrawable();
+                bg.setColor(0xFFF1F3F6);
+                bg.setCornerRadius(dp(14));
+                tv.setBackground(bg);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                lp.rightMargin = dp(8);
+                tv.setLayoutParams(lp);
+                tv.setOnClickListener(v -> onContentItemClick(sub));
+                row.addView(tv);
+            }
+            hsv.addView(row, new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            h.cols.addView(hsv, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
 
         /** 头像行：圆形图 + 标题横向。 */

@@ -142,4 +142,11 @@ public class HkDetail {
     public boolean isEmpty() {
         return lines.isEmpty();
     }
+
+    /** 是否有基本信息（标题/封面/简介），无线路时也可用它渲染 V4 而不是"加载失败"。 */
+    public boolean hasBasicInfo() {
+        return (title != null && !title.isEmpty())
+                || (pic != null && !pic.isEmpty())
+                || (content != null && !content.isEmpty());
+    }
 }

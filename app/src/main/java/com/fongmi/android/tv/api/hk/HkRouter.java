@@ -86,10 +86,19 @@ public class HkRouter {
             int lr = u.indexOf("@lazyRule=");
             if (lr >= 0) {
                 String v = evalEntryLazy(u, lr);
-                if (v != null && v.contains("#isVideo=true#")) {
-                    // 官方行为：可播直链 → 跳过 V4，直接播放（完整解析交给 play()）
-                    detail.setDirectPlayUrl(v.trim());
-                    return detail;
+                if (v != null) {
+                    String vt = v.trim();
+                    if (!vt.isEmpty() && !"hiker://empty".equals(vt)) {
+                        // 直接播放判定（放宽）：
+                        // a) 结果含 #isVideo=true# → 官方可播标记；
+                        // b) 规则无 detail_find_rule → V4 必空，求值结果即播放地址（如粉嫩小BB点封面直播）；
+                        // c) 结果形如媒体直链 → 直接播放。
+                        // 完整解析交给 play()，调用方见到 directPlayUrl 跳过 V4。
+                        if (vt.contains("#isVideo=true#") || isEmptyDetailRule() || looksLikeMediaUrl(vt)) {
+                            detail.setDirectPlayUrl(vt);
+                            return detail;
+                        }
+                    }
                 }
                 u = (v == null || v.trim().isEmpty()) ? u.substring(0, lr).trim() : v.trim();
             }
@@ -114,7 +123,12 @@ public class HkRouter {
 
             // ④ 原有 detail_find_rule 流程
             String ruleText = effectiveDetailRule(fromSearch);
-            if (ruleText == null || ruleText.trim().isEmpty()) return detail;
+            if (ruleText == null || ruleText.trim().isEmpty()) {
+                // 无详情规则：若条目 URL 本身形如媒体直链 → 直接播放，避免 V4"加载失败"
+                String cu = u.trim();
+                if (looksLikeMediaUrl(cu)) detail.setDirectPlayUrl(cu);
+                return detail;
+            }
             String url = cleanDetailUrl(u);
             List<HkDetailItem> items;
             if (HkSelector.isJsRule(ruleText)) {
@@ -405,6 +419,26 @@ public class HkRouter {
         return r;
     }
 
+    /** 规则是否没有详情解析规则（此时 V4 必空，条目 lazyRule 求值结果应直接播放）。 */
+    private boolean isEmptyDetailRule() {
+        String r = rule.getDetailFindRule();
+        return r == null || r.trim().isEmpty() || "*".equals(r.trim());
+    }
+
+    /** 结果是否形如媒体直链（去 # 标记后看 http 前缀与常见媒体后缀/关键字）。 */
+    private static boolean looksLikeMediaUrl(String url) {
+        if (url == null) return false;
+        String l = url.toLowerCase();
+        int h = l.indexOf('#');
+        if (h >= 0) l = l.substring(0, h);
+        l = l.trim();
+        if (!l.startsWith("http")) return false;
+        return l.contains(".m3u8") || l.contains(".mp4") || l.contains(".flv")
+                || l.contains(".ts?") || l.contains(".ts&") || l.endsWith(".ts")
+                || l.endsWith(".mkv") || l.endsWith(".avi") || l.contains("mime=video")
+                || l.contains("mime=audio") || l.contains(".mp3") || l.contains(".wav");
+    }
+
     private String cleanDetailUrl(String url) {
         if (url == null) return "";
         String u = url.trim();
@@ -423,6 +457,9 @@ public class HkRouter {
             String pic = str(m, "pic_url");
             if (pic.isEmpty()) pic = str(m, "pic");
             if (pic.isEmpty()) pic = str(m, "img");
+            if (pic.isEmpty()) pic = str(m, "image");
+            if (pic.isEmpty()) pic = str(m, "cover");
+            if (pic.isEmpty()) pic = str(m, "thumbnail");
             it.setPic(pic);
             it.setDesc(str(m, "desc"));
             it.setLine(str(m, "line"));

@@ -1832,9 +1832,19 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 String pic = str(m, "pic_url");
                 if (TextUtils.isEmpty(pic)) pic = str(m, "img");
                 if (TextUtils.isEmpty(pic)) pic = str(m, "pic");
+                // 兼容更多封面字段名（规则写法不统一）
+                if (TextUtils.isEmpty(pic)) pic = str(m, "image");
+                if (TextUtils.isEmpty(pic)) pic = str(m, "cover");
+                if (TextUtils.isEmpty(pic)) pic = str(m, "thumbnail");
+                if (TextUtils.isEmpty(pic)) pic = str(m, "poster");
+                if (TextUtils.isEmpty(pic)) pic = str(m, "imgUrl");
+                if (TextUtils.isEmpty(pic)) pic = str(m, "picUrl");
                 item.setPic(pic);
                 item.setDesc(str(m, "desc"));
-                item.setColType(str(m, "col_type"));
+                String colType = str(m, "col_type");
+                if (TextUtils.isEmpty(colType)) colType = str(m, "colType");
+                if (TextUtils.isEmpty(colType)) colType = str(m, "coltype");
+                item.setColType(colType);
                 // P1：补全官方条目字段 extra/content/line（updateItem/deleteItem/findItemsByCls 用）
                 item.setContent(str(m, "content"));
                 item.setLine(str(m, "line"));
