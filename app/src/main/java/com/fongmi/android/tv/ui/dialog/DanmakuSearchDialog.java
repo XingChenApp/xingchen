@@ -362,7 +362,7 @@ public final class DanmakuSearchDialog extends DialogFragment implements Callbac
     private void hideProgress(boolean emptyResult) {
         progress.setVisibility(GONE);
         recycler.setVisibility(emptyResult ? GONE : VISIBLE);
-        sourceScroller.setVisibility(!emptyResult && groups.size() > 1 ? VISIBLE : GONE);
+        sourceScroller.setVisibility(!emptyResult && !groups.isEmpty() ? VISIBLE : GONE);
         empty.setVisibility(emptyResult ? VISIBLE : GONE);
     }
 
@@ -421,7 +421,7 @@ public final class DanmakuSearchDialog extends DialogFragment implements Callbac
     private void renderSourceTabs() {
         sourceViews.clear();
         sourceTabs.removeAllViews();
-        sourceScroller.setVisibility(groups.size() > 1 ? VISIBLE : GONE);
+        sourceScroller.setVisibility(groups.isEmpty() ? GONE : VISIBLE);
         int index = 0;
         for (String source : groups.keySet()) {
             MaterialTextView view = createSourceView(source);
@@ -485,8 +485,10 @@ public final class DanmakuSearchDialog extends DialogFragment implements Callbac
     }
 
     private void onError(Exception e) {
+        String message = e == null || TextUtils.isEmpty(e.getMessage()) ? getString(R.string.error_empty) : e.getMessage();
+        empty.setText(message);
         hideProgress(true);
-        Notify.show(e.getMessage());
+        Notify.show(message);
         if (hideKeyword) dismissAllowingStateLoss();
     }
 

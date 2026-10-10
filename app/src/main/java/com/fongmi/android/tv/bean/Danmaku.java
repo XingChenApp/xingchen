@@ -16,10 +16,45 @@ import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class Danmaku {
+
+    private static final Pattern PLATFORM_PATTERN = Pattern.compile("from\\s+\\w+\\s*-\\s*【([^】]{1,18})】");
+    private static final Map<String, String> PLATFORM_NAMES = new HashMap<>();
+
+    static {
+        PLATFORM_NAMES.put("qq", "腾讯");
+        PLATFORM_NAMES.put("qiyi", "爱奇艺");
+        PLATFORM_NAMES.put("iqiyi", "爱奇艺");
+        PLATFORM_NAMES.put("youku", "优酷");
+        PLATFORM_NAMES.put("imgo", "芒果");
+        PLATFORM_NAMES.put("mango", "芒果");
+        PLATFORM_NAMES.put("bilibili", "B站");
+        PLATFORM_NAMES.put("bilibili1", "B站");
+        PLATFORM_NAMES.put("migu", "咪咕");
+        PLATFORM_NAMES.put("sohu", "搜狐");
+        PLATFORM_NAMES.put("leshi", "乐视");
+        PLATFORM_NAMES.put("xigua", "西瓜");
+        PLATFORM_NAMES.put("renren", "人人");
+        PLATFORM_NAMES.put("hanjutv", "韩剧TV");
+        PLATFORM_NAMES.put("bahamut", "巴哈姆特");
+        PLATFORM_NAMES.put("dandan", "弹弹play");
+        PLATFORM_NAMES.put("aiyifan", "爱壹帆");
+        PLATFORM_NAMES.put("hongguo", "红果");
+        PLATFORM_NAMES.put("acfun", "A站");
+        PLATFORM_NAMES.put("cctv", "央视");
+        PLATFORM_NAMES.put("cntv", "央视");
+        PLATFORM_NAMES.put("pptv", "PP视频");
+        PLATFORM_NAMES.put("tudou", "土豆");
+        PLATFORM_NAMES.put("1905", "1905");
+        PLATFORM_NAMES.put("custom", "自定义");
+    }
 
     @SerializedName("name")
     private String name;
@@ -112,6 +147,8 @@ public class Danmaku {
 
     private String getFallbackSourceName() {
         String text = getName();
+        String platform = platformName(text);
+        if (!TextUtils.isEmpty(platform)) return platform;
         String from = sourceAfterKeyword(text, "来源");
         if (!TextUtils.isEmpty(from)) return from;
         from = sourceAfterKeyword(text, "from");
@@ -120,6 +157,15 @@ public class Danmaku {
         if (!TextUtils.isEmpty(bracket)) return bracket;
         String prefix = sourcePrefix(text);
         return TextUtils.isEmpty(prefix) ? "默认" : prefix;
+    }
+
+    private static String platformName(String text) {
+        if (TextUtils.isEmpty(text)) return "";
+        Matcher matcher = PLATFORM_PATTERN.matcher(text);
+        if (!matcher.find()) return "";
+        String code = matcher.group(1).trim().toLowerCase();
+        String name = PLATFORM_NAMES.get(code);
+        return TextUtils.isEmpty(name) ? code.toUpperCase() : name;
     }
 
     private static String sourceAfterKeyword(String text, String keyword) {
