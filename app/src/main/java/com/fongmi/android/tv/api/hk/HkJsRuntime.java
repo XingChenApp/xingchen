@@ -279,6 +279,21 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             if (args != null && args.length > 1) vars.put(String.valueOf(args[0]), String.valueOf(args[1]));
             return null;
         });
+        // 官方 putVar2：值非字符串时 JSON 序列化后存入（与 putVar 区别仅在此）
+        ctx.getGlobalObject().setProperty("putVar2", args -> {
+            if (args == null || args.length < 2) return null;
+            String k = String.valueOf(args[0]);
+            if (TextUtils.isEmpty(k)) return null;
+            Object v = args[1];
+            String s;
+            if (v instanceof String) s = (String) v;
+            else {
+                try { s = stringifyArg(v); }
+                catch (Throwable ignored) { s = String.valueOf(v); }
+            }
+            vars.put(k, s);
+            return null;
+        });
         ctx.getGlobalObject().setProperty("getVar", args -> {
             if (args == null || args.length == 0) return "";
             String v = vars.get(String.valueOf(args[0]));
@@ -659,6 +674,13 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             double hours = args.length > 1 ? toDouble(args[1]) : 0;
             return memCached("fc:" + url, hours, () -> fetchSync(url, null));
         });
+        // 官方全名：fetchCache 即 fc
+        ctx.getGlobalObject().setProperty("fetchCache", args -> {
+            if (args == null || args.length == 0) return "";
+            String url = String.valueOf(args[0]);
+            double hours = args.length > 1 ? toDouble(args[1]) : 0;
+            return memCached("fc:" + url, hours, () -> fetchSync(url, null));
+        });
         ctx.getGlobalObject().setProperty("rc", args -> {
             if (args == null || args.length == 0) return null;
             String url = String.valueOf(args[0]);
@@ -671,6 +693,22 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 if (!TextUtils.isEmpty(code)) ctx.evaluate(stripJsPrefix(code));
             } catch (Throwable e) {
                 Logger.t(TAG).d("rc evaluate failed: %s", e.getMessage());
+            }
+            return null;
+        });
+        // 官方全名：requireCache 即 rc
+        ctx.getGlobalObject().setProperty("requireCache", args -> {
+            if (args == null || args.length == 0) return null;
+            String url = String.valueOf(args[0]);
+            double hours = args.length > 1 ? toDouble(args[1]) : 0;
+            String code = memCached("rc:" + url, hours, () -> {
+                String c = loadLibLocal(url);
+                return c == null ? fetchSync(url, null) : c;
+            });
+            try {
+                if (!TextUtils.isEmpty(code)) ctx.evaluate(stripJsPrefix(code));
+            } catch (Throwable e) {
+                Logger.t(TAG).d("requireCache evaluate failed: %s", e.getMessage());
             }
             return null;
         });
@@ -719,13 +757,69 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 return "[]";
             }
         });
+        // 官方全名：batchFetch 即 bf（并发取回 body 数组）
+        ctx.getGlobalObject().setProperty("batchFetch", args -> {
+            if (args == null || args.length == 0) return "[]";
+            try {
+                String json = args[0] instanceof JSArray ? ((JSArray) args[0]).stringify() : String.valueOf(args[0]);
+                List<Object> list = GSON.fromJson(json.trim().startsWith("[") ? json : "[]",
+                        new com.google.gson.reflect.TypeToken<List<Object>>() {}.getType());
+                if (list == null || list.isEmpty()) return "[]";
+                int n = list.size();
+                int threads = 4;
+                if (args.length > 1) {
+                    try { threads = Math.max(1, (int) toDouble(args[1])); } catch (Throwable ignored) {}
+                }
+                threads = Math.min(n, threads);
+                java.util.concurrent.ExecutorService pool = Executors.newFixedThreadPool(threads);
+                try {
+                    List<Future<String>> futures = new ArrayList<>(n);
+                    for (Object o : list) {
+                        final String u;
+                        final String opt;
+                        if (o instanceof Map) {
+                            Map<String, Object> m = (Map<String, Object>) o;
+                            u = String.valueOf(m.get("url"));
+                            Object op = m.get("options");
+                            opt = op == null ? null : GSON.toJson(op);
+                        } else {
+                            u = String.valueOf(o);
+                            opt = null;
+                        }
+                        futures.add(pool.submit(() -> fetchSync(u, opt)));
+                    }
+                    List<String> out = new ArrayList<>(n);
+                    for (Future<String> f : futures) {
+                        try { out.add(f.get(30, TimeUnit.SECONDS)); }
+                        catch (Throwable ignored) { out.add(""); }
+                    }
+                    return GSON.toJson(out);
+                } finally {
+                    pool.shutdownNow();
+                }
+            } catch (Throwable e) {
+                Logger.t(TAG).d("batchFetch failed: %s", e.getMessage());
+                return "[]";
+            }
+        });
         ctx.getGlobalObject().setProperty("be", args -> {
             Logger.t(TAG).d("be(batchExecute): no-op in host");
+            return null;
+        });
+        // 官方全名：batchExecute 即 be（预加载，宿主 no-op）
+        ctx.getGlobalObject().setProperty("batchExecute", args -> {
+            Logger.t(TAG).d("batchExecute: no-op in host");
             return null;
         });
         ctx.getGlobalObject().setProperty("bcm", args -> {
             String url = args != null && args.length > 0 ? String.valueOf(args[0]) : "";
             Logger.t(TAG).d("bcm: passthrough %s", url);
+            return url;
+        });
+        // 官方全名：batchCacheM3u8 即 bcm（返回原地址，宿主不做真实缓存）
+        ctx.getGlobalObject().setProperty("batchCacheM3u8", args -> {
+            String url = args != null && args.length > 0 ? String.valueOf(args[0]) : "";
+            Logger.t(TAG).d("batchCacheM3u8: passthrough %s", url);
             return url;
         });
         // ---- PC 模式请求（桌面 UA）与 postRequest（即 post） ----
@@ -734,6 +828,48 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             String url = String.valueOf(args[0]);
             String options = args.length > 1 && args[1] != null ? stringifyArg(args[1]) : "{}";
             return fetchSync(url, mergeDesktopUa(options));
+        });
+        // 官方 postPC：桌面 UA 的 POST
+        ctx.getGlobalObject().setProperty("postPC", args -> {
+            if (args == null || args.length == 0) return "";
+            String url = String.valueOf(args[0]);
+            String options = args.length > 1 && args[1] != null ? stringifyArg(args[1]) : "{}";
+            options = mergeMethod(options, "post");
+            return fetchSync(url, mergeDesktopUa(options));
+        });
+        // 官方 fetchCookie(url, options)：带 withHeaders 抓取，返回 set-cookie
+        ctx.getGlobalObject().setProperty("fetchCookie", args -> {
+            if (args == null || args.length == 0) return "";
+            try {
+                String url = String.valueOf(args[0]);
+                String options = args.length > 1 && args[1] != null ? stringifyArg(args[1]) : "{}";
+                // 强制 withHeaders
+                if (!options.contains("withHeaders")) {
+                    options = options.trim();
+                    if (options.endsWith("}")) options = options.substring(0, options.length() - 1) + ",\"withHeaders\":true}";
+                    else options = "{\"withHeaders\":true}";
+                }
+                String result = fetchSync(url, options);
+                if (TextUtils.isEmpty(result)) return "";
+                Map<String, Object> map = GSON.fromJson(result, new com.google.gson.reflect.TypeToken<Map<String, Object>>() {}.getType());
+                if (map == null) return "";
+                Object headers = map.get("headers");
+                if (!(headers instanceof Map)) return "";
+                Map<String, Object> hm = (Map<String, Object>) headers;
+                List<String> cookies = new ArrayList<>();
+                for (Map.Entry<String, Object> e : hm.entrySet()) {
+                    if (e.getKey() != null && e.getKey().equalsIgnoreCase("set-cookie") && e.getValue() != null) {
+                        String v = String.valueOf(e.getValue());
+                        // 取 cookie 名值对（分号前）
+                        int semi = v.indexOf(';');
+                        cookies.add(semi > 0 ? v.substring(0, semi).trim() : v.trim());
+                    }
+                }
+                return TextUtils.join("; ", cookies);
+            } catch (Throwable e) {
+                Logger.t(TAG).d("fetchCookie failed: %s", e.getMessage());
+                return "";
+            }
         });
         ctx.getGlobalObject().setProperty("postRequest", args -> {
             if (args == null || args.length == 0) return "";
@@ -744,6 +880,20 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         // fcbw/ewr：WebView 取码与 Web 规则执行，宿主不支持，走空
         stub("fcbw", "");
         stub("ewr", "");
+        // 官方全名 stub
+        stub("fetchCodeByWebView", "");
+        stub("executeWebRule", "");
+        stub("cacheCode0", null);
+        // setPageReverse：官方设置页面倒序标记；宿主存 kv 供规则自查
+        ctx.getGlobalObject().setProperty("setPageReverse", args -> {
+            try {
+                boolean rev = args != null && args.length > 0 && Boolean.parseBoolean(String.valueOf(args[0]));
+                kv.put("__pageReverse", rev ? "1" : "0");
+                saveKv();
+            } catch (Throwable ignored) {
+            }
+            return null;
+        });
 
         // ---- 文件（作用域限定 App 文件目录；hiker://files/ 映射到 filesDir） ----
         ctx.getGlobalObject().setProperty("writeFile", args -> {
@@ -1025,6 +1175,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         // ---- xpath（宿主 Parser 基于 jsoup，不支持 xpath，走空） ----
         ctx.getGlobalObject().setProperty("xpath", args -> "");
         ctx.getGlobalObject().setProperty("xpa", args -> JSUtil.toArray(ctx, new ArrayList<>()));
+        // 官方全名：xpathArray 即 xpa
+        ctx.getGlobalObject().setProperty("xpathArray", args -> JSUtil.toArray(ctx, new ArrayList<>()));
 
         // ---- refreshPage：官方刷新当前页（bool 为 true 时回顶）。宿主实现为"刷新请求"
         // 标记：lazyRule 回调（如 tab 切换 setItem 后调 refreshPage(true)）经 evalLazy 求值，
