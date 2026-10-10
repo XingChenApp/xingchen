@@ -3,7 +3,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#171B23"
+    android:background="#F5F6F8"
     android:fitsSystemWindows="true">
 
     <FrameLayout
@@ -24,7 +24,7 @@
                 android:layout_height="52dp"
                 android:layout_alignParentTop="true"
                 android:layout_marginTop="16dp"
-                android:background="@drawable/hk_capsule"
+                android:background="@drawable/hk_capsule_light"
                 android:elevation="8dp"
                 android:gravity="center_vertical"
                 android:paddingLeft="20dp"
@@ -34,7 +34,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="海阔小程序"
-                    android:textColor="#F2F4F8"
+                    android:textColor="#1A1D24"
                     android:textSize="17sp"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -62,7 +62,7 @@
                 <TextView
                     android:layout_width="56dp"
                     android:layout_height="56dp"
-                    android:background="@drawable/hk_capsule"
+                    android:background="@drawable/hk_capsule_light"
                     android:gravity="center"
                     android:text="海"
                     android:textColor="#D4A017"
@@ -74,7 +74,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     android:text="暂无规则"
-                    android:textColor="#F2F4F8"
+                    android:textColor="#1A1D24"
                     android:textSize="15sp" />
 
                 <TextView
@@ -82,7 +82,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="点下方按钮导入你的第一条规则"
-                    android:textColor="#A7B0C0"
+                    android:textColor="#6E7686"
                     android:textSize="12sp" />
             </LinearLayout>
 
@@ -116,7 +116,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="16dp"
-                android:background="@drawable/hk_capsule"
+                android:background="@drawable/hk_capsule_light"
                 android:elevation="8dp"
                 android:gravity="center_vertical"
                 android:paddingLeft="4dp"
@@ -139,7 +139,7 @@
                     android:gravity="center"
                     android:marqueeRepeatLimit="marquee_forever"
                     android:singleLine="true"
-                    android:textColor="#F2F4F8"
+                    android:textColor="#1A1D24"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
@@ -193,7 +193,7 @@
                         android:layout_weight="1"
                         android:gravity="center"
                         android:text="加载失败，点我重试"
-                        android:textColor="#A7B0C0"
+                        android:textColor="#6E7686"
                         android:textSize="14sp"
                         android:visibility="gone" />
 
@@ -216,7 +216,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
                             android:text="加载中…"
-                            android:textColor="#A7B0C0"
+                            android:textColor="#6E7686"
                             android:textSize="14sp" />
                     </LinearLayout>
 
@@ -245,7 +245,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="16dp"
-                android:background="@drawable/hk_capsule"
+                android:background="@drawable/hk_capsule_light"
                 android:elevation="8dp"
                 android:gravity="center_vertical"
                 android:paddingLeft="4dp"
@@ -269,8 +269,8 @@
                     android:imeOptions="actionSearch"
                     android:inputType="text"
                     android:maxLines="1"
-                    android:textColor="#F2F4F8"
-                    android:textColorHint="#6E7686"
+                    android:textColor="#1A1D24"
+                    android:textColorHint="#9AA1B0"
                     android:textSize="15sp" />
 
                 <ImageButton
@@ -301,7 +301,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="搜索历史"
-                        android:textColor="#A7B0C0"
+                        android:textColor="#6E7686"
                         android:textSize="13sp" />
 
                     <TextView
@@ -338,7 +338,7 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:text="无相关结果"
-                android:textColor="#A7B0C0"
+                android:textColor="#6E7686"
                 android:textSize="15sp"
                 android:visibility="gone" />
         </LinearLayout>
@@ -355,7 +355,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="16dp"
-                android:background="@drawable/hk_capsule"
+                android:background="@drawable/hk_capsule_light"
                 android:elevation="8dp"
                 android:gravity="center_vertical"
                 android:paddingLeft="4dp"
@@ -378,7 +378,7 @@
                     android:gravity="center"
                     android:marqueeRepeatLimit="marquee_forever"
                     android:singleLine="true"
-                    android:textColor="#F2F4F8"
+                    android:textColor="#1A1D24"
                     android:textSize="16sp"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -407,7 +407,7 @@
                             android:id="@+id/iv_detail_cover"
                             android:layout_width="100dp"
                             android:layout_height="150dp"
-                            android:background="@drawable/hk_capsule"
+                            android:background="@drawable/hk_capsule_light"
                             android:scaleType="centerCrop" />
 
                         <LinearLayout
@@ -421,7 +421,7 @@
                                 android:id="@+id/tv_detail_name"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:textColor="#F2F4F8"
+                                android:textColor="#1A1D24"
                                 android:textSize="17sp"
                                 android:textStyle="bold" />
 
@@ -430,7 +430,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="8dp"
-                                android:textColor="#A7B0C0"
+                                android:textColor="#6E7686"
                                 android:textSize="12sp" />
                         </LinearLayout>
                     </LinearLayout>
@@ -441,7 +441,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:text="简介"
-                        android:textColor="#A7B0C0"
+                        android:textColor="#6E7686"
                         android:textSize="13sp" />
 
                     <TextView
@@ -450,7 +450,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:lineSpacingExtra="4dp"
-                        android:textColor="#F2F4F8"
+                        android:textColor="#1A1D24"
                         android:textSize="14sp" />
 
                     <TextView
@@ -459,7 +459,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:text="线路"
-                        android:textColor="#A7B0C0"
+                        android:textColor="#6E7686"
                         android:textSize="13sp" />
 
                     <androidx.recyclerview.widget.RecyclerView
@@ -475,7 +475,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:text="选集"
-                        android:textColor="#A7B0C0"
+                        android:textColor="#6E7686"
                         android:textSize="13sp" />
 
                     <androidx.recyclerview.widget.RecyclerView
@@ -495,7 +495,7 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:text="加载中…"
-                android:textColor="#A7B0C0"
+                android:textColor="#6E7686"
                 android:textSize="14sp"
                 android:visibility="gone" />
 
@@ -506,7 +506,7 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:text="加载失败，点我重试"
-                android:textColor="#A7B0C0"
+                android:textColor="#6E7686"
                 android:textSize="14sp"
                 android:visibility="gone" />
         </LinearLayout>

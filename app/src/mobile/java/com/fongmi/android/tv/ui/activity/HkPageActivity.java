@@ -248,9 +248,9 @@ public class HkPageActivity extends BaseActivity {
         for (int i = 0; i < labels.length; i++) {
             TextView tv = new TextView(this);
             tv.setText(labels[i]);
-            tv.setTextColor(0xFFF2F4F8);
+            tv.setTextColor(0xFF1A1D24);
             tv.setTextSize(16);
-            tv.setBackgroundResource(R.drawable.dialog_option_card);
+            tv.setBackgroundResource(R.drawable.dialog_option_card_light);
             tv.setPadding(dp(16), dp(14), dp(16), dp(14));
             final int which = i;
             tv.setOnClickListener(v -> {
@@ -272,8 +272,8 @@ public class HkPageActivity extends BaseActivity {
         EditText et = new EditText(this);
         et.setHint("粘贴云口令，如：云6oooole/apidb/xxxx");
         et.setSingleLine(true);
-        et.setTextColor(0xFFF2F4F8);
-        et.setHintTextColor(0xFF6E7686);
+        et.setTextColor(0xFF1A1D24);
+        et.setHintTextColor(0xFF9AA1B0);
         if (!TextUtils.isEmpty(preset)) et.setText(preset);
         new AlertDialog.Builder(this)
                 .setTitle("从云口令导入")
@@ -335,8 +335,8 @@ public class HkPageActivity extends BaseActivity {
         EditText et = new EditText(this);
         et.setHint("粘贴 rule.json / 规则数组 / js: 规则内容");
         et.setMinLines(4);
-        et.setTextColor(0xFFF2F4F8);
-        et.setHintTextColor(0xFF6E7686);
+        et.setTextColor(0xFF1A1D24);
+        et.setHintTextColor(0xFF9AA1B0);
         new AlertDialog.Builder(this)
                 .setTitle("从口令导入")
                 .setView(et)
@@ -544,7 +544,7 @@ public class HkPageActivity extends BaseActivity {
         CheckBox cbAll = new CheckBox(this);
         cbAll.setText("全选");
         cbAll.setChecked(true);
-        cbAll.setTextColor(0xFFF2F4F8);
+        cbAll.setTextColor(0xFF1A1D24);
         root.addView(cbAll);
 
         List<String> labels = new ArrayList<>();
@@ -659,7 +659,7 @@ public class HkPageActivity extends BaseActivity {
         TextView tv = new TextView(this);
         tv.setText(code);
         tv.setTextIsSelectable(true);
-        tv.setTextColor(0xFFF2F4F8);
+        tv.setTextColor(0xFF1A1D24);
         tv.setPadding(dp(8), dp(8), dp(8), dp(8));
         new AlertDialog.Builder(this)
                 .setTitle("「" + title + "」的云口令")
@@ -805,7 +805,7 @@ public class HkPageActivity extends BaseActivity {
             if (viewType == TYPE_HEADER) {
                 TextView tv = new TextView(parent.getContext());
                 tv.setTextSize(14);
-                tv.setTextColor(0xFFD4A017);
+                tv.setTextColor(0xFFB8890F);
                 tv.setTypeface(tv.getTypeface(), android.graphics.Typeface.BOLD);
                 int pad = dp(4);
                 tv.setPadding(dp(4), dp(16), pad, pad);
@@ -975,7 +975,7 @@ public class HkPageActivity extends BaseActivity {
         row.setGravity(android.view.Gravity.CENTER_VERTICAL);
         TextView tv = new TextView(this);
         tv.setText(label);
-        tv.setTextColor(0xFFA7B0C0);
+        tv.setTextColor(0xFF6E7686);
         tv.setTextSize(12);
         LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(dp(40), ViewGroup.LayoutParams.WRAP_CONTENT);
         row.addView(tv, labelLp);
@@ -1481,7 +1481,7 @@ public class HkPageActivity extends BaseActivity {
             h.chip.setText(pair[0]);
             boolean sel = position == selected;
             h.chip.setSelected(sel);
-            h.chip.setTextColor(sel ? 0xFF1A1D24 : 0xFFF2F4F8);
+            h.chip.setTextColor(sel ? 0xFF1A1D24 : 0xFF3A3F4B);
             h.chip.setOnClickListener(v -> {
                 int pos = h.getBindingAdapterPosition();
                 if (pos == RecyclerView.NO_POSITION) return;

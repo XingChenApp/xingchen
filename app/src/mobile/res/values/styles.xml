@@ -193,9 +193,31 @@
         <item name="android:editTextStyle">@style/XingChen.DialogEditText.Dark</item>
     </style>
 
-    <!-- 海阔单页 Activity 主题：所有 AlertDialog 走深色毛玻璃 -->
+    <!-- 海阔小程序弹窗：浅色 -->
+    <style name="XingChen.DialogEditText.HkLight" parent="android:Widget.EditText">
+        <item name="android:background">@drawable/bg_input_light</item>
+        <item name="android:textColor">#1A1D24</item>
+        <item name="android:textColorHint">#9AA1B0</item>
+        <item name="android:padding">12dp</item>
+    </style>
+
+    <style name="ThemeOverlay.XingChen.GlassDialog.HkLight" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="dialogCornerRadius">16dp</item>
+        <item name="android:windowBackground">@drawable/dialog_glass_light</item>
+        <item name="android:textColor">#1A1D24</item>
+        <item name="android:textColorPrimary">#1A1D24</item>
+        <item name="android:textColorSecondary">#6E7686</item>
+        <item name="android:textColorAlertDialogListItem">#1A1D24</item>
+        <item name="textColorAlertDialogListItem">#1A1D24</item>
+        <item name="android:colorAccent">#D4A017</item>
+        <item name="android:editTextStyle">@style/XingChen.DialogEditText.HkLight</item>
+    </style>
+
+    <!-- 海阔单页 Activity 主题：浅色独立主题，不跟主 App 走；弹窗走浅色 -->
     <style name="Theme.XingChen.HkPage" parent="Theme.XingChen">
-        <item name="android:alertDialogTheme">@style/ThemeOverlay.XingChen.GlassDialog.Dark</item>
+        <item name="android:alertDialogTheme">@style/ThemeOverlay.XingChen.GlassDialog.HkLight</item>
+        <item name="android:windowBackground">#F5F6F8</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 
 </resources>

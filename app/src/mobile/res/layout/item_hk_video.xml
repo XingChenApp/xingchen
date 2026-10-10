@@ -9,7 +9,7 @@
         android:id="@+id/iv_cover"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#2A2E44"
+        android:background="#E8EAEE"
         android:scaleType="fitCenter" />
 
     <TextView
@@ -19,7 +19,7 @@
         android:layout_marginTop="6dp"
         android:ellipsize="end"
         android:maxLines="2"
-        android:textColor="#F2F4F8"
+        android:textColor="#1A1D24"
         android:textSize="13sp" />
 
     <TextView
@@ -29,6 +29,6 @@
         android:layout_marginTop="2dp"
         android:ellipsize="end"
         android:maxLines="1"
-        android:textColor="#A7B0C0"
+        android:textColor="#6E7686"
         android:textSize="11sp" />
 </LinearLayout>

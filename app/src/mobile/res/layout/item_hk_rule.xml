@@ -3,7 +3,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/shape_dialog_glass_panel"
+    android:background="@drawable/hk_panel_light"
     android:gravity="center_vertical"
     android:minHeight="84dp"
     android:orientation="horizontal"
@@ -13,10 +13,10 @@
         android:id="@+id/tv_icon"
         android:layout_width="56dp"
         android:layout_height="56dp"
-        android:background="#2A2E44"
+        android:background="#F6EED6"
         android:gravity="center"
         android:text="海"
-        android:textColor="#D4A017"
+        android:textColor="#B8890F"
         android:textSize="24sp"
         android:textStyle="bold" />
 
@@ -33,7 +33,7 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="#F2F4F8"
+            android:textColor="#1A1D24"
             android:textSize="15sp"
             android:textStyle="bold" />
 
@@ -44,7 +44,7 @@
             android:layout_marginTop="4dp"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="#A7B0C0"
+            android:textColor="#6E7686"
             android:textSize="12sp" />
     </LinearLayout>
 

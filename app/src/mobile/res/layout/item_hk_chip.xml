@@ -4,11 +4,11 @@
     android:id="@+id/tv_chip"
     android:layout_width="wrap_content"
     android:layout_height="36dp"
-    android:background="@drawable/hk_chip_bg"
+    android:background="@drawable/hk_chip_bg_light"
     android:ellipsize="end"
     android:gravity="center"
     android:maxLines="1"
     android:paddingStart="16dp"
     android:paddingEnd="16dp"
-    android:textColor="#F2F4F8"
+    android:textColor="#1A1D24"
     android:textSize="14sp" />
