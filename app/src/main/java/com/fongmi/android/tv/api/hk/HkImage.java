@@ -3,7 +3,7 @@ package com.fongmi.android.tv.api.hk;
 import android.text.TextUtils;
 import android.util.Base64;
 
-import com.github.catvod.utils.Logger;
+import com.orhanobut.logger.Logger;
 
 import org.json.JSONObject;
 
