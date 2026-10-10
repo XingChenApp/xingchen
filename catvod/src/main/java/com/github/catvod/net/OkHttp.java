@@ -25,6 +25,7 @@ import javax.net.ssl.X509TrustManager;
 
 import okhttp3.Call;
 import okhttp3.Connection;
+import okhttp3.Dns;
 import okhttp3.EventListener;
 import okhttp3.FormBody;
 import okhttp3.Headers;
@@ -251,11 +252,10 @@ public class OkHttp {
     }
 
     private static OkHttpClient.Builder getBuilder() {
-        // Always route through the OkDns wrapper: with no DoH provider selected
-        // ("System" mode) it delegates to Dns.SYSTEM, but still sanitizes broken
-        // results (bad IPv6, hijacked loopback) that raw Dns.SYSTEM would hand
-        // straight to the connection layer and fail on.
-        OkHttpClient.Builder builder = new OkHttpClient.Builder().addInterceptor(requestInterceptor()).addInterceptor(authInterceptor()).addNetworkInterceptor(responseInterceptor()).connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS).readTimeout(TIMEOUT, TimeUnit.MILLISECONDS).writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS).dns(dns()).hostnameVerifier((hostname, session) -> true).sslSocketFactory(getSSLContext().getSocketFactory(), trustAllCertificates());
+        // "系统"模式且无自定义解析（无 DoH 服务商、无 hosts 重写）时直接用 Dns.SYSTEM，
+        // 行为与原生客户端/默影视完全一致；有自定义时才走 OkDns 包装器。
+        Dns dns = dns().isCustom() ? dns() : Dns.SYSTEM;
+        OkHttpClient.Builder builder = new OkHttpClient.Builder().addInterceptor(requestInterceptor()).addInterceptor(authInterceptor()).addNetworkInterceptor(responseInterceptor()).connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS).readTimeout(TIMEOUT, TimeUnit.MILLISECONDS).writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS).dns(dns).hostnameVerifier((hostname, session) -> true).sslSocketFactory(getSSLContext().getSocketFactory(), trustAllCertificates());
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY);
         //builder.addNetworkInterceptor(logging);
         // 全局代理包装走壳代理：开启时接管全部流量（回环除外），关闭时行为与原来一致
