@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.Window;
+import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -51,7 +52,7 @@ public class ComingSoonDialog extends DialogFragment {
         if (window == null) return;
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         DisplayMetrics metrics = getResources().getDisplayMetrics();
-        Window.LayoutParams params = window.getAttributes();
+        WindowManager.LayoutParams params = window.getAttributes();
         params.width = Math.max(dp(280), Math.min(metrics.widthPixels - dp(96), dp(340)));
         params.height = WindowManager.LayoutParams.WRAP_CONTENT;
         params.gravity = Gravity.CENTER;

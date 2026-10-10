@@ -78,7 +78,7 @@ public class CookieImportDialog extends DialogFragment {
         if (window == null) return;
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         DisplayMetrics metrics = getResources().getDisplayMetrics();
-        Window.LayoutParams params = window.getAttributes();
+        WindowManager.LayoutParams params = window.getAttributes();
         params.width = Math.max(dp(300), Math.min(metrics.widthPixels - dp(48), dp(420)));
         params.height = WindowManager.LayoutParams.WRAP_CONTENT;
         params.gravity = Gravity.CENTER;

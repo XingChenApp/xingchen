@@ -7,6 +7,6 @@
     </com.google.android.material.card.MaterialCardView>
     <RelativeLayout android:layout_width="0.0dip" android:layout_height="90.0dip" android:layout_weight="1.0" android:paddingStart="5.0dip" android:paddingEnd="5.0dip">
         <TextView android:textSize="16.0sp" android:textColor="#101216" android:ellipsize="end" android:id="@+id/tv_title" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginBottom="10.0dip" android:maxLines="2" android:paddingStart="4.0dip" android:paddingEnd="4.0dip" />
-        <com.example.hikerview.ui.view.AdaptiveTextView android:ellipsize="end" android:gravity="bottom" android:id="@+id/tv_desc" android:layout_width="fill_parent" android:layout_height="fill_parent" android:maxLines="2" android:includeFontPadding="false" android:layout_below="@+id/tv_title" android:paddingStart="4.0dip" android:paddingEnd="4.0dip" app:operateType="changeLinesAndHeight" />
+        <TextView android:ellipsize="end" android:gravity="bottom" android:id="@+id/tv_desc" android:layout_width="fill_parent" android:layout_height="fill_parent" android:maxLines="2" android:includeFontPadding="false" android:layout_below="@id/tv_title" android:paddingStart="4.0dip" android:paddingEnd="4.0dip" />
     </RelativeLayout>
 </LinearLayout>

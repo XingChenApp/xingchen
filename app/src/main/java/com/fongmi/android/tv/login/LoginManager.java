@@ -61,16 +61,6 @@ public class LoginManager {
         return providers.get(id);
     }
 
-    public boolean isLoggedIn(String providerId) {
-        LoginProvider p = getProvider(providerId);
-        return p != null && p.isLoggedIn();
-    }
-
-    public String getCookie(String providerId) {
-        LoginProvider p = getProvider(providerId);
-        return p == null ? "" : p.getCookie();
-    }
-
     public void logout(String providerId) {
         LoginProvider p = getProvider(providerId);
         if (p != null) p.clear();
@@ -81,7 +71,7 @@ public class LoginManager {
      * 再进具体流程。异步，登录结果走 callback。
      */
     public void login115(FragmentActivity activity, LoginCallback callback) {
-        login115(activity, null, callback);
+        login115(activity, (LoginMethod) null, callback);
     }
 
     /**
@@ -147,12 +137,12 @@ public class LoginManager {
 
     /** 115 是否已登录（凭据有效） */
     public static boolean is115LoggedIn() {
-        return get().isLoggedIn("115");
+        return isLoggedIn("115");
     }
 
     /** 115 登录 cookie，未登录返回空串 */
     public static String get115Cookie() {
-        return get().getCookie("115");
+        return getCookie("115");
     }
 
     /** 退出 115 登录 */
@@ -162,12 +152,14 @@ public class LoginManager {
 
     /** 通用：某提供方是否已登录 */
     public static boolean isLoggedIn(String providerId) {
-        return get().isLoggedIn(providerId);
+        LoginProvider p = get().getProvider(providerId);
+        return p != null && p.isLoggedIn();
     }
 
     /** 通用：取某提供方的登录凭据 */
     public static String getCookie(String providerId) {
-        return get().getCookie(providerId);
+        LoginProvider p = get().getProvider(providerId);
+        return p == null ? "" : p.getCookie();
     }
 
     // ---------------- 115 API 网关：自动登录拦截 ----------------
