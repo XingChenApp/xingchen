@@ -758,28 +758,13 @@ public class HkPageActivity extends BaseActivity {
 
     private class RuleAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
-        private static final int TYPE_HEADER = 0;
         private static final int TYPE_RULE = 1;
         private final List<Object> items = new ArrayList<>();
 
-        /** 按 HkRule.getGroup() 分组：组头为 group 名，无 group 的归入"未分组"，组内保持原顺序。 */
+        /** 不分组：平铺全部规则，保持原顺序。 */
         void rebuildSections() {
             items.clear();
-            List<String> order = new ArrayList<>();
-            Map<String, List<HkRule>> map = new HashMap<>();
-            for (HkRule rule : rules) {
-                String g = rule.getGroup();
-                if (TextUtils.isEmpty(g)) g = "未分组";
-                if (!map.containsKey(g)) {
-                    map.put(g, new ArrayList<>());
-                    order.add(g);
-                }
-                map.get(g).add(rule);
-            }
-            for (String g : order) {
-                items.add(g);
-                items.addAll(map.get(g));
-            }
+            items.addAll(rules);
         }
 
         class Holder extends RecyclerView.ViewHolder {
@@ -797,35 +782,14 @@ public class HkPageActivity extends BaseActivity {
             }
         }
 
-        class GroupHolder extends RecyclerView.ViewHolder {
-            TextView title;
-
-            GroupHolder(View v) {
-                super(v);
-                title = (TextView) v;
-            }
-        }
-
         @Override
         public int getItemViewType(int position) {
-            return items.get(position) instanceof String ? TYPE_HEADER : TYPE_RULE;
+            return TYPE_RULE;
         }
 
         @NonNull
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            if (viewType == TYPE_HEADER) {
-                TextView tv = new TextView(parent.getContext());
-                tv.setTextSize(14);
-                tv.setTextColor(0xFFB8890F);
-                tv.setTypeface(tv.getTypeface(), android.graphics.Typeface.BOLD);
-                int pad = dp(4);
-                tv.setPadding(dp(4), dp(16), pad, pad);
-                RecyclerView.LayoutParams lp = new RecyclerView.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                tv.setLayoutParams(lp);
-                return new GroupHolder(tv);
-            }
             View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_hk_rule, parent, false);
             RecyclerView.LayoutParams lp = (RecyclerView.LayoutParams) v.getLayoutParams();
             lp.bottomMargin = dp(12);
@@ -835,10 +799,6 @@ public class HkPageActivity extends BaseActivity {
 
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder vh, int position) {
-            if (vh instanceof GroupHolder) {
-                ((GroupHolder) vh).title.setText((String) items.get(position));
-                return;
-            }
             Holder h = (Holder) vh;
             HkRule rule = (HkRule) items.get(position);
             h.name.setText(rule.getTitle());
