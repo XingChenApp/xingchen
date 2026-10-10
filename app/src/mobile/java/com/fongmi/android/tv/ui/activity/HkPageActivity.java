@@ -1005,7 +1005,8 @@ public class HkPageActivity extends BaseActivity {
             videos.clear();
             contentAdapter.notifyDataSetChanged();
             binding.tvContentEmpty.setVisibility(View.GONE);
-            binding.rvVideos.setVisibility(View.VISIBLE);
+            binding.rvVideos.setVisibility(View.GONE);
+            binding.loadingContent.setVisibility(View.VISIBLE);
         }
         updateFooter();
         final int p = page;
@@ -1021,6 +1022,7 @@ public class HkPageActivity extends BaseActivity {
             App.post(() -> {
                 loading = false;
                 binding.swipeContent.setRefreshing(false);
+                binding.loadingContent.setVisibility(View.GONE);
                 // V2：把导航类条目（scroll_button/flex_button 分类）拆出来做顶部 tab，
                 // 分隔块（blank_block/line）丢弃，只有内容条目进视频网格。
                 List<HkItem> tabs = new ArrayList<>();
@@ -1042,6 +1044,7 @@ public class HkPageActivity extends BaseActivity {
                 } else {
                     videos.addAll(contents);
                     page = p + 1;
+                    binding.rvVideos.setVisibility(View.VISIBLE);
                     contentAdapter.notifyDataSetChanged();
                 }
                 updateFooter();
