@@ -15,7 +15,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/apk_push_url_progress_title"
-        android:textColor="#202124"
+        android:textColor="#121417"
         android:textSize="20sp"
         android:textStyle="bold" />
 
@@ -25,7 +25,7 @@
         android:layout_marginTop="8dp"
         android:lineSpacingExtra="2dp"
         android:text="@string/apk_push_url_progress_hint"
-        android:textColor="#5F6368"
+        android:textColor="#464B53"
         android:textSize="14sp" />
 
     <com.google.android.material.textview.MaterialTextView
@@ -34,7 +34,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="22dp"
         android:lineSpacingExtra="4dp"
-        android:textColor="#303134"
+        android:textColor="#1E2023"
         android:textSize="15sp"
         tools:text="正在接收 46% · 61 MB / 133 MB&#10;3.2 MB/s · 剩余 00:23 · 已用 00:12" />
 

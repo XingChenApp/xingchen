@@ -26,7 +26,7 @@
             android:ellipsize="end"
             android:singleLine="true"
             android:text="@string/login_state_paths_title"
-            android:textColor="#202124"
+            android:textColor="#121417"
             android:textSize="20sp"
             android:textStyle="bold" />
 
@@ -50,7 +50,7 @@
         android:layout_height="wrap_content"
         android:ellipsize="end"
         android:maxLines="2"
-        android:textColor="#5F6368"
+        android:textColor="#464B53"
         android:textSize="13sp"
         tools:text="已选 3 条，可同步 3 条，缺失 0 条，待确认 2 条" />
 
@@ -83,7 +83,7 @@
                 android:gravity="center_vertical"
                 android:singleLine="true"
                 android:text="@string/login_state_tree_app"
-                android:textColor="#202124"
+                android:textColor="#121417"
                 android:textSize="14sp"
                 android:textStyle="bold" />
 
@@ -124,7 +124,7 @@
                 android:gravity="center_vertical"
                 android:singleLine="true"
                 android:text="@string/login_state_tree_sdcard"
-                android:textColor="#202124"
+                android:textColor="#121417"
                 android:textSize="14sp"
                 android:textStyle="bold" />
 
@@ -153,7 +153,7 @@
         android:gravity="center"
         android:padding="10dp"
         android:text="@string/login_state_empty"
-        android:textColor="#5F6368"
+        android:textColor="#464B53"
         android:textSize="13sp"
         android:visibility="gone"
         tools:visibility="visible" />

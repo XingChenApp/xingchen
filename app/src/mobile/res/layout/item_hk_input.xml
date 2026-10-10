@@ -7,9 +7,9 @@
     android:layout_marginTop="6dp"
     android:layout_marginBottom="6dp"
     android:background="@drawable/bg_input_light"
-    android:textColorHint="#9AA0AE"
+    android:textColorHint="#6A7180"
     android:imeOptions="actionSearch"
     android:inputType="text"
     android:padding="12dp"
-    android:textColor="#1A1D24"
+    android:textColor="#101216"
     android:textSize="14sp" />

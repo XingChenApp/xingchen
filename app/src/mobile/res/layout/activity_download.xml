@@ -22,7 +22,7 @@
         android:layout_marginBottom="16dp"
         android:layout_marginStart="8dp"
         android:text="下载列表"
-        android:textColor="#171B23"
+        android:textColor="#0C0E12"
         android:textSize="24sp"
         android:textStyle="bold" />
 
@@ -48,7 +48,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="下载目录"
-                android:textColor="#171B23"
+                android:textColor="#0C0E12"
                 android:textSize="16sp"
                 android:textStyle="bold" />
             <TextView
@@ -56,7 +56,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
-                android:textColor="#2E3A4E"
+                android:textColor="#1B2431"
                 android:textSize="13sp"
                 android:singleLine="true"
                 android:ellipsize="end" />
@@ -89,7 +89,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="下载线程数"
-                android:textColor="#171B23"
+                android:textColor="#0C0E12"
                 android:textSize="16sp"
                 android:textStyle="bold" />
             <TextView
@@ -97,7 +97,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
-                android:textColor="#2E3A4E"
+                android:textColor="#1B2431"
                 android:textSize="13sp"
                 android:text="8 线程" />
         </LinearLayout>
@@ -118,7 +118,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="全选"
-            android:textColor="#171B23"
+            android:textColor="#0C0E12"
             android:textSize="14sp"
             android:background="@drawable/xc_setcard_v2"
             android:paddingLeft="8dp"
@@ -132,7 +132,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="共 0 个任务"
-            android:textColor="#2E3A4E"
+            android:textColor="#1B2431"
             android:textSize="13sp" />
         <TextView
             android:id="@+id/btn_delete_selected"
@@ -155,7 +155,7 @@
         android:layout_weight="1"
         android:gravity="center"
         android:text="暂无下载任务"
-        android:textColor="#8A8F99"
+        android:textColor="#61676F"
         android:textSize="14sp"
         android:visibility="gone" />
 

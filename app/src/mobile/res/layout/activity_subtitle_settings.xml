@@ -15,7 +15,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="字幕设置"
-            android:textColor="#171B23"
+            android:textColor="#0C0E12"
             android:textSize="24sp"
             android:textStyle="bold"
             android:layout_marginBottom="16dp" />
@@ -37,14 +37,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="字幕开关"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="有字幕轨的影片自动显示字幕"
-                    android:textColor="#5A5F68"
+                    android:textColor="#43484F"
                     android:textSize="12sp" />
             </LinearLayout>
             <Switch android:id="@+id/switch_sub_enable" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
@@ -68,14 +68,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="字幕字号"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="字幕文字的大小"
-                    android:textColor="#5A5F68"
+                    android:textColor="#43484F"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout
@@ -107,14 +107,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="字幕颜色"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="字幕文字的显示颜色"
-                    android:textColor="#5A5F68"
+                    android:textColor="#43484F"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout
@@ -148,14 +148,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="字幕位置"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="字幕在画面中的上下位置"
-                    android:textColor="#5A5F68"
+                    android:textColor="#43484F"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout
@@ -187,14 +187,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="字幕延迟"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="字幕和声音对不齐时提前或延后"
-                    android:textColor="#5A5F68"
+                    android:textColor="#43484F"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout
@@ -228,14 +228,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="自动匹配字幕"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="播放时按偏好语言自动搜索并加载字幕"
-                    android:textColor="#5A5F68"
+                    android:textColor="#43484F"
                     android:textSize="12sp" />
             </LinearLayout>
             <Switch android:id="@+id/switch_sub_automatch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
@@ -259,14 +259,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="偏好语言"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="自动匹配时优先选择的字幕语言"
-                    android:textColor="#5A5F68"
+                    android:textColor="#43484F"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout
@@ -293,14 +293,14 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="字幕源"
-                android:textColor="#171B23"
+                android:textColor="#0C0E12"
                 android:textSize="16sp"
                 android:textStyle="bold" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="内置常用字幕源，开箱即用，可单独开关"
-                android:textColor="#5A5F68"
+                android:textColor="#43484F"
                 android:textSize="12sp"
                 android:layout_marginBottom="8dp" />
             <LinearLayout
@@ -315,8 +315,8 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="OpenSubtitles" android:textColor="#171B23" android:textSize="14sp" />
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="需要 API 密钥" android:textColor="#5A5F68" android:textSize="12sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="OpenSubtitles" android:textColor="#0C0E12" android:textSize="14sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="需要 API 密钥" android:textColor="#43484F" android:textSize="12sp" />
                 </LinearLayout>
                 <Switch android:id="@+id/switch_src_opensub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
             </LinearLayout>
@@ -333,8 +333,8 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SubHD" android:textColor="#171B23" android:textSize="14sp" />
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="中文字幕" android:textColor="#5A5F68" android:textSize="12sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SubHD" android:textColor="#0C0E12" android:textSize="14sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="中文字幕" android:textColor="#43484F" android:textSize="12sp" />
                 </LinearLayout>
                 <Switch android:id="@+id/switch_src_subhd" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
             </LinearLayout>
@@ -351,8 +351,8 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="射手网" android:textColor="#171B23" android:textSize="14sp" />
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="中英双语" android:textColor="#5A5F68" android:textSize="12sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="射手网" android:textColor="#0C0E12" android:textSize="14sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="中英双语" android:textColor="#43484F" android:textSize="12sp" />
                 </LinearLayout>
                 <Switch android:id="@+id/switch_src_shooter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
             </LinearLayout>
@@ -369,8 +369,8 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="字幕库" android:textColor="#171B23" android:textSize="14sp" />
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="中文字幕" android:textColor="#5A5F68" android:textSize="12sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="字幕库" android:textColor="#0C0E12" android:textSize="14sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="中文字幕" android:textColor="#43484F" android:textSize="12sp" />
                 </LinearLayout>
                 <Switch android:id="@+id/switch_src_zimuku" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
             </LinearLayout>
@@ -388,7 +388,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="OpenSubtitles API 密钥"
-                android:textColor="#171B23"
+                android:textColor="#0C0E12"
                 android:textSize="16sp"
                 android:textStyle="bold" />
             <TextView
@@ -396,7 +396,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="未配置，OpenSubtitles 源暂不可用"
-                android:textColor="#5A5F68"
+                android:textColor="#43484F"
                 android:textSize="12sp"
                 android:layout_marginBottom="8dp" />
             <EditText

@@ -31,7 +31,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="源健康检测"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
@@ -40,7 +40,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="检测中…"
-                    android:textColor="#2E3A4E"
+                    android:textColor="#1B2431"
                     android:textSize="13sp" />
             </LinearLayout>
             <TextView
@@ -63,7 +63,7 @@
             android:layout_marginBottom="8dp"
             android:paddingLeft="4dp"
             android:text="仅检测 PY / JS 插件源"
-            android:textColor="#8A8F99"
+            android:textColor="#61676F"
             android:textSize="13sp" />
 
         <TextView
@@ -73,7 +73,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="暂无 PY / JS 源"
-            android:textColor="#8A8F99"
+            android:textColor="#61676F"
             android:textSize="14sp"
             android:visibility="gone" />
 

@@ -19,7 +19,7 @@
             android:layout_height="wrap_content"
             android:singleLine="true"
             android:ellipsize="end"
-            android:textColor="#171B23"
+            android:textColor="#0C0E12"
             android:textSize="15sp"
             android:textStyle="bold" />
 
@@ -30,7 +30,7 @@
             android:layout_marginTop="4dp"
             android:singleLine="true"
             android:ellipsize="end"
-            android:textColor="#5A5F69"
+            android:textColor="#43484F"
             android:textSize="12sp" />
     </LinearLayout>
 

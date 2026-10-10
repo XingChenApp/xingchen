@@ -15,7 +15,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="星辰"
-            android:textColor="#171B23"
+            android:textColor="#0C0E12"
             android:textSize="24sp"
             android:textStyle="bold"
             android:layout_marginBottom="16dp" />
@@ -40,7 +40,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="版本"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
@@ -48,7 +48,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
-                    android:textColor="#5A5F68"
+                    android:textColor="#43484F"
                     android:textSize="12sp" />
             </LinearLayout>
             <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_chev_v2" />
@@ -74,7 +74,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="代理"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
@@ -82,7 +82,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="按域名走代理"
-                    android:textColor="#5A5F68"
+                    android:textColor="#43484F"
                     android:textSize="12sp" />
             </LinearLayout>
             <TextView
@@ -91,7 +91,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:text="未启用"
-                android:textColor="#2E3A4E"
+                android:textColor="#1B2431"
                 android:textSize="13sp" />
             <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_chev_v2" />
         </LinearLayout>
@@ -116,7 +116,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="全局代理"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
@@ -124,7 +124,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="HTTP/SOCKS5 全局代理"
-                    android:textColor="#5A5F68"
+                    android:textColor="#43484F"
                     android:textSize="12sp" />
             </LinearLayout>
             <TextView
@@ -133,7 +133,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:text="未启用"
-                android:textColor="#2E3A4E"
+                android:textColor="#1B2431"
                 android:textSize="13sp" />
             <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_chev_v2" />
         </LinearLayout>
@@ -158,7 +158,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="DoH"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
@@ -166,7 +166,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="DNS over HTTPS，加密解析域名"
-                    android:textColor="#5A5F68"
+                    android:textColor="#43484F"
                     android:textSize="12sp" />
             </LinearLayout>
             <TextView
@@ -175,7 +175,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:text="系统"
-                android:textColor="#2E3A4E"
+                android:textColor="#1B2431"
                 android:textSize="13sp" />
             <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_chev_v2" />
         </LinearLayout>
@@ -200,7 +200,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="缓存"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
@@ -208,7 +208,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="点击清理图片与临时缓存"
-                    android:textColor="#5A5F68"
+                    android:textColor="#43484F"
                     android:textSize="12sp" />
             </LinearLayout>
             <TextView
@@ -217,7 +217,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:text="--"
-                android:textColor="#2E3A4E"
+                android:textColor="#1B2431"
                 android:textSize="13sp" />
             <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_chev_v2" />
         </LinearLayout>
@@ -242,7 +242,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="备份"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
@@ -250,7 +250,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="备份设置与插件到本地"
-                    android:textColor="#5A5F68"
+                    android:textColor="#43484F"
                     android:textSize="12sp" />
             </LinearLayout>
             <TextView

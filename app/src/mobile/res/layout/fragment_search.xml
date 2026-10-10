@@ -23,7 +23,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="返回"
             android:src="@drawable/ic_control_back"
-            app:tint="#5F6368" />
+            app:tint="#464B53" />
 
         <androidx.appcompat.widget.LinearLayoutCompat
             android:layout_width="0dp"
@@ -39,7 +39,7 @@
                 android:layout_width="18dp"
                 android:layout_height="18dp"
                 android:src="@drawable/ic_action_search"
-                app:tint="#5F6368" />
+                app:tint="#464B53" />
 
             <androidx.appcompat.widget.AppCompatEditText
                 android:id="@+id/keyword"
@@ -53,8 +53,8 @@
                 android:inputType="text"
                 android:maxLines="1"
                 android:singleLine="true"
-                android:textColor="#202124"
-                android:textColorHint="#9AA0A6"
+                android:textColor="#121417"
+                android:textColorHint="#70767E"
                 android:textSize="15sp" />
 
         </androidx.appcompat.widget.LinearLayoutCompat>
@@ -66,7 +66,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="选择搜索源"
             android:src="@drawable/ic_control_setting"
-            app:tint="#5F6368" />
+            app:tint="#464B53" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -88,7 +88,7 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="8dp"
         android:text="搜索联想"
-        android:textColor="#5F6368"
+        android:textColor="#464B53"
         android:textSize="13sp"
         android:visibility="gone" />
 
@@ -108,7 +108,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="搜索历史"
-            android:textColor="#202124"
+            android:textColor="#121417"
             android:textSize="15sp"
             android:textStyle="bold" />
 
@@ -119,7 +119,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="清空历史"
             android:src="@drawable/ic_action_delete"
-            app:tint="#9AA0A6" />
+            app:tint="#70767E" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 

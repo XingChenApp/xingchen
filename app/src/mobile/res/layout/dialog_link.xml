@@ -15,7 +15,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:text="@string/play"
-        android:textColor="#202124"
+        android:textColor="#121417"
         android:textSize="18sp"
         android:textStyle="bold" />
 
@@ -39,8 +39,8 @@
             android:importantForAutofill="no"
             android:inputType="textUri"
             android:singleLine="true"
-            android:textColor="#202124"
-            android:textColorHint="#9AA0A6"
+            android:textColor="#121417"
+            android:textColorHint="#70767E"
             android:textSize="15sp" />
 
         <androidx.appcompat.widget.AppCompatImageButton
@@ -49,7 +49,7 @@
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_action_choose"
-            app:tint="#5F6368" />
+            app:tint="#464B53" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -67,7 +67,7 @@
             android:background="@drawable/xc_btn_cancel"
             android:minWidth="80dp"
             android:text="@string/dialog_negative"
-            android:textColor="#5F6368"
+            android:textColor="#464B53"
             android:textSize="14sp" />
 
         <androidx.appcompat.widget.AppCompatButton

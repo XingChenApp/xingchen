@@ -22,7 +22,7 @@
         android:layout_weight="1"
         android:ellipsize="end"
         android:singleLine="true"
-        android:textColor="#202124"
+        android:textColor="#121417"
         android:textSize="15sp"
         tools:text="Playback params" />
 

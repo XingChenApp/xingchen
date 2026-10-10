@@ -13,7 +13,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:textColor="#171B23"
+        android:textColor="#0C0E12"
         android:textSize="15sp"
         android:singleLine="true"
         android:ellipsize="end" />

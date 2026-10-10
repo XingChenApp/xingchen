@@ -973,7 +973,7 @@ public class HkPageActivity extends BaseActivity {
         row.setGravity(android.view.Gravity.CENTER_VERTICAL);
         TextView tv = new TextView(this);
         tv.setText(label);
-        tv.setTextColor(0xFF6E7686);
+        tv.setTextColor(0xFF4F555F);
         tv.setTextSize(12);
         LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(dp(40), ViewGroup.LayoutParams.WRAP_CONTENT);
         row.addView(tv, labelLp);
@@ -2202,7 +2202,7 @@ public class HkPageActivity extends BaseActivity {
             String ct = colTypeOf(item);
             if ("text_center_1".equals(ct)) {
                 h.title.setGravity(Gravity.CENTER);
-                h.title.setTextColor(0xFF6E7686);
+                h.title.setTextColor(0xFF4F555F);
                 h.title.setTextSize(13);
                 h.title.setMaxLines(4);
                 h.title.setText(titleSpan(item.getTitle()));

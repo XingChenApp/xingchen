@@ -19,7 +19,7 @@
     android:paddingTop="12dp"
     android:paddingBottom="12dp"
     android:textSize="15sp"
-    android:textColor="#1A1D24"
+    android:textColor="#101216"
     android:checkMark="?android:attr/listChoiceIndicatorMultiple"
     android:checkMarkTint="#D4A017"
     android:ellipsize="end"

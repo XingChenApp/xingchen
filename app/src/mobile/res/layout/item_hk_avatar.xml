@@ -23,6 +23,6 @@
         android:layout_weight="1"
         android:ellipsize="end"
         android:maxLines="2"
-        android:textColor="#1A1D24"
+        android:textColor="#101216"
         android:textSize="14sp" />
 </LinearLayout>

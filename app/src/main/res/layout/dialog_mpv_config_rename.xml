@@ -18,7 +18,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/mpv_config_rename_title"
-            android:textColor="#202124"
+            android:textColor="#121417"
             android:textSize="18sp"
             android:textStyle="bold" />
 
@@ -31,7 +31,7 @@
             android:focusable="true"
             android:padding="10dp"
             android:src="@drawable/ic_dialog_close"
-            android:tint="#5F6368" />
+            android:tint="#464B53" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 

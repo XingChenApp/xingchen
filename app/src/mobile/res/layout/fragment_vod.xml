@@ -36,7 +36,7 @@
                 android:paddingBottom="8dp"
                 android:singleLine="true"
                 android:text="@string/app_name"
-                android:textColor="#202124"
+                android:textColor="#121417"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -48,7 +48,7 @@
                 android:background="@drawable/xc_circle_glass"
                 android:padding="10dp"
                 android:src="@drawable/ic_action_search"
-                app:tint="#5F6368" />
+                app:tint="#464B53" />
 
             <androidx.appcompat.widget.AppCompatImageButton
                 android:id="@+id/btnFav"
@@ -58,7 +58,7 @@
                 android:background="@drawable/xc_circle_glass"
                 android:padding="10dp"
                 android:src="@drawable/ic_action_keep"
-                app:tint="#5F6368" />
+                app:tint="#464B53" />
 
             <androidx.appcompat.widget.AppCompatImageButton
                 android:id="@+id/btnHistory"
@@ -68,7 +68,7 @@
                 android:background="@drawable/xc_circle_glass"
                 android:padding="10dp"
                 android:src="@drawable/ic_popup_history"
-                app:tint="#5F6368" />
+                app:tint="#464B53" />
 
             <androidx.appcompat.widget.AppCompatImageButton
                 android:id="@+id/btnMore"
@@ -78,7 +78,7 @@
                 android:background="@drawable/xc_circle_glass"
                 android:padding="10dp"
                 android:src="@drawable/ic_action_more_vert"
-                app:tint="#5F6368" />
+                app:tint="#464B53" />
 
         </androidx.appcompat.widget.LinearLayoutCompat>
 

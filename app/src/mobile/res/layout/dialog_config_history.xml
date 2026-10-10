@@ -15,7 +15,7 @@
             android:layout_height="wrap_content"
             android:layout_centerVertical="true"
             android:text="历史记录"
-            android:textColor="#171B23"
+            android:textColor="#0C0E12"
             android:textSize="20sp"
             android:textStyle="bold" />
 
@@ -44,7 +44,7 @@
         android:layout_height="320dp"
         android:gravity="center"
         android:text="暂无历史记录"
-        android:textColor="#8A8F99"
+        android:textColor="#61676F"
         android:textSize="14sp"
         android:visibility="gone" />
 </LinearLayout>

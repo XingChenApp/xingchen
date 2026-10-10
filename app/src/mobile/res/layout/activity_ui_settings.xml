@@ -38,7 +38,7 @@
             android:text="首页封面"
             android:textSize="17sp"
             android:textStyle="bold"
-            android:textColor="#171B23"/>
+            android:textColor="#0C0E12"/>
 
         <TextView
             android:id="@+id/tv_cover_desc"
@@ -46,7 +46,7 @@
             android:layout_height="wrap_content"
             android:text="中封面：一行显示 3 个海报"
             android:textSize="12sp"
-            android:textColor="#2E3A4E"
+            android:textColor="#1B2431"
             android:layout_marginTop="4dp"/>
     </LinearLayout>
 
@@ -63,7 +63,7 @@
             android:layout_height="wrap_content"
             android:text="小"
             android:textSize="14sp"
-            android:textColor="#2E3A4E"
+            android:textColor="#1B2431"
             android:paddingHorizontal="20dp"
             android:paddingVertical="10dp"/>
 
@@ -83,7 +83,7 @@
             android:layout_height="wrap_content"
             android:text="大"
             android:textSize="14sp"
-            android:textColor="#2E3A4E"
+            android:textColor="#1B2431"
             android:paddingHorizontal="20dp"
             android:paddingVertical="10dp"/>
     </LinearLayout>
@@ -112,14 +112,14 @@
             android:text="封面方向"
             android:textSize="17sp"
             android:textStyle="bold"
-            android:textColor="#171B23"/>
+            android:textColor="#0C0E12"/>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="竖屏封面：海报按 2:3 竖版显示"
             android:textSize="12sp"
-            android:textColor="#2E3A4E"
+            android:textColor="#1B2431"
             android:layout_marginTop="4dp"/>
     </LinearLayout>
 
@@ -146,7 +146,7 @@
             android:layout_height="wrap_content"
             android:text="横屏"
             android:textSize="14sp"
-            android:textColor="#2E3A4E"
+            android:textColor="#1B2431"
             android:paddingHorizontal="20dp"
             android:paddingVertical="10dp"/>
     </LinearLayout>
@@ -175,14 +175,14 @@
             android:text="封面比例"
             android:textSize="17sp"
             android:textStyle="bold"
-            android:textColor="#171B23"/>
+            android:textColor="#0C0E12"/>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="竖屏比例 2:3（竖版）"
             android:textSize="12sp"
-            android:textColor="#2E3A4E"
+            android:textColor="#1B2431"
             android:layout_marginTop="4dp"/>
     </LinearLayout>
 
@@ -209,7 +209,7 @@
             android:layout_height="wrap_content"
             android:text="3:4"
             android:textSize="14sp"
-            android:textColor="#2E3A4E"
+            android:textColor="#1B2431"
             android:paddingHorizontal="18dp"
             android:paddingVertical="10dp"/>
 
@@ -219,7 +219,7 @@
             android:layout_height="wrap_content"
             android:text="9:16"
             android:textSize="14sp"
-            android:textColor="#2E3A4E"
+            android:textColor="#1B2431"
             android:paddingHorizontal="18dp"
             android:paddingVertical="10dp"/>
     </LinearLayout>
@@ -248,14 +248,14 @@
             android:text="UI 风格"
             android:textSize="17sp"
             android:textStyle="bold"
-            android:textColor="#171B23"/>
+            android:textColor="#0C0E12"/>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="毛玻璃：面板半透明，透出壁纸；胶囊：悬浮胶囊导航"
             android:textSize="12sp"
-            android:textColor="#2E3A4E"
+            android:textColor="#1B2431"
             android:layout_marginTop="4dp"/>
     </LinearLayout>
 
@@ -272,7 +272,7 @@
             android:layout_height="wrap_content"
             android:text="胶囊"
             android:textSize="14sp"
-            android:textColor="#2E3A4E"
+            android:textColor="#1B2431"
             android:paddingHorizontal="20dp"
             android:paddingVertical="10dp"/>
 
@@ -316,7 +316,7 @@
                 android:text="壁纸"
                 android:textSize="17sp"
                 android:textStyle="bold"
-                android:textColor="#171B23"/>
+                android:textColor="#0C0E12"/>
 
             <TextView
                 android:id="@+id/tv_wp_desc"
@@ -324,7 +324,7 @@
                 android:layout_height="wrap_content"
                 android:text="当前：默认壁纸"
                 android:textSize="12sp"
-                android:textColor="#2E3A4E"
+                android:textColor="#1B2431"
                 android:layout_marginTop="4dp"/>
         </LinearLayout>
 
@@ -351,7 +351,7 @@
                 android:layout_height="wrap_content"
                 android:text="本地"
                 android:textSize="14sp"
-                android:textColor="#2E3A4E"
+                android:textColor="#1B2431"
                 android:paddingHorizontal="18dp"
                 android:paddingVertical="10dp"/>
 
@@ -361,7 +361,7 @@
                 android:layout_height="wrap_content"
                 android:text="URL"
                 android:textSize="14sp"
-                android:textColor="#2E3A4E"
+                android:textColor="#1B2431"
                 android:paddingHorizontal="18dp"
                 android:paddingVertical="10dp"/>
         </LinearLayout>
@@ -398,7 +398,7 @@
                     android:layout_height="wrap_content"
                     android:text="默认"
                     android:textSize="11sp"
-                    android:textColor="#2E3A4E"
+                    android:textColor="#1B2431"
                     android:gravity="center"
                     android:layout_marginTop="4dp"/>
             </LinearLayout>
@@ -422,7 +422,7 @@
                     android:layout_height="wrap_content"
                     android:text="本地"
                     android:textSize="11sp"
-                    android:textColor="#2E3A4E"
+                    android:textColor="#1B2431"
                     android:gravity="center"
                     android:layout_marginTop="4dp"/>
             </LinearLayout>
@@ -445,7 +445,7 @@
                     android:layout_height="wrap_content"
                     android:text="URL"
                     android:textSize="11sp"
-                    android:textColor="#2E3A4E"
+                    android:textColor="#1B2431"
                     android:gravity="center"
                     android:layout_marginTop="4dp"/>
             </LinearLayout>
@@ -466,7 +466,7 @@
             android:layout_weight="1"
             android:text="模糊壁纸"
             android:textSize="15sp"
-            android:textColor="#171B23"/>
+            android:textColor="#0C0E12"/>
 
         <Switch
             android:id="@+id/switch_blur"

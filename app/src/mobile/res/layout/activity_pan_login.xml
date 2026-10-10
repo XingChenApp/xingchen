@@ -35,7 +35,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="115"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
@@ -44,7 +44,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="未登录"
-                    android:textColor="#2E3A4E"
+                    android:textColor="#1B2431"
                     android:textSize="13sp"
                     android:singleLine="true"
                     android:ellipsize="end" />
@@ -77,7 +77,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="夸克"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
@@ -86,7 +86,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="未登录"
-                    android:textColor="#2E3A4E"
+                    android:textColor="#1B2431"
                     android:textSize="13sp"
                     android:singleLine="true"
                     android:ellipsize="end" />
@@ -101,7 +101,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="登录后分享链接播放速度更快，会员可享高速直链"
-            android:textColor="#8A8F99"
+            android:textColor="#61676F"
             android:textSize="13sp"
             android:paddingLeft="4dp" />
 

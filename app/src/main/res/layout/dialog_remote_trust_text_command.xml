@@ -24,7 +24,7 @@
             android:layout_weight="1"
             android:ellipsize="end"
             android:singleLine="true"
-            android:textColor="#202124"
+            android:textColor="#121417"
             android:textSize="20sp"
             android:textStyle="bold"
             tools:text="搜索播放" />
@@ -35,7 +35,7 @@
             android:layout_height="36dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_action_more_vert"
-            app:tint="#5F6368" />
+            app:tint="#464B53" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -45,7 +45,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
         app:boxBackgroundMode="none"
-        app:hintTextColor="#5F6368"
+        app:hintTextColor="#464B53"
         tools:hint="搜索关键词">
 
         <com.google.android.material.textfield.TextInputEditText
@@ -56,8 +56,8 @@
             android:importantForAutofill="no"
             android:inputType="textUri"
             android:singleLine="true"
-            android:textColor="#202124"
-            android:textColorHint="#8A8F98" />
+            android:textColor="#121417"
+            android:textColorHint="#6B7280" />
 
     </com.google.android.material.textfield.TextInputLayout>
 

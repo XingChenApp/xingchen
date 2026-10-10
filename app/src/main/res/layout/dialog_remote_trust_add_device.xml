@@ -18,7 +18,7 @@
         android:ellipsize="end"
         android:singleLine="true"
         android:text="@string/remote_trust_add_device_title"
-        android:textColor="#202124"
+        android:textColor="#121417"
         android:textSize="20sp"
         android:textStyle="bold" />
 
@@ -30,7 +30,7 @@
         android:hint="@string/remote_trust_bind_code"
         app:boxBackgroundColor="@color/white"
         app:boxStrokeColor="@color/dialog_outlined_button_stroke"
-        app:hintTextColor="#5F6368">
+        app:hintTextColor="#464B53">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/code"
@@ -40,8 +40,8 @@
             android:importantForAutofill="no"
             android:inputType="number"
             android:singleLine="true"
-            android:textColor="#202124"
-            android:textColorHint="#8A8F98" />
+            android:textColor="#121417"
+            android:textColorHint="#6B7280" />
 
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -53,7 +53,7 @@
         android:hint="@string/remote_trust_device_alias"
         app:boxBackgroundColor="@color/white"
         app:boxStrokeColor="@color/dialog_outlined_button_stroke"
-        app:hintTextColor="#5F6368">
+        app:hintTextColor="#464B53">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/alias"
@@ -63,8 +63,8 @@
             android:importantForAutofill="no"
             android:inputType="text"
             android:singleLine="true"
-            android:textColor="#202124"
-            android:textColorHint="#8A8F98" />
+            android:textColor="#121417"
+            android:textColorHint="#6B7280" />
 
     </com.google.android.material.textfield.TextInputLayout>
 

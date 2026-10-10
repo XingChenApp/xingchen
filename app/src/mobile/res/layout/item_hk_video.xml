@@ -19,7 +19,7 @@
         android:layout_marginTop="6dp"
         android:ellipsize="end"
         android:maxLines="2"
-        android:textColor="#1A1D24"
+        android:textColor="#101216"
         android:textSize="13sp" />
 
     <TextView
@@ -29,6 +29,6 @@
         android:layout_marginTop="2dp"
         android:ellipsize="end"
         android:maxLines="1"
-        android:textColor="#6E7686"
+        android:textColor="#4F555F"
         android:textSize="11sp" />
 </LinearLayout>

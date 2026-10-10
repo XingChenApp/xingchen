@@ -11,7 +11,7 @@
         android:id="@+id/tv_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#1A1D24"
+        android:textColor="#101216"
         android:textSize="14sp" />
 
     <TextView
@@ -19,6 +19,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:textColor="#6E7686"
+        android:textColor="#4F555F"
         android:textSize="12sp" />
 </LinearLayout>

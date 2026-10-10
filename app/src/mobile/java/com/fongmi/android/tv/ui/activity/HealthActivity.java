@@ -255,10 +255,10 @@ public class HealthActivity extends BaseActivity {
                 holder.tvStatus.setTextColor(0xFFE5484D);
             } else if (item.status == SiteItem.STATUS_UNSUPPORTED) {
                 holder.tvStatus.setText("未支持");
-                holder.tvStatus.setTextColor(0xFF8A8F99);
+                holder.tvStatus.setTextColor(0xFF61676F);
             } else {
                 holder.tvStatus.setText("检测中…");
-                holder.tvStatus.setTextColor(0xFF8A8F99);
+                holder.tvStatus.setTextColor(0xFF61676F);
             }
         }
 

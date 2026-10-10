@@ -15,7 +15,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="配置 PY 源"
-        android:textColor="#202124"
+        android:textColor="#121417"
         android:textSize="18sp"
         android:textStyle="bold" />
 
@@ -26,7 +26,7 @@
         android:layout_marginTop="4dp"
         android:ellipsize="middle"
         android:singleLine="true"
-        android:textColor="#666666"
+        android:textColor="#4D4D4D"
         android:textSize="13sp" />
 
     <com.google.android.material.textview.MaterialTextView
@@ -65,8 +65,8 @@
             android:inputType="text"
             android:maxLines="1"
             android:singleLine="true"
-            android:textColor="#202124"
-            android:textColorHint="#999999"
+            android:textColor="#121417"
+            android:textColorHint="#737373"
             android:textSize="16sp" />
 
         <com.google.android.material.textview.MaterialTextView
@@ -87,8 +87,8 @@
             android:inputType="textPassword"
             android:maxLines="1"
             android:singleLine="true"
-            android:textColor="#202124"
-            android:textColorHint="#999999"
+            android:textColor="#121417"
+            android:textColorHint="#737373"
             android:textSize="16sp" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
@@ -120,8 +120,8 @@
             android:hint="{&quot;cookie&quot;: &quot;UID=xxx;CID=xxx;SEID=xxx;KID=xxx&quot;}"
             android:inputType="textMultiLine"
             android:minLines="4"
-            android:textColor="#202124"
-            android:textColorHint="#999999"
+            android:textColor="#121417"
+            android:textColorHint="#737373"
             android:textSize="13sp" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>

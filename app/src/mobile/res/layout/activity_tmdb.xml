@@ -35,7 +35,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="API Key"
-                    android:textColor="#171B23"
+                    android:textColor="#0C0E12"
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
@@ -44,7 +44,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="未配置"
-                    android:textColor="#2E3A4E"
+                    android:textColor="#1B2431"
                     android:textSize="13sp"
                     android:singleLine="true"
                     android:ellipsize="end" />
@@ -59,7 +59,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="配置后首页海报显示年份与评分"
-            android:textColor="#8A8F99"
+            android:textColor="#61676F"
             android:textSize="13sp"
             android:paddingLeft="4dp" />
 

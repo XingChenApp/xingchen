@@ -7,5 +7,5 @@
     android:background="@drawable/xc_capsule_btn"
     android:gravity="center"
     android:padding="12dp"
-    android:textColor="#171B23"
+    android:textColor="#0C0E12"
     android:textSize="14sp" />

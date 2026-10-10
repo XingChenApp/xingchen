@@ -35,7 +35,7 @@
         android:ellipsize="end"
         android:maxLines="1"
         android:text="源名称"
-        android:textColor="#171B23"
+        android:textColor="#0C0E12"
         android:textSize="15sp" />
 
     <TextView
@@ -44,7 +44,7 @@
         android:layout_height="wrap_content"
         android:layout_marginLeft="10dp"
         android:text="检测中…"
-        android:textColor="#8A8F99"
+        android:textColor="#61676F"
         android:textSize="13sp"
         android:textStyle="bold" />
 </LinearLayout>
