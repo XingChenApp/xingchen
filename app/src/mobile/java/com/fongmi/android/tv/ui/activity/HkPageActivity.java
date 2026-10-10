@@ -1871,7 +1871,11 @@ public class HkPageActivity extends BaseActivity {
             case "movie_3":
                 return ContentAdapter.T_VIDEO;
             default:
-                if (ct.startsWith("icon")) return ContentAdapter.T_ICON;
+                if (ct.startsWith("icon")) {
+                    // icon_3_fill / icon_3_round_fill：对照 8.83 item_icon_3_fill 横向 CardView 布局
+                    if ("icon_3_fill".equals(ct) || "icon_3_round_fill".equals(ct)) return ContentAdapter.T_ICON_FILL;
+                    return ContentAdapter.T_ICON;
+                }
                 if (ct.startsWith("pic") || ct.startsWith("card_pic")) return ContentAdapter.T_PIC;
                 // movie_1/movie_2 等按视频卡片网格渲染（全宽横向图文待后版）
                 if (ct.startsWith("movie")) return ContentAdapter.T_VIDEO;
@@ -2239,6 +2243,7 @@ public class HkPageActivity extends BaseActivity {
         static final int T_SEARCH = 9;
         static final int T_WEB = 10;
         static final int T_BUTTONS = 11;
+        static final int T_ICON_FILL = 12;
 
         private final List<HkItem> source;
         /** 分组后的展示列表（groupButtons 快照；videos 变更后必须调 refreshGroups() 重算）。 */
@@ -2319,10 +2324,12 @@ public class HkPageActivity extends BaseActivity {
                     return 60;
                 case T_ICON:
                     if (ct.startsWith("icon_2")) return 30;
-                    if ("icon_small_3".equals(ct) || "icon_3_fill".equals(ct) || "icon_3_round_fill".equals(ct)) return 20;
+                    if ("icon_small_3".equals(ct)) return 20;
                     if ("icon_1_search".equals(ct) || "icon_1_left_pic".equals(ct)) return 60;
                     if ("icon_5".equals(ct) || "icon_5_no_crop".equals(ct)) return 12;
                     return 15; // icon_4 / icon_small_4 / icon_round_4 / icon_round_small_4 / icon_4_card
+                case T_ICON_FILL:
+                    return 20; // icon_3_fill / icon_3_round_fill：3/行
                 case T_PIC:
                     if (ct.startsWith("pic_2") || "card_pic_2".equals(ct)
                             || "card_pic_2_2".equals(ct) || "card_pic_2_2_left".equals(ct)) return 30;
@@ -2380,6 +2387,7 @@ public class HkPageActivity extends BaseActivity {
                         });
                         break;
                     case T_ICON:
+                    case T_ICON_FILL:
                         cover = v.findViewById(R.id.iv_icon);
                         title = v.findViewById(R.id.tv_title);
                         break;
@@ -2436,6 +2444,9 @@ public class HkPageActivity extends BaseActivity {
                 case T_ICON:
                     layout = R.layout.item_hk_icon;
                     break;
+                case T_ICON_FILL:
+                    layout = R.layout.item_hk_icon_3_fill;
+                    break;
                 case T_PIC:
                     layout = R.layout.item_hk_pic;
                     break;
@@ -2482,6 +2493,7 @@ public class HkPageActivity extends BaseActivity {
                     bindAvatar(h, item);
                     break;
                 case T_ICON:
+                case T_ICON_FILL:
                     bindIcon(h, item);
                     break;
                 case T_PIC:

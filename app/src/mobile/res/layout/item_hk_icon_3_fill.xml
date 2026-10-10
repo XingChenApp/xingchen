@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 对照 8.83 item_icon_3_fill：横向 CardView，左图标右文字 -->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="0dp">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/hk_ripple_grey"
+        android:minHeight="44dp">
+
+        <FrameLayout
+            android:id="@+id/icon_bg"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="8dp">
+
+            <ImageView
+                android:id="@+id/iv_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:scaleType="centerCrop" />
+
+            <TextView
+                android:id="@+id/tv_icon_text"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:ellipsize="none"
+                android:gravity="center"
+                android:maxLength="1"
+                android:singleLine="true"
+                android:textColor="#ffffff"
+                android:textSize="12sp"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_toEndOf="@+id/icon_bg"
+            android:gravity="center_vertical"
+            android:maxLines="1"
+            android:lines="1"
+            android:minHeight="32dp"
+            android:paddingStart="5dp"
+            android:paddingEnd="5dp"
+            android:textColor="#101216"
+            android:textSize="15sp" />
+    </RelativeLayout>
+</com.google.android.material.card.MaterialCardView>
