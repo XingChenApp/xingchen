@@ -113,6 +113,7 @@ public class HkPageActivity extends BaseActivity {
 
     private HkItem detailItem;
     private boolean detailFromSearch;
+    private android.widget.Toast loadingHint;
     private HkDetail currentDetail;
     private HkDetail.Line currentLine;
     private EpisodeAdapter episodeAdapter;
@@ -1245,6 +1246,23 @@ public class HkPageActivity extends BaseActivity {
     }
 
     /**
+     * 点封面后的下方小字"加载中"提示（海阔原版 toast 风格，不挡封面）。
+     * 进播放器/推 V4/报错时自动消失。
+     */
+    private void showLoadingHint() {
+        hideLoadingHint();
+        loadingHint = android.widget.Toast.makeText(this, "加载中…", android.widget.Toast.LENGTH_LONG);
+        loadingHint.show();
+    }
+
+    private void hideLoadingHint() {
+        if (loadingHint != null) {
+            loadingHint.cancel();
+            loadingHint = null;
+        }
+    }
+
+    /**
      * V4 详情。
      *
      * @param lazyPrecheck true=条目 URL 自带 {@code @lazyRule=}（如粉嫩小BB点封面即播）：
@@ -1265,8 +1283,9 @@ public class HkPageActivity extends BaseActivity {
             binding.tvDetailLoading.setVisibility(View.VISIBLE);
             pushView(V_DETAIL);
         } else {
-            // 直接播放预检（条目 URL 自带 @lazyRule=）：后台静默求值，不弹加载框；
-            // 求值完成后直接进播放器（用户要求：点封面即播，不弹"加载中"）
+            // 直接播放预检（条目 URL 自带 @lazyRule=）：后台求值，下方小字"加载中"提示
+            // （海阔原版 toast 风格，不挡封面）；求值完成后直接进播放器
+            showLoadingHint();
         }
         new Thread(() -> {
             HkDetail detail;
@@ -1277,6 +1296,7 @@ public class HkPageActivity extends BaseActivity {
             }
             final HkDetail result = detail;
             App.post(() -> {
+                hideLoadingHint();
                 if (lazyPrecheck) binding.loadingContent.setVisibility(View.GONE);
                 else binding.tvDetailLoading.setVisibility(View.GONE);
                 // 分类切换（官方 refreshPage 语义：putMyVar 后重刷列表，不进 V4）
