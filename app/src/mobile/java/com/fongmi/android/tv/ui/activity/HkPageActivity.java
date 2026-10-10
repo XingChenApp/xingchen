@@ -230,6 +230,7 @@ public class HkPageActivity extends BaseActivity {
             App.post(() -> {
                 rules.clear();
                 rules.addAll(list);
+                ruleAdapter.rebuildSections();
                 ruleAdapter.notifyDataSetChanged();
                 binding.emptyRules.setVisibility(list.isEmpty() ? View.VISIBLE : View.GONE);
                 binding.rvRules.setVisibility(list.isEmpty() ? View.GONE : View.VISIBLE);
@@ -535,7 +536,7 @@ public class HkPageActivity extends BaseActivity {
         ListView listView = new ListView(this);
         listView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_list_item_multiple_choice, labels);
+                R.layout.item_hk_pick, labels);
         listView.setAdapter(adapter);
         for (int i = 0; i < labels.size(); i++) listView.setItemChecked(i, true);
         int rowPx = (int) (56 * density);
@@ -721,7 +722,31 @@ public class HkPageActivity extends BaseActivity {
                 .show();
     }
 
-    private class RuleAdapter extends RecyclerView.Adapter<RuleAdapter.Holder> {
+    private class RuleAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+
+        private static final int TYPE_HEADER = 0;
+        private static final int TYPE_RULE = 1;
+        private final List<Object> items = new ArrayList<>();
+
+        /** 按 HkRule.getGroup() 分组：组头为 group 名，无 group 的归入"未分组"，组内保持原顺序。 */
+        void rebuildSections() {
+            items.clear();
+            List<String> order = new ArrayList<>();
+            Map<String, List<HkRule>> map = new HashMap<>();
+            for (HkRule rule : rules) {
+                String g = rule.getGroup();
+                if (TextUtils.isEmpty(g)) g = "未分组";
+                if (!map.containsKey(g)) {
+                    map.put(g, new ArrayList<>());
+                    order.add(g);
+                }
+                map.get(g).add(rule);
+            }
+            for (String g : order) {
+                items.add(g);
+                items.addAll(map.get(g));
+            }
+        }
 
         class Holder extends RecyclerView.ViewHolder {
             TextView icon, name, sub;
@@ -738,9 +763,35 @@ public class HkPageActivity extends BaseActivity {
             }
         }
 
+        class GroupHolder extends RecyclerView.ViewHolder {
+            TextView title;
+
+            GroupHolder(View v) {
+                super(v);
+                title = (TextView) v;
+            }
+        }
+
+        @Override
+        public int getItemViewType(int position) {
+            return items.get(position) instanceof String ? TYPE_HEADER : TYPE_RULE;
+        }
+
         @NonNull
         @Override
-        public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            if (viewType == TYPE_HEADER) {
+                TextView tv = new TextView(parent.getContext());
+                tv.setTextSize(14);
+                tv.setTextColor(0xFFD4A017);
+                tv.setTypeface(tv.getTypeface(), android.graphics.Typeface.BOLD);
+                int pad = dp(4);
+                tv.setPadding(dp(4), dp(16), pad, pad);
+                RecyclerView.LayoutParams lp = new RecyclerView.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                tv.setLayoutParams(lp);
+                return new GroupHolder(tv);
+            }
             View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_hk_rule, parent, false);
             RecyclerView.LayoutParams lp = (RecyclerView.LayoutParams) v.getLayoutParams();
             lp.bottomMargin = dp(12);
@@ -749,12 +800,15 @@ public class HkPageActivity extends BaseActivity {
         }
 
         @Override
-        public void onBindViewHolder(@NonNull Holder h, int position) {
-            HkRule rule = rules.get(position);
+        public void onBindViewHolder(@NonNull RecyclerView.ViewHolder vh, int position) {
+            if (vh instanceof GroupHolder) {
+                ((GroupHolder) vh).title.setText((String) items.get(position));
+                return;
+            }
+            Holder h = (Holder) vh;
+            HkRule rule = (HkRule) items.get(position);
             h.name.setText(rule.getTitle());
-            String sub = rule.getAuthor() + " · v" + rule.getVersion()
-                    + (TextUtils.isEmpty(rule.getGroup()) ? "" : " · " + rule.getGroup());
-            h.sub.setText(sub);
+            h.sub.setText(rule.getAuthor() + " · v" + rule.getVersion());
             String iconDef = rule.getIcon();
             if (!TextUtils.isEmpty(iconDef) && iconDef.startsWith("#")) {
                 try {
@@ -770,7 +824,9 @@ public class HkPageActivity extends BaseActivity {
             h.sw.setOnCheckedChangeListener((btn, checked) -> {
                 int pos = h.getBindingAdapterPosition();
                 if (pos == RecyclerView.NO_POSITION) return;
-                HkRule r = rules.get(pos);
+                Object o = items.get(pos);
+                if (!(o instanceof HkRule)) return;
+                HkRule r = (HkRule) o;
                 r.setEnabled(checked);
                 HkRuleManager.get().setEnabled(r.getTitle(), checked);
                 notifyItemChanged(pos);
@@ -781,7 +837,7 @@ public class HkPageActivity extends BaseActivity {
 
         @Override
         public int getItemCount() {
-            return rules.size();
+            return items.size();
         }
     }
 
