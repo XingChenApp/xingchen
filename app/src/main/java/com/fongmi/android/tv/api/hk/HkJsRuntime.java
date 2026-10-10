@@ -2,7 +2,6 @@ package com.fongmi.android.tv.api.hk;
 
 import android.content.ClipData;
 import android.content.ClipboardManager;
-import android.content.Context;
 import android.text.TextUtils;
 import android.util.Base64;
 
@@ -10,17 +9,19 @@ import com.fongmi.android.tv.App;
 import com.fongmi.quickjs.bean.Req;
 import com.fongmi.quickjs.utils.Connect;
 import com.fongmi.quickjs.utils.Crypto;
-import com.fongmi.quickjs.utils.JSUtil;
 import com.fongmi.quickjs.utils.Parser;
 import com.github.catvod.utils.Json;
 import com.github.catvod.utils.Util;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.orhanobut.logger.Logger;
-import com.whl.quickjs.android.QuickJSLoader;
-import com.whl.quickjs.wrapper.JSArray;
-import com.whl.quickjs.wrapper.JSObject;
-import com.whl.quickjs.wrapper.QuickJSContext;
+import org.mozilla.javascript.BaseFunction;
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.NativeArray;
+import org.mozilla.javascript.NativeJSON;
+import org.mozilla.javascript.NativeObject;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.ScriptableObject;
 
 import java.io.File;
 import java.lang.reflect.Type;
@@ -44,7 +45,7 @@ import okhttp3.ResponseBody;
  * 海阔 JS 运行时（M2，设计文档 §4.4）。
  *
  * <ul>
- *   <li>每个规则一个独立 QuickJSContext（隔离变量），跑在单线程 executor 上，API 全部同步实现。</li>
+ *   <li>每个规则一个独立 Rhino Context/Scope（隔离变量），跑在单线程 executor 上，API 全部同步实现。</li>
  *   <li>注册 Hiker 方言 API：fetch/post、setResult 系列、parseDom 系列、MY_* 变量、putVar/getVar、setItem/getItem、
  *   toast/log/setError、base64、encodeStr/decodeStr、aes、getResCode/getUrl、require。</li>
  *   <li>preRule 在首次 home/search 前各执行一次（主要用途取 cookie）。</li>
@@ -58,13 +59,6 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     private static final String TAG = "HkJsRuntime";
     private static final Gson GSON = new Gson();
     private static final Type MAP_LIST_TYPE = new TypeToken<List<Map<String, Object>>>() {}.getType();
-
-    static {
-        try {
-            QuickJSLoader.init();
-        } catch (Throwable ignored) {
-        }
-    }
 
     private final ExecutorService executor;
     private final HkRule rule;
@@ -124,7 +118,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         }
     }
 
-    private QuickJSContext ctx;
+    private Context rhinoCx;
+    private ScriptableObject scope;
     private Map<String, String> kv;
     private String error;
     private int resCode;
@@ -137,6 +132,86 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
      * 而不是默认的 pageUrl。set 后仅下一次 evalLazy 生效，读后清零。
      */
     private volatile String nextInputOverride;
+
+    /** QuickJS 风格的函数签名（Object[] args -> Object），供 putFunction 注册。 */
+    private interface JsFunc {
+        Object call(Object[] args);
+    }
+
+    /**
+     * 把 lambda 注册为 scope 上的全局函数（Rhino BaseFunction）。
+     * Rhino 用 Undefined.instance 表示 undefined；QuickJS 侧对应 Java null，
+     * 这里归一化后 lambda 内的 args[?] != null / String.valueOf 语义与原来一致。
+     * Java 返回 null 时转为 JS undefined（原 QuickJS 行为）。
+     */
+    private void putFunction(String name, JsFunc fn) {
+        putFunction(scope, name, fn);
+    }
+
+    private void putFunction(ScriptableObject target, String name, JsFunc fn) {
+        ScriptableObject.putProperty(target, name, new BaseFunction() {
+            @Override
+            public Object call(Context cx, Scriptable scope, Scriptable thisObj, Object[] args) {
+                Object[] a = args == null ? new Object[0] : args;
+                for (int i = 0; i < a.length; i++) {
+                    if (a[i] == Context.getUndefinedValue()) a[i] = null;
+                }
+                Object r = fn.call(a);
+                return r == null ? Context.getUndefinedValue() : r;
+            }
+        });
+    }
+
+    /** 求值（替代 ctx.evaluate）。 */
+    private Object evalJs(String js) {
+        return rhinoCx.evaluateString(scope, js, "hk", 1, null);
+    }
+
+    /** JSON 解析（替代 ctx.parse，即 JSON.parse 语义）：非法 JSON 返回空对象，不抛异常。 */
+    private Object parseJson(String json) {
+        if (TextUtils.isEmpty(json)) return new NativeObject();
+        try {
+            Object r = NativeJSON.parse(rhinoCx, scope, json);
+            return r == null ? new NativeObject() : r;
+        } catch (Throwable e) {
+            return new NativeObject();
+        }
+    }
+
+    /** JSON 序列化（替代 JSObject.stringify）。 */
+    private String jsStringify(Object value) {
+        try {
+            Object r = NativeJSON.stringify(rhinoCx, scope, value, null, null);
+            if (r == null || r == Context.getUndefinedValue()) return "null";
+            return Context.toString(r);
+        } catch (Throwable e) {
+            return String.valueOf(value);
+        }
+    }
+
+    /** evaluateString 结果转字符串（undefined/null 归一为空）。 */
+    private static String jsResultToString(Object r) {
+        if (r == null || r == Context.getUndefinedValue()) return "";
+        return String.valueOf(r);
+    }
+
+    /** List<String> -> JS 数组（替代 JSUtil.toArray）。 */
+    private NativeArray toJsArray(List<String> items) {
+        NativeArray arr = new NativeArray(items == null ? 0 : items.size());
+        if (items != null) {
+            for (int i = 0; i < items.size(); i++) arr.put(i, arr, items.get(i));
+        }
+        return arr;
+    }
+
+    /** byte[] -> JS 数组（替代 JSUtil.toArray）。 */
+    private NativeArray toJsArray(byte[] bytes) {
+        NativeArray arr = new NativeArray(bytes == null ? 0 : bytes.length);
+        if (bytes != null) {
+            for (int i = 0; i < bytes.length; i++) arr.put(i, arr, (int) bytes[i]);
+        }
+        return arr;
+    }
 
     public HkJsRuntime(HkRule rule) {
         this.rule = rule;
@@ -157,13 +232,17 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
      */
     public void init() throws Exception {
         submit(() -> {
-            ctx = QuickJSContext.create();
+            // Rhino：每个规则独立 Context + Scope（变量隔离），跑在单线程 executor 上；
+            // setOptimizationLevel(-1) 禁用优化器（Android 无字节码生成，必须关）
+            rhinoCx = Context.enter();
+            rhinoCx.setOptimizationLevel(-1);
+            scope = rhinoCx.initStandardObjects();
             registerApi();
             // 官方内置 CryptoJS（aes.js）：自动注入为全局，兼容直接使用 CryptoJS 的规则；
             // 库本身幂等（var CryptoJS = CryptoJS || ...），规则再 eval(getCryptoJS()) 无害
             try {
                 String cryptoJs = loadAsset("aes.js");
-                if (!TextUtils.isEmpty(cryptoJs)) ctx.evaluate(cryptoJs);
+                if (!TextUtils.isEmpty(cryptoJs)) evalJs(cryptoJs);
             } catch (Throwable e) {
                 Logger.t(TAG).d("inject CryptoJS failed: " + e.getMessage());
             }
@@ -172,7 +251,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             // Hikerurl.js 引用官方 Java 类 com.example.hikerview..RequireUtils（模块缓存映射），
             // 宿主无此 Java 类时整文件求值失败导致 $ 残缺；先在 JS 层 stub 该命名空间（官方调用处有 try-catch）
             try {
-                ctx.evaluate(
+                evalJs(
                     "var com = (typeof com !== 'undefined') ? com : {};\n" +
                     "com.example = com.example || {};\n" +
                     "com.example.hikerview = com.example.hikerview || {};\n" +
@@ -184,7 +263,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                     "com.example.hikerview.ui.rules.service.require.RequireUtils || { generateRequireMap: function() {} };\n"
                 );
                 String hikerUrlJs = loadAsset("Hikerurl.js");
-                if (!TextUtils.isEmpty(hikerUrlJs)) ctx.evaluate(hikerUrlJs);
+                if (!TextUtils.isEmpty(hikerUrlJs)) evalJs(hikerUrlJs);
             } catch (Throwable e) {
                 Logger.t(TAG).d("inject Hikerurl.js failed: " + e.getMessage());
             }
@@ -199,24 +278,24 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
 
     private void registerApi() {
         // ---- 结果返回 ----
-        ctx.getGlobalObject().setProperty("setResult", args -> {
+        putFunction("setResult", args -> {
             beginResult();
             collectResult(args);
             return null;
         });
-        ctx.getGlobalObject().setProperty("setHomeResult", args -> {
+        putFunction("setHomeResult", args -> {
             beginResult();
             collectHomeResult(args);
             return null;
         });
-        ctx.getGlobalObject().setProperty("setSearchResult", args -> {
+        putFunction("setSearchResult", args -> {
             beginResult();
             collectResult(args);
             return null;
         });
         // setPreResult：预返回（官方要求与 setResult 成对、顺序固定）。
         // 语义：先占位展示，下一记 setResult/setSearchResult 到达时整体替换。
-        ctx.getGlobalObject().setProperty("setPreResult", args -> {
+        putFunction("setPreResult", args -> {
             results.clear();
             rawResults.clear();
             collectResult(args);
@@ -224,33 +303,33 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             Logger.t(TAG).d("setPreResult: %d items staged", results.size());
             return null;
         });
-        ctx.getGlobalObject().setProperty("setError", args -> {
+        putFunction("setError", args -> {
             error = args != null && args.length > 0 ? String.valueOf(args[0]) : "";
             Logger.t(TAG).d("setError: %s", error);
             return null;
         });
         // 官方别名：error 即 setError
-        ctx.getGlobalObject().setProperty("error", args -> {
+        putFunction("error", args -> {
             error = args != null && args.length > 0 ? String.valueOf(args[0]) : "";
             Logger.t(TAG).d("error: %s", error);
             return null;
         });
 
         // ---- 网络 ----
-        ctx.getGlobalObject().setProperty("fetch", args -> {
+        putFunction("fetch", args -> {
             if (args == null || args.length == 0) return "";
             String url = String.valueOf(args[0]);
             String options = args.length > 1 && args[1] != null ? stringifyArg(args[1]) : null;
             return fetchSync(url, options);
         });
-        ctx.getGlobalObject().setProperty("post", args -> {
+        putFunction("post", args -> {
             if (args == null || args.length == 0) return "";
             String url = String.valueOf(args[0]);
             String options = args.length > 1 && args[1] != null ? stringifyArg(args[1]) : "{}";
             options = mergeMethod(options, "post");
             return fetchSync(url, options);
         });
-        ctx.getGlobalObject().setProperty("request", args -> {
+        putFunction("request", args -> {
             if (args == null || args.length == 0) return "";
             String url = String.valueOf(args[0]);
             // hiker://page/<path> 内部协议：从规则 pages 里按 path 取页面规则，返回 {"rule": "..."}
@@ -258,48 +337,48 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             String options = args.length > 1 && args[1] != null ? stringifyArg(args[1]) : null;
             return fetchSync(url, options);
         });
-        ctx.getGlobalObject().setProperty("getResCode", args -> resCode);
+        putFunction("getResCode", args -> resCode);
         // 官方别名：getCode 即 getResCode
-        ctx.getGlobalObject().setProperty("getCode", args -> resCode);
-        ctx.getGlobalObject().setProperty("getUrl", args -> lastUrl == null ? "" : lastUrl);
+        putFunction("getCode", args -> resCode);
+        putFunction("getUrl", args -> lastUrl == null ? "" : lastUrl);
 
         // ---- DOM 解析（复用 Parser，即海阔 parseHikerToJq 路径） ----
-        ctx.getGlobalObject().setProperty("parseDom", args -> {
+        putFunction("parseDom", args -> {
             if (args == null || args.length < 2) return "";
             String urlKey = args.length > 2 && args[2] != null ? String.valueOf(args[2]) : (lastUrl == null ? "" : lastUrl);
             return parser.pdfh(String.valueOf(args[0]), sel(args[1]), urlKey);
         });
-        ctx.getGlobalObject().setProperty("pd", args -> {
+        putFunction("pd", args -> {
             if (args == null || args.length < 2) return "";
             String urlKey = args.length > 2 && args[2] != null ? String.valueOf(args[2]) : (lastUrl == null ? "" : lastUrl);
             return parser.pdfh(String.valueOf(args[0]), sel(args[1]), urlKey);
         });
-        ctx.getGlobalObject().setProperty("parseDomForHtml", args -> {
+        putFunction("parseDomForHtml", args -> {
             if (args == null || args.length < 2) return "";
             return parser.pdfh(String.valueOf(args[0]), sel(args[1]), "");
         });
-        ctx.getGlobalObject().setProperty("pdfh", args -> {
+        putFunction("pdfh", args -> {
             if (args == null || args.length < 2) return "";
             return parser.pdfh(String.valueOf(args[0]), sel(args[1]), "");
         });
-        ctx.getGlobalObject().setProperty("parseDomForArray", args -> {
-            if (args == null || args.length < 2) return JSUtil.toArray(ctx, new ArrayList<>());
+        putFunction("parseDomForArray", args -> {
+            if (args == null || args.length < 2) return toJsArray(new ArrayList<>());
             List<String> items = parser.pdfa(String.valueOf(args[0]), sel(args[1]));
-            return JSUtil.toArray(ctx, items);
+            return toJsArray(items);
         });
-        ctx.getGlobalObject().setProperty("pdfa", args -> {
-            if (args == null || args.length < 2) return JSUtil.toArray(ctx, new ArrayList<>());
+        putFunction("pdfa", args -> {
+            if (args == null || args.length < 2) return toJsArray(new ArrayList<>());
             List<String> items = parser.pdfa(String.valueOf(args[0]), sel(args[1]));
-            return JSUtil.toArray(ctx, items);
+            return toJsArray(items);
         });
 
         // ---- 存储 ----
-        ctx.getGlobalObject().setProperty("putVar", args -> {
+        putFunction("putVar", args -> {
             if (args != null && args.length > 1) vars.put(String.valueOf(args[0]), String.valueOf(args[1]));
             return null;
         });
         // 官方 putVar2：值非字符串时 JSON 序列化后存入（与 putVar 区别仅在此）
-        ctx.getGlobalObject().setProperty("putVar2", args -> {
+        putFunction("putVar2", args -> {
             if (args == null || args.length < 2) return null;
             String k = String.valueOf(args[0]);
             if (TextUtils.isEmpty(k)) return null;
@@ -313,20 +392,20 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             vars.put(k, s);
             return null;
         });
-        ctx.getGlobalObject().setProperty("getVar", args -> {
+        putFunction("getVar", args -> {
             if (args == null || args.length == 0) return "";
             String v = vars.get(String.valueOf(args[0]));
             if (v == null && args.length > 1) v = String.valueOf(args[1]);
             return v == null ? "" : v;
         });
-        ctx.getGlobalObject().setProperty("setItem", args -> {
+        putFunction("setItem", args -> {
             if (args != null && args.length > 1) {
                 kv.put(String.valueOf(args[0]), String.valueOf(args[1]));
                 saveKv();
             }
             return null;
         });
-        ctx.getGlobalObject().setProperty("getItem", args -> {
+        putFunction("getItem", args -> {
             if (args == null || args.length == 0) return "";
             String v = kv.get(String.valueOf(args[0]));
             if (v == null && args.length > 1) v = String.valueOf(args[1]);
@@ -334,7 +413,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         });
 
         // ---- 调试 ----
-        ctx.getGlobalObject().setProperty("toast", args -> {
+        putFunction("toast", args -> {
             final String msg = args != null && args.length > 0 ? String.valueOf(args[0]) : "";
             Logger.t(TAG).d("toast: %s", msg);
             try {
@@ -344,13 +423,13 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             return null;
         });
-        ctx.getGlobalObject().setProperty("log", args -> {
+        putFunction("log", args -> {
             Logger.t(TAG).d("%s", args != null && args.length > 0 ? String.valueOf(args[0]) : "");
             return null;
         });
 
         // ---- 交互/配置（海阔规则常用，preRule 里调） ----
-        ctx.getGlobalObject().setProperty("confirm", args -> {
+        putFunction("confirm", args -> {
             // 官方弹确认框；我们无 UI，直接走 confirm 回调（若有）并返回 true
             try {
                 if (args != null && args.length > 0 && args[0] != null) {
@@ -361,7 +440,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             return true;
         });
-        ctx.getGlobalObject().setProperty("initConfig", args -> {
+        putFunction("initConfig", args -> {
             // initConfig({host: ...})：把配置持久化到 plugins/hk/config/<规则名>.json，供 config.xxx 读取
             try {
                 if (args != null && args.length > 0 && args[0] != null) {
@@ -370,8 +449,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                         HkRuleManager.get().saveRuleConfig(rule.getTitle(), json);
                         // 同步刷新当前 ctx 的 config 对象
                         try {
-                            JSObject obj = (JSObject) ctx.parse(json);
-                            ctx.getGlobalObject().setProperty("config", obj);
+                            Object obj = parseJson(json);
+                            ScriptableObject.putProperty(scope, "config", obj);
                         } catch (Throwable ignored) {
                         }
                         Logger.t(TAG).d("initConfig saved for %s", rule.getTitle());
@@ -382,7 +461,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             return null;
         });
-        ctx.getGlobalObject().setProperty("getParam", args -> {
+        putFunction("getParam", args -> {
             // getParam('word')：从 MY_URL 的 query 里取值（$('...').rule(fn) 场景）
             if (args == null || args.length == 0) return "";
             String key = String.valueOf(args[0]);
@@ -405,11 +484,11 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         });
 
         // ---- 编解码 ----
-        ctx.getGlobalObject().setProperty("base64Encode", args -> {
+        putFunction("base64Encode", args -> {
             if (args == null || args.length == 0) return "";
             return Util.base64(String.valueOf(args[0]).getBytes(Charset.forName("UTF-8")));
         });
-        ctx.getGlobalObject().setProperty("base64Decode", args -> {
+        putFunction("base64Decode", args -> {
             if (args == null || args.length == 0) return "";
             try {
                 return new String(Base64.decode(String.valueOf(args[0]), Base64.DEFAULT), Charset.forName("UTF-8"));
@@ -417,7 +496,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 return "";
             }
         });
-        ctx.getGlobalObject().setProperty("encodeStr", args -> {
+        putFunction("encodeStr", args -> {
             if (args == null || args.length == 0) return "";
             try {
                 String charset = args.length > 1 ? String.valueOf(args[1]) : "UTF-8";
@@ -426,7 +505,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 return "";
             }
         });
-        ctx.getGlobalObject().setProperty("decodeStr", args -> {
+        putFunction("decodeStr", args -> {
             if (args == null || args.length == 0) return "";
             try {
                 String charset = args.length > 1 ? String.valueOf(args[1]) : "UTF-8";
@@ -435,13 +514,13 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 return "";
             }
         });
-        ctx.getGlobalObject().setProperty("aesEncode", args -> {
+        putFunction("aesEncode", args -> {
             if (args == null || args.length < 2) return "";
             String key = String.valueOf(args[1]);
             String iv = args.length > 2 ? String.valueOf(args[2]) : "";
             return Crypto.aes("AES/CBC/PKCS5Padding", true, String.valueOf(args[0]), false, key, iv, true);
         });
-        ctx.getGlobalObject().setProperty("aesDecode", args -> {
+        putFunction("aesDecode", args -> {
             if (args == null || args.length < 2) return "";
             String key = String.valueOf(args[1]);
             String iv = args.length > 2 ? String.valueOf(args[2]) : "";
@@ -449,13 +528,13 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         });
 
         // ---- require：远程库加载（preRule 常用）；本地 libs/<md5(url)>.js 优先（.hkzip 自带库） ----
-        ctx.getGlobalObject().setProperty("require", args -> {
+        putFunction("require", args -> {
             if (args == null || args.length == 0) return null;
             try {
                 String libUrl = String.valueOf(args[0]);
                 String code = loadLibLocal(libUrl);
                 if (code == null) code = fetchSync(libUrl, null);
-                if (!TextUtils.isEmpty(code)) ctx.evaluate(code);
+                if (!TextUtils.isEmpty(code)) evalJs(code);
             } catch (Throwable e) {
                 Logger.t(TAG).d("require failed: %s", e.getMessage());
             }
@@ -467,7 +546,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         // 页面代码以 $.exports = xxx 导出，JS 层 $.require 直接返回 $.exports（官方同款语义）。
         // 裸页面名（如 $.require("Cate")，无 :// scheme）：官方语义也是先查规则 pages，
         // 找不到再走远程/本地库逻辑。其他路径：复用 require 的远程/本地库逻辑。
-        ctx.getGlobalObject().setProperty("__hkRequirePage", args -> {
+        putFunction("__hkRequirePage", args -> {
             if (args == null || args.length == 0) return null;
             String path = String.valueOf(args[0]);
             try {
@@ -486,7 +565,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                         return null;
                     }
                     try {
-                        ctx.evaluate(stripJsPrefix(code));
+                        evalJs(stripJsPrefix(code));
                     } catch (Throwable e) {
                         Logger.t(TAG).d("$.require: asset eval failed %s: %s", assetPath, e.getMessage());
                     }
@@ -509,7 +588,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                     isRulePage = pageCode != null;
                 }
                 if (isRulePage) {
-                    ctx.evaluate("(function(){\n" + stripJsPrefix(pageCode) + "\n})();");
+                    evalJs("(function(){\n" + stripJsPrefix(pageCode) + "\n})();");
                 } else {
                     String code = loadLibLocal(path);
                     if (code == null) code = fetchSync(path, null);
@@ -517,7 +596,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                         Logger.t(TAG).d("$.require: empty lib %s", path);
                         return null;
                     }
-                    ctx.evaluate(stripJsPrefix(code));
+                    evalJs(stripJsPrefix(code));
                 }
             } catch (Throwable e) {
                 Logger.t(TAG).d("$.require failed %s: %s", path, e.getMessage());
@@ -526,42 +605,42 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         });
 
         // ---- 规则内会话变量（getMyVar/putMyVar/clearMyVar/listMyVarKeys） ----
-        ctx.getGlobalObject().setProperty("putMyVar", args -> {
+        putFunction("putMyVar", args -> {
             if (args != null && args.length > 1) myVars.put(String.valueOf(args[0]), String.valueOf(args[1]));
             return null;
         });
-        ctx.getGlobalObject().setProperty("getMyVar", args -> {
+        putFunction("getMyVar", args -> {
             if (args == null || args.length == 0) return "";
             String v = myVars.get(String.valueOf(args[0]));
             if (v == null && args.length > 1) v = String.valueOf(args[1]);
             return v == null ? "" : v;
         });
-        ctx.getGlobalObject().setProperty("clearMyVar", args -> {
+        putFunction("clearMyVar", args -> {
             if (args != null && args.length > 0) myVars.remove(String.valueOf(args[0]));
             else myVars.clear();
             return null;
         });
-        ctx.getGlobalObject().setProperty("listMyVarKeys", args -> GSON.toJson(new ArrayList<>(myVars.keySet())));
-        ctx.getGlobalObject().setProperty("clearVar", args -> {
+        putFunction("listMyVarKeys", args -> GSON.toJson(new ArrayList<>(myVars.keySet())));
+        putFunction("clearVar", args -> {
             vars.clear();
             return null;
         });
 
         // ---- 跨规则公共持久化（setPublicItem/getPublicItem/clearPublicItem） ----
-        ctx.getGlobalObject().setProperty("setPublicItem", args -> {
+        putFunction("setPublicItem", args -> {
             if (args != null && args.length > 1) {
                 publicKv.put(String.valueOf(args[0]), String.valueOf(args[1]));
                 savePublicKv();
             }
             return null;
         });
-        ctx.getGlobalObject().setProperty("getPublicItem", args -> {
+        putFunction("getPublicItem", args -> {
             if (args == null || args.length == 0) return "";
             String v = publicKv.get(String.valueOf(args[0]));
             if (v == null && args.length > 1) v = String.valueOf(args[1]);
             return v == null ? "" : v;
         });
-        ctx.getGlobalObject().setProperty("clearPublicItem", args -> {
+        putFunction("clearPublicItem", args -> {
             if (args != null && args.length > 0) publicKv.remove(String.valueOf(args[0]));
             else publicKv.clear();
             savePublicKv();
@@ -570,37 +649,37 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
 
         // ---- storage0 对象（官方：支持存储 JSON 对象的存储封装） ----
         // put* 用 stringifyArg 把值（含 JSObject）序列化为 JSON 存；get* 存的是 JSON 对象/数组则解析回 JS 对象返回
-        JSObject storage0 = ctx.createNewJSObject();
-        storage0.setProperty("putVar", args -> {
+        NativeObject storage0 = new NativeObject();
+        putFunction(storage0, "putVar", args -> {
             if (args != null && args.length > 1) vars.put(String.valueOf(args[0]), stringifyArg(args[1]));
             return null;
         });
-        storage0.setProperty("getVar", args -> storage0Get(vars, args));
-        storage0.setProperty("putMyVar", args -> {
+        putFunction(storage0, "getVar", args -> storage0Get(vars, args));
+        putFunction(storage0, "putMyVar", args -> {
             if (args != null && args.length > 1) myVars.put(String.valueOf(args[0]), stringifyArg(args[1]));
             return null;
         });
-        storage0.setProperty("getMyVar", args -> storage0Get(myVars, args));
-        storage0.setProperty("setItem", args -> {
+        putFunction(storage0, "getMyVar", args -> storage0Get(myVars, args));
+        putFunction(storage0, "setItem", args -> {
             if (args != null && args.length > 1) {
                 kv.put(String.valueOf(args[0]), stringifyArg(args[1]));
                 saveKv();
             }
             return null;
         });
-        storage0.setProperty("getItem", args -> storage0Get(kv, args));
-        storage0.setProperty("setPublicItem", args -> {
+        putFunction(storage0, "getItem", args -> storage0Get(kv, args));
+        putFunction(storage0, "setPublicItem", args -> {
             if (args != null && args.length > 1) {
                 publicKv.put(String.valueOf(args[0]), stringifyArg(args[1]));
                 savePublicKv();
             }
             return null;
         });
-        storage0.setProperty("getPublicItem", args -> storage0Get(publicKv, args));
-        ctx.getGlobalObject().setProperty("storage0", storage0);
+        putFunction(storage0, "getPublicItem", args -> storage0Get(publicKv, args));
+        ScriptableObject.putProperty(scope, "storage0", storage0);
 
         // ---- 当前结果列表的动态修改（官方经 EventBus 改 UI 列表；本宿主直接改 results） ----
-        ctx.getGlobalObject().setProperty("updateItem", args -> {
+        putFunction("updateItem", args -> {
             // updateItem(id, obj) 或 updateItem(obj)（obj.extra.id / obj.url 作 id）
             try {
                 String id = null;
@@ -640,15 +719,15 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             return null;
         });
-        ctx.getGlobalObject().setProperty("addItemAfter", args -> {
+        putFunction("addItemAfter", args -> {
             addItemAt(args, true);
             return null;
         });
-        ctx.getGlobalObject().setProperty("addItemBefore", args -> {
+        putFunction("addItemBefore", args -> {
             addItemAt(args, false);
             return null;
         });
-        ctx.getGlobalObject().setProperty("deleteItem", args -> {
+        putFunction("deleteItem", args -> {
             if (args != null && args.length > 0) {
                 String id = String.valueOf(args[0]);
                 int idx = findResultIndex(id);
@@ -658,7 +737,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             return null;
         });
-        ctx.getGlobalObject().setProperty("deleteItemByCls", args -> {
+        putFunction("deleteItemByCls", args -> {
             if (args != null && args.length > 0) {
                 String cls = String.valueOf(args[0]);
                 results.removeIf(it -> cls.equals(it.getColType()));
@@ -668,7 +747,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             return null;
         });
         // 官方 clearItem(key) 清的是规则持久化存储里的 key；本宿主 kv.json 即规则存储，对其删 key 等价。
-        ctx.getGlobalObject().setProperty("clearItem", args -> {
+        putFunction("clearItem", args -> {
             if (args != null && args.length > 0 && args[0] != null) {
                 kv.remove(String.valueOf(args[0]));
                 saveKv();
@@ -678,12 +757,12 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         });
 
         // ---- 私有加密 JS：AES/ECB/PKCS5Padding，key=hk6666666109 补 0 到 32 字节，base64 输入 ----
-        ctx.getGlobalObject().setProperty("evalPrivateJS", args -> {
+        putFunction("evalPrivateJS", args -> {
             if (args == null || args.length == 0) return null;
             try {
                 String plain = aesDecryptECB(String.valueOf(args[0]).trim(), AES_PRIVATE_KEY);
                 if (TextUtils.isEmpty(plain)) return null;
-                return ctx.evaluate(plain);
+                return evalJs(plain);
             } catch (Throwable e) {
                 Logger.t(TAG).d("evalPrivateJS failed: %s", e.getMessage());
                 return null;
@@ -691,20 +770,20 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         });
 
         // ---- 带缓存的网络（fc=fetchCache，rc=requireCache，key=url，hours 小时过期） ----
-        ctx.getGlobalObject().setProperty("fc", args -> {
+        putFunction("fc", args -> {
             if (args == null || args.length == 0) return "";
             String url = String.valueOf(args[0]);
             double hours = args.length > 1 ? toDouble(args[1]) : 0;
             return memCached("fc:" + url, hours, () -> fetchSync(url, null));
         });
         // 官方全名：fetchCache 即 fc
-        ctx.getGlobalObject().setProperty("fetchCache", args -> {
+        putFunction("fetchCache", args -> {
             if (args == null || args.length == 0) return "";
             String url = String.valueOf(args[0]);
             double hours = args.length > 1 ? toDouble(args[1]) : 0;
             return memCached("fc:" + url, hours, () -> fetchSync(url, null));
         });
-        ctx.getGlobalObject().setProperty("rc", args -> {
+        putFunction("rc", args -> {
             if (args == null || args.length == 0) return null;
             String url = String.valueOf(args[0]);
             double hours = args.length > 1 ? toDouble(args[1]) : 0;
@@ -713,14 +792,14 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 return c == null ? fetchSync(url, null) : c;
             });
             try {
-                if (!TextUtils.isEmpty(code)) ctx.evaluate(stripJsPrefix(code));
+                if (!TextUtils.isEmpty(code)) evalJs(stripJsPrefix(code));
             } catch (Throwable e) {
                 Logger.t(TAG).d("rc evaluate failed: %s", e.getMessage());
             }
             return null;
         });
         // 官方全名：requireCache 即 rc
-        ctx.getGlobalObject().setProperty("requireCache", args -> {
+        putFunction("requireCache", args -> {
             if (args == null || args.length == 0) return null;
             String url = String.valueOf(args[0]);
             double hours = args.length > 1 ? toDouble(args[1]) : 0;
@@ -729,17 +808,17 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 return c == null ? fetchSync(url, null) : c;
             });
             try {
-                if (!TextUtils.isEmpty(code)) ctx.evaluate(stripJsPrefix(code));
+                if (!TextUtils.isEmpty(code)) evalJs(stripJsPrefix(code));
             } catch (Throwable e) {
                 Logger.t(TAG).d("requireCache evaluate failed: %s", e.getMessage());
             }
             return null;
         });
         // ---- 批量（bf=batchFetch 并发取回 body 数组；be=batchExecute 预加载，宿主 no-op；bcm 返回原地址） ----
-        ctx.getGlobalObject().setProperty("bf", args -> {
+        putFunction("bf", args -> {
             if (args == null || args.length == 0) return "[]";
             try {
-                String json = args[0] instanceof JSArray ? ((JSArray) args[0]).stringify() : String.valueOf(args[0]);
+                String json = args[0] instanceof NativeArray ? jsStringify(args[0]) : String.valueOf(args[0]);
                 List<Object> list = GSON.fromJson(json.trim().startsWith("[") ? json : "[]",
                         new com.google.gson.reflect.TypeToken<List<Object>>() {}.getType());
                 if (list == null || list.isEmpty()) return "[]";
@@ -781,10 +860,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
         });
         // 官方全名：batchFetch 即 bf（并发取回 body 数组）
-        ctx.getGlobalObject().setProperty("batchFetch", args -> {
+        putFunction("batchFetch", args -> {
             if (args == null || args.length == 0) return "[]";
             try {
-                String json = args[0] instanceof JSArray ? ((JSArray) args[0]).stringify() : String.valueOf(args[0]);
+                String json = args[0] instanceof NativeArray ? jsStringify(args[0]) : String.valueOf(args[0]);
                 List<Object> list = GSON.fromJson(json.trim().startsWith("[") ? json : "[]",
                         new com.google.gson.reflect.TypeToken<List<Object>>() {}.getType());
                 if (list == null || list.isEmpty()) return "[]";
@@ -825,35 +904,35 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 return "[]";
             }
         });
-        ctx.getGlobalObject().setProperty("be", args -> {
+        putFunction("be", args -> {
             Logger.t(TAG).d("be(batchExecute): no-op in host");
             return null;
         });
         // 官方全名：batchExecute 即 be（预加载，宿主 no-op）
-        ctx.getGlobalObject().setProperty("batchExecute", args -> {
+        putFunction("batchExecute", args -> {
             Logger.t(TAG).d("batchExecute: no-op in host");
             return null;
         });
-        ctx.getGlobalObject().setProperty("bcm", args -> {
+        putFunction("bcm", args -> {
             String url = args != null && args.length > 0 ? String.valueOf(args[0]) : "";
             Logger.t(TAG).d("bcm: passthrough %s", url);
             return url;
         });
         // 官方全名：batchCacheM3u8 即 bcm（返回原地址，宿主不做真实缓存）
-        ctx.getGlobalObject().setProperty("batchCacheM3u8", args -> {
+        putFunction("batchCacheM3u8", args -> {
             String url = args != null && args.length > 0 ? String.valueOf(args[0]) : "";
             Logger.t(TAG).d("batchCacheM3u8: passthrough %s", url);
             return url;
         });
         // ---- PC 模式请求（桌面 UA）与 postRequest（即 post） ----
-        ctx.getGlobalObject().setProperty("fetchPC", args -> {
+        putFunction("fetchPC", args -> {
             if (args == null || args.length == 0) return "";
             String url = String.valueOf(args[0]);
             String options = args.length > 1 && args[1] != null ? stringifyArg(args[1]) : "{}";
             return fetchSync(url, mergeDesktopUa(options));
         });
         // 官方 postPC：桌面 UA 的 POST
-        ctx.getGlobalObject().setProperty("postPC", args -> {
+        putFunction("postPC", args -> {
             if (args == null || args.length == 0) return "";
             String url = String.valueOf(args[0]);
             String options = args.length > 1 && args[1] != null ? stringifyArg(args[1]) : "{}";
@@ -861,7 +940,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             return fetchSync(url, mergeDesktopUa(options));
         });
         // 官方 fetchCookie(url, options)：带 withHeaders 抓取，返回 set-cookie
-        ctx.getGlobalObject().setProperty("fetchCookie", args -> {
+        putFunction("fetchCookie", args -> {
             if (args == null || args.length == 0) return "";
             try {
                 String url = String.valueOf(args[0]);
@@ -894,7 +973,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 return "";
             }
         });
-        ctx.getGlobalObject().setProperty("postRequest", args -> {
+        putFunction("postRequest", args -> {
             if (args == null || args.length == 0) return "";
             String url = String.valueOf(args[0]);
             String options = args.length > 1 && args[1] != null ? stringifyArg(args[1]) : "{}";
@@ -908,7 +987,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         stub("executeWebRule", "");
         stub("cacheCode0", null);
         // setPageReverse：官方设置页面倒序标记；宿主存 kv 供规则自查
-        ctx.getGlobalObject().setProperty("setPageReverse", args -> {
+        putFunction("setPageReverse", args -> {
             try {
                 boolean rev = args != null && args.length > 0 && Boolean.parseBoolean(String.valueOf(args[0]));
                 kv.put("__pageReverse", rev ? "1" : "0");
@@ -919,29 +998,29 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         });
 
         // ---- 文件（作用域限定 App 文件目录；hiker://files/ 映射到 filesDir） ----
-        ctx.getGlobalObject().setProperty("writeFile", args -> {
+        putFunction("writeFile", args -> {
             if (args != null && args.length > 1) writeFileContent(resolveHikerPath(String.valueOf(args[0])), String.valueOf(args[1]));
             return null;
         });
-        ctx.getGlobalObject().setProperty("readFile", args -> {
+        putFunction("readFile", args -> {
             if (args == null || args.length == 0) return "";
             return readFileContent(resolveHikerPath(String.valueOf(args[0])));
         });
-        ctx.getGlobalObject().setProperty("fileExist", args -> {
+        putFunction("fileExist", args -> {
             if (args == null || args.length == 0) return "false";
             // 官方返回 STRING "true"/"false"
             return new File(resolveHikerPath(String.valueOf(args[0]))).exists() ? "true" : "false";
         });
         // 官方别名：exist 即 fileExist
-        ctx.getGlobalObject().setProperty("exist", args -> {
+        putFunction("exist", args -> {
             if (args == null || args.length == 0) return "false";
             return new File(resolveHikerPath(String.valueOf(args[0]))).exists() ? "true" : "false";
         });
-        ctx.getGlobalObject().setProperty("getPath", args -> {
+        putFunction("getPath", args -> {
             if (args == null || args.length == 0) return "";
             return resolveHikerPath(String.valueOf(args[0]));
         });
-        ctx.getGlobalObject().setProperty("saveFile", args -> {
+        putFunction("saveFile", args -> {
             // saveFile(name, content, mode)：存到规则数据目录
             if (args != null && args.length > 1) {
                 File f = new File(HkRuleManager.get().getDataDir(rule.getTitle()), String.valueOf(args[0]));
@@ -949,13 +1028,13 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             return null;
         });
-        ctx.getGlobalObject().setProperty("deleteFile", args -> {
+        putFunction("deleteFile", args -> {
             try {
                 if (args != null && args.length > 0) new File(resolveHikerPath(String.valueOf(args[0]))).delete();
             } catch (Throwable ignored) {}
             return null;
         });
-        ctx.getGlobalObject().setProperty("downloadFile", args -> {
+        putFunction("downloadFile", args -> {
             if (args == null || args.length < 2) return null;
             try {
                 String url = String.valueOf(args[0]);
@@ -981,10 +1060,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         });
 
         // ---- 剪贴板 / 分享 ----
-        ctx.getGlobalObject().setProperty("copy", args -> {
+        putFunction("copy", args -> {
             try {
                 if (args != null && args.length > 0) {
-                    ClipboardManager cm = (ClipboardManager) App.get().getSystemService(Context.CLIPBOARD_SERVICE);
+                    ClipboardManager cm = (ClipboardManager) App.get().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
                     if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("hk", String.valueOf(args[0])));
                 }
             } catch (Throwable e) {
@@ -992,7 +1071,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             return null;
         });
-        ctx.getGlobalObject().setProperty("parsePaste", args -> {
+        putFunction("parsePaste", args -> {
             // 解析分享文本：云口令则拉取规则 JSON 返回，否则原文返回
             if (args == null || args.length == 0) return "";
             String t = String.valueOf(args[0]).trim();
@@ -1007,35 +1086,35 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             return t;
         });
-        ctx.getGlobalObject().setProperty("getPastes", args -> "[]");
-        ctx.getGlobalObject().setProperty("sharePaste", args -> {
+        putFunction("getPastes", args -> "[]");
+        putFunction("sharePaste", args -> {
             Logger.t(TAG).d("sharePaste: no-op in host");
             return "";
         });
 
         // ---- m3u8 ----
-        ctx.getGlobalObject().setProperty("fixM3u8", args -> {
+        putFunction("fixM3u8", args -> {
             if (args == null || args.length < 2) return args != null && args.length > 0 ? String.valueOf(args[0]) : "";
             return fixM3u8Content(String.valueOf(args[0]), String.valueOf(args[1]));
         });
-        ctx.getGlobalObject().setProperty("cacheM3u8", args -> {
+        putFunction("cacheM3u8", args -> {
             String url = args != null && args.length > 0 ? String.valueOf(args[0]) : "";
             Logger.t(TAG).d("cacheM3u8: passthrough %s", url);
             return url;
         });
-        ctx.getGlobalObject().setProperty("proxyClearM3u8", args -> "");
+        putFunction("proxyClearM3u8", args -> "");
 
         // ---- 页面信息 ----
-        ctx.getGlobalObject().setProperty("setPageTitle", args -> {
+        putFunction("setPageTitle", args -> {
             if (args != null && args.length > 0) pageTitle = String.valueOf(args[0]);
             return null;
         });
-        ctx.getGlobalObject().setProperty("getPageTitle", args -> pageTitle);
-        ctx.getGlobalObject().setProperty("getHome", args -> {
+        putFunction("getPageTitle", args -> pageTitle);
+        putFunction("getHome", args -> {
             if (args == null || args.length == 0) return "";
             return homeOf(String.valueOf(args[0]));
         });
-        ctx.getGlobalObject().setProperty("buildUrl", args -> {
+        putFunction("buildUrl", args -> {
             if (args == null || args.length == 0) return "";
             String url = String.valueOf(args[0]);
             if (args.length < 2 || args[1] == null) return url;
@@ -1058,7 +1137,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 return url;
             }
         });
-        ctx.getGlobalObject().setProperty("joinUrl", args -> {
+        putFunction("joinUrl", args -> {
             if (args == null || args.length < 2) return args != null && args.length > 0 ? String.valueOf(args[0]) : "";
             try {
                 return new java.net.URI(String.valueOf(args[0])).resolve(String.valueOf(args[1])).toString();
@@ -1066,17 +1145,17 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 return String.valueOf(args[1]);
             }
         });
-        ctx.getGlobalObject().setProperty("getColTypes", args -> GSON.toJson(COL_TYPES));
+        putFunction("getColTypes", args -> GSON.toJson(COL_TYPES));
 
         // ---- 编解码补充 ----
-        ctx.getGlobalObject().setProperty("md5", args -> {
+        putFunction("md5", args -> {
             if (args == null || args.length == 0) return "";
             String v = Util.md5(String.valueOf(args[0]));
             return v == null ? "" : v;
         });
         // 官方 _base64 全局：8.83 JSEngine 注入的 MyBase64 实例（DEFAULT/NO_WRAP 常量 + 编解码方法），
         // 规则如 CryptoUtil.Data.parseBase64(s, _base64.NO_WRAP) 依赖其存在
-        ctx.getGlobalObject().setProperty("__b64encodeToString", args -> {
+        putFunction("__b64encodeToString", args -> {
             if (args == null || args.length == 0) return "";
             try {
                 byte[] data = args[0] instanceof byte[] ? (byte[]) args[0] : String.valueOf(args[0]).getBytes("UTF-8");
@@ -1086,17 +1165,17 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 return "";
             }
         });
-        ctx.getGlobalObject().setProperty("__b64decode", args -> {
-            if (args == null || args.length == 0) return JSUtil.toArray(ctx, new byte[0]);
+        putFunction("__b64decode", args -> {
+            if (args == null || args.length == 0) return toJsArray(new byte[0]);
             try {
                 int flags = args.length > 1 ? (int) Double.parseDouble(String.valueOf(args[1])) : android.util.Base64.DEFAULT;
-                return JSUtil.toArray(ctx, android.util.Base64.decode(String.valueOf(args[0]), flags));
+                return toJsArray(android.util.Base64.decode(String.valueOf(args[0]), flags));
             } catch (Throwable e) {
-                return JSUtil.toArray(ctx, new byte[0]);
+                return toJsArray(new byte[0]);
             }
         });
         try {
-            ctx.evaluate(
+            evalJs(
                 "var _base64 = {\n" +
                 "  DEFAULT: 0,\n" +
                 "  NO_PADDING: 1,\n" +
@@ -1112,30 +1191,30 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         } catch (Throwable e) {
             Logger.t(TAG).d("_base64 inject failed: " + e.getMessage());
         }
-        ctx.getGlobalObject().setProperty("hexToBase64", args -> {
+        putFunction("hexToBase64", args -> {
             if (args == null || args.length == 0) return "";
             return hexToB64(String.valueOf(args[0]));
         });
-        ctx.getGlobalObject().setProperty("hexToBytes", args -> {
-            if (args == null || args.length == 0) return JSUtil.toArray(ctx, new byte[0]);
+        putFunction("hexToBytes", args -> {
+            if (args == null || args.length == 0) return toJsArray(new byte[0]);
             try {
                 String h = String.valueOf(args[0]).trim();
                 byte[] b = new byte[h.length() / 2];
                 for (int i = 0; i < b.length; i++) b[i] = (byte) Integer.parseInt(h.substring(i * 2, i * 2 + 2), 16);
-                return JSUtil.toArray(ctx, b);
+                return toJsArray(b);
             } catch (Throwable e) {
-                return JSUtil.toArray(ctx, new byte[0]);
+                return toJsArray(new byte[0]);
             }
         });
-        ctx.getGlobalObject().setProperty("rsaEncrypt", args -> {
+        putFunction("rsaEncrypt", args -> {
             if (args == null || args.length < 2) return "";
             return rsaCrypto(true, String.valueOf(args[0]), String.valueOf(args[1]));
         });
-        ctx.getGlobalObject().setProperty("rsaDecrypt", args -> {
+        putFunction("rsaDecrypt", args -> {
             if (args == null || args.length < 2) return "";
             return rsaCrypto(false, String.valueOf(args[0]), String.valueOf(args[1]));
         });
-        ctx.getGlobalObject().setProperty("getCryptoJS", args -> {
+        putFunction("getCryptoJS", args -> {
             // 官方语义：返回内置 CryptoJS 库（aes.js）源码，规则 eval(getCryptoJS()) 后使用
             String code = loadAsset("aes.js");
             if (code == null) {
@@ -1144,7 +1223,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             return code;
         });
-        ctx.getGlobalObject().setProperty("toCorrectJSONString", args -> {
+        putFunction("toCorrectJSONString", args -> {
             if (args == null || args.length == 0) return "";
             String t = String.valueOf(args[0]).trim();
             try {
@@ -1154,23 +1233,23 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 return "";
             }
         });
-        ctx.getGlobalObject().setProperty("justTestSign", args -> {
+        putFunction("justTestSign", args -> {
             Logger.t(TAG).d("justTestSign: no-op in host");
             return "";
         });
 
         // ---- 网络杂项 ----
-        ctx.getGlobalObject().setProperty("getCookie", args -> {
+        putFunction("getCookie", args -> {
             // 宿主 fetch 未维护 cookie 池，返回空（规则多用 getCookie 做登录态判断，空即未登录）
             Logger.t(TAG).d("getCookie: empty in host");
             return "";
         });
-        ctx.getGlobalObject().setProperty("getIP", args -> getLocalIp());
-        ctx.getGlobalObject().setProperty("ipping", args -> false);
-        ctx.getGlobalObject().setProperty("isLogin", args -> false);
+        putFunction("getIP", args -> getLocalIp());
+        putFunction("ipping", args -> false);
+        putFunction("isLogin", args -> false);
 
         // ---- 事件监听（官方 onClose 等；宿主仅记录，不触发） ----
-        ctx.getGlobalObject().setProperty("addListener", args -> {
+        putFunction("addListener", args -> {
             try {
                 if (args != null && args.length > 1) {
                     listeners.put(String.valueOf(args[0]), String.valueOf(args[1]));
@@ -1180,7 +1259,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             return null;
         });
         // 官方别名：listen 即 addListener
-        ctx.getGlobalObject().setProperty("listen", args -> {
+        putFunction("listen", args -> {
             try {
                 if (args != null && args.length > 1) listeners.put(String.valueOf(args[0]), String.valueOf(args[1]));
             } catch (Throwable ignored) {}
@@ -1188,31 +1267,31 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         });
 
         // ---- 选择弹窗（官方弹 UI；宿主无 UI，no-op） ----
-        ctx.getGlobalObject().setProperty("showSelectOptions", args -> {
+        putFunction("showSelectOptions", args -> {
             Logger.t(TAG).d("showSelectOptions: no-op in host");
             return null;
         });
 
         // ---- 下划线内部别名（兼容老规则写法） ----
-        ctx.getGlobalObject().setProperty("_pd", args -> {
+        putFunction("_pd", args -> {
             if (args == null || args.length < 2) return "";
             return parser.pdfh(String.valueOf(args[0]), sel(args[1]), "");
         });
-        ctx.getGlobalObject().setProperty("_pdfh", args -> {
+        putFunction("_pdfh", args -> {
             if (args == null || args.length < 2) return "";
             return parser.pdfh(String.valueOf(args[0]), sel(args[1]), "");
         });
-        ctx.getGlobalObject().setProperty("_pdfa", args -> {
-            if (args == null || args.length < 2) return JSUtil.toArray(ctx, new ArrayList<>());
-            return JSUtil.toArray(ctx, parser.pdfa(String.valueOf(args[0]), sel(args[1])));
+        putFunction("_pdfa", args -> {
+            if (args == null || args.length < 2) return toJsArray(new ArrayList<>());
+            return toJsArray(parser.pdfa(String.valueOf(args[0]), sel(args[1])));
         });
-        ctx.getGlobalObject().setProperty("_pdfl", args -> {
-            if (args == null || args.length < 2) return JSUtil.toArray(ctx, new ArrayList<>());
-            return JSUtil.toArray(ctx, parser.pdfa(String.valueOf(args[0]), sel(args[1])));
+        putFunction("_pdfl", args -> {
+            if (args == null || args.length < 2) return toJsArray(new ArrayList<>());
+            return toJsArray(parser.pdfa(String.valueOf(args[0]), sel(args[1])));
         });
-        ctx.getGlobalObject().setProperty("_findItem", args -> "");
+        putFunction("_findItem", args -> "");
         // findItemsByCls/deleteItemByCls：按条目 extra.cls 匹配当前已收集结果
-        ctx.getGlobalObject().setProperty("_findItemsByCls", args -> {
+        putFunction("_findItemsByCls", args -> {
             try {
                 String cls = args != null && args.length > 0 ? String.valueOf(args[0]) : "";
                 List<Map<String, Object>> out = new ArrayList<>();
@@ -1234,15 +1313,15 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         });
 
         // ---- xpath（宿主 Parser 基于 jsoup，不支持 xpath，走空） ----
-        ctx.getGlobalObject().setProperty("xpath", args -> "");
-        ctx.getGlobalObject().setProperty("xpa", args -> JSUtil.toArray(ctx, new ArrayList<>()));
+        putFunction("xpath", args -> "");
+        putFunction("xpa", args -> toJsArray(new ArrayList<>()));
         // 官方全名：xpathArray 即 xpa
-        ctx.getGlobalObject().setProperty("xpathArray", args -> JSUtil.toArray(ctx, new ArrayList<>()));
+        putFunction("xpathArray", args -> toJsArray(new ArrayList<>()));
 
         // ---- refreshPage：官方刷新当前页（bool 为 true 时回顶）。宿主实现为"刷新请求"
         // 标记：lazyRule 回调（如 tab 切换 setItem 后调 refreshPage(true)）经 evalLazy 求值，
         // HkRouter.evalTab 消费该标记后由上层 loadContent(true) 重刷，语义与官方一致。
-        ctx.getGlobalObject().setProperty("refreshPage", args -> {
+        putFunction("refreshPage", args -> {
             refreshRequested = true;
             refreshToTop = args != null && args.length > 0 && Boolean.parseBoolean(String.valueOf(args[0]));
             Logger.t(TAG).d("refreshPage(%s) requested", refreshToTop);
@@ -1250,7 +1329,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         });
 
         // ---- sleep(ms)：官方真实 API（规则里常被 try/catch 包裹做限速/等待）
-        ctx.getGlobalObject().setProperty("sleep", args -> {
+        putFunction("sleep", args -> {
             long ms = 0;
             try {
                 if (args != null && args.length > 0) ms = Long.parseLong(String.valueOf(args[0]));
@@ -1274,7 +1353,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         stub("refresh", null);
         stub("setPageParams", null);
         // 官方 setPagePicUrl(title)：发 SetPagePicEvent 更新页面配图；宿主存字段供上层取用
-        ctx.getGlobalObject().setProperty("setPagePicUrl", args -> {
+        putFunction("setPagePicUrl", args -> {
             try {
                 pagePicUrl = args != null && args.length > 0 && args[0] != null ? String.valueOf(args[0]) : "";
                 Logger.t(TAG).d("setPagePicUrl: %s", pagePicUrl);
@@ -1297,7 +1376,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         stub("initChaquopy", null);
         // 文件/下载类（官方行为：saveImage 下载图片到 path；requireDownload 文件不存在才下载；
         // deleteCache(c) c=-1 清规则全部缓存否则按 url 清，宿主清内存缓存）
-        ctx.getGlobalObject().setProperty("requireDownload", args -> {
+        putFunction("requireDownload", args -> {
             if (args == null || args.length < 2) return null;
             try {
                 String url = String.valueOf(args[0]);
@@ -1311,7 +1390,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             return null;
         });
-        ctx.getGlobalObject().setProperty("saveImage", args -> {
+        putFunction("saveImage", args -> {
             // 官方 saveImage(url, path)：参数顺序注意是 (url, path)
             if (args == null || args.length < 2) return null;
             try {
@@ -1326,7 +1405,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             return null;
         });
         stub("copyFiles", null);
-        ctx.getGlobalObject().setProperty("deleteCache", args -> {
+        putFunction("deleteCache", args -> {
             try {
                 String c = args != null && args.length > 0 && args[0] != null ? String.valueOf(args[0]) : "-1";
                 if ("-1".equals(c) || TextUtils.isEmpty(c)) {
@@ -1358,7 +1437,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         stub("getEpubMetadata", "{}");
         // 字符串结果回调：官方 setStrResult(o, callbackKey, ruleKey) 完成 JS 回调；
         // 宿主同步模型无 callbackMap，存 strResult 字段供上层取用（setLastChapterResult 官方即委托 setStrResult）
-        ctx.getGlobalObject().setProperty("setStrResult", args -> {
+        putFunction("setStrResult", args -> {
             try {
                 strResult = args != null && args.length > 0 && args[0] != null ? String.valueOf(args[0]) : "";
                 Logger.t(TAG).d("setStrResult: %d chars", strResult.length());
@@ -1367,7 +1446,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             return null;
         });
-        ctx.getGlobalObject().setProperty("setLastChapterResult", args -> {
+        putFunction("setLastChapterResult", args -> {
             try {
                 strResult = args != null && args.length > 0 && args[0] != null ? String.valueOf(args[0]) : "";
                 Logger.t(TAG).d("setLastChapterResult: %d chars", strResult.length());
@@ -1376,7 +1455,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             return null;
         });
-        ctx.getGlobalObject().setProperty("setLastChapterRule", args -> {
+        putFunction("setLastChapterRule", args -> {
             try {
                 lastChapterRule = args != null && args.length > 0 && args[0] != null ? String.valueOf(args[0]) : "";
                 Logger.t(TAG).d("setLastChapterRule: %d chars", lastChapterRule.length());
@@ -1392,7 +1471,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         stub("checkPrivacyPassword", false);
         stub("getPrivacyPasswordLen", 0);
         // 规则管理（官方：LitePal 规则表；宿主：HkRuleManager 落盘目录）
-        ctx.getGlobalObject().setProperty("getLastRules", args -> {
+        putFunction("getLastRules", args -> {
             try {
                 int count = 12;
                 if (args != null && args.length > 0 && args[0] != null) {
@@ -1424,7 +1503,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
         });
         stub("publishRule", null);
-        ctx.getGlobalObject().setProperty("getRuleCount", args -> {
+        putFunction("getRuleCount", args -> {
             try {
                 File dir = HkRuleManager.get().getDir();
                 File[] files = dir.listFiles((d, name) -> name.endsWith(".json"));
@@ -1444,7 +1523,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         stub("loadJavaClass", null);
         // 官方 getPrivateJS(c)：AES 加密（key=AES_DEFAULT_KEY="1234567890kkkk"）；
         // 宿主用同 key 的 AES/ECB/PKCS5Padding 实现（base64 输出），保证宿主内确定性
-        ctx.getGlobalObject().setProperty("getPrivateJS", args -> {
+        putFunction("getPrivateJS", args -> {
             if (args == null || args.length == 0 || args[0] == null) return "";
             try {
                 return aesEncryptECB(String.valueOf(args[0]), "1234567890kkkk");
@@ -1455,7 +1534,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         });
         // 官方语义：返回内置 Hikerurl.js（$ 工具库）源码，规则 eval(getJsPlugin()) 后使用；
         // init() 已自动注入为全局，规则不 eval 也能用
-        ctx.getGlobalObject().setProperty("getJsPlugin", args -> {
+        putFunction("getJsPlugin", args -> {
             String code = loadAsset("Hikerurl.js");
             if (TextUtils.isEmpty(code)) {
                 Logger.t(TAG).d("getJsPlugin: Hikerurl.js missing in assets");
@@ -1464,7 +1543,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             return code;
         });
         // 官方 getJsLazyPlugin()：返回内置 assets/plugin.js 源码
-        ctx.getGlobalObject().setProperty("getJsLazyPlugin", args -> {
+        putFunction("getJsLazyPlugin", args -> {
             String code = loadAsset("plugin.js");
             if (code == null) {
                 Logger.t(TAG).d("getJsLazyPlugin: plugin.js missing in assets");
@@ -1481,7 +1560,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         stub("hasHomeSub", false);
         stub("getHomeSub", "[]");
         // 应用信息（真实现）
-        ctx.getGlobalObject().setProperty("getAppVersion", args -> {
+        putFunction("getAppVersion", args -> {
             try {
                 android.content.pm.PackageInfo pi = App.get().getPackageManager()
                         .getPackageInfo(App.get().getPackageName(), 0);
@@ -1490,7 +1569,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 return "";
             }
         });
-        ctx.getGlobalObject().setProperty("getCpuAbi", args -> {
+        putFunction("getCpuAbi", args -> {
             try {
                 String[] abis = android.os.Build.SUPPORTED_ABIS;
                 return abis != null && abis.length > 0 ? abis[0] : "";
@@ -1498,7 +1577,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 return "";
             }
         });
-        ctx.getGlobalObject().setProperty("getUaObject", args -> {
+        putFunction("getUaObject", args -> {
             Map<String, String> ua = new HashMap<>();
             ua.put("mobileUa", UA_MOBILE);
             ua.put("pcUa", UA_PC);
@@ -1511,7 +1590,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         // $.require(path)：hiker://page/<path> 从规则 pages 取页面代码求值返回 $.exports，
         // 其他路径复用 require 的远程/本地库逻辑（__hkRequirePage 为 Java 实现）。
         try {
-            ctx.evaluate(
+            evalJs(
                 "function $(url, headers) {\n" +
                 "  url = (typeof url === 'undefined' || url == null) ? '' : String(url);\n" +
                 "  var _headersJson = '{}';\n" +
@@ -1581,7 +1660,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
      */
     private void stub(String name, Object ret) {
         try {
-            ctx.getGlobalObject().setProperty(name, args -> {
+            putFunction(name, args -> {
                 Logger.t(TAG).d("stub %s called (no-op in host)", name);
                 return ret;
             });
@@ -1661,7 +1740,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         if (o == null) return null;
         try {
             if (o instanceof Map) return (Map<String, Object>) o;
-            String json = o instanceof JSObject ? ((JSObject) o).stringify() : String.valueOf(o).trim();
+            String json = o instanceof NativeObject ? jsStringify(o) : String.valueOf(o).trim();
             if (!json.startsWith("{")) return null;
             return GSON.fromJson(json, new com.google.gson.reflect.TypeToken<Map<String, Object>>() {}.getType());
         } catch (Throwable e) {
@@ -2060,7 +2139,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             this.page = Math.max(1, page);
             setContext(myUrl);
             try {
-                ctx.evaluate(stripJsPrefix(jsCode));
+                evalJs(stripJsPrefix(jsCode));
             } catch (Throwable e) {
                 // 之前异常直接上抛到 HkEngine.home() 被吞掉只剩 debug 日志，
                 // UI 永远只显示"加载失败"。先把根因记下来，供 getError()/空态展示。
@@ -2088,9 +2167,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             preResultActive = false;
             this.page = Math.max(1, page);
             setContext(myUrl);
-            ctx.getGlobalObject().setProperty("MY_KEYWORD", keyword == null ? "" : keyword);
+            ScriptableObject.putProperty(scope, "MY_KEYWORD", keyword == null ? "" : keyword);
             try {
-                ctx.evaluate(stripJsPrefix(jsCode));
+                evalJs(stripJsPrefix(jsCode));
             } catch (Throwable e) {
                 error = jsErrorMsg(e);
                 throw e;
@@ -2123,9 +2202,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         error = null;
         try {
             return submit(() -> {
-                ctx.getGlobalObject().setProperty("input", input == null ? "" : input);
-                Object r = ctx.evaluate(js);
-                return r == null ? "" : String.valueOf(r);
+                ScriptableObject.putProperty(scope, "input", input == null ? "" : input);
+                Object r = evalJs(js);
+                return jsResultToString(r);
             }).get();
         } catch (Exception e) {
             String msg = e.getCause() != null && e.getCause().getMessage() != null
@@ -2151,9 +2230,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             // 否则按原逻辑用 pageUrl。读后清零，保证只生效一次。
             String inputVal = nextInputOverride != null ? nextInputOverride : (pageUrl == null ? "" : pageUrl);
             nextInputOverride = null;
-            ctx.getGlobalObject().setProperty("input", inputVal);
-            Object r = ctx.evaluate(stripJsPrefix(jsCode));
-            String s = r == null ? "" : String.valueOf(r).trim();
+            ScriptableObject.putProperty(scope, "input", inputVal);
+            Object r = evalJs(stripJsPrefix(jsCode));
+            String s = jsResultToString(r).trim();
             if (s.isEmpty() || "undefined".equals(s) || "null".equals(s)) {
                 List<HkItem> items = drainResults();
                 if (!items.isEmpty() && !TextUtils.isEmpty(items.get(0).getUrl())) {
@@ -2193,7 +2272,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             String m = t.getMessage();
             if (m != null && !m.trim().isEmpty()) {
                 String s = m.trim();
-                // QuickJS 异常常带 "exception: " 前缀或堆栈，截短到一行
+                // Rhino 异常常带堆栈，截短到一行
                 int nl = s.indexOf('\n');
                 if (nl > 0) s = s.substring(0, nl);
                 return s.length() > 160 ? s.substring(0, 160) : s;
@@ -2235,9 +2314,12 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         try {
             submit(() -> {
                 try {
-                    if (ctx != null) ctx.destroy();
+                    // Rhino Context 与线程绑定：enter/exit 必须在同一线程配对（即本单线程 executor）
+                    if (rhinoCx != null) Context.exit();
                 } catch (Throwable ignored) {
                 }
+                rhinoCx = null;
+                scope = null;
                 return null;
             }).get();
         } catch (Throwable ignored) {
@@ -2250,51 +2332,51 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
 
     private void setContext(String myUrl) {
         lastUrl = myUrl == null ? "" : myUrl;
-        ctx.getGlobalObject().setProperty("MY_URL", lastUrl);
-        ctx.getGlobalObject().setProperty("MY_HOME", homeOf(lastUrl));
-        ctx.getGlobalObject().setProperty("MY_PAGE", page);
-        ctx.getGlobalObject().setProperty("MY_TICKET", "");
-        ctx.getGlobalObject().setProperty("MOBILE_UA", UA_MOBILE);
-        ctx.getGlobalObject().setProperty("PC_UA", UA_PC);
+        ScriptableObject.putProperty(scope, "MY_URL", lastUrl);
+        ScriptableObject.putProperty(scope, "MY_HOME", homeOf(lastUrl));
+        ScriptableObject.putProperty(scope, "MY_PAGE", page);
+        ScriptableObject.putProperty(scope, "MY_TICKET", "");
+        ScriptableObject.putProperty(scope, "MOBILE_UA", UA_MOBILE);
+        ScriptableObject.putProperty(scope, "PC_UA", UA_PC);
         // P1：补全官方注入变量
-        ctx.getGlobalObject().setProperty("MY_TYPE", myType == null ? "" : myType);
-        ctx.getGlobalObject().setProperty("MY_CLASS_URL", myClassUrl == null ? "" : myClassUrl);
-        ctx.getGlobalObject().setProperty("MY_CLASS_NAME", myClassName == null ? "" : myClassName);
-        ctx.getGlobalObject().setProperty("MY_NAME", rule == null ? "" : rule.getTitle());
+        ScriptableObject.putProperty(scope, "MY_TYPE", myType == null ? "" : myType);
+        ScriptableObject.putProperty(scope, "MY_CLASS_URL", myClassUrl == null ? "" : myClassUrl);
+        ScriptableObject.putProperty(scope, "MY_CLASS_NAME", myClassName == null ? "" : myClassName);
+        ScriptableObject.putProperty(scope, "MY_NAME", rule == null ? "" : rule.getTitle());
         // 官方 generateMyParams：MY_PARAMS 是 JSON 对象不是字符串（空时为 {}）
         try {
             String mp = myParams == null || myParams.isEmpty() ? "{}" : myParams;
-            ctx.getGlobalObject().setProperty("MY_PARAMS", (JSObject) ctx.parse(mp));
+            ScriptableObject.putProperty(scope, "MY_PARAMS", parseJson(mp));
         } catch (Throwable ignored) {
-            ctx.getGlobalObject().setProperty("MY_PARAMS", ctx.createNewJSObject());
+            ScriptableObject.putProperty(scope, "MY_PARAMS", new NativeObject());
         }
-        ctx.getGlobalObject().setProperty("MY_AREA", myArea == null ? "" : myArea);
-        ctx.getGlobalObject().setProperty("MY_YEAR", myYear == null ? "" : myYear);
-        ctx.getGlobalObject().setProperty("MY_SORT", mySort == null ? "" : mySort);
+        ScriptableObject.putProperty(scope, "MY_AREA", myArea == null ? "" : myArea);
+        ScriptableObject.putProperty(scope, "MY_YEAR", myYear == null ? "" : myYear);
+        ScriptableObject.putProperty(scope, "MY_SORT", mySort == null ? "" : mySort);
         // MY_YEAR_xxx / MY_AREA_xxx / MY_SORT_xxx：按当前取值动态注入（如 MY_YEAR_2024）
         if (myYear != null && !myYear.isEmpty())
-            ctx.getGlobalObject().setProperty("MY_YEAR_" + myYear, myYear);
+            ScriptableObject.putProperty(scope, "MY_YEAR_" + myYear, myYear);
         if (myArea != null && !myArea.isEmpty())
-            ctx.getGlobalObject().setProperty("MY_AREA_" + myArea, myArea);
+            ScriptableObject.putProperty(scope, "MY_AREA_" + myArea, myArea);
         if (mySort != null && !mySort.isEmpty())
-            ctx.getGlobalObject().setProperty("MY_SORT_" + mySort, mySort);
+            ScriptableObject.putProperty(scope, "MY_SORT_" + mySort, mySort);
         try {
             Map<String, String> ua = new HashMap<>();
             ua.put("mobileUa", UA_MOBILE);
             ua.put("pcUa", UA_PC);
-            ctx.getGlobalObject().setProperty("MY_UA", (JSObject) ctx.parse(GSON.toJson(ua)));
+            ScriptableObject.putProperty(scope, "MY_UA", parseJson(GSON.toJson(ua)));
         } catch (Throwable ignored) {
         }
         try {
             Map<String, String> headers = new HashMap<>();
             headers.put("User-Agent", rule == null ? UA_MOBILE : rule.resolvedUa());
-            ctx.getGlobalObject().setProperty("MY_HEADERS", (JSObject) ctx.parse(GSON.toJson(headers)));
+            ScriptableObject.putProperty(scope, "MY_HEADERS", parseJson(GSON.toJson(headers)));
         } catch (Throwable ignored) {
         }
         try {
-            ctx.getGlobalObject().setProperty("MY_RULE", (JSObject) ctx.parse(GSON.toJson(rule)));
+            ScriptableObject.putProperty(scope, "MY_RULE", parseJson(GSON.toJson(rule)));
         } catch (Throwable e) {
-            ctx.getGlobalObject().setProperty("MY_RULE", ctx.createNewJSObject());
+            ScriptableObject.putProperty(scope, "MY_RULE", new NativeObject());
         }
     }
 
@@ -2356,7 +2438,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         try {
             // preRule 的 MY_URL 同样传原始 url（保留 hiker://empty# 前缀）。
             setContext(HkHttp.expandUrl(rule.getUrl(), "", "", "", "", 1, false));
-            ctx.evaluate(pre.trim().startsWith("js:") ? pre.trim().substring(3) : pre);
+            evalJs(pre.trim().startsWith("js:") ? pre.trim().substring(3) : pre);
             Logger.t(TAG).d("preRule done for %s", rule.getTitle());
         } catch (Throwable e) {
             Logger.t(TAG).d("preRule failed for %s: %s", rule.getTitle(), e.getMessage());
@@ -2371,11 +2453,11 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     private void loadConfig() {
         try {
             String json = HkRuleManager.get().loadRuleConfig(rule.getTitle());
-            JSObject obj = (JSObject) ctx.parse(json);
-            ctx.getGlobalObject().setProperty("config", obj);
+            Object obj = parseJson(json);
+            ScriptableObject.putProperty(scope, "config", obj);
         } catch (Throwable e) {
             try {
-                ctx.getGlobalObject().setProperty("config", ctx.createNewJSObject());
+                ScriptableObject.putProperty(scope, "config", new NativeObject());
             } catch (Throwable ignored) {
             }
         }
@@ -2384,8 +2466,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     private void collectResult(Object[] args) {
         if (args == null || args.length == 0 || args[0] == null) return;
         try {
-            String json = args[0] instanceof JSArray
-                    ? ((JSArray) args[0]).stringify()
+            String json = args[0] instanceof NativeArray
+                    ? jsStringify(args[0])
                     : String.valueOf(args[0]);
             if (json == null) return;
             String t = json.trim();
@@ -2470,12 +2552,12 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     private void collectHomeResult(Object[] args) {
         if (args == null || args.length == 0 || args[0] == null) return;
         try {
-            if (args[0] instanceof JSArray) {
+            if (args[0] instanceof NativeArray) {
                 collectResult(args);
                 return;
             }
-            String json = args[0] instanceof JSObject
-                    ? ((JSObject) args[0]).stringify()
+            String json = args[0] instanceof NativeObject
+                    ? jsStringify(args[0])
                     : String.valueOf(args[0]).trim();
             if (json.startsWith("{")) {
                 Type mapType = new TypeToken<Map<String, Object>>() {}.getType();
@@ -2517,7 +2599,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             collectRaw = true;
             try {
                 setContext(myUrl);
-                ctx.evaluate(stripJsPrefix(jsCode));
+                evalJs(stripJsPrefix(jsCode));
             } catch (Throwable e) {
                 // 详情页 JS 异常也要记录，供 V4 空态展示真实原因（之前只记 log，用户看到"0条线路"无法反馈）
                 error = jsErrorMsg(e);
@@ -2534,7 +2616,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
 
     private String stringifyArg(Object arg) {
         try {
-            if (arg instanceof JSObject) return ((JSObject) arg).stringify();
+            if (arg instanceof NativeObject) return jsStringify(arg);
         } catch (Throwable ignored) {
         }
         return String.valueOf(arg);
@@ -2554,7 +2636,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         String t = v.trim();
         if ((t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"))) {
             try {
-                return ctx.parse(v);
+                return parseJson(v);
             } catch (Throwable ignored) {
             }
         }
