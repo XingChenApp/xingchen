@@ -45,7 +45,7 @@ public class Thunder implements Source.Extractor {
         String name = uri.getQueryParameter("name");
         int index = Integer.parseInt(uri.getQueryParameter("index"));
         taskId = XLTaskHelper.get().addTorrentTask(torrent, parent, index);
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 300; i++) {
             XLTaskInfo info = XLTaskHelper.get().getBtSubTaskInfo(taskId, index).mTaskInfo;
             if (info.mTaskStatus == 3) throw new ExtractException(info.getErrorMsg());
             if (info.mTaskStatus != 0) return XLTaskHelper.get().getLocalUrl(new File(parent, name));
@@ -135,6 +135,9 @@ public class Thunder implements Source.Extractor {
         @Override
         public List<Episode> call() {
             boolean torrent = isTorrent(url);
+            if (url.startsWith("ed2k:")) {
+                return Arrays.asList(Episode.create(parseEd2kName(url), url));
+            }
             GetTaskId taskId = XLTaskHelper.get().parse(url, Path.thunder(Util.md5(url)));
             if (!torrent && !taskId.getRealUrl().startsWith("magnet")) return Arrays.asList(create(taskId));
             if (torrent && url.startsWith("http")) Download.create(url, taskId.getSaveFile()).get();
@@ -151,6 +154,15 @@ public class Thunder implements Source.Extractor {
                 if (XLTaskHelper.get().getTaskInfo(taskId).getTaskStatus() == 2) return;
                 SystemClock.sleep(100);
             }
+        }
+
+        private static String parseEd2kName(String url) {
+            try {
+                String[] parts = url.split("\\|");
+                if (parts.length > 2 && !parts[2].isEmpty()) return java.net.URLDecoder.decode(parts[2], "UTF-8");
+            } catch (Exception ignored) {
+            }
+            return url;
         }
     }
 }
