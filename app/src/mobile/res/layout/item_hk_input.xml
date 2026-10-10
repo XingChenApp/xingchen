@@ -7,7 +7,7 @@
     android:layout_marginTop="6dp"
     android:layout_marginBottom="6dp"
     android:background="@drawable/bg_input_light"
-    android:hintTextColor="#9AA0AE"
+    android:textColorHint="#9AA0AE"
     android:imeOptions="actionSearch"
     android:inputType="text"
     android:padding="12dp"
