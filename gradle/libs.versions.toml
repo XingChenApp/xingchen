@@ -49,6 +49,7 @@ nextlib = "1.10.0-0.12.1-fongmi-softload-av3a-avs3-ffmpeg901-r5"
 okhttp = "5.4.0"
 permissionx = "1.8.1"
 quickjs = "3.2.3"
+rhino = "1.7.15"
 rtmpClient = "v3.2.0.m2"
 sardine = "0.9"
 simpleXml = "2.7.1"
@@ -132,6 +133,7 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 permissionx = { group = "com.guolindev.permissionx", name = "permissionx", version.ref = "permissionx" }
 quickjs-android = { group = "wang.harlon.quickjs", name = "wrapper-android", version.ref = "quickjs" }
 quickjs-java = { group = "wang.harlon.quickjs", name = "wrapper-java", version.ref = "quickjs" }
+rhino = { group = "org.mozilla", name = "rhino", version.ref = "rhino" }
 sardine = { group = "com.github.thegrizzlylabs", name = "sardine-android", version.ref = "sardine" }
 simple-xml = { group = "org.simpleframework", name = "simple-xml", version.ref = "simpleXml" }
 smbj = { group = "com.hierynomus", name = "smbj", version.ref = "smbj" }
