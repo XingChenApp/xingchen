@@ -108,6 +108,41 @@ public class ImgUtil {
     }
 
     /**
+     * 圆形裁剪加载（对照 8.83 icon_round_4 / icon_round_small_4 的 bindCircleCropImageView）。
+     */
+    public static void loadCircle(String text, String url, ImageView view) {
+        view.setScaleType(CENTER_CROP);
+        if (TextUtils.isEmpty(url) || failed.contains(url)) view.setImageDrawable(getTextDrawable(text, true));
+        else if (com.fongmi.android.tv.api.hk.HkImage.isDecryptUrl(url)) loadDecryptCircle(text, url, view);
+        else try {
+            Glide.with(view).load(getUrl(url)).listener(getListener(text, url, view, true)).circleCrop().into(view);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void loadDecryptCircle(String text, String url, ImageView view) {
+        view.setImageDrawable(getTextDrawable(text, true));
+        final String base = com.fongmi.android.tv.api.hk.HkImage.baseUrl(url);
+        new Thread(() -> {
+            byte[] data = com.fongmi.android.tv.api.hk.HkImage.decrypt(url);
+            App.post(() -> {
+                try {
+                    Object model = data != null ? data : getUrl(base);
+                    if (model == null) {
+                        view.setImageDrawable(getTextDrawable(text, true));
+                        failed.add(url);
+                        return;
+                    }
+                    Glide.with(view).load(model).listener(getListener(text, url, view, true)).circleCrop().into(view);
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                }
+            });
+        }).start();
+    }
+
+    /**
      * 海阔图片解密链接（url@headers={}@js=...）：后台下载原图 → JS 解密 → 显示；
      * 解密失败回退加载原图 URL。
      */

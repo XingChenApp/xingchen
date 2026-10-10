@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 海阔：对照 8.83 item_icon_four_card -->
+<!-- 海阔：对照 8.83 item_icon_four_card（44dp 圆角图标 + 下方 15sp 文字，4/行） -->
 <RelativeLayout android:gravity="center_horizontal" android:layout_gravity="center" android:id="@id/bg" android:layout_width="wrap_content" android:layout_height="wrap_content"
   xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
     <com.google.android.material.card.MaterialCardView android:id="@id/item_img_bg" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_centerHorizontal="true" app:cardCornerRadius="8.0dip" app:cardElevation="0.0dip">
-        <ImageView android:id="@+id/iv_cover" android:layout_width="44.0dip" android:layout_height="44.0dip" android:layout_centerHorizontal="true" />
+        <ImageView android:id="@+id/iv_icon" android:layout_width="44.0dip" android:layout_height="44.0dip" android:layout_centerHorizontal="true" />
         <TextView android:textSize="18.0sp" android:textStyle="bold" android:textColor="#ff666666" android:ellipsize="none" android:gravity="center" android:id="@id/shortcut_icon_text" android:visibility="gone" android:layout_width="44.0dip" android:layout_height="44.0dip" android:singleLine="true" android:maxLength="1" android:layout_centerHorizontal="true" android:fontFamily="@font/alloy" />
     </com.google.android.material.card.MaterialCardView>
-    <TextView android:textSize="15.0sp" android:textColor="#101216" android:ellipsize="end" android:gravity="center_horizontal" android:id="@id/textView" android:layout_width="wrap_content" android:layout_height="fill_parent" android:layout_marginTop="10.0dip" android:maxLines="1" android:lines="1" android:layout_below="@id/item_img_bg" android:layout_centerHorizontal="true" />
+    <TextView android:textSize="15.0sp" android:textColor="#101216" android:ellipsize="end" android:gravity="center_horizontal" android:id="@+id/tv_title" android:layout_width="wrap_content" android:layout_height="fill_parent" android:layout_marginTop="10.0dip" android:maxLines="1" android:lines="1" android:layout_below="@id/item_img_bg" android:layout_centerHorizontal="true" />
 </RelativeLayout>

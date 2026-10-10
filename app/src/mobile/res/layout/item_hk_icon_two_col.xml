@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 海阔：对照 8.83 item_icon_two_col -->
+<!-- 海阔：对照 8.83 item_icon_two_col（左 28dp 图右文字，60dp 高横向卡片，2/行） -->
 <FrameLayout android:id="@id/bg" android:layout_width="fill_parent" android:layout_height="wrap_content"
   xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
     <com.google.android.material.card.MaterialCardView android:layout_width="fill_parent" android:layout_height="60.0dip" app:cardCornerRadius="8.0dip" app:cardElevation="0.0dip">
         <RelativeLayout android:id="@id/clickBg" android:background="@drawable/ripple_grey" android:layout_width="fill_parent" android:layout_height="fill_parent" android:paddingStart="2.0dip" android:paddingEnd="2.0dip">
-            <ImageView android:id="@+id/iv_cover" android:layout_width="28.0dip" android:layout_height="28.0dip" android:layout_margin="5.0dip" android:layout_centerVertical="true" />
-            <TextView android:textSize="15.0sp" android:textColor="@color/black" android:ellipsize="end" android:gravity="center_vertical" android:id="@id/textView" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:maxLines="1" android:lines="1" android:layout_centerVertical="true" android:layout_toEndOf="@+id/iv_cover" />
+            <ImageView android:id="@+id/iv_icon" android:layout_width="28.0dip" android:layout_height="28.0dip" android:layout_margin="5.0dip" android:layout_centerVertical="true" />
+            <TextView android:textSize="15.0sp" android:textColor="#101216" android:ellipsize="end" android:gravity="center_vertical" android:id="@+id/tv_title" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:maxLines="1" android:lines="1" android:layout_centerVertical="true" android:layout_toEndOf="@id/iv_icon" />
         </RelativeLayout>
     </com.google.android.material.card.MaterialCardView>
 </FrameLayout>

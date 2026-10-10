@@ -1928,11 +1928,20 @@ public class HkPageActivity extends BaseActivity {
                 return ContentAdapter.T_VIDEO;
             default:
                 if (ct.startsWith("icon")) {
-                    // icon_3_fill / icon_3_round_fill：对照 8.83 item_icon_3_fill 横向 CardView 布局
+                    // 8.83 各 icon_* 子类型走独立布局（smali 实测 itemType→layout 映射），
+                    // 之前全挤在一个通用布局里是"图标错位"的根因。
                     if ("icon_3_fill".equals(ct) || "icon_3_round_fill".equals(ct)) return ContentAdapter.T_ICON_FILL;
-                    // icon_2_round：对照 8.83 item_icon_two_round_col 横向圆角卡片（左 32dp 图右文字）
                     if ("icon_2_round".equals(ct)) return ContentAdapter.T_ICON_2_ROUND;
-                    return ContentAdapter.T_ICON;
+                    if ("icon_2".equals(ct)) return ContentAdapter.T_ICON_2;
+                    if ("icon_4_card".equals(ct)) return ContentAdapter.T_ICON_4_CARD;
+                    if ("icon_small_3".equals(ct)) return ContentAdapter.T_ICON_3_SMALL;
+                    if ("icon_1_search".equals(ct)) return ContentAdapter.T_ICON_1_SEARCH;
+                    if ("icon_1_left_pic".equals(ct)) return ContentAdapter.T_ICON_1_LEFT_PIC;
+                    if ("icon_round_4".equals(ct)) return ContentAdapter.T_ICON_ROUND;
+                    if ("icon_round_small_4".equals(ct)) return ContentAdapter.T_ICON_ROUND_SMALL;
+                    if ("icon_small_4".equals(ct) || "icon_5".equals(ct) || "icon_5_no_crop".equals(ct))
+                        return ContentAdapter.T_ICON_4_SMALL;
+                    return ContentAdapter.T_ICON; // icon_4
                 }
                 if (ct.startsWith("pic") || ct.startsWith("card_pic")) return ContentAdapter.T_PIC;
                 // movie_1/movie_2 等按视频卡片网格渲染（全宽横向图文待后版）
@@ -2395,6 +2404,15 @@ public class HkPageActivity extends BaseActivity {
         static final int T_CARD = 14;
         static final int T_MOVIE_LEFT_PIC = 15;
         static final int T_ICON_2_ROUND = 16;
+        // 图标子类型（对照 8.83 ArticleListAdapter 各 icon_* 独立布局）：
+        static final int T_ICON_4_SMALL = 17;   // icon_small_4/icon_5/icon_5_no_crop：32dp 图上文下
+        static final int T_ICON_ROUND = 18;     // icon_round_4：42dp 图上文下 + 圆形裁剪
+        static final int T_ICON_ROUND_SMALL = 19; // icon_round_small_4：32dp 图上文下 + 圆形裁剪
+        static final int T_ICON_2 = 20;         // icon_2：左 28dp 图右文字横向卡片
+        static final int T_ICON_4_CARD = 21;    // icon_4_card：44dp 圆角卡片图标 + 文字
+        static final int T_ICON_3_SMALL = 22;   // icon_small_3：图标左文字右同行
+        static final int T_ICON_1_SEARCH = 23;  // icon_1_search：搜索条
+        static final int T_ICON_1_LEFT_PIC = 24; // icon_1_left_pic：左 60dp 图右文全宽行
 
         private final List<HkItem> source;
         /** 分组后的展示列表（groupButtons 快照；videos 变更后必须调 refreshGroups() 重算）。 */
@@ -2487,15 +2505,24 @@ public class HkPageActivity extends BaseActivity {
                     if (ct.endsWith("_5")) return 12;
                     return 60;
                 case T_ICON:
-                    if (ct.startsWith("icon_2")) return 30;
-                    if ("icon_small_3".equals(ct)) return 20;
-                    if ("icon_1_search".equals(ct) || "icon_1_left_pic".equals(ct)) return 60;
-                    if ("icon_5".equals(ct) || "icon_5_no_crop".equals(ct)) return 12;
-                    return 15; // icon_4 / icon_small_4 / icon_round_4 / icon_round_small_4 / icon_4_card
+                case T_ICON_ROUND:
+                    return 15; // icon_4 / icon_round_4：4/行（官方 spanCount=15）
+                case T_ICON_4_SMALL:
+                case T_ICON_ROUND_SMALL:
+                    if ("icon_5".equals(ct) || "icon_5_no_crop".equals(ct)) return 12; // 官方 spanCount=12
+                    return 15; // icon_small_4 / icon_round_small_4：4/行
+                case T_ICON_4_CARD:
+                    return 15; // icon_4_card：4/行（官方 spanCount=15）
                 case T_ICON_FILL:
                     return 20; // icon_3_fill / icon_3_round_fill：3/行
+                case T_ICON_2:
                 case T_ICON_2_ROUND:
-                    return 30; // icon_2_round：2/行（官方 spanCount=30）
+                    return 30; // icon_2 / icon_2_round：2/行（官方 spanCount=30）
+                case T_ICON_3_SMALL:
+                    return 20; // icon_small_3：3/行（官方 spanCount=20）
+                case T_ICON_1_SEARCH:
+                case T_ICON_1_LEFT_PIC:
+                    return 60; // icon_1_search / icon_1_left_pic 全宽（官方 spanCount=60）
                 case T_TEXT_ICON:
                     return 60; // text_icon 全宽
                 case T_CARD:
@@ -2564,11 +2591,23 @@ public class HkPageActivity extends BaseActivity {
                     case T_ICON:
                     case T_ICON_FILL:
                     case T_ICON_2_ROUND:
+                    case T_ICON_4_SMALL:
+                    case T_ICON_ROUND:
+                    case T_ICON_ROUND_SMALL:
+                    case T_ICON_2:
+                    case T_ICON_4_CARD:
+                    case T_ICON_3_SMALL:
+                    case T_ICON_1_SEARCH:
                         cover = v.findViewById(R.id.iv_icon);
                         title = v.findViewById(R.id.tv_title);
                         break;
+                    case T_ICON_1_LEFT_PIC:
+                        cover = v.findViewById(R.id.iv_icon);
+                        title = v.findViewById(R.id.tv_title);
+                        desc = v.findViewById(R.id.tv_desc);
+                        break;
                     case T_TEXT_ICON:
-                        cover = v.findViewById(R.id.iv_cover);
+                        cover = v.findViewById(R.id.iv_icon);
                         title = v.findViewById(R.id.tv_title);
                         break;
                     case T_CARD:
@@ -2633,7 +2672,31 @@ public class HkPageActivity extends BaseActivity {
                     layout = R.layout.item_hk_avatar;
                     break;
                 case T_ICON:
-                    layout = R.layout.item_hk_icon;
+                    layout = R.layout.item_hk_icon_four_col; // icon_4：42dp 图上文下（对照 8.83 item_icon_four_col）
+                    break;
+                case T_ICON_4_SMALL:
+                    layout = R.layout.item_hk_icon_four_small; // icon_small_4/icon_5：32dp 图上文下
+                    break;
+                case T_ICON_ROUND:
+                    layout = R.layout.item_hk_icon_four_col; // icon_round_4：42dp，bind 时圆形裁剪
+                    break;
+                case T_ICON_ROUND_SMALL:
+                    layout = R.layout.item_hk_icon_four_small; // icon_round_small_4：32dp，bind 时圆形裁剪
+                    break;
+                case T_ICON_2:
+                    layout = R.layout.item_hk_icon_two_col; // icon_2：左 28dp 图右文字横向卡片
+                    break;
+                case T_ICON_4_CARD:
+                    layout = R.layout.item_hk_icon_four_card; // icon_4_card：44dp 圆角图标 + 文字
+                    break;
+                case T_ICON_3_SMALL:
+                    layout = R.layout.item_hk_icon_three_small; // icon_small_3：图标左文字右同行
+                    break;
+                case T_ICON_1_SEARCH:
+                    layout = R.layout.item_hk_icon_search_col; // icon_1_search：搜索条
+                    break;
+                case T_ICON_1_LEFT_PIC:
+                    layout = R.layout.item_hk_icon_left_pic; // icon_1_left_pic：左 60dp 图右文全宽
                     break;
                 case T_ICON_FILL:
                     layout = R.layout.item_hk_icon_3_fill;
@@ -2702,6 +2765,14 @@ public class HkPageActivity extends BaseActivity {
                 case T_ICON:
                 case T_ICON_FILL:
                 case T_ICON_2_ROUND:
+                case T_ICON_4_SMALL:
+                case T_ICON_ROUND:
+                case T_ICON_ROUND_SMALL:
+                case T_ICON_2:
+                case T_ICON_4_CARD:
+                case T_ICON_3_SMALL:
+                case T_ICON_1_SEARCH:
+                case T_ICON_1_LEFT_PIC:
                     bindIcon(h, item);
                     break;
                 case T_TEXT_ICON:
@@ -2911,10 +2982,21 @@ public class HkPageActivity extends BaseActivity {
             setContentClick(h, item);
         }
 
-        /** 小图标按钮：图片+文字居中，占 1 列。 */
+        /** 图标：各 icon_* 子类型按 8.83 走独立布局；round 系列图标圆形裁剪（对照 8.83 bindCircleCropImageView）。 */
         private void bindIcon(Holder h, HkItem item) {
+            if (h.title == null || h.cover == null) return; // 防 ViewHolder 类型错配
             h.title.setText(titleSpan(item.getTitle()));
-            ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
+            int vt = h.getItemViewType();
+            if (vt == T_ICON_ROUND || vt == T_ICON_ROUND_SMALL || vt == T_ICON_2_ROUND) {
+                ImgUtil.loadCircle(item.getTitle(), item.getPic(), h.cover);
+            } else {
+                ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
+            }
+            if (vt == T_ICON_1_LEFT_PIC && h.desc != null) {
+                String d = stripHtml(item.getDesc());
+                h.desc.setText(d);
+                h.desc.setVisibility(TextUtils.isEmpty(d) ? View.GONE : View.VISIBLE);
+            }
             setContentClick(h, item);
         }
 
