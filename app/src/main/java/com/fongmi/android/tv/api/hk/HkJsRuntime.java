@@ -810,7 +810,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         // ---- 编解码补充 ----
         ctx.getGlobalObject().setProperty("md5", args -> {
             if (args == null || args.length == 0) return "";
-            String v = com.fongmi.quickjs.utils.Util.md5(String.valueOf(args[0]));
+            String v = Util.md5(String.valueOf(args[0]));
             return v == null ? "" : v;
         });
         ctx.getGlobalObject().setProperty("hexToBase64", args -> {
