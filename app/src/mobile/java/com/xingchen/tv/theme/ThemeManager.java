@@ -77,6 +77,10 @@ public class ThemeManager {
         theme.wallpaperType = type;
         theme.wallpaperValue = value;
         theme.save(ctx);
+        // Invalidate wallpaper cache: local/url reuse fixed filenames, so the
+        // cache key (type:value) would otherwise match the stale drawable.
+        sCachedKey = "";
+        sCachedWallpaper = null;
         applyAll();
     }
 
@@ -170,6 +174,14 @@ public class ThemeManager {
             String value = theme.wallpaperValue;
             boolean blur = theme.wallpaperBlur;
             String cacheKey = type + ":" + value + (blur ? ":blur" : "");
+            // Local/url wallpapers reuse fixed filenames; include lastModified so
+            // picking a new image with the same path busts the cache.
+            if ((XingChenTheme.WP_LOCAL.equals(type) || XingChenTheme.WP_URL.equals(type)) && value != null) {
+                try {
+                    java.io.File f = new java.io.File(value);
+                    if (f.exists()) cacheKey += ":" + f.lastModified();
+                } catch (Exception e) {}
+            }
             // Check cache first - avoids re-decoding on every page switch (black flash fix)
             if (cacheKey.equals(sCachedKey) && sCachedWallpaper != null) {
                 flog("getWallpaperDrawable: cache HIT for " + cacheKey);
@@ -194,6 +206,7 @@ public class ThemeManager {
                         flog("getWallpaperDrawable: local bitmap loaded, " + bm.getWidth() + "x" + bm.getHeight());
                         if (blur) bm = WallpaperBlur.blurredWallpaper(bm);
                         android.graphics.drawable.BitmapDrawable bd = new android.graphics.drawable.BitmapDrawable(activity.getResources(), bm);
+                        bd.setGravity(android.view.Gravity.CENTER_CROP);
                         sCachedWallpaper = bd;
                         sCachedKey = cacheKey;
                         return bd;
@@ -209,6 +222,7 @@ public class ThemeManager {
                     if (bm != null) {
                         if (blur) bm = WallpaperBlur.blurredWallpaper(bm);
                         android.graphics.drawable.BitmapDrawable bd = new android.graphics.drawable.BitmapDrawable(activity.getResources(), bm);
+                        bd.setGravity(android.view.Gravity.CENTER_CROP);
                         sCachedWallpaper = bd;
                         sCachedKey = cacheKey;
                         return bd;
@@ -237,6 +251,7 @@ public class ThemeManager {
                     if (bm != null) {
                         if (blur && !preBlurred) bm = WallpaperBlur.blurredWallpaper(bm);
                         android.graphics.drawable.BitmapDrawable bd = new android.graphics.drawable.BitmapDrawable(activity.getResources(), bm);
+                        bd.setGravity(android.view.Gravity.CENTER_CROP);
                         bd.setTintList(null);
                         flog("getWallpaperDrawable: builtin bitmap decoded, " + bm.getWidth() + "x" + bm.getHeight() + ", caching");
                         sCachedWallpaper = bd;
