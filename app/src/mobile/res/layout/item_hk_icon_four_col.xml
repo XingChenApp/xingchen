@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 海阔：对照 8.83 item_icon_four_col -->
-<com.example.hikerview.ui.view.DrawableTextView android:textSize="15.0sp" android:textColor="@color/black" android:gravity="center_horizontal" android:id="@id/bg" android:focusable="true" android:clickable="true" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0" app:drawableWidth="42.0dip"
-  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" />
+<!-- 海阔：对照 8.83 item_icon_four_col（原 DrawableTextView 为图上文下复合控件，标准 View 替代，42dp 图标） -->
+<LinearLayout android:orientation="vertical" android:gravity="center_horizontal" android:id="@id/bg" android:focusable="true" android:clickable="true" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <ImageView android:id="@+id/iv_icon" android:layout_width="42.0dip" android:layout_height="42.0dip" />
+    <TextView android:id="@+id/tv_title" android:textSize="15.0sp" android:textColor="@color/black" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:gravity="center_horizontal" android:maxLines="1" android:ellipsize="end" />
+</LinearLayout>

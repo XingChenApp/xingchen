@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 海阔：对照 8.83 item_long_text -->
-<me.codeboy.android.aligntextview.AlignTextView android:enabled="true" android:textSize="16.5sp" android:textColor="#101216" android:id="@+id/tv_title" android:paddingTop="12.0dip" android:paddingBottom="5.0dip" android:focusable="true" android:longClickable="true" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:layout_marginBottom="10.0dip" android:lineSpacingExtra="10.0dip" android:textIsSelectable="true" android:layout_marginStart="14.0dip" android:layout_marginEnd="14.0dip"
+<!-- 海阔：对照 8.83 item_long_text（原 AlignTextView 为两端对齐文本，标准 TextView + justificationMode 替代） -->
+<TextView android:enabled="true" android:textSize="16.5sp" android:textColor="#101216" android:id="@+id/tv_title" android:paddingTop="12.0dip" android:paddingBottom="5.0dip" android:focusable="true" android:longClickable="true" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:layout_marginBottom="10.0dip" android:lineSpacingExtra="10.0dip" android:textIsSelectable="true" android:layout_marginStart="14.0dip" android:layout_marginEnd="14.0dip" android:justificationMode="inter_word"
   xmlns:android="http://schemas.android.com/apk/res/android" />
