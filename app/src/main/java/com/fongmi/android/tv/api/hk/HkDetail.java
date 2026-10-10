@@ -97,6 +97,30 @@ public class HkDetail {
         if (directPlayUrl != null) this.directPlayUrl = directPlayUrl;
     }
 
+    /**
+     * dealWithUrl 分流种类（官方 ArticleListFragment.dealWithUrl）：
+     * video=直接播放 / pics=漫画图片 / x5=webview规则 / web=网页 / image=图片查看 / magnet=磁力分享 / ""=未知。
+     * 非空时调用方不应进 V4，按种类分流。
+     */
+    private String dealKind = "";
+    private String dealUrl = "";
+
+    public String getDealKind() {
+        return dealKind;
+    }
+
+    public void setDealKind(String dealKind) {
+        if (dealKind != null) this.dealKind = dealKind;
+    }
+
+    public String getDealUrl() {
+        return dealUrl;
+    }
+
+    public void setDealUrl(String dealUrl) {
+        if (dealUrl != null) this.dealUrl = dealUrl;
+    }
+
     public String getTitle() {
         return title;
     }

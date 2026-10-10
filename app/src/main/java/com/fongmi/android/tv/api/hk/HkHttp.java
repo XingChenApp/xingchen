@@ -202,6 +202,32 @@ public class HkHttp {
         return getEnhanced(e, ua);
     }
 
+    /**
+     * 下载二进制（图片解密用）。支持 headers map。
+     */
+    public static byte[] getBytes(String url, Map<String, String> headers) throws IOException {
+        if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) {
+            throw new IllegalArgumentException("不支持的链接协议: " + url);
+        }
+        Request.Builder rb = new Request.Builder().url(url)
+                .header("User-Agent", DEFAULT_UA)
+                .header("Accept", "image/*,*/*;q=0.8");
+        if (headers != null) {
+            for (Map.Entry<String, String> h : headers.entrySet()) {
+                try {
+                    rb.header(h.getKey(), h.getValue());
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        try (Response resp = client().newCall(rb.build()).execute()) {
+            if (!resp.isSuccessful()) throw new IOException("HTTP " + resp.code() + " " + url);
+            ResponseBody body = resp.body();
+            if (body == null) throw new IOException("空响应 " + url);
+            return body.bytes();
+        }
+    }
+
     /** 无增强的原逻辑（行为与之前完全一致）。 */
     private static String getPlain(String url, String ua) throws IOException {
         if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) {

@@ -96,6 +96,7 @@ public class ImgUtil {
         view.setScaleType(vod ? CENTER_CROP : FIT_CENTER);
         if (!vod) view.setVisibility(TextUtils.isEmpty(url) ? View.GONE : View.VISIBLE);
         if (TextUtils.isEmpty(url) || failed.contains(url)) view.setImageDrawable(getTextDrawable(text, vod));
+        else if (com.fongmi.android.tv.api.hk.HkImage.isDecryptUrl(url)) loadDecrypt(text, url, view, vod, width, height);
         else try {
             RequestBuilder<Drawable> builder = Glide.with(view).load(getUrl(url)).listener(getListener(text, url, view, vod));
             if (width > 0 && height > 0) builder.override(width, height);
@@ -104,6 +105,34 @@ public class ImgUtil {
         } catch (Throwable e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 海阔图片解密链接（url@headers={}@js=...）：后台下载原图 → JS 解密 → 显示；
+     * 解密失败回退加载原图 URL。
+     */
+    private static void loadDecrypt(String text, String url, ImageView view, boolean vod, int width, int height) {
+        view.setImageDrawable(getTextDrawable(text, vod));
+        final String base = com.fongmi.android.tv.api.hk.HkImage.baseUrl(url);
+        new Thread(() -> {
+            byte[] data = com.fongmi.android.tv.api.hk.HkImage.decrypt(url);
+            App.post(() -> {
+                try {
+                    Object model = data != null ? data : getUrl(base);
+                    if (model == null) {
+                        view.setImageDrawable(getTextDrawable(text, vod));
+                        failed.add(url);
+                        return;
+                    }
+                    RequestBuilder<Drawable> builder = Glide.with(view).load(model).listener(getListener(text, url, view, vod));
+                    if (width > 0 && height > 0) builder.override(width, height);
+                    if (vod) builder.centerCrop().into(view);
+                    else builder.fitCenter().into(view);
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                }
+            });
+        }).start();
     }
 
     public static Object getUrl(String url) {

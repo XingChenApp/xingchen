@@ -1265,9 +1265,15 @@ public class HkPageActivity extends BaseActivity {
                 if (!TextUtils.isEmpty(direct)) {
                     // 直接播放：若已推 V4 先弹出，保证播放器返回时回到列表
                     if (!lazyPrecheck) onBackInvoked();
-                    VideoActivity.startHkPlay(HkPageActivity.this,
-                            currentRule == null ? "" : currentRule.getTitle(), "默认",
-                            direct, item.getTitle(), item.getTitle(), item.getPic());
+                    startHkDirectPlay(item, direct);
+                    return;
+                }
+                // dealWithUrl 分流（官方：@lazyRule= 解析后不进 V4）
+                String dealKind = result == null ? "" : result.getDealKind();
+                if (!TextUtils.isEmpty(dealKind)) {
+                    if (!lazyPrecheck) onBackInvoked();
+                    else binding.loadingContent.setVisibility(View.GONE);
+                    handleDealUrl(dealKind, result.getDealUrl(), item);
                     return;
                 }
                 if (lazyPrecheck) {
@@ -1281,6 +1287,101 @@ public class HkPageActivity extends BaseActivity {
                 showDetailResult(result);
             });
         }).start();
+    }
+
+    /**
+     * 直接播放：从当前列表所有条目拼选集（官方 getChapters：每条=一集，当前点击的 use=true），
+     * 把选集传给播放器，解决"没有线路没有选集"。
+     */
+    private void startHkDirectPlay(HkItem item, String directUrl) {
+        org.json.JSONArray arr = new org.json.JSONArray();
+        int selIdx = 0;
+        try {
+            int i = 0;
+            for (HkItem it : videos) {
+                if (it == null || TextUtils.isEmpty(it.getUrl())) continue;
+                org.json.JSONObject o = new org.json.JSONObject();
+                o.put("name", stripHtml(it.getTitle()));
+                o.put("url", it.getUrl());
+                o.put("pic", it.getPic() == null ? "" : it.getPic());
+                arr.put(o);
+                if (it == item) selIdx = i;
+                i++;
+            }
+        } catch (Throwable ignored) {
+        }
+        VideoActivity.startHkPlay(HkPageActivity.this,
+                currentRule == null ? "" : currentRule.getTitle(), "默认",
+                directUrl, item.getTitle(), item.getTitle(), item.getPic(),
+                arr.toString(), selIdx);
+    }
+
+    /**
+     * dealWithUrl 分流处理（官方 ArticleListFragment.dealWithUrl）：
+     * pics=漫画图片列表 / x5=webview规则 / web=网页 / image=图片查看 / magnet=分享。
+     */
+    private void handleDealUrl(String kind, String url, HkItem item) {
+        if (TextUtils.isEmpty(url)) return;
+        try {
+            switch (kind) {
+                case "pics": {
+                    // pics://url1&&url2... → 图片列表查看
+                    String raw = url.replaceFirst("(?i)^pics://", "");
+                    String[] parts = raw.split("&&");
+                    java.util.ArrayList<String> urls = new java.util.ArrayList<>();
+                    for (String p : parts) {
+                        if (!TextUtils.isEmpty(p.trim())) urls.add(p.trim());
+                    }
+                    if (urls.isEmpty()) {
+                        android.widget.Toast.makeText(this, "无图片", android.widget.Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    android.widget.ImageView iv = new android.widget.ImageView(this);
+                    com.fongmi.android.tv.utils.ImgUtil.load(item.getTitle(), urls.get(0), iv, false);
+                    new AlertDialog.Builder(this)
+                            .setTitle(stripHtml(item.getTitle()))
+                            .setView(iv)
+                            .setPositiveButton("关闭", (d, w) -> d.dismiss())
+                            .show();
+                    return;
+                }
+                case "x5": {
+                    // x5://url → 内嵌 webview 规则页
+                    String target = url.replaceFirst("(?i)^x5://", "").trim();
+                    if (!target.isEmpty()) showWebViewDialog(target);
+                    return;
+                }
+                case "web":
+                    showWebViewDialog(url);
+                    return;
+                case "image": {
+                    android.widget.ImageView iv = new android.widget.ImageView(this);
+                    com.fongmi.android.tv.utils.ImgUtil.load(item.getTitle(), url, iv, false);
+                    new AlertDialog.Builder(this)
+                            .setView(iv)
+                            .setPositiveButton("关闭", (d, w) -> d.dismiss())
+                            .show();
+                    return;
+                }
+                case "magnet": {
+                    android.content.Intent it2 = new android.content.Intent(android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse(url));
+                    try {
+                        startActivity(android.content.Intent.createChooser(it2, "选择应用打开"));
+                    } catch (Throwable e) {
+                        android.widget.Toast.makeText(this, "无应用可打开", android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                    return;
+                }
+                default:
+                    break;
+            }
+        } catch (Throwable e) {
+            android.util.Log.d("HkPage", "handleDealUrl failed: " + e.getMessage());
+        }
+        // 未知种类：回退 V4
+        pushView(V_DETAIL);
+        showDetailResult(null);
     }
 
     /** V4 结果展示：无线路但有标题/封面/简介时仍渲染，不直接"加载失败"。 */
@@ -1546,6 +1647,24 @@ public class HkPageActivity extends BaseActivity {
         return s.replaceAll("<[^>]*>", "").replace("‘", "").replace("’", "").trim()
                 // 规则里常把标题包在引号里（"""最新上传"""），去掉首尾引号
                 .replaceAll("^\"+|\"+$", "").replaceAll("^'+|'+$", "").trim();
+    }
+
+    /**
+     * 标题颜色标记（官方）：{@code ""xxx""} → 红色，{@code ''xxx''} → 橙色，并去掉引号。
+     * 返回带颜色的 CharSequence，无标记时返回纯文本。
+     */
+    private CharSequence titleSpan(String raw) {
+        String s = stripHtml(raw);
+        int color = 0;
+        // stripHtml 已去首尾引号，这里按原始引号数量判断：先看去标签后的原文
+        String t = raw == null ? "" : raw.replaceAll("<[^>]*>", "").trim();
+        if (t.startsWith("\"\"") && t.endsWith("\"\"") && t.length() >= 4) color = 0xFFE53935;
+        else if (t.startsWith("''") && t.endsWith("''") && t.length() >= 4) color = 0xFFFF9800;
+        if (color == 0) return s;
+        android.text.SpannableString sp = new android.text.SpannableString(s);
+        sp.setSpan(new android.text.style.ForegroundColorSpan(color), 0, s.length(),
+                android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return sp;
     }
 
     /** col_type → viewType：空/movie_3/未知 → 视频卡片。 */
@@ -2005,7 +2124,7 @@ public class HkPageActivity extends BaseActivity {
 
         /** 视频卡片：保持原 VideoAdapter 行为。 */
         private void bindVideo(Holder h, HkItem item) {
-            h.title.setText(stripHtml(item.getTitle()));
+            h.title.setText(titleSpan(item.getTitle()));
             h.desc.setText(stripHtml(item.getDesc()));
             h.desc.setVisibility(TextUtils.isEmpty(item.getDesc()) ? View.GONE : View.VISIBLE);
             ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
@@ -2026,7 +2145,7 @@ public class HkPageActivity extends BaseActivity {
                 h.title.setTextColor(0xFF6E7686);
                 h.title.setTextSize(13);
                 h.title.setMaxLines(4);
-                h.title.setText(stripHtml(item.getTitle()));
+                h.title.setText(titleSpan(item.getTitle()));
                 h.desc.setVisibility(View.GONE);
             } else {
                 boolean longText = "long_text".equals(ct);
@@ -2034,7 +2153,7 @@ public class HkPageActivity extends BaseActivity {
                 h.title.setTextColor(0xFF1A1D24);
                 h.title.setTextSize(14);
                 h.title.setMaxLines(longText ? 30 : 3);
-                h.title.setText(stripHtml(item.getTitle()));
+                h.title.setText(titleSpan(item.getTitle()));
                 String d = stripHtml(item.getDesc());
                 h.desc.setText(d);
                 h.desc.setMaxLines(longText ? 60 : 5);
@@ -2052,7 +2171,7 @@ public class HkPageActivity extends BaseActivity {
             try {
                 h.title.setText(Html.fromHtml(item.getTitle() == null ? "" : item.getTitle(), Html.FROM_HTML_MODE_LEGACY));
             } catch (Throwable t) {
-                h.title.setText(stripHtml(item.getTitle()));
+                h.title.setText(titleSpan(item.getTitle()));
             }
             String d = item.getDesc();
             if (TextUtils.isEmpty(d)) {
@@ -2108,22 +2227,24 @@ public class HkPageActivity extends BaseActivity {
             setContentClick(h, item);
         }
 
-        /** 横向胶囊按钮组：连续 scroll_button/flex_button 的兜底渲染（横滑）。 */
+        /** 流式胶囊按钮组：连续 scroll_button/flex_button 聚合为自动换行的流式布局（官方 flex_button）。 */
         private void bindButtons(Holder h, HkItem item) {
             h.cols.removeAllViews();
             List<HkItem> subs = buttonGroups.get(item);
             if (subs == null || subs.isEmpty()) return;
             Context ctx = h.itemView.getContext();
-            // 横向滚动容器
-            android.widget.HorizontalScrollView hsv = new android.widget.HorizontalScrollView(ctx);
-            hsv.setHorizontalScrollBarEnabled(false);
-            LinearLayout row = new LinearLayout(ctx);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(Gravity.CENTER_VERTICAL);
+            int parentW = h.cols.getWidth();
+            if (parentW <= 0) {
+                parentW = ctx.getResources().getDisplayMetrics().widthPixels - dp(16) * 2;
+            }
+            LinearLayout flow = new LinearLayout(ctx);
+            flow.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout row = newButtonRow(ctx);
+            int rowW = 0;
             int padH = dp(14), padV = dp(7);
             for (HkItem sub : subs) {
                 TextView tv = new TextView(ctx);
-                tv.setText(stripHtml(sub.getTitle()));
+                tv.setText(titleSpan(sub.getTitle()));
                 tv.setTextColor(0xFF1A1D24);
                 tv.setTextSize(13);
                 tv.setGravity(Gravity.CENTER);
@@ -2137,26 +2258,43 @@ public class HkPageActivity extends BaseActivity {
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                 lp.rightMargin = dp(8);
+                lp.bottomMargin = dp(8);
                 tv.setLayoutParams(lp);
                 tv.setOnClickListener(v -> onContentItemClick(sub));
+                tv.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+                int w = tv.getMeasuredWidth() + dp(8);
+                if (rowW + w > parentW && rowW > 0) {
+                    flow.addView(row, new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                    row = newButtonRow(ctx);
+                    rowW = 0;
+                }
                 row.addView(tv);
+                rowW += w;
             }
-            hsv.addView(row, new ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            h.cols.addView(hsv, new LinearLayout.LayoutParams(
+            flow.addView(row, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            h.cols.addView(flow, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+
+        private LinearLayout newButtonRow(Context ctx) {
+            LinearLayout row = new LinearLayout(ctx);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            return row;
         }
 
         /** 头像行：圆形图 + 标题横向。 */
         private void bindAvatar(Holder h, HkItem item) {
-            h.title.setText(stripHtml(item.getTitle()));
+            h.title.setText(titleSpan(item.getTitle()));
             ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
             setContentClick(h, item);
         }
 
         /** 小图标按钮：图片+文字居中，占 1 列。 */
         private void bindIcon(Holder h, HkItem item) {
-            h.title.setText(stripHtml(item.getTitle()));
+            h.title.setText(titleSpan(item.getTitle()));
             ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
             setContentClick(h, item);
         }
@@ -2170,7 +2308,7 @@ public class HkPageActivity extends BaseActivity {
 
         /** 横向图文：左图右文。 */
         private void bindMovie(Holder h, HkItem item) {
-            h.title.setText(stripHtml(item.getTitle()));
+            h.title.setText(titleSpan(item.getTitle()));
             String d = stripHtml(item.getDesc());
             h.desc.setText(d);
             h.desc.setVisibility(TextUtils.isEmpty(d) ? View.GONE : View.VISIBLE);

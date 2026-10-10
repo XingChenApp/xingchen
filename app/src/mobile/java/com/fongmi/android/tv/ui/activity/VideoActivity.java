@@ -430,6 +430,14 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
      * 解析走 SiteApi.playerContent 的 hk_ 拦截（HkRouter.play），headers 保留。
      */
     public static void startHkPlay(Activity activity, String ruleTitle, String lineName, String episodeUrl, String episodeName, String name, String pic) {
+        startHkPlay(activity, ruleTitle, lineName, episodeUrl, episodeName, name, pic, "", 0);
+    }
+
+    /**
+     * 海阔直接播放（带选集）：episodesJson 为 [{name,url,pic}]，selIdx 为当前集下标。
+     * 播放器内显示线路/选集（官方 getChapters：列表条目即选集）。
+     */
+    public static void startHkPlay(Activity activity, String ruleTitle, String lineName, String episodeUrl, String episodeName, String name, String pic, String episodesJson, int selIdx) {
         Intent intent = new Intent(activity, VideoActivity.class);
         intent.putExtra("key", HkDetailBridge.siteKey(ruleTitle));
         intent.putExtra("id", episodeUrl);
@@ -439,6 +447,8 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         intent.putExtra("hk_line", lineName);
         intent.putExtra("hk_episode", episodeName);
         intent.putExtra("hk_direct_play", true);
+        intent.putExtra("hk_episodes", episodesJson == null ? "" : episodesJson);
+        intent.putExtra("hk_episode_idx", selIdx);
         activity.startActivity(intent);
     }
 
@@ -1338,8 +1348,46 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
      */
     private void playHkDirect() {
         showProgress();
+        // 直接播放带选集（HkPageActivity 拼的列表选集）：先渲染线路/选集 UI，再解析当前集播放
+        setupHkDirectEpisodes();
         String flag = Objects.toString(getIntent().getStringExtra("hk_line"), "");
         mViewModel.playerContent(getKey(), flag, getId());
+    }
+
+    /**
+     * 海阔直接播放的选集 UI：intent 的 hk_episodes（[{name,url,pic}]）转为单线路 Vod，
+     * 当前集按 hk_episode_idx 选中。选集点击走 playerContent → HkRouter.play 解析。
+     */
+    private void setupHkDirectEpisodes() {
+        try {
+            String json = getIntent().getStringExtra("hk_episodes");
+            if (TextUtils.isEmpty(json)) return;
+            org.json.JSONArray arr = new org.json.JSONArray(json);
+            if (arr.length() == 0) return;
+            int selIdx = getIntent().getIntExtra("hk_episode_idx", 0);
+            Vod vod = new Vod();
+            vod.setName(getName());
+            vod.setPic(getPic());
+            java.util.List<Flag> flags = new java.util.ArrayList<>();
+            Flag flag = Flag.create("默认");
+            for (int i = 0; i < arr.length(); i++) {
+                org.json.JSONObject o = arr.optJSONObject(i);
+                if (o == null) continue;
+                String url = o.optString("url", "");
+                if (TextUtils.isEmpty(url)) continue;
+                String nm = o.optString("name", "");
+                if (TextUtils.isEmpty(nm)) nm = "第" + (flag.getEpisodes().size() + 1) + "集";
+                Episode ep = Episode.create(nm, url);
+                if (i == selIdx) ep.setSelected(true);
+                flag.getEpisodes().add(ep);
+            }
+            if (flag.getEpisodes().isEmpty()) return;
+            flags.add(flag);
+            vod.setFlags(flags);
+            setDetail(vod);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
     }
 
     private void checkLand() {

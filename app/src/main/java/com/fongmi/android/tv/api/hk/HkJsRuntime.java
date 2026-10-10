@@ -1100,29 +1100,38 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         // 其他路径复用 require 的远程/本地库逻辑（__hkRequirePage 为 Java 实现）。
         try {
             ctx.evaluate(
-                "function $(selector) {\n" +
+                "function $(url, headers) {\n" +
+                "  url = (typeof url === 'undefined' || url == null) ? '' : String(url);\n" +
+                "  var _headersJson = '{}';\n" +
+                "  try {\n" +
+                "    if (headers != null) _headersJson = (typeof headers === 'string') ? headers : JSON.stringify(headers);\n" +
+                "  } catch (_he) {}\n" +
                 "  return {\n" +
                 "    lazyRule: function(fn) {\n" +
                 "      var _a = [];\n" +
                 "      for (var _i = 1; _i < arguments.length; _i++) {\n" +
                 "        try { _a.push(JSON.stringify(arguments[_i])); } catch (_e) { _a.push('null'); }\n" +
                 "      }\n" +
-                "      return '@lazyRule=.js:(' + fn.toString() + ')(' + _a.join(',') + ');';\n" +
+                "      return url + '@lazyRule=.js:(' + fn.toString() + ')(' + _a.join(',') + ');';\n" +
                 "    },\n" +
                 "    rule: function(fn) {\n" +
-                "      return selector + '@rule=js:(' + fn.toString() + ')();';\n" +
+                "      return url + '@rule=js:(' + fn.toString() + ')();';\n" +
                 "    },\n" +
                 "    image: function(fn) {\n" +
-                "      try { var _r = fn(); return _r == null ? '' : String(_r); } catch (_e) { return ''; }\n" +
+                "      var _a = [];\n" +
+                "      for (var _i = 1; _i < arguments.length; _i++) {\n" +
+                "        try { _a.push(JSON.stringify(arguments[_i])); } catch (_e) { _a.push('null'); }\n" +
+                "      }\n" +
+                "      return url + '@headers=' + _headersJson + '@js=(' + fn.toString() + ')(' + _a.join(',') + ');';\n" +
                 "    },\n" +
                 "    confirm: function(fn) {\n" +
-                "      return selector + '@confirmRule=js:(' + fn.toString() + ')();';\n" +
+                "      return url + '@confirmRule=js:(' + fn.toString() + ')();';\n" +
                 "    },\n" +
                 "    input: function(fn) {\n" +
                 "      return '@inputRule=.js:(' + fn.toString() + ')();';\n" +
                 "    },\n" +
                 "    b64: function() {\n" +
-                "      return $(selector);\n" +
+                "      return $(url, headers);\n" +
                 "    },\n" +
                 "    x5Rule: function(fn) {\n" +
                 "      return '@x5Rule=js:(' + fn.toString() + ')();';\n" +

@@ -82,18 +82,24 @@ public class HkRouter {
             rule.validate();
             String u = itemUrl == null ? "" : itemUrl.trim();
 
-            // ① @lazyRule= 条目：先求值
+            // ① @lazyRule= 条目：先求值 → dealWithUrl 分流（官方：不进 V4）
             int lr = u.indexOf("@lazyRule=");
             if (lr >= 0) {
                 String v = evalEntryLazy(u, lr);
                 if (v != null) {
                     String vt = v.trim();
                     if (!vt.isEmpty() && !"hiker://empty".equals(vt)) {
-                        // 直接播放判定（放宽）：
-                        // a) 结果含 #isVideo=true# → 官方可播标记；
-                        // b) 规则无 detail_find_rule → V4 必空，求值结果即播放地址（如粉嫩小BB点封面直播）；
-                        // c) 结果形如媒体直链 → 直接播放。
-                        // 完整解析交给 play()，调用方见到 directPlayUrl 跳过 V4。
+                        String kind = dealKind(vt);
+                        if (!kind.isEmpty()) {
+                            // 官方 dealWithUrl：video 直接播放；pics/x5/web/image/magnet 按种类分流，均不进 V4
+                            if ("video".equals(kind)) detail.setDirectPlayUrl(vt);
+                            else {
+                                detail.setDealKind(kind);
+                                detail.setDealUrl(vt);
+                            }
+                            return detail;
+                        }
+                        // 未知种类：回退旧逻辑（无详情规则则直接播放，否则继续 V4 流程）
                         if (vt.contains("#isVideo=true#") || isEmptyDetailRule() || looksLikeMediaUrl(vt)) {
                             detail.setDirectPlayUrl(vt);
                             return detail;
@@ -295,7 +301,9 @@ public class HkRouter {
             String r = decodeConflict(tabUrl.substring(lr + 10).trim()).trim();
             if (r.startsWith(".js:")) r = r.substring(4);
             else if (r.startsWith("js:")) r = r.substring(3);
-            engine.getJsRuntime().evalLazy(r, null);
+            // 官方 LazyRuleParser.parseByJs：input = @lazyRule= 前的 URL 部分（lazyRule[0]）
+            String prefix = tabUrl.substring(0, lr).trim();
+            engine.getJsRuntime().evalLazy(r, prefix.isEmpty() ? null : prefix);
         } catch (Throwable e) {
             Logger.t(TAG).d("tab eval (side effects applied): %s", e.getMessage());
         }
@@ -437,6 +445,52 @@ public class HkRouter {
                 || l.contains(".ts?") || l.contains(".ts&") || l.endsWith(".ts")
                 || l.endsWith(".mkv") || l.endsWith(".avi") || l.contains("mime=video")
                 || l.contains("mime=audio") || l.contains(".mp3") || l.contains(".wav");
+    }
+
+    /**
+     * 官方 UrlDetector.isVideoOrMusic 同款判定（静态规则部分；含 @rule=/@lazyRule= 的返回 false，
+     * 因需先解析）。
+     */
+    public static boolean isVideoOrMusicUrl(String url) {
+        if (url == null || url.isEmpty()) return false;
+        String u = url.trim();
+        if (u.contains("ignoreVideo=true") || u.contains("#ignoreMusic=true#")) return false;
+        if (u.contains("isVideo=true") || u.contains("isMusic=true")) return true;
+        String low = u.toLowerCase();
+        if (low.startsWith("x5play://")) return true;
+        if (u.contains("@rule=") || u.contains("@lazyRule=")) return false;
+        if (low.startsWith("rtmp://") || low.startsWith("rtsp://") || u.contains("video://")) return true;
+        if (low.contains(".mp4.jp") || low.contains(".mp4.png")) return false;
+        return looksLikeMediaUrl(u);
+    }
+
+    /** 是否为图片 URL（静态后缀判定）。 */
+    public static boolean isImageUrl(String url) {
+        if (url == null || url.isEmpty()) return false;
+        String u = url.trim().toLowerCase();
+        if (u.contains("@rule=") || u.contains("@lazyRule=")) return false;
+        int q = u.indexOf('?');
+        if (q >= 0) u = u.substring(0, q);
+        return u.endsWith(".png") || u.endsWith(".jpg") || u.endsWith(".jpeg")
+                || u.endsWith(".gif") || u.endsWith(".webp") || u.endsWith(".bmp");
+    }
+
+    /**
+     * dealWithUrl 分流（官方 ArticleListFragment.dealWithUrl 顺序）：
+     * video=直接播放 / pics=漫画 / x5=webview规则 / web=网页 / image=图片 / magnet=分享 / ""=未知。
+     */
+    public static String dealKind(String url) {
+        if (url == null || url.trim().isEmpty()) return "";
+        String u = url.trim();
+        String low = u.toLowerCase();
+        if (low.startsWith("pics://")) return "pics";
+        if (low.startsWith("x5://")) return "x5";
+        if (isVideoOrMusicUrl(u)) return "video";
+        if (low.startsWith("magnet:") || low.startsWith("thunder://")
+                || low.startsWith("ftp://") || low.startsWith("ed2k://")) return "magnet";
+        if (isImageUrl(u)) return "image";
+        if (low.startsWith("http://") || low.startsWith("https://") || low.startsWith("file://")) return "web";
+        return "";
     }
 
     private String cleanDetailUrl(String url) {
