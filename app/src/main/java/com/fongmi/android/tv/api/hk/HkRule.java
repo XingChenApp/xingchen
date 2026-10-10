@@ -219,6 +219,14 @@ public class HkRule {
         return sdetailFindRule == null ? "" : sdetailFindRule;
     }
 
+    public String getDetailColType() {
+        return detailColType == null ? "" : detailColType;
+    }
+
+    public String getSdetailColType() {
+        return sdetailColType == null ? "" : sdetailColType;
+    }
+
     public String getPreRule() {
         return preRule == null ? "" : preRule;
     }

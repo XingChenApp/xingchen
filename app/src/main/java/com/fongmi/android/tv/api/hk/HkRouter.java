@@ -160,6 +160,15 @@ public class HkRouter {
             } else {
                 String html = HkHttp.get(url, rule.resolvedUa());
                 items = engine.getSelector().parseDetail(html, ruleText, url);
+                // 选择器解析的条目若无 col_type，回退到规则的 detail_col_type（官方 dealRule 语义）
+                String defaultColType = rule.getDetailColType();
+                if (!defaultColType.isEmpty()) {
+                    for (HkDetailItem it : items) {
+                        if (it.getColType() == null || it.getColType().isEmpty()) {
+                            it.setColType(defaultColType);
+                        }
+                    }
+                }
             }
             buildDetail(detail, items);
         } catch (Throwable e) {
@@ -522,6 +531,7 @@ public class HkRouter {
     private List<HkDetailItem> fromJsDetail(String jsCode, String url) throws Exception {
         List<Map<String, String>> raw = engine.getJsRuntime().parseDetailRaw(jsCode, url);
         List<HkDetailItem> items = new ArrayList<>();
+        String defaultColType = rule.getDetailColType();
         for (Map<String, String> m : raw) {
             HkDetailItem it = new HkDetailItem();
             it.setTitle(str(m, "title"));
@@ -537,6 +547,8 @@ public class HkRouter {
             it.setLine(str(m, "line"));
             String col = str(m, "col_type");
             if (col.isEmpty()) col = str(m, "colType");
+            // 官方 dealRule：detail_col_type 作为整页默认样式，无 col_type 的条目回退到它
+            if (col.isEmpty()) col = defaultColType;
             it.setColType(col);
             items.add(it);
         }
