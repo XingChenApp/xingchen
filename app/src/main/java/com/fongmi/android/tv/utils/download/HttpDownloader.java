@@ -135,7 +135,7 @@ public class HttpDownloader {
                     total += len;
                     final long d = total;
                     final long t = totalLength > 0 ? totalLength : -1;
-                    if (listener != null) App.post(() -> listener.onProgress(d, t));
+                    if (listener != null) App.post(() -> { if (!canceled) listener.onProgress(d, t); });
                 }
             }
             if (!canceled && listener != null) {
@@ -206,7 +206,7 @@ public class HttpDownloader {
                     if (canceled) return;
                     raf.write(buf, 0, len);
                     long d = totalDownloaded.addAndGet(len);
-                    if (listener != null) App.post(() -> listener.onProgress(d, totalLength));
+                    if (listener != null) App.post(() -> { if (!canceled) listener.onProgress(d, totalLength); });
                 }
             }
         }

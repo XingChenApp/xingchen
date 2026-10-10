@@ -92,12 +92,14 @@ public class M3u8Downloader {
                 final String segUrl = segments.get(i);
                 executor.submit(() -> {
                     try {
+                        if (canceled) return;
                         File segFile = new File(tmpDir, String.format("%05d.ts", index));
                         if (!segFile.exists() || segFile.length() == 0) {
                             downloadSegment(segUrl, segFile);
                         }
+                        if (canceled) return;
                         int d = done.incrementAndGet();
-                        if (listener != null) App.post(() -> listener.onProgress(d, total));
+                        if (listener != null) App.post(() -> { if (!canceled) listener.onProgress(d, total); });
                     } catch (Exception e) {
                         synchronized (errors) {
                             if (errors.isEmpty()) errors.add(e.getMessage());
