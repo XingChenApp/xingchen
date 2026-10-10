@@ -157,7 +157,12 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                     if (a[i] == Context.getUndefinedValue()) a[i] = null;
                 }
                 Object r = fn.call(a);
-                return r == null ? Context.getUndefinedValue() : r;
+                if (r == null) return Context.getUndefinedValue();
+                // 8.83 同款：用 Context.javaToJS 封装 Java 返回值为 JS 类型
+                // （JSEngine.smali 中多处 invoke-static Context.javaToJS）
+                // 已是 JS 值（String/Number/Boolean/Scriptable）则原样返回，
+                // Java 对象（List/Map/自定义）则封装为 NativeJavaObject
+                return Context.javaToJS(r, scope);
             }
         });
     }
