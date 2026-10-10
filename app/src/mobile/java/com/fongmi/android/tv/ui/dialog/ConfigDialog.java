@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
@@ -13,6 +14,7 @@ import android.view.inputmethod.EditorInfo;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.viewbinding.ViewBinding;
 
@@ -38,6 +40,7 @@ public class ConfigDialog extends BaseAlertDialog {
     private boolean edit;
     private String ori;
     private int type;
+    private Config target;
 
     public static ConfigDialog create() {
         return new ConfigDialog();
@@ -63,6 +66,16 @@ public class ConfigDialog extends BaseAlertDialog {
         return this;
     }
 
+    /**
+     * Edit a specific config (e.g. from the line-management dialog),
+     * instead of the currently active one.
+     */
+    public ConfigDialog edit(Config config) {
+        edit = true;
+        target = config;
+        return this;
+    }
+
     public void show(Fragment fragment) {
         show(fragment.getChildFragmentManager(), null);
     }
@@ -79,7 +92,7 @@ public class ConfigDialog extends BaseAlertDialog {
 
     @Override
     protected void initView() {
-        Config config = getConfig();
+        Config config = target != null ? target : getConfig();
         binding.title.setText(getDialogTitle());
         binding.positive.setText(edit ? R.string.dialog_edit : R.string.dialog_positive);
         String name = (edit && config != null && config.getName() != null) ? config.getName() : "";
@@ -120,6 +133,15 @@ public class ConfigDialog extends BaseAlertDialog {
                 binding.getRoot().setBackground(requireActivity().getDrawable(R.drawable.dialog_glass));
             } catch (Exception e) {}
         }
+    }
+
+    @Override
+    public void onDismiss(@NonNull android.content.DialogInterface dialog) {
+        super.onDismiss(dialog);
+        // Notify host (e.g. line-management dialog) to refresh its list
+        try {
+            getParentFragmentManager().setFragmentResult("xsg_config_changed", new Bundle());
+        } catch (Exception e) {}
     }
 
     private Config getConfig() {

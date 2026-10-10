@@ -45,4 +45,30 @@
         android:text="使用"
         android:textColor="#F0A400"
         android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/edit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/dialog_glass"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="8dp"
+        android:text="编辑"
+        android:textColor="#3A3F45"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/delete"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/dialog_glass"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="8dp"
+        android:text="删除"
+        android:textColor="#E5484D"
+        android:textSize="13sp"
+        android:visibility="gone" />
 </LinearLayout>

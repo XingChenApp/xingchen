@@ -73,11 +73,27 @@ public class ConfigHistoryDialog extends DialogFragment {
         initEvent();
     }
 
+    private ConfigHistoryAdapter createAdapter(List<Config> items) {
+        ConfigHistoryAdapter adapter = new ConfigHistoryAdapter(items, this::onUse);
+        adapter.setOnManageListener(new ConfigHistoryAdapter.OnManageListener() {
+            @Override
+            public void onEdit(Config config) {
+                openEditor(config);
+            }
+
+            @Override
+            public void onDelete(Config config) {
+                onDelete(config);
+            }
+        });
+        return adapter;
+    }
+
     private void initView() {
         List<Config> items = AppDatabase.get().getConfigDao().findByType(type);
         binding.empty.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
         binding.recycler.setVisibility(items.isEmpty() ? View.GONE : View.VISIBLE);
-        adapter = new ConfigHistoryAdapter(items, this::onUse);
+        adapter = createAdapter(items);
         binding.recycler.setLayoutManager(new LinearLayoutManager(getContext()));
         binding.recycler.setAdapter(adapter);
 
@@ -104,6 +120,56 @@ public class ConfigHistoryDialog extends DialogFragment {
 
     private void initEvent() {
         binding.clear.setOnClickListener(v -> onClear());
+        binding.add.setOnClickListener(v -> onAdd());
+    }
+
+    private void refreshList() {
+        List<Config> items = AppDatabase.get().getConfigDao().findByType(type);
+        binding.empty.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
+        binding.recycler.setVisibility(items.isEmpty() ? View.GONE : View.VISIBLE);
+        adapter.updateItems(items);
+    }
+
+    /**
+     * 添加线路：打开新增弹窗，关闭后刷新列表。
+     */
+    private void onAdd() {
+        try {
+            getChildFragmentManager().setFragmentResultListener("xsg_config_changed", this, (key, bundle) -> refreshList());
+            ConfigDialog.create().vod().show(this);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 编辑指定线路：预填该线路的名称和地址，保存后刷新列表。
+     */
+    private void openEditor(Config config) {
+        try {
+            getChildFragmentManager().setFragmentResultListener("xsg_config_changed", this, (key, bundle) -> refreshList());
+            ConfigDialog.create().vod().edit(config).show(this);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 删除指定线路（二次确认）。
+     */
+    private void onDelete(Config config) {
+        boolean active = adapter != null && adapter.isActive(config);
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("删除线路")
+            .setMessage("确定要删除该线路吗？" + (active ? "\n（这是当前正在使用的线路）" : "") + "\n" + config.getDesc())
+            .setPositiveButton("删除", (d, w) -> {
+                AppDatabase.get().getConfigDao().delete(config.getUrl(), type);
+                refreshList();
+                Notify.show(active ? "已删除当前线路，请重新选择" : "已删除");
+            })
+            .setNegativeButton("取消", null)
+            .create()
+            .show();
     }
 
     private void onUse(Config config) {
@@ -148,12 +214,12 @@ public class ConfigHistoryDialog extends DialogFragment {
 
     private void onClear() {
         androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-            .setTitle("清空历史")
-            .setMessage("确定要清空全部历史记录吗？")
+            .setTitle("清空线路")
+            .setMessage("确定要删除全部线路吗？")
             .setPositiveButton("确定", (d, w) -> {
                 java.util.List<Config> items = AppDatabase.get().getConfigDao().findByType(type);
                 for (Config c : items) AppDatabase.get().getConfigDao().delete(c.getUrl(), type);
-                adapter = new ConfigHistoryAdapter(java.util.Collections.emptyList(), this::onUse);
+                adapter = createAdapter(new java.util.ArrayList<>());
                 binding.recycler.setAdapter(adapter);
                 binding.empty.setVisibility(View.VISIBLE);
                 binding.recycler.setVisibility(View.GONE);

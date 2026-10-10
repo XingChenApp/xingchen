@@ -14,7 +14,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerVertical="true"
-            android:text="历史记录"
+            android:text="线路管理"
             android:textColor="#0C0E12"
             android:textSize="20sp"
             android:textStyle="bold" />
@@ -43,8 +43,21 @@
         android:layout_width="match_parent"
         android:layout_height="320dp"
         android:gravity="center"
-        android:text="暂无历史记录"
+        android:text="暂无线路，点击下方按钮添加"
         android:textColor="#101216"
         android:textSize="14sp"
         android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/add"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/dialog_glass"
+        android:gravity="center"
+        android:paddingVertical="12dp"
+        android:text="＋ 添加线路"
+        android:textColor="#F0A400"
+        android:textSize="15sp"
+        android:textStyle="bold" />
 </LinearLayout>
