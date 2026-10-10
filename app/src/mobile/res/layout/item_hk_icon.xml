@@ -27,7 +27,7 @@
         android:layout_marginTop="6dp"
         android:ellipsize="end"
         android:gravity="center_horizontal"
-        android:maxLines="2"
+        android:maxLines="1"
         android:textColor="#101216"
         android:textSize="15sp" />
 </LinearLayout>

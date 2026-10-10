@@ -511,7 +511,7 @@
         value: $,
         writable: true,
         enumerable: true,
-        configurable: false
+        configurable: true
     });
     goPreRule();
     if (typeof $.initHiker === "function") {
