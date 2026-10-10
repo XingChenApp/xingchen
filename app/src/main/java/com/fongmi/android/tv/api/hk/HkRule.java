@@ -72,6 +72,12 @@ public class HkRule {
     /** 运行时启用开关，不序列化进 rule.json，由 HkRuleManager 持久化。 */
     private transient boolean enabled = true;
 
+    /**
+     * 页面参数（hiker://page/ 子页面用）：点击条目的 extra 序列化 JSON，
+     * 页面 rule 里通过 MY_PARAMS 取用。不序列化，运行时设置。
+     */
+    private transient String pageParams = "";
+
     /** 导入校验：title/find_rule 非空；js: 规则允许 url 为空（自包含）。type 不限制（video/music/cartoon 等均可导入）。 */
     public void validate() {
         if (isEmpty(title)) throw new IllegalArgumentException("规则缺少 title");
@@ -259,6 +265,7 @@ public class HkRule {
         r.lastChapterRule = this.lastChapterRule;
         r.icon = this.icon;
         r.enabled = this.enabled;
+        r.pageParams = this.pageParams;
         return r;
     }
 
@@ -296,6 +303,14 @@ public class HkRule {
 
     public String getIcon() {
         return icon == null ? "" : icon;
+    }
+
+    public String getPageParams() {
+        return pageParams == null ? "" : pageParams;
+    }
+
+    public void setPageParams(String pageParams) {
+        this.pageParams = pageParams == null ? "" : pageParams;
     }
 
     public boolean isEnabled() {

@@ -1316,6 +1316,8 @@ public class HkPageActivity extends BaseActivity {
         // 顺序与官方一致：只看 @rule= 前段是否含 @lazyRule=，含则走 lazy 预检不进子列表。
         if (item != null && !TextUtils.isEmpty(item.getUrl())) {
             String u = item.getUrl().trim();
+            // P1：hiker://page/ 子页面走 openPage（官方 toNextPage），不进 V4
+            if (u.startsWith("hiker://page/") && openPage(item, u)) return;
             int ar = u.indexOf("@rule=");
             if (ar >= 0 && !u.substring(0, ar).contains("@lazyRule=")) {
                 if (openSubList(item, u)) return;
@@ -1793,6 +1795,8 @@ public class HkPageActivity extends BaseActivity {
                 if (pos == RecyclerView.NO_POSITION || currentRule == null) return;
                 HkItem it = items.get(pos);
                 String mu = it.getUrl() == null ? "" : it.getUrl();
+                // P1：hiker://page/ 子页面走 openPage，不进 V4
+                if (mu.trim().startsWith("hiker://page/") && openPage(it, mu)) return;
                 openDetail(it, !fromContent, mu.contains("@lazyRule="));
             });
         }
@@ -1946,6 +1950,8 @@ public class HkPageActivity extends BaseActivity {
         if (it == null || currentRule == null || TextUtils.isEmpty(it.getUrl())) return;
         String url = it.getUrl().trim();
         if (handleActionUrl(url, it)) return;
+        // P1：hiker://page/ 子页面走 openPage（官方 toNextPage），不进 V4
+        if (url.startsWith("hiker://page/") && openPage(it, url)) return;
         // 官方 clickItem 顺序：@rule= 前段里的 @lazyRule= 优先（dealLazyRule），再是 @rule=（dealRule 子列表）
         int ar = url.indexOf("@rule=");
         String preRule = ar >= 0 ? url.substring(0, ar) : url;
@@ -2075,6 +2081,93 @@ public class HkPageActivity extends BaseActivity {
             showView(stack.peek());
         }
         return true;
+    }
+
+    /**
+     * P1：hiker://page/ 子页面（官方 PageParser.getNextPage/toNextPage 语义）。
+     * 条目 URL 如 hiker://page/erji1?page=fypage#noHistory# 时，不进 V4 详情，
+     * 而是按 path 在规则 pages 里找对应页面，用其 rule/col_type 开新列表页，
+     * 条目 extra 注入为新页面的 MY_PARAMS。返回 true 表示已消费。
+     */
+    private boolean openPage(HkItem it, String url) {
+        try {
+            if (it == null || currentRule == null || TextUtils.isEmpty(url)) return false;
+            String u = url.trim();
+            if (!u.startsWith("hiker://page/")) return false;
+            // 取 path：hiker://page/erji1?page=..#.. → erji1
+            String path = u.substring("hiker://page/".length());
+            int q = path.indexOf('?');
+            if (q >= 0) path = path.substring(0, q);
+            int h = path.indexOf('#');
+            if (h >= 0) path = path.substring(0, h);
+            path = path.trim();
+            if (path.isEmpty()) return false;
+            // 在规则 pages 里找对应页面
+            String pagesJson = currentRule.getPages();
+            if (TextUtils.isEmpty(pagesJson)) return false;
+            org.json.JSONArray pages = new org.json.JSONArray(pagesJson);
+            org.json.JSONObject pageObj = null;
+            for (int i = 0; i < pages.length(); i++) {
+                org.json.JSONObject p = pages.optJSONObject(i);
+                if (p != null && path.equals(p.optString("path"))) {
+                    pageObj = p;
+                    break;
+                }
+            }
+            if (pageObj == null) return false;
+            String pageRule = pageObj.optString("rule");
+            if (TextUtils.isEmpty(pageRule)) return false;
+            String colType = pageObj.optString("col_type");
+            if (TextUtils.isEmpty(colType)) colType = currentRule.getColType();
+            // 压栈保存父列表状态（复用子列表机制，返回时恢复）
+            SubListState st = new SubListState();
+            st.rule = currentRule;
+            st.title = binding.tvContentTitle.getText().toString();
+            st.page = page;
+            st.cls = cls;
+            st.area = area;
+            st.year = year;
+            st.sort = sort;
+            st.videos = new java.util.ArrayList<>(videos);
+            st.scrollPos = contentGrid == null ? 0 : contentGrid.findFirstVisibleItemPosition();
+            st.fromView = stack.isEmpty() ? V_CONTENT : stack.peek();
+            subStack.push(st);
+            // 派生子规则：find_rule 用页面 rule；extra → MY_PARAMS
+            HkRule sub = currentRule.deriveSubRule(u, pageRule, colType);
+            sub.clearNav();
+            java.util.Map<String, String> extra = it.getExtra();
+            if (extra != null && !extra.isEmpty()) {
+                try {
+                    sub.setPageParams(new org.json.JSONObject(extra).toString());
+                } catch (Throwable ignored) {
+                    sub.setPageParams("");
+                }
+            } else {
+                sub.setPageParams("");
+            }
+            destroyRouterAsync();
+            currentRule = sub;
+            cls = "";
+            area = "";
+            year = "";
+            sort = "";
+            page = 1;
+            noMore = false;
+            loading = false;
+            contentGen++;
+            videos.clear();
+            String pageTitle = pageObj.optString("name");
+            String itemTitle = stripHtml(it.getTitle());
+            binding.tvContentTitle.setText(!pageTitle.isEmpty() ? pageTitle : (itemTitle.isEmpty() ? st.title : itemTitle));
+            buildCategoryRow();
+            buildFilterRows();
+            if (st.fromView != V_CONTENT) pushView(V_CONTENT);
+            else showView(V_CONTENT);
+            loadContent(true);
+            return true;
+        } catch (Throwable e) {
+            return false;
+        }
     }
 
     /**
@@ -2673,6 +2766,8 @@ public class HkPageActivity extends BaseActivity {
                 if (pos == RecyclerView.NO_POSITION || currentRule == null) return;
                 HkItem it = items.get(pos);
                 String u = it.getUrl() == null ? "" : it.getUrl();
+                // P1：hiker://page/ 子页面走 openPage，不进 V4
+                if (u.trim().startsWith("hiker://page/") && openPage(it, u)) return;
                 openDetail(it, true, u.contains("@lazyRule="));
             });
         }

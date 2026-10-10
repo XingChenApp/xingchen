@@ -82,6 +82,13 @@ public class HkRouter {
             rule.validate();
             String u = itemUrl == null ? "" : itemUrl.trim();
 
+            // P1：hiker://page/ 子页面不进 V4（应由 openPage 打开新列表页）；
+            // 若走到这里说明调用方漏拦截，直接返回空详情避免"0条线路"空 V4。
+            if (u.startsWith("hiker://page/")) {
+                detail.setLazyParseFailed(true);
+                return detail;
+            }
+
             // ① @lazyRule= 条目：先求值 → dealWithUrl 分流（官方：不进 V4）
             int lr = u.indexOf("@lazyRule=");
             if (lr >= 0) {

@@ -44,7 +44,8 @@ public class HkEngine {
                     : HkHttp.expandUrl(rule.getUrl(), cls, area, year, sort, page);
             if (js) {
                 // P1：注入 MY_TYPE/MY_CLASS_URL/MY_CLASS_NAME 等官方变量
-                jsRuntime.setListContext("home", safe(cls), classNameOf(cls), "", safe(area), safe(year), safe(sort));
+                // pageParams：hiker://page/ 子页面由点击条目的 extra 注入 MY_PARAMS
+                jsRuntime.setListContext("home", safe(cls), classNameOf(cls), rule.getPageParams(), safe(area), safe(year), safe(sort));
                 return jsRuntime.parseList(findRule, url, page);
             }
             String html = HkHttp.get(url, rule.resolvedUa());
