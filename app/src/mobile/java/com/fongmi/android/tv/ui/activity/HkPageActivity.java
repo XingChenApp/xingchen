@@ -238,13 +238,33 @@ public class HkPageActivity extends BaseActivity {
         }).start();
     }
 
+    /** 导入入口：三个选项各做成独立卡片框，有间距（选项类弹窗统一按此样式）。 */
     private void showImportDialog() {
-        new AlertDialog.Builder(this)
-                .setItems(new String[]{"从文件导入", "从云口令导入", "粘贴规则 JSON"}, (d, which) -> {
-                    if (which == 0) pickRuleFile();
-                    else if (which == 1) showCloudCodeDialog(null);
-                    else showPasteDialog();
-                }).show();
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(20), dp(16), dp(20), dp(16));
+        String[] labels = {"从文件导入", "从云口令导入", "粘贴规则 JSON"};
+        AlertDialog dialog = new AlertDialog.Builder(this).setView(root).create();
+        for (int i = 0; i < labels.length; i++) {
+            TextView tv = new TextView(this);
+            tv.setText(labels[i]);
+            tv.setTextColor(0xFFF2F4F8);
+            tv.setTextSize(16);
+            tv.setBackgroundResource(R.drawable.dialog_option_card);
+            tv.setPadding(dp(16), dp(14), dp(16), dp(14));
+            final int which = i;
+            tv.setOnClickListener(v -> {
+                dialog.dismiss();
+                if (which == 0) pickRuleFile();
+                else if (which == 1) showCloudCodeDialog(null);
+                else showPasteDialog();
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            if (i > 0) lp.topMargin = dp(10);
+            root.addView(tv, lp);
+        }
+        dialog.show();
     }
 
     /** 云口令导入对话框（支持 云1~云10 开头，如 云6oooole/apidb/xxxx）。 */
@@ -535,11 +555,13 @@ public class HkPageActivity extends BaseActivity {
         }
         ListView listView = new ListView(this);
         listView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
+        listView.setDivider(null);
+        listView.setDividerHeight(0);
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
                 R.layout.item_hk_pick, labels);
         listView.setAdapter(adapter);
         for (int i = 0; i < labels.size(); i++) listView.setItemChecked(i, true);
-        int rowPx = (int) (56 * density);
+        int rowPx = (int) (64 * density);
         int listH = Math.min(rowPx * labels.size(), rowPx * 7);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, listH);

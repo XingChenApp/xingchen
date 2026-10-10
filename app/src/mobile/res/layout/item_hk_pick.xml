@@ -1,17 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<CheckedTextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@android:id/text1"
+<!-- 一键导入勾选弹窗的单个规则项：独立卡片框，项之间用间距隔开 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:minHeight="48dp"
-    android:gravity="center_vertical"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp"
-    android:paddingTop="12dp"
-    android:paddingBottom="12dp"
-    android:textSize="15sp"
-    android:textColor="#F2F4F8"
-    android:checkMark="?android:attr/listChoiceIndicatorMultiple"
-    android:checkMarkTint="#D4A017"
-    android:ellipsize="end"
-    android:maxLines="1" />
+    android:layout_marginTop="5dp"
+    android:layout_marginBottom="5dp"
+    android:orientation="vertical">
+
+    <CheckedTextView
+        android:id="@android:id/text1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="54dp"
+        android:background="@drawable/dialog_option_card"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:textSize="15sp"
+        android:textColor="#F2F4F8"
+        android:checkMark="?android:attr/listChoiceIndicatorMultiple"
+        android:checkMarkTint="#D4A017"
+        android:ellipsize="end"
+        android:maxLines="1" />
+
+</LinearLayout>
