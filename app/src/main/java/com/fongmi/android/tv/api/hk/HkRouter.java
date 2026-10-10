@@ -55,8 +55,17 @@ public class HkRouter {
     }
 
     /**
-     * 详情：请求条目页 → detail_find_rule（搜索来源且 sdetail 非 * 时用 sdetail_find_rule）
-     * → HkDetail。item 用于标题/封面/简介回退。
+     * V4 详情：先看条目 URL 自带逻辑，再看规则的 detail_find_rule。
+     *
+     * <p>98/115 条规则的 detail_find_rule 为空，V4 全靠条目 URL 分流：</p>
+     * <ol>
+     *   <li>{@code @lazyRule=}（如大哥视频）：先求值；结果含 {@code #isVideo=true#}
+     *       → 置 directPlayUrl 标记，调用方跳过 V4 直接播放；否则用求值结果 URL 继续；</li>
+     *   <li>{@code @rule=js:}（如 MissAV）：{@code @rule=} 前为 pageUrl（MY_URL），
+     *       js 部分求值出详情；</li>
+     *   <li>纯 {@code js:}（$.toString 生成）：求值得到真实 URL 后继续；</li>
+     *   <li>最后走原有 detail_find_rule 流程。</li>
+     * </ol>
      */
     public HkDetail detail(String itemUrl, HkItem item, boolean fromSearch) {
         HkDetail detail = new HkDetail();
@@ -67,9 +76,42 @@ public class HkRouter {
         }
         try {
             rule.validate();
+            String u = itemUrl == null ? "" : itemUrl.trim();
+
+            // ① @lazyRule= 条目：先求值
+            int lr = u.indexOf("@lazyRule=");
+            if (lr >= 0) {
+                String v = evalEntryLazy(u, lr);
+                if (v != null && v.contains("#isVideo=true#")) {
+                    // 官方行为：可播直链 → 跳过 V4，直接播放（完整解析交给 play()）
+                    detail.setDirectPlayUrl(v.trim());
+                    return detail;
+                }
+                u = (v == null || v.trim().isEmpty()) ? u.substring(0, lr).trim() : v.trim();
+            }
+
+            // ② 纯 js: 条目（$.toString 生成）：求值得到真实 URL
+            if (u.startsWith("js:")) {
+                String v = evalEntryJs(u);
+                if (v != null && !v.trim().isEmpty()) u = v.trim();
+            }
+
+            // ③ @rule=js: 条目：pageUrl 为 MY_URL，js 部分求值出详情
+            int ar = u.indexOf("@rule=");
+            if (ar >= 0) {
+                String pageUrl = cleanDetailUrl(u.substring(0, ar).trim());
+                String entryRule = u.substring(ar + 6).trim();
+                if (entryRule.startsWith("js:")) {
+                    buildDetail(detail, fromJsDetail(entryRule, pageUrl));
+                    return detail;
+                }
+                u = pageUrl;
+            }
+
+            // ④ 原有 detail_find_rule 流程
             String ruleText = effectiveDetailRule(fromSearch);
             if (ruleText == null || ruleText.trim().isEmpty()) return detail;
-            String url = cleanDetailUrl(itemUrl);
+            String url = cleanDetailUrl(u);
             List<HkDetailItem> items;
             if (HkSelector.isJsRule(ruleText)) {
                 items = fromJsDetail(ruleText, url);
@@ -82,6 +124,41 @@ public class HkRouter {
             Logger.t(TAG).d("detail failed: %s", e.getMessage());
         }
         return detail;
+    }
+
+    /**
+     * 条目 URL 里的 {@code @lazyRule=} 求值（与 play() 的 resolveLazyRule 同逻辑，
+     * 返回原始求值结果；失败返回 null）。
+     */
+    private String evalEntryLazy(String fullUrl, int lrIndex) {
+        try {
+            String pageUrl = fullUrl.substring(0, lrIndex).trim();
+            String r = decodeConflict(fullUrl.substring(lrIndex + 10).trim()).trim();
+            boolean js = false;
+            if (r.startsWith(".js:")) {
+                r = r.substring(4);
+                js = true;
+            } else if (r.startsWith("js:")) {
+                r = r.substring(3);
+                js = true;
+            }
+            if (js) return engine.getJsRuntime().evalLazy(r, pageUrl);
+            String html = HkHttp.get(pageUrl, rule.resolvedUa());
+            return engine.getSelector().evalField(html, r, pageUrl);
+        } catch (Throwable e) {
+            Logger.t(TAG).d("entry lazyRule eval failed: %s", e.getMessage());
+            return null;
+        }
+    }
+
+    /** 纯 js: 条目求值（$.toString 生成），期望返回真实 URL 字符串。 */
+    private String evalEntryJs(String u) {
+        try {
+            return engine.getJsRuntime().evalLazy(u.substring(3), u);
+        } catch (Throwable e) {
+            Logger.t(TAG).d("entry js eval failed: %s", e.getMessage());
+            return null;
+        }
     }
 
     /**

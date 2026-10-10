@@ -1028,7 +1028,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 "      return '@lazyRule=.js:(' + fn.toString() + ')(' + _a.join(',') + ');';\n" +
                 "    },\n" +
                 "    rule: function(fn) {\n" +
-                "      return 'js:(' + fn.toString() + ')();';\n" +
+                "      return selector + '@rule=js:(' + fn.toString() + ')();';\n" +
                 "    }\n" +
                 "  };\n" +
                 "}\n" +

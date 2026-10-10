@@ -1242,6 +1242,16 @@ public class HkPageActivity extends BaseActivity {
             final HkDetail result = detail;
             App.post(() -> {
                 binding.tvDetailLoading.setVisibility(View.GONE);
+                String direct = result == null ? "" : result.getDirectPlayUrl();
+                if (!TextUtils.isEmpty(direct)) {
+                    // 条目自带 @lazyRule= 且求值为 #isVideo=true#：跳过 V4，直接播放
+                    // （directPlayUrl 检查必须在 isEmpty() 之前：直接播放的 detail 无线路）
+                    onBackInvoked(); // 弹出已 push 的 V_DETAIL，播放器返回时回到列表
+                    VideoActivity.startHkPlay(HkPageActivity.this,
+                            currentRule == null ? "" : currentRule.getTitle(), "默认",
+                            direct, item.getTitle(), item.getTitle(), item.getPic());
+                    return;
+                }
                 if (result == null || result.isEmpty()) {
                     binding.detailScroll.setVisibility(View.GONE);
                     binding.tvDetailEmpty.setVisibility(View.VISIBLE);

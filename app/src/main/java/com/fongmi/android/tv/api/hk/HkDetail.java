@@ -53,6 +53,20 @@ public class HkDetail {
     private String pic = "";
     private String content = "";
     private final List<Line> lines = new ArrayList<>();
+    /**
+     * 直接播放标记：条目 URL 自带 @lazyRule= 且求值结果含 #isVideo=true#
+     * 时设置。调用方见到非空应跳过 V4，直接走播放链（HkRouter.play 解析）。
+     * 注意 isEmpty() 只看 lines，检查本字段必须在 isEmpty() 之前。
+     */
+    private String directPlayUrl = "";
+
+    public String getDirectPlayUrl() {
+        return directPlayUrl;
+    }
+
+    public void setDirectPlayUrl(String directPlayUrl) {
+        if (directPlayUrl != null) this.directPlayUrl = directPlayUrl;
+    }
 
     public String getTitle() {
         return title;
