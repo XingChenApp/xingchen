@@ -63,7 +63,7 @@
             android:layout_marginBottom="8dp"
             android:paddingLeft="4dp"
             android:text="仅检测 PY / JS 插件源"
-            android:textColor="#61676F"
+            android:textColor="#43484F"
             android:textSize="13sp" />
 
         <TextView
@@ -73,7 +73,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="暂无 PY / JS 源"
-            android:textColor="#61676F"
+            android:textColor="#43484F"
             android:textSize="14sp"
             android:visibility="gone" />
 
