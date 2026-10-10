@@ -163,7 +163,20 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             // 官方内置 Hikerurl.js（$ 工具库）：自动注入为全局，定义 $.lazyRule/$.rule/$.image 等；
             // 官方 JSEngine.allFunctionsEnd 会 eval(getJsPlugin())，规则直接调 $ 方法时也需要
+            // Hikerurl.js 引用官方 Java 类 com.example.hikerview..RequireUtils（模块缓存映射），
+            // 宿主无此 Java 类时整文件求值失败导致 $ 残缺；先在 JS 层 stub 该命名空间（官方调用处有 try-catch）
             try {
+                ctx.evaluate(
+                    "var com = (typeof com !== 'undefined') ? com : {};\n" +
+                    "com.example = com.example || {};\n" +
+                    "com.example.hikerview = com.example.hikerview || {};\n" +
+                    "com.example.hikerview.ui = com.example.hikerview.ui || {};\n" +
+                    "com.example.hikerview.ui.rules = com.example.hikerview.ui.rules || {};\n" +
+                    "com.example.hikerview.ui.rules.service = com.example.hikerview.ui.rules.service || {};\n" +
+                    "com.example.hikerview.ui.rules.service.require = com.example.hikerview.ui.rules.service.require || {};\n" +
+                    "com.example.hikerview.ui.rules.service.require.RequireUtils = " +
+                    "com.example.hikerview.ui.rules.service.require.RequireUtils || { generateRequireMap: function() {} };\n"
+                );
                 String hikerUrlJs = loadAsset("Hikerurl.js");
                 if (!TextUtils.isEmpty(hikerUrlJs)) ctx.evaluate(hikerUrlJs);
             } catch (Throwable e) {
