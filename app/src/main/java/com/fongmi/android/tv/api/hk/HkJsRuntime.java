@@ -84,6 +84,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     private final Map<String, MemCache> memCache = new HashMap<>();
     /** setPreResult 预返回 staging：下一记 setResult/setSearchResult 先清空。 */
     private boolean preResultActive;
+    /** refreshPage 请求标记（JS 线程写，宿主线程读后清零）。 */
+    private volatile boolean refreshRequested;
+    private volatile boolean refreshToTop;
     /** setPageTitle/getPageTitle 的页标题状态。 */
     private String pageTitle = "";
     /** 当前页码（MY_PAGE 注入用）。 */
@@ -215,29 +218,29 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         ctx.getGlobalObject().setProperty("parseDom", args -> {
             if (args == null || args.length < 2) return "";
             String urlKey = args.length > 2 && args[2] != null ? String.valueOf(args[2]) : (lastUrl == null ? "" : lastUrl);
-            return parser.pdfh(String.valueOf(args[0]), String.valueOf(args[1]), urlKey);
+            return parser.pdfh(String.valueOf(args[0]), sel(args[1]), urlKey);
         });
         ctx.getGlobalObject().setProperty("pd", args -> {
             if (args == null || args.length < 2) return "";
             String urlKey = args.length > 2 && args[2] != null ? String.valueOf(args[2]) : (lastUrl == null ? "" : lastUrl);
-            return parser.pdfh(String.valueOf(args[0]), String.valueOf(args[1]), urlKey);
+            return parser.pdfh(String.valueOf(args[0]), sel(args[1]), urlKey);
         });
         ctx.getGlobalObject().setProperty("parseDomForHtml", args -> {
             if (args == null || args.length < 2) return "";
-            return parser.pdfh(String.valueOf(args[0]), String.valueOf(args[1]), "");
+            return parser.pdfh(String.valueOf(args[0]), sel(args[1]), "");
         });
         ctx.getGlobalObject().setProperty("pdfh", args -> {
             if (args == null || args.length < 2) return "";
-            return parser.pdfh(String.valueOf(args[0]), String.valueOf(args[1]), "");
+            return parser.pdfh(String.valueOf(args[0]), sel(args[1]), "");
         });
         ctx.getGlobalObject().setProperty("parseDomForArray", args -> {
             if (args == null || args.length < 2) return JSUtil.toArray(ctx, new ArrayList<>());
-            List<String> items = parser.pdfa(String.valueOf(args[0]), String.valueOf(args[1]));
+            List<String> items = parser.pdfa(String.valueOf(args[0]), sel(args[1]));
             return JSUtil.toArray(ctx, items);
         });
         ctx.getGlobalObject().setProperty("pdfa", args -> {
             if (args == null || args.length < 2) return JSUtil.toArray(ctx, new ArrayList<>());
-            List<String> items = parser.pdfa(String.valueOf(args[0]), String.valueOf(args[1]));
+            List<String> items = parser.pdfa(String.valueOf(args[0]), sel(args[1]));
             return JSUtil.toArray(ctx, items);
         });
 
@@ -893,19 +896,19 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         // ---- 下划线内部别名（兼容老规则写法） ----
         ctx.getGlobalObject().setProperty("_pd", args -> {
             if (args == null || args.length < 2) return "";
-            return parser.pdfh(String.valueOf(args[0]), String.valueOf(args[1]), "");
+            return parser.pdfh(String.valueOf(args[0]), sel(args[1]), "");
         });
         ctx.getGlobalObject().setProperty("_pdfh", args -> {
             if (args == null || args.length < 2) return "";
-            return parser.pdfh(String.valueOf(args[0]), String.valueOf(args[1]), "");
+            return parser.pdfh(String.valueOf(args[0]), sel(args[1]), "");
         });
         ctx.getGlobalObject().setProperty("_pdfa", args -> {
             if (args == null || args.length < 2) return JSUtil.toArray(ctx, new ArrayList<>());
-            return JSUtil.toArray(ctx, parser.pdfa(String.valueOf(args[0]), String.valueOf(args[1])));
+            return JSUtil.toArray(ctx, parser.pdfa(String.valueOf(args[0]), sel(args[1])));
         });
         ctx.getGlobalObject().setProperty("_pdfl", args -> {
             if (args == null || args.length < 2) return JSUtil.toArray(ctx, new ArrayList<>());
-            return JSUtil.toArray(ctx, parser.pdfa(String.valueOf(args[0]), String.valueOf(args[1])));
+            return JSUtil.toArray(ctx, parser.pdfa(String.valueOf(args[0]), sel(args[1])));
         });
         ctx.getGlobalObject().setProperty("_findItem", args -> "");
         ctx.getGlobalObject().setProperty("_findItemsByCls", args -> "[]");
@@ -913,6 +916,16 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         // ---- xpath（宿主 Parser 基于 jsoup，不支持 xpath，走空） ----
         ctx.getGlobalObject().setProperty("xpath", args -> "");
         ctx.getGlobalObject().setProperty("xpa", args -> JSUtil.toArray(ctx, new ArrayList<>()));
+
+        // ---- refreshPage：官方刷新当前页（bool 为 true 时回顶）。宿主实现为"刷新请求"
+        // 标记：lazyRule 回调（如 tab 切换 setItem 后调 refreshPage(true)）经 evalLazy 求值，
+        // HkRouter.evalTab 消费该标记后由上层 loadContent(true) 重刷，语义与官方一致。
+        ctx.getGlobalObject().setProperty("refreshPage", args -> {
+            refreshRequested = true;
+            refreshToTop = args != null && args.length > 0 && Boolean.parseBoolean(String.valueOf(args[0]));
+            Logger.t(TAG).d("refreshPage(%s) requested", refreshToTop);
+            return null;
+        });
 
         // ---- 其余官方 API：宿主无对应能力，一律安全桩（防 ReferenceError，中断规则） ----
         // 导航/UI 类
@@ -1537,8 +1550,27 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         return selector;
     }
 
+    /** 选择器文本预处理：冲突字符解码（？？→?、＆＆→&、；；→;、，，→,）。 */
+    private String sel(Object o) {
+        return HkSelector.decodeConflict(String.valueOf(o));
+    }
+
     public String getError() {
         return error;
+    }
+
+    /**
+     * 取走 refreshPage 请求标记（读后清零）。供 HkRouter.evalTab 等在 JS 求值后检查：
+     * 若规则回调里调了 refreshPage，上层应重刷当前列表。
+     */
+    public boolean consumeRefreshRequest() {
+        boolean r = refreshRequested;
+        refreshRequested = false;
+        return r;
+    }
+
+    public boolean isRefreshToTop() {
+        return refreshToTop;
     }
 
     public void destroy() {

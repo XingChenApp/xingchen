@@ -237,11 +237,14 @@ public class HkRouter {
      * V2 分类 tab 点击：求值条目 url 里的 {@code @lazyRule=}，只为其副作用
      * （如 {@code putMyVar} 设置分类变量），不取播放地址。调用后由上层重新
      * {@code loadContent(true)} 刷新列表。求值异常只打日志，不抛给上层。
+     *
+     * @return 规则回调里是否调了 refreshPage（调用方据此决定是否重刷；当前
+     * HkPageActivity 在 evalTab 后本来就会 loadContent(true)，故恒为 true 语义）
      */
-    public void evalTab(String tabUrl) {
-        if (tabUrl == null) return;
+    public boolean evalTab(String tabUrl) {
+        if (tabUrl == null) return false;
         int lr = tabUrl.indexOf("@lazyRule=");
-        if (lr < 0) return;
+        if (lr < 0) return false;
         try {
             String r = decodeConflict(tabUrl.substring(lr + 10).trim()).trim();
             if (r.startsWith(".js:")) r = r.substring(4);
@@ -250,6 +253,11 @@ public class HkRouter {
         } catch (Throwable e) {
             Logger.t(TAG).d("tab eval (side effects applied): %s", e.getMessage());
         }
+        // 规则标准写法是 setItem(...); refreshPage(true); —— 无论是否显式调用，
+        // tab 点击后都需要重刷；显式调用时打日志便于排障。
+        boolean asked = engine.getJsRuntime().consumeRefreshRequest();
+        Logger.t(TAG).d("tab eval done, refreshPage asked=%s", asked);
+        return true;
     }
 
     /**
@@ -397,17 +405,28 @@ public class HkRouter {
 
     /**
      * 组装 HkDetail：
-     * - col_type 含 long_text → 简介；
+     * - {@code copy://} → 复制按钮；
+     * - col_type 含 long_text / text_* / rich_text / text_center → 简介内容区（换行拼接）；
      * - 纯展示项（无可播链接）→ 标题/封面回退；
-     * - 其余按 line 分组为线路/选集。
+     * - 其余（含 pic_1 播放按钮、带 lazyRule 地址的条目）按 line 分组为线路/选集；
+     * - 选集名为空时 Line.addEpisode 自动回退为"第N集"；line 为空的并入"默认"线路。
      */
     private void buildDetail(HkDetail detail, List<HkDetailItem> items) {
         if (items == null) return;
         for (HkDetailItem it : items) {
-            String col = it.getColType().toLowerCase();
-            if (col.contains("long_text")) {
+            String col = it.getColType() == null ? "" : it.getColType().toLowerCase();
+            String url = it.getUrl() == null ? "" : it.getUrl().trim();
+            // copy:// → 复制按钮
+            if (url.startsWith("copy://")) {
+                detail.addCopyItem(it.getTitle(), url.substring(7));
+                continue;
+            }
+            // 文本类 col_type → 简介内容区，不进选集
+            if (col.contains("long_text") || col.startsWith("text_") || col.contains("text_center")
+                    || col.contains("rich_text")) {
                 String c = (it.getTitle() + it.getDesc()).trim();
-                if (!c.isEmpty()) detail.setContent(c);
+                if (!c.isEmpty()) detail.appendContent(c);
+                if (!it.getPic().isEmpty() && detail.getPic().isEmpty()) detail.setPic(it.getPic());
                 continue;
             }
             if (it.isDisplayOnly()) {

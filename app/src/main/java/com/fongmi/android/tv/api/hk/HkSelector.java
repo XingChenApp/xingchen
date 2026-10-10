@@ -7,6 +7,8 @@ import com.fongmi.quickjs.utils.Parser;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 海阔选择器引擎（设计文档 §4.3）。
@@ -39,6 +41,17 @@ public class HkSelector {
 
     public static boolean isJsRule(String rule) {
         return rule != null && rule.trim().startsWith("js:");
+    }
+
+    /**
+     * 冲突字符解码（官方 StringUtil.decodeConflictStr）：
+     * {@code ？？}→{@code ?}、{@code ＆＆}→{@code &}、{@code ；；}→{@code ;}、{@code ，，}→{@code ,}。
+     * 作用于所有选择器规则文本（必须在 && 切分之前做，否则全角 ＆＆ 会被误切）。
+     * 注意：只对选择器 head 部分解码，.js: 代码原样保留。
+     */
+    public static String decodeConflict(String s) {
+        if (s == null) return "";
+        return s.replace("？？", "?").replace("＆＆", "&").replace("；；", ";").replace("，，", ",");
     }
 
     /**
@@ -128,6 +141,8 @@ public class HkSelector {
             head = fieldRule.substring(0, jsIdx);
             js = fieldRule.substring(jsIdx + 4);
         }
+        // 选择器 head 先做冲突字符解码（&& 切分之前）
+        head = decodeConflict(head);
         String input = evalHead(itemHtml, head, baseUrl);
         if (js != null) {
             input = jsEvaluator != null ? jsEvaluator.eval(js, input) : input;
@@ -162,6 +177,8 @@ public class HkSelector {
             head = listRule.substring(0, jsIdx);
             js = listRule.substring(jsIdx + 4);
         }
+        // 选择器 head 先做冲突字符解码（&& 切分之前）
+        head = decodeConflict(head);
         List<String> items = Collections.emptyList();
         for (String candidate : expandOr(head)) {
             items = parser.pdfa(html, convertIndex(candidate));
@@ -199,11 +216,26 @@ public class HkSelector {
         return out;
     }
 
-    /** 海阔 &,n 索引 → jsoup :eq(n)（Parser 已支持负数）。 */
+    /**
+     * 海阔 {@code &,n} 索引 → jsoup {@code :eq(n)}（Parser 已支持负数）；
+     * {@code &,m:n} 范围索引 → {@code :gt(m-1):lt(n+1)}（m=0 时为 {@code :lt(n+1)}）。
+     */
+    private static final Pattern RANGE_INDEX = Pattern.compile(",(\\d+):(\\d+)$");
+
     private String convertIndex(String rule) {
         String[] steps = rule.split("&&", -1);
         for (int i = 0; i < steps.length; i++) {
-            steps[i] = steps[i].replaceAll(",(-?\\d+)$", ":eq($1)");
+            String s = steps[i];
+            Matcher rm = RANGE_INDEX.matcher(s);
+            if (rm.find()) {
+                int from = Integer.parseInt(rm.group(1));
+                int to = Integer.parseInt(rm.group(2));
+                String rep = from <= 0 ? ":lt(" + (to + 1) + ")" : ":gt(" + (from - 1) + "):lt(" + (to + 1) + ")";
+                s = s.substring(0, rm.start()) + rep;
+            } else {
+                s = s.replaceAll(",(-?\\d+)$", ":eq($1)");
+            }
+            steps[i] = s;
         }
         return TextUtils.join("&&", steps);
     }

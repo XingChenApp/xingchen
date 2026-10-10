@@ -2,12 +2,15 @@ package com.fongmi.android.tv.api.hk;
 
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
@@ -149,12 +152,58 @@ public class HkHttp {
     }
 
     /**
+     * URL 增强解析结果（官方格式 {@code url;method;encoding;{K@V&&K2@V2}}）。
+     */
+    public static class Enhancement {
+        public String url = "";
+        public String method = "GET";
+        public String charset = "UTF-8";
+        public final Map<String, String> headers = new HashMap<>();
+
+        /** 是否为"干净"请求（无增强，按原逻辑走即可）。 */
+        public boolean isPlain() {
+            return "GET".equals(method) && "UTF-8".equalsIgnoreCase(charset) && headers.isEmpty();
+        }
+    }
+
+    /**
+     * 解析 URL 增强：{@code url;method;encoding;{K@V&&K2@V2}}。
+     * header 块用 {@code {}} 包裹、内以 {@code &&} 分隔、键值以 {@code @} 分隔。
+     */
+    public static Enhancement parseEnhancement(String raw) {
+        Enhancement e = new Enhancement();
+        if (raw == null) return e;
+        String u = raw.trim();
+        int b = u.indexOf('{');
+        int be = u.lastIndexOf('}');
+        if (b > 0 && be > b) {
+            for (String kv : u.substring(b + 1, be).split("&&")) {
+                int at = kv.indexOf('@');
+                if (at > 0) e.headers.put(kv.substring(0, at).trim(), kv.substring(at + 1).trim());
+            }
+            u = (u.substring(0, b) + u.substring(be + 1)).trim();
+        }
+        String[] parts = u.split(";", -1);
+        e.url = parts[0].trim();
+        if (parts.length > 1 && !parts[1].trim().isEmpty()) e.method = parts[1].trim().toUpperCase();
+        if (parts.length > 2 && !parts[2].trim().isEmpty()) e.charset = parts[2].trim();
+        return e;
+    }
+
+    /**
      * 简单 GET 请求，返回文本。
      *
      * @throws IOException        网络失败/非 2xx/空 body
      * @throws IllegalArgumentException 非 http(s) 链接（hiker://、js: 等需 M2 的 JS 运行时处理）
      */
     public static String get(String url, String ua) throws IOException {
+        Enhancement e = parseEnhancement(url);
+        if (e.isPlain()) return getPlain(e.url, ua);
+        return getEnhanced(e, ua);
+    }
+
+    /** 无增强的原逻辑（行为与之前完全一致）。 */
+    private static String getPlain(String url, String ua) throws IOException {
         if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) {
             throw new IllegalArgumentException("不支持的链接协议（需 M2 JS 运行时）：" + url);
         }
@@ -168,6 +217,38 @@ public class HkHttp {
             ResponseBody body = resp.body();
             if (body == null) throw new IOException("空响应 " + url);
             return body.string();
+        }
+    }
+
+    /** 带 method/encoding/headers 的增强请求。 */
+    private static String getEnhanced(Enhancement e, String ua) throws IOException {
+        String url = e.url;
+        if (!(url.startsWith("http://") || url.startsWith("https://"))) {
+            throw new IllegalArgumentException("不支持的链接协议（需 M2 JS 运行时）：" + url);
+        }
+        Request.Builder rb = new Request.Builder().url(url)
+                .header("User-Agent", ua == null || ua.isEmpty() ? DEFAULT_UA : ua)
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                .header("Accept-Language", "zh-CN,zh;q=0.9");
+        for (Map.Entry<String, String> h : e.headers.entrySet()) {
+            try {
+                rb.header(h.getKey(), h.getValue());
+            } catch (Throwable ignored) {
+            }
+        }
+        if ("POST".equals(e.method)) {
+            rb.post(RequestBody.create(new byte[0], null));
+        }
+        try (Response resp = client().newCall(rb.build()).execute()) {
+            if (!resp.isSuccessful()) throw new IOException("HTTP " + resp.code() + " " + url);
+            ResponseBody body = resp.body();
+            if (body == null) throw new IOException("空响应 " + url);
+            byte[] bytes = body.bytes();
+            try {
+                return new String(bytes, e.charset);
+            } catch (Throwable t) {
+                return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+            }
         }
     }
 }
