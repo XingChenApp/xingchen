@@ -145,9 +145,23 @@ public class HkSelector {
         head = decodeConflict(head);
         String input = evalHead(itemHtml, head, baseUrl);
         if (js != null) {
-            input = jsEvaluator != null ? jsEvaluator.eval(js, input) : input;
+            // P1：官方多段链——取值规则以 .js: 结尾时用中文 ＋ 切分多段依次加工
+            input = evalJsChain(js, input);
         }
         return input == null ? "" : input;
+    }
+
+    /** .js: 多段链求值：中文 ＋ 分隔的多段 JS 依次加工（单段时与原来一致）。 */
+    private String evalJsChain(String js, String input) {
+        if (jsEvaluator == null) return input == null ? "" : input;
+        String cur = input == null ? "" : input;
+        // 注意：＋ 在 JS 字符串字面量里也可能出现，但官方语义就是按 ＋ 切分
+        String[] segs = js.split("＋", -1);
+        for (String seg : segs) {
+            cur = jsEvaluator.eval(seg, cur);
+            if (cur == null) cur = "";
+        }
+        return cur;
     }
 
     /** head 为空→""；含 &&→选择器；否则先按选择器试，空则按字面量。 */
@@ -187,7 +201,16 @@ public class HkSelector {
         if (items == null) items = Collections.emptyList();
         if (js != null && jsEvaluator != null && !items.isEmpty()) {
             List<String> out = new ArrayList<>(items.size());
-            for (String it : items) out.add(jsEvaluator.eval(js, it));
+            // P1：多段链——中文 ＋ 切分多段依次加工
+            String[] segs = js.split("＋", -1);
+            for (String it : items) {
+                String cur = it;
+                for (String seg : segs) {
+                    cur = jsEvaluator.eval(seg, cur);
+                    if (cur == null) cur = "";
+                }
+                out.add(cur);
+            }
             return out;
         }
         return items;

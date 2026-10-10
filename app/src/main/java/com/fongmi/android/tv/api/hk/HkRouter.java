@@ -189,9 +189,37 @@ public class HkRouter {
             lazyRuleText = decodeConflict(u.substring(lr0 + 10).trim());
             u = lazyPageUrl;
         }
+        // 0.5 P1：页面标识里的播放标记（剥 # 之前先提取）
+        // #isM3u8# 强制 m3u8；#concat# 多段拼接；#fastPlayMode#/#threads=N# 极速模式
+        if (u.contains("#isM3u8#")) out.setForceM3u8(true);
+        if (u.contains("#concat#")) out.setConcat(true);
+        if (u.contains("#fastPlayMode#")) out.setFastPlayMode(true);
+        java.util.regex.Matcher tm = java.util.regex.Pattern.compile("#threads=(\\d+)#").matcher(u);
+        if (tm.find()) {
+            try {
+                out.setThreads(Integer.parseInt(tm.group(1)));
+                out.setFastPlayMode(true);
+            } catch (Throwable ignored) {
+            }
+        }
         // 1. # 页面标识
         int hash = u.indexOf('#');
         if (hash >= 0) u = u.substring(0, hash).trim();
+        // 1.5 P1：pics:// 漫画多图模式（非视频，记入 pics 列表，UI 提示不支持但不崩）
+        if (u.startsWith("pics://")) {
+            String rest = u.substring(7).trim();
+            for (String p : rest.split("[\\n&&]+")) {
+                String t = p.trim();
+                if (!t.isEmpty()) out.addPic(t);
+            }
+            return out;
+        }
+        // 1.6 P1：特殊协议识别（ed2k/magnet/thunder/ftp），原样透传给播放器
+        String low = u.toLowerCase();
+        if (low.startsWith("ed2k://")) out.setPlayType("ed2k");
+        else if (low.startsWith("magnet:")) out.setPlayType("magnet");
+        else if (low.startsWith("thunder://")) out.setPlayType("thunder");
+        else if (low.startsWith("ftp://")) out.setPlayType("ftp");
         // 2. ; URL 增强
         u = splitEnhancement(u, out);
         // 3. video://
@@ -319,13 +347,17 @@ public class HkRouter {
 
     /**
      * 解析多线路/字幕 JSON：{@code {urls:[], names:[], headers:[], subtitle:'...'}}。
-     * headers 元素形如 {@code "Cookie@xxx"}。
+     * headers 元素形如 {@code "Cookie@xxx"}。P1：同时解析 audioUrls（音视频分离）。
      */
     private boolean parsePlayJson(String u, HkPlay out) {
         try {
             JSONObject o = new JSONObject(u);
             JSONArray urls = o.optJSONArray("urls");
             if (urls != null && urls.length() > 0) out.setUrl(urls.optString(0, "").trim());
+            // P1：音视频分离
+            JSONArray audioUrls = o.optJSONArray("audioUrls");
+            if (audioUrls != null && audioUrls.length() > 0)
+                out.setAudioUrl(audioUrls.optString(0, "").trim());
             JSONArray headers = o.optJSONArray("headers");
             if (headers != null) {
                 for (int i = 0; i < headers.length(); i++) {

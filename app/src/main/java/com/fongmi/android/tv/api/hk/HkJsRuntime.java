@@ -91,6 +91,14 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     private String pageTitle = "";
     /** 当前页码（MY_PAGE 注入用）。 */
     private int page = 1;
+    /** 列表页上下文（MY_TYPE/MY_CLASS_URL/MY_CLASS_NAME/MY_PARAMS/MY_AREA/MY_YEAR/MY_SORT 注入用）。 */
+    private String myType = "";
+    private String myClassUrl = "";
+    private String myClassName = "";
+    private String myParams = "";
+    private String myArea = "";
+    private String myYear = "";
+    private String mySort = "";
 
     /** evalPrivateJS 的 AES 密钥（官方 AesUtil.decrypt 写死值）。 */
     private static final String AES_PRIVATE_KEY = "hk6666666109";
@@ -921,7 +929,27 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             return JSUtil.toArray(ctx, parser.pdfa(String.valueOf(args[0]), sel(args[1])));
         });
         ctx.getGlobalObject().setProperty("_findItem", args -> "");
-        ctx.getGlobalObject().setProperty("_findItemsByCls", args -> "[]");
+        // findItemsByCls/deleteItemByCls：按条目 extra.cls 匹配当前已收集结果
+        ctx.getGlobalObject().setProperty("_findItemsByCls", args -> {
+            try {
+                String cls = args != null && args.length > 0 ? String.valueOf(args[0]) : "";
+                List<Map<String, Object>> out = new ArrayList<>();
+                for (HkItem it : results) {
+                    if (cls.equals(it.getExtra("cls"))) {
+                        Map<String, Object> m = new HashMap<>();
+                        m.put("title", it.getTitle());
+                        m.put("url", it.getUrl());
+                        m.put("pic", it.getPic());
+                        m.put("desc", it.getDesc());
+                        m.put("col_type", it.getColType());
+                        out.add(m);
+                    }
+                }
+                return GSON.toJson(out);
+            } catch (Throwable e) {
+                return "[]";
+            }
+        });
 
         // ---- xpath（宿主 Parser 基于 jsoup，不支持 xpath，走空） ----
         ctx.getGlobalObject().setProperty("xpath", args -> "");
@@ -934,6 +962,23 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             refreshRequested = true;
             refreshToTop = args != null && args.length > 0 && Boolean.parseBoolean(String.valueOf(args[0]));
             Logger.t(TAG).d("refreshPage(%s) requested", refreshToTop);
+            return null;
+        });
+
+        // ---- sleep(ms)：官方真实 API（规则里常被 try/catch 包裹做限速/等待）
+        ctx.getGlobalObject().setProperty("sleep", args -> {
+            long ms = 0;
+            try {
+                if (args != null && args.length > 0) ms = Long.parseLong(String.valueOf(args[0]));
+            } catch (Throwable ignored) {
+            }
+            if (ms > 0) {
+                try {
+                    Thread.sleep(Math.min(ms, 10000));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             return null;
         });
 
@@ -1609,6 +1654,22 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         ctx.getGlobalObject().setProperty("MY_TICKET", "");
         ctx.getGlobalObject().setProperty("MOBILE_UA", UA_MOBILE);
         ctx.getGlobalObject().setProperty("PC_UA", UA_PC);
+        // P1：补全官方注入变量
+        ctx.getGlobalObject().setProperty("MY_TYPE", myType == null ? "" : myType);
+        ctx.getGlobalObject().setProperty("MY_CLASS_URL", myClassUrl == null ? "" : myClassUrl);
+        ctx.getGlobalObject().setProperty("MY_CLASS_NAME", myClassName == null ? "" : myClassName);
+        ctx.getGlobalObject().setProperty("MY_NAME", rule == null ? "" : rule.getTitle());
+        ctx.getGlobalObject().setProperty("MY_PARAMS", myParams == null || myParams.isEmpty() ? "{}" : myParams);
+        ctx.getGlobalObject().setProperty("MY_AREA", myArea == null ? "" : myArea);
+        ctx.getGlobalObject().setProperty("MY_YEAR", myYear == null ? "" : myYear);
+        ctx.getGlobalObject().setProperty("MY_SORT", mySort == null ? "" : mySort);
+        // MY_YEAR_xxx / MY_AREA_xxx / MY_SORT_xxx：按当前取值动态注入（如 MY_YEAR_2024）
+        if (myYear != null && !myYear.isEmpty())
+            ctx.getGlobalObject().setProperty("MY_YEAR_" + myYear, myYear);
+        if (myArea != null && !myArea.isEmpty())
+            ctx.getGlobalObject().setProperty("MY_AREA_" + myArea, myArea);
+        if (mySort != null && !mySort.isEmpty())
+            ctx.getGlobalObject().setProperty("MY_SORT_" + mySort, mySort);
         try {
             Map<String, String> ua = new HashMap<>();
             ua.put("mobileUa", UA_MOBILE);
@@ -1617,10 +1678,31 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         } catch (Throwable ignored) {
         }
         try {
+            Map<String, String> headers = new HashMap<>();
+            headers.put("User-Agent", rule == null ? UA_MOBILE : rule.resolvedUa());
+            ctx.getGlobalObject().setProperty("MY_HEADERS", (JSObject) ctx.parse(GSON.toJson(headers)));
+        } catch (Throwable ignored) {
+        }
+        try {
             ctx.getGlobalObject().setProperty("MY_RULE", (JSObject) ctx.parse(GSON.toJson(rule)));
         } catch (Throwable e) {
             ctx.getGlobalObject().setProperty("MY_RULE", ctx.createNewJSObject());
         }
+    }
+
+    /**
+     * 设置列表页上下文（HkEngine.home/search 在 parseList/parseSearch 之前调用），
+     * 供 setContext 注入 MY_TYPE/MY_CLASS_URL/MY_CLASS_NAME/MY_PARAMS 等官方变量。
+     */
+    public void setListContext(String type, String classUrl, String className,
+                              String params, String area, String year, String sort) {
+        this.myType = type == null ? "" : type;
+        this.myClassUrl = classUrl == null ? "" : classUrl;
+        this.myClassName = className == null ? "" : className;
+        this.myParams = params == null ? "" : params;
+        this.myArea = area == null ? "" : area;
+        this.myYear = year == null ? "" : year;
+        this.mySort = sort == null ? "" : sort;
     }
 
     private static String homeOf(String url) {
@@ -1701,6 +1783,26 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 item.setPic(pic);
                 item.setDesc(str(m, "desc"));
                 item.setColType(str(m, "col_type"));
+                // P1：补全官方条目字段 extra/content/line（updateItem/deleteItem/findItemsByCls 用）
+                item.setContent(str(m, "content"));
+                item.setLine(str(m, "line"));
+                Object extraObj = m.get("extra");
+                if (extraObj instanceof Map) {
+                    Map<String, String> extra = new HashMap<>();
+                    for (Map.Entry<?, ?> e : ((Map<?, ?>) extraObj).entrySet()) {
+                        extra.put(String.valueOf(e.getKey()),
+                                e.getValue() == null ? "" : String.valueOf(e.getValue()));
+                    }
+                    item.setExtra(extra);
+                } else {
+                    // 兼容：id/cls 等顶层字段也并入 extra，保证按 id/url/cls 匹配可用
+                    Map<String, String> extra = new HashMap<>();
+                    for (String k : new String[]{"id", "cls", "pageTitle", "newWindow", "lineVisible", "textAlign"}) {
+                        String v = str(m, k);
+                        if (!v.isEmpty()) extra.put(k, v);
+                    }
+                    if (!extra.isEmpty()) item.setExtra(extra);
+                }
                 results.add(item);
             }
         } catch (Throwable e) {
@@ -1802,19 +1904,43 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         if (!url.startsWith("http://") && !url.startsWith("https://")) return "";
         try {
             Req req = TextUtils.isEmpty(optionsJson) ? Req.objectFrom("{}") : Req.objectFrom(optionsJson);
-            boolean withHeaders = optionsJson != null && optionsJson.contains("\"withHeaders\"")
-                    && (optionsJson.contains("\"withHeaders\":true") || optionsJson.contains("\"withHeaders\":1"));
+            String opt = optionsJson == null ? "" : optionsJson;
+            boolean withHeaders = opt.contains("\"withHeaders\":true") || opt.contains("\"withHeaders\":1");
+            // P2：fetch 选项 withStatusCode / toHex / onlyHeaders
+            boolean withStatusCode = opt.contains("\"withStatusCode\":true") || opt.contains("\"withStatusCode\":1");
+            boolean toHex = opt.contains("\"toHex\":true") || opt.contains("\"toHex\":1");
+            boolean onlyHeaders = opt.contains("\"onlyHeaders\":true") || opt.contains("\"onlyHeaders\":1");
             try (Response res = Connect.to(url, req).execute()) {
                 resCode = res.code();
                 lastUrl = url;
+                Map<String, String> headers = new HashMap<>();
+                for (String name : res.headers().names()) headers.put(name, res.header(name, ""));
+                if (onlyHeaders) {
+                    Map<String, Object> out = new HashMap<>();
+                    out.put("headers", headers);
+                    out.put("code", res.code());
+                    return GSON.toJson(out);
+                }
                 ResponseBody body = res.body();
                 byte[] bytes = body == null ? new byte[0] : body.bytes();
-                String content = new String(bytes, req.getCharset());
+                String content;
+                if (toHex) {
+                    StringBuilder sb = new StringBuilder(bytes.length * 2);
+                    for (byte b : bytes) sb.append(String.format("%02x", b & 0xff));
+                    content = sb.toString();
+                } else {
+                    content = new String(bytes, req.getCharset());
+                }
+                if (withStatusCode) {
+                    Map<String, Object> out = new HashMap<>();
+                    out.put("body", content);
+                    out.put("code", res.code());
+                    out.put("headers", headers);
+                    return GSON.toJson(out);
+                }
                 if (!withHeaders) return content;
                 Map<String, Object> out = new HashMap<>();
                 out.put("body", content);
-                Map<String, String> headers = new HashMap<>();
-                for (String name : res.headers().names()) headers.put(name, res.header(name, ""));
                 out.put("headers", headers);
                 out.put("code", res.code());
                 return GSON.toJson(out);

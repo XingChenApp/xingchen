@@ -43,6 +43,8 @@ public class HkEngine {
                     ? HkHttp.expandUrl(rule.getUrl(), cls, area, year, sort, page, false)
                     : HkHttp.expandUrl(rule.getUrl(), cls, area, year, sort, page);
             if (js) {
+                // P1：注入 MY_TYPE/MY_CLASS_URL/MY_CLASS_NAME 等官方变量
+                jsRuntime.setListContext("home", safe(cls), classNameOf(cls), "", safe(area), safe(year), safe(sort));
                 return jsRuntime.parseList(findRule, url, page);
             }
             String html = HkHttp.get(url, rule.resolvedUa());
@@ -66,6 +68,7 @@ public class HkEngine {
             if (HkSelector.isJsRule(searchFind)) {
                 // js: 搜索同理：MY_URL 传原始 url，保留 hiker://empty# 前缀。
                 String rawUrl = HkHttp.expandSearchUrl(rule.getSearchUrl(), keyword, page, false);
+                jsRuntime.setListContext("search", "", "", "", "", "", "");
                 return jsRuntime.parseSearch(searchFind, rawUrl, keyword, page);
             }
             String html = HkHttp.get(url, rule.resolvedUa());
@@ -74,6 +77,19 @@ public class HkEngine {
             Logger.t(TAG).d("search failed: %s", e.getMessage());
             return new ArrayList<>();
         }
+    }
+
+    private static String safe(String s) {
+        return s == null ? "" : s;
+    }
+
+    /** 按 class_url 反查 class_name（MY_CLASS_NAME 注入用）。 */
+    private String classNameOf(String cls) {
+        if (cls == null || cls.isEmpty()) return "";
+        for (String[] p : rule.getClassPairs()) {
+            if (cls.equals(p[1])) return p[0];
+        }
+        return "";
     }
 
     public String getError() {
