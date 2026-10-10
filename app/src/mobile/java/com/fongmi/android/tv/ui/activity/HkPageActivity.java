@@ -2084,8 +2084,9 @@ public class HkPageActivity extends BaseActivity {
                     android.widget.Toast.makeText(HkPageActivity.this,
                             "执行失败：" + em, android.widget.Toast.LENGTH_SHORT).show();
                 }
-                // 回调返回非空 URL 则导航（hiker://empty 为官方"无跳转"标记，hiker://* 为内部标记，均不导航）
-                if (!r.isEmpty() && !"hiker://empty".equals(r) && !r.startsWith("hiker://")) {
+                // 回调返回可导航目标才跳转；普通成功标记字符串（如 "ok"/"1"）不是 URL，
+                // 之前会被当成 URL 推开一个空白 V4，导致列表看起来"没刷新"（如口令正确却不刷新）。
+                if (isNavigableResult(r)) {
                     HkItem nav = new HkItem();
                     nav.setTitle("");
                     nav.setUrl(r);
@@ -2096,6 +2097,24 @@ public class HkPageActivity extends BaseActivity {
                 loadContent(true);
             });
         }).start();
+    }
+
+    /**
+     * inputRule/confirmRule 回调返回值是否可导航：只有带 scheme 的 URL
+     *（http/https/magnet/thunder/pics/x5/web/toast/copy/...）、含 @ 规则标记
+     * 或 js: 前缀的才跳转；hiker://empty 与 hiker://* 为官方/内部"无跳转"标记。
+     * 规则返回的普通字符串（如口令正确时的 "ok"/"1"）只是成功标记，必须走列表刷新。
+     */
+    private boolean isNavigableResult(String r) {
+        if (r == null) return false;
+        String t = r.trim();
+        if (t.isEmpty()) return false;
+        if ("hiker://empty".equals(t) || t.startsWith("hiker://")) return false;
+        String low = t.toLowerCase();
+        if (low.matches("^[a-z][a-z0-9+.-]*:.*")) return true;
+        if (t.contains("@lazyRule=") || t.contains("@rule=") || t.contains("@inputRule=")
+                || t.contains("@confirmRule=") || t.contains("@x5Rule=")) return true;
+        return low.startsWith("js:");
     }
 
     /** 简单输入对话框（input:// 与 @inputRule= 共用）。 */
