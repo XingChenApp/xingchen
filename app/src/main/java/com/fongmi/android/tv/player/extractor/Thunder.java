@@ -54,21 +54,11 @@ public class Thunder implements Source.Extractor {
         throw new ExtractException(ResUtil.getString(R.string.error_play_timeout));
     }
 
-    private String addThunderTask(String url) throws Exception {
+    private String addThunderTask(String url) {
         File folder = Path.thunder(Util.md5(url));
         downloadDir = folder;
         taskId = XLTaskHelper.get().addThunderTask(url, folder);
-        for (int i = 0; i < 300; i++) {
-            XLTaskInfo info = XLTaskHelper.get().getTaskInfo(taskId);
-            if (info == null) {
-                SystemClock.sleep(100);
-                continue;
-            }
-            if (info.mTaskStatus == 3) throw new ExtractException(info.getErrorMsg());
-            if (info.mTaskStatus != 0) return XLTaskHelper.get().getLocalUrl(taskId.getSaveFile());
-            SystemClock.sleep(100);
-        }
-        throw new ExtractException(ResUtil.getString(R.string.error_play_timeout));
+        return XLTaskHelper.get().getLocalUrl(taskId.getSaveFile());
     }
 
     @Override
