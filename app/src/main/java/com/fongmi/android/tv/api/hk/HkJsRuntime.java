@@ -171,7 +171,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     private Object parseJson(String json) {
         if (TextUtils.isEmpty(json)) return new NativeObject();
         try {
-            Object r = NativeJSON.parse(rhinoCx, scope, json);
+            Object r = NativeJSON.parse(rhinoCx, scope, json, null);
             return r == null ? new NativeObject() : r;
         } catch (Throwable e) {
             return new NativeObject();
