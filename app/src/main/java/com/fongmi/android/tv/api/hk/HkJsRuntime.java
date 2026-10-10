@@ -1070,6 +1070,44 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             String v = Util.md5(String.valueOf(args[0]));
             return v == null ? "" : v;
         });
+        // 官方 _base64 全局：8.83 JSEngine 注入的 MyBase64 实例（DEFAULT/NO_WRAP 常量 + 编解码方法），
+        // 规则如 CryptoUtil.Data.parseBase64(s, _base64.NO_WRAP) 依赖其存在
+        ctx.getGlobalObject().setProperty("__b64encodeToString", args -> {
+            if (args == null || args.length == 0) return "";
+            try {
+                byte[] data = args[0] instanceof byte[] ? (byte[]) args[0] : String.valueOf(args[0]).getBytes("UTF-8");
+                int flags = args.length > 1 ? (int) Double.parseDouble(String.valueOf(args[1])) : android.util.Base64.DEFAULT;
+                return android.util.Base64.encodeToString(data, flags);
+            } catch (Throwable e) {
+                return "";
+            }
+        });
+        ctx.getGlobalObject().setProperty("__b64decode", args -> {
+            if (args == null || args.length == 0) return JSUtil.toArray(ctx, new byte[0]);
+            try {
+                int flags = args.length > 1 ? (int) Double.parseDouble(String.valueOf(args[1])) : android.util.Base64.DEFAULT;
+                return JSUtil.toArray(ctx, android.util.Base64.decode(String.valueOf(args[0]), flags));
+            } catch (Throwable e) {
+                return JSUtil.toArray(ctx, new byte[0]);
+            }
+        });
+        try {
+            ctx.evaluate(
+                "var _base64 = {\n" +
+                "  DEFAULT: 0,\n" +
+                "  NO_PADDING: 1,\n" +
+                "  NO_WRAP: 2,\n" +
+                "  CRLF: 4,\n" +
+                "  URL_SAFE: 8,\n" +
+                "  encodeToString: function(d, f) { return __b64encodeToString(d, f); },\n" +
+                "  decode: function(s, f) { return __b64decode(s, f); },\n" +
+                "  encode: function(d, f) { return __b64decode(__b64encodeToString(d, f)); },\n" +
+                "  decodeToString: function(s, f) { var b = __b64decode(s, f); var r = ''; for (var i = 0; i < b.length; i++) r += String.fromCharCode(b[i] & 255); return r; }\n" +
+                "};\n"
+            );
+        } catch (Throwable e) {
+            Logger.t(TAG).d("_base64 inject failed: " + e.getMessage());
+        }
         ctx.getGlobalObject().setProperty("hexToBase64", args -> {
             if (args == null || args.length == 0) return "";
             return hexToB64(String.valueOf(args[0]));
