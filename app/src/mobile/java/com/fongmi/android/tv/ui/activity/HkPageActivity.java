@@ -152,11 +152,25 @@ public class HkPageActivity extends BaseActivity {
 
     @Override
     protected void onDestroy() {
-        if (router != null) {
-            router.destroy();
-            router = null;
-        }
+        destroyRouterAsync();
         super.onDestroy();
+    }
+
+    /**
+     * 异步销毁旧路由：HkJsRuntime.destroy() 会 submit(...).get() 等 JS 单线程池清空，
+     * 前一个规则的 JS 任务若还在跑（慢网络/动态域名），同步调会冻住主线程几秒。
+     * 切到后台线程销毁，点击进 V2 不再卡顿。
+     */
+    private void destroyRouterAsync() {
+        HkRouter old = router;
+        router = null;
+        if (old == null) return;
+        new Thread(() -> {
+            try {
+                old.destroy();
+            } catch (Throwable ignored) {
+            }
+        }).start();
     }
 
     @Override
@@ -861,10 +875,7 @@ public class HkPageActivity extends BaseActivity {
     }
 
     private void openRule(HkRule rule) {
-        if (router != null) {
-            router.destroy();
-            router = null;
-        }
+        destroyRouterAsync();
         currentRule = rule;
         cls = "";
         area = "";
@@ -872,6 +883,8 @@ public class HkPageActivity extends BaseActivity {
         sort = "";
         page = 1;
         noMore = false;
+        loading = false; // 旧规则的在途加载作废，由新 loadContent 接管
+        contentGen++; // 旧回调过期
         videos.clear();
         binding.tvContentTitle.setText(rule.getTitle());
         buildCategoryRow();
@@ -968,9 +981,12 @@ public class HkPageActivity extends BaseActivity {
         return router;
     }
 
+    private int contentGen = 0;
+
     private void loadContent(boolean reset) {
         if (loading || currentRule == null) return;
         loading = true;
+        final int gen = ++contentGen;
         if (reset) {
             page = 1;
             noMore = false;
@@ -992,6 +1008,7 @@ public class HkPageActivity extends BaseActivity {
             }
             final List<HkItem> result = list;
             App.post(() -> {
+                if (gen != contentGen) return; // 规则已切换/被更新的加载覆盖，丢弃过期结果
                 loading = false;
                 binding.swipeContent.setRefreshing(false);
                 binding.loadingContent.setVisibility(View.GONE);
