@@ -2042,6 +2042,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             try {
                 setContext(myUrl);
                 ctx.evaluate(stripJsPrefix(jsCode));
+            } catch (Throwable e) {
+                // 详情页 JS 异常也要记录，供 V4 空态展示真实原因（之前只记 log，用户看到"0条线路"无法反馈）
+                error = jsErrorMsg(e);
+                throw e;
             } finally {
                 collectRaw = false;
             }

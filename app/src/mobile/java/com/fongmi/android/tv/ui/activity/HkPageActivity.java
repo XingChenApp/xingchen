@@ -1455,6 +1455,19 @@ public class HkPageActivity extends BaseActivity {
         if (result == null || (result.isEmpty() && !result.hasBasicInfo())) {
             binding.detailScroll.setVisibility(View.GONE);
             binding.tvDetailEmpty.setVisibility(View.VISIBLE);
+            // 空态显示引擎记录的 JS 真实错误（与列表页一致），方便用户截图反馈
+            try {
+                String hkErr = getRouter().getEngine().getError();
+                if (!TextUtils.isEmpty(hkErr)) {
+                    String e = hkErr.trim();
+                    if (e.length() > 80) e = e.substring(0, 80);
+                    binding.tvDetailEmpty.setText("加载失败：" + e + "，点我重试");
+                } else {
+                    binding.tvDetailEmpty.setText("加载失败，点我重试");
+                }
+            } catch (Throwable ignored) {
+                binding.tvDetailEmpty.setText("加载失败，点我重试");
+            }
         } else {
             bindDetail(result);
         }
@@ -1471,9 +1484,32 @@ public class HkPageActivity extends BaseActivity {
         ImgUtil.load(detail.getTitle(), detail.getPic(), binding.ivDetailCover);
         int epCount = 0;
         for (HkDetail.Line l : detail.getLines()) epCount += l.getEpisodes().size();
-        String meta = (currentRule == null ? "" : currentRule.getTitle() + " · ")
-                + detail.getLines().size() + "条线路 · 共" + epCount + "集";
+        String meta;
+        if (detail.getLines().isEmpty()) {
+            // 无线路时若引擎记录了 JS 失败原因，展示真实错误（之前只显示"0条线路"，用户无法反馈根因）
+            String hkErr = null;
+            try {
+                hkErr = getRouter().getEngine().getError();
+            } catch (Throwable ignored) {
+            }
+            if (!TextUtils.isEmpty(hkErr)) {
+                String e = hkErr.trim();
+                if (e.length() > 80) e = e.substring(0, 80);
+                meta = "加载失败：" + e + "，点我重试";
+            } else {
+                meta = (currentRule == null ? "" : currentRule.getTitle() + " · ")
+                        + "0条线路 · 共0集";
+            }
+        } else {
+            meta = (currentRule == null ? "" : currentRule.getTitle() + " · ")
+                    + detail.getLines().size() + "条线路 · 共" + epCount + "集";
+        }
         binding.tvDetailMeta.setText(meta);
+        // 错误时点 meta 文字可重试（与列表页"点我重试"一致）
+        final boolean isDetailErr = detail.getLines().isEmpty() && meta.startsWith("加载失败");
+        binding.tvDetailMeta.setOnClickListener(isDetailErr && detailItem != null
+                ? v -> openDetail(detailItem, detailFromSearch) : null);
+        binding.tvDetailMeta.setClickable(isDetailErr);
         String content = detail.getContent();
         boolean hasContent = !TextUtils.isEmpty(content);
         binding.tvDetailIntroLabel.setVisibility(hasContent ? View.VISIBLE : View.GONE);
