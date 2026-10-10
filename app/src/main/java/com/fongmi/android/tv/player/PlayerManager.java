@@ -32,6 +32,7 @@ import androidx.media3.mpvplayer.MpvPlayer;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.api.DanmakuApi;
 import com.fongmi.android.tv.api.SiteApi;
 import com.fongmi.android.tv.bean.Danmaku;
 import com.fongmi.android.tv.bean.Result;
@@ -189,6 +190,7 @@ public class PlayerManager implements ParseCallback {
     private String currentDanmakuUrl;
     private String currentDanmakuKey;
     private String loadingDanmakuKey;
+    private String lastAutoDanmakuKey;
     private String lastLoggedRouteTraceId = PlaybackTrace.NONE;
     private ExoDecoderResourceRecovery pendingExoDecoderResourceRecovery;
     private PlaybackAutoContext.SessionToken playbackAutoSession = PlaybackAutoContext.SessionToken.none();
@@ -3522,6 +3524,7 @@ public class PlayerManager implements ParseCallback {
         resetNetworkProtectionSession("new-media");
         App.removeCallbacks(runnable);
         setDanmakus(spec.getDanmakus());
+        autoSearchDanmaku();
         prepareLutPipeline();
         initTrack = false;
         waitingLutBeforePlay = false;
@@ -4143,6 +4146,33 @@ public class PlayerManager implements ParseCallback {
 
     private void setDanmakus(List<Danmaku> items) {
         setDanmaku(items == null || items.isEmpty() ? Danmaku.empty() : items.get(0));
+    }
+
+    /**
+     * 播放时自动搜索弹幕：有弹幕 API 且站源没给弹幕时，按剧名+集数自动匹配。
+     * 匹配度不足时静默放弃，不打扰用户，手动搜索仍可用。
+     */
+    private void autoSearchDanmaku() {
+        if (!DanmakuSetting.isAutoDanmaku()) return;
+        if (!DanmakuSetting.hasValidApiUrl()) return;
+        if (spec == null) return;
+        List<Danmaku> siteDanmakus = spec.getDanmakus();
+        if (siteDanmakus != null && !siteDanmakus.isEmpty()) return;
+        MediaMetadata metadata = getMetadata();
+        if (metadata == null) return;
+        String title = metadata.title == null ? "" : metadata.title.toString().trim();
+        String episode = metadata.artist == null ? "" : metadata.artist.toString().trim();
+        if (TextUtils.isEmpty(title)) return;
+        String key = title + "\n" + episode;
+        if (TextUtils.equals(key, lastAutoDanmakuKey)) return;
+        lastAutoDanmakuKey = key;
+        int seq = prepareSeq;
+        PlaySpec target = spec;
+        DanmakuApi.searchBest(title, episode, item -> {
+            if (seq != prepareSeq || spec != target) return;
+            if (!TextUtils.isEmpty(currentDanmakuUrl)) return;
+            setDanmaku(item);
+        });
     }
 
     public void setDanmaku(Danmaku item) {

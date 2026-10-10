@@ -93,6 +93,7 @@
     <string name="danmaku_text_size">Text scale</string>
     <string name="danmaku_transparency">Opacity</string>
     <string name="danmaku_text_bold">Bold</string>
+    <string name="danmaku_auto_search">Auto search on play</string>
     <string name="danmaku_style_mode">Text style</string>
     <string name="danmaku_style_none">None</string>
     <string name="danmaku_style_shadow">Shadow</string>

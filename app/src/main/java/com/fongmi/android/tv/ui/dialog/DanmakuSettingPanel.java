@@ -64,6 +64,7 @@ final class DanmakuSettingPanel {
 
     private void bindTiming() {
         var timing = binding.timing;
+        setupSwitch(timing.autoSearchSwitch, DanmakuSetting.isAutoDanmaku(), DanmakuSetting::putAutoDanmaku);
         setupMs(timing.timeOffsetSlider, timing.timeOffsetValue, DanmakuSetting.getTimeOffsetMs(), DanmakuSetting::putTimeOffsetMs);
         setupMs(timing.durationSlider, timing.durationValue, DanmakuSetting.getDurationMs(), DanmakuSetting::putDurationMs);
         setupMs(timing.fixedDurationSlider, timing.fixedDurationValue, DanmakuSetting.getFixedDurationMs(), DanmakuSetting::putFixedDurationMs);

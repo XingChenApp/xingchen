@@ -91,6 +91,7 @@
     <string name="danmaku_text_size">字體縮放</string>
     <string name="danmaku_transparency">透明度</string>
     <string name="danmaku_text_bold">粗體</string>
+    <string name="danmaku_auto_search">播放時自動搜尋彈幕</string>
     <string name="danmaku_style_mode">字體效果</string>
     <string name="danmaku_style_none">無</string>
     <string name="danmaku_style_shadow">陰影</string>
