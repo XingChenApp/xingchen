@@ -169,4 +169,27 @@ public class LoginManager {
     public static String getCookie(String providerId) {
         return get().getCookie(providerId);
     }
+
+    // ---------------- 115 API 网关：自动登录拦截 ----------------
+    // py 调 115 接口走这里，不用写任何登录代码。未登录时自动弹框，
+    // 登录成功后用新 cookie 自动重发一次，全程 py 无感。
+    //
+    // from java import jclass
+    // LM = jclass("com.fongmi.android.tv.login.LoginManager")
+    // body = LM.api115("https://webapi.115.com/files?aid=1&cid=0&o=user&format=json")
+
+    /** 同步 GET 115 接口（自动带 cookie，未登录自动弹框登录后重试），返回响应体 */
+    public static String api115(String url) throws Exception {
+        return AutoLogin115.get(url);
+    }
+
+    /** 同步 POST 表单到 115 接口，formJson 如 {"offset":0,"limit":50}，返回响应体 */
+    public static String api115Post(String url, String formJson) throws Exception {
+        return AutoLogin115.post(url, formJson);
+    }
+
+    /** 确保 115 已登录并返回 cookie（未登录时阻塞弹框等待），失败返回空串 */
+    public static String ensure115Cookie() {
+        return AutoLogin115.ensureCookie();
+    }
 }
