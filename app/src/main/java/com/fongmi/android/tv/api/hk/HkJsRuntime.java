@@ -1119,11 +1119,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 "    },\n" +
                 "    image: function(fn) {\n" +
                 "      if (typeof fn !== 'function') return url;\n" +
-                "      var _a = [];\n" +
-                "      for (var _i = 1; _i < arguments.length; _i++) {\n" +
-                "        try { _a.push(JSON.stringify(arguments[_i])); } catch (_e) { _a.push('null'); }\n" +
-                "      }\n" +
-                "      return url + '@headers=' + _headersJson + '@js=(' + fn.toString() + ')(' + _a.join(',') + ');';\n" +
+                "      try { var _r = fn(); return _r == null ? '' : String(_r); } catch (_e) { return ''; }\n" +
                 "    },\n" +
                 "    confirm: function(fn) {\n" +
                 "      return url + '@confirmRule=js:(' + fn.toString() + ')();';\n" +
