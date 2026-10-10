@@ -88,6 +88,22 @@ public class HkRuleManager {
         return dir;
     }
 
+    /**
+     * 按标题取已安装的规则（用于版本更新比对）。不存在返回 null。
+     */
+    public HkRule getInstalledRule(String title) {
+        if (title == null || title.isEmpty()) return null;
+        try {
+            File f = new File(getDir(), safeFileName(title) + ".json");
+            if (!f.exists()) return null;
+            byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
+            String json = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+            return parseJson(json);
+        } catch (Throwable e) {
+            return null;
+        }
+    }
+
     /** 某规则的持久化数据目录（setItem/getItem 用，M2）。 */
     public File getDataDir(String title) {
         File dir = new File(getDir(), "data/" + safeFileName(title));

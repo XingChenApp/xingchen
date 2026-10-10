@@ -129,7 +129,13 @@ public class HkRouter {
 
             // ② 纯 js: 条目（$.toString 生成）：求值得到真实 URL
             if (u.startsWith("js:")) {
+                // 与 @lazyRule= 分支一致：本次求值新产生了 refreshPage 请求 → 标记分类切换，不进 V4
+                boolean hadRefresh = engine.getJsRuntime().isRefreshRequested();
                 String v = evalEntryJs(u);
+                if (engine.getJsRuntime().consumeRefreshRequest() && !hadRefresh) {
+                    detail.setTabSwitch(true);
+                    return detail;
+                }
                 if (v != null && !v.trim().isEmpty()) {
                     String vt = v.trim();
                     // 文本型结果（非 URL、非规则标记）：设为 textResult，调用方弹窗显示，不进 V4/播放

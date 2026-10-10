@@ -104,6 +104,8 @@ public class HkPageActivity extends BaseActivity {
     private int page = 1;
     private boolean loading, noMore;
     private final Map<String, Integer> scrollMem = new HashMap<>();
+    /** 内容网格列数（官方三行筛选之第三行：1/2/3 列切换，默认 3）。 */
+    private int gridCols = 3;
 
     private VideoAdapter searchAdapter;
     private final List<HkItem> searchResults = new ArrayList<>();
@@ -538,10 +540,14 @@ public class HkPageActivity extends BaseActivity {
         new Thread(() -> {
             try {
                 List<HkRule> rules = new ArrayList<>();
+                List<HkRule> updated = new ArrayList<>();
                 Map<HkRuleManager.HkZipData, List<HkRule>> assets = new HashMap<>();
                 for (PickEntry e : picked) {
+                    HkRule installed = HkRuleManager.get().getInstalledRule(e.parsed.rule.getTitle());
+                    boolean isUpdate = installed != null && e.parsed.rule.getVersion() > installed.getVersion();
                     HkRuleManager.get().saveRule(e.parsed.rule, e.parsed.json);
                     rules.add(e.parsed.rule);
+                    if (isUpdate) updated.add(e.parsed.rule);
                     if (e.hkZipData != null) {
                         List<HkRule> g = assets.get(e.hkZipData);
                         if (g == null) {
@@ -554,17 +560,45 @@ public class HkPageActivity extends BaseActivity {
                 for (Map.Entry<HkRuleManager.HkZipData, List<HkRule>> en : assets.entrySet()) {
                     HkRuleManager.get().saveHkZipAssets(en.getKey(), en.getValue());
                 }
+                boolean wasUpdate = !updated.isEmpty();
                 String msg = rules.size() == 1
-                        ? "导入成功：" + rules.get(0).getTitle()
-                        : "导入成功 " + rules.size() + " 个小程序";
+                        ? (wasUpdate ? "更新成功：" : "导入成功：") + rules.get(0).getTitle()
+                        : (wasUpdate ? "更新成功 " : "导入成功 ") + rules.size() + " 个小程序";
                 App.post(() -> {
                     Notify.show(msg);
                     refreshRules();
+                    // 更新/添加成功后提示"是否打开"（像海阔原版）
+                    showOpenAfterImportDialog(rules);
                 });
             } catch (Exception e) {
                 App.post(() -> Notify.show("导入失败：" + e.getMessage()));
             }
         }).start();
+    }
+
+    /**
+     * 导入/更新成功后提示"是否打开"（海阔原版行为）。
+     * 单个规则：直接问是否打开该规则；多个：列出供选择。
+     */
+    private void showOpenAfterImportDialog(List<HkRule> rules) {
+        if (rules == null || rules.isEmpty()) return;
+        if (rules.size() == 1) {
+            HkRule rule = rules.get(0);
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                    .setTitle(rule.getTitle())
+                    .setMessage("是否打开该小程序？")
+                    .setPositiveButton("打开", (d, w) -> openRule(rule))
+                    .setNegativeButton("取消", null)
+                    .show();
+        } else {
+            String[] titles = new String[rules.size()];
+            for (int i = 0; i < rules.size(); i++) titles[i] = rules.get(i).getTitle();
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                    .setTitle("是否打开小程序？")
+                    .setItems(titles, (d, which) -> openRule(rules.get(which)))
+                    .setNegativeButton("取消", null)
+                    .show();
+        }
     }
 
     /**
@@ -975,6 +1009,53 @@ public class HkPageActivity extends BaseActivity {
             sort = value;
             loadContent(true);
         });
+        addColSwitcherRow();
+    }
+
+    /**
+     * 官方第三行：三列/两列/一列切换。切列数后重算 span 与图高，刷新网格。
+     */
+    private void addColSwitcherRow() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        TextView tv = new TextView(this);
+        tv.setText("列数");
+        tv.setTextColor(0xFF101216);
+        tv.setTextSize(12);
+        LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(dp(40), ViewGroup.LayoutParams.WRAP_CONTENT);
+        row.addView(tv, labelLp);
+        LinearLayout chips = new LinearLayout(this);
+        chips.setOrientation(LinearLayout.HORIZONTAL);
+        String[] labels = {"三列", "两列", "一列"};
+        int[] cols = {3, 2, 1};
+        for (int i = 0; i < labels.length; i++) {
+            final int c = cols[i];
+            TextView chip = new TextView(this);
+            chip.setText(labels[i]);
+            chip.setTextSize(12);
+            chip.setPadding(dp(16), dp(8), dp(16), dp(8));
+            boolean sel = gridCols == c;
+            chip.setTextColor(sel ? 0xFFFFFFFF : 0xFF101216);
+            chip.setBackgroundResource(sel ? R.drawable.hk_chip_checked : R.drawable.hk_chip);
+            LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            clp.rightMargin = dp(8);
+            final TextView fChip = chip;
+            chip.setOnClickListener(v -> {
+                if (gridCols == c) return;
+                gridCols = c;
+                if (contentAdapter != null) contentAdapter.updateVideoImgH();
+                if (contentGrid != null) contentGrid.requestLayout();
+                if (contentAdapter != null) contentAdapter.notifyDataSetChanged();
+                buildFilterRows();
+            });
+            chips.addView(chip, clp);
+        }
+        row.addView(chips, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rowLp.topMargin = dp(8);
+        binding.filterContainer.addView(row, rowLp);
     }
 
     private void addFilterRow(String label, List<String[]> pairs, ChipAdapter.OnPick pick) {
@@ -1669,13 +1750,18 @@ public class HkPageActivity extends BaseActivity {
         return (int) (v * getResources().getDisplayMetrics().density + 0.5f);
     }
 
-    /** 内容网格间距：按实际 span/spanIndex 算列边距；兼容 3 列搜索网格与 12 列内容网格。 */
+    /**
+     * 内容网格间距：标准均分公式，保证 N 列总宽严格等于 RecyclerView 宽、不溢出。
+     * 每列 i（0-based）：left = i*S/N，right = S-(i+1)*S/N；列间距 S=12dp。
+     * 外边距由父容器 16dp 提供，decoration 不再加外边距。
+     * 兼容 60-span 内容网格与 3-span 搜索网格。
+     */
     private class GridSpace extends RecyclerView.ItemDecoration {
         @Override
         public void getItemOffsets(@NonNull Rect outRect, @NonNull View view, @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
             int pos = parent.getChildAdapterPosition(view);
             if (pos < 0) return;
-            int total = 12, span = 12, spanIndex = 0;
+            int total = 60, span = 60, spanIndex = 0;
             if (parent.getLayoutManager() instanceof GridLayoutManager) {
                 total = ((GridLayoutManager) parent.getLayoutManager()).getSpanCount();
             }
@@ -1685,18 +1771,20 @@ public class HkPageActivity extends BaseActivity {
                 span = glp.getSpanSize();
                 if (glp.getSpanIndex() >= 0) spanIndex = glp.getSpanIndex();
             }
-            int h = dp(12);
             if (span >= total) {
                 outRect.left = 0;
                 outRect.right = 0;
                 if (pos > 0) outRect.top = dp(12);
-            } else {
-                int perRow = Math.max(1, total / Math.max(1, span));
-                int col = span > 0 ? spanIndex / span : 0;
-                outRect.left = col == 0 ? 0 : h / 2;
-                outRect.right = col == perRow - 1 ? 0 : h / 2;
-                if (pos >= perRow) outRect.top = dp(16);
+                return;
             }
+            int perRow = Math.max(1, total / Math.max(1, span));
+            int col = span > 0 ? spanIndex / span : 0;
+            if (col < 0) col = 0;
+            if (col >= perRow) col = perRow - 1;
+            int s = dp(12);
+            outRect.left = col * s / perRow;
+            outRect.right = s - (col + 1) * s / perRow;
+            if (pos >= perRow) outRect.top = dp(12);
         }
     }
 
@@ -1870,6 +1958,12 @@ public class HkPageActivity extends BaseActivity {
                 return ContentAdapter.T_CARD;
             case "":
             case "movie_3":
+                return ContentAdapter.T_VIDEO;
+            case "movie_1":
+                // 官方 movie_1 span=60 整宽左图右文
+                return ContentAdapter.T_MOVIE_LEFT_PIC;
+            case "movie_2":
+                // 官方 movie_2 span=30 两列（走 T_VIDEO，spanFor 按 col_type 给 30）
                 return ContentAdapter.T_VIDEO;
             default:
                 if (ct.startsWith("icon")) {
@@ -2254,16 +2348,28 @@ public class HkPageActivity extends BaseActivity {
         private List<HkItem> items;
         /** 按钮组：合成条目 → 子条目列表（连续 scroll_button/flex_button 的横向胶囊行）。 */
         private final java.util.Map<HkItem, List<HkItem>> buttonGroups = new java.util.HashMap<>();
-        private final int videoImgH;
+        private int videoImgH;
         private final int picH;
 
         ContentAdapter(List<HkItem> items) {
             this.source = items;
             this.items = groupButtons(items);
             DisplayMetrics dm = getResources().getDisplayMetrics();
-            int itemW = (dm.widthPixels - dp(16) * 2 - dp(12) * 2) / 3;
-            videoImgH = itemW * 3 / 2;
             picH = (dm.widthPixels - dp(16) * 2) * 9 / 16;
+            updateVideoImgH();
+        }
+
+        /**
+         * 按当前列数重算视频卡片图高：列宽 = (屏宽-左右边距16dp*2)/列数，图高 = 列宽*3/2。
+         * 列数切换后调用并 notifyDataSetChanged。
+         */
+        void updateVideoImgH() {
+            DisplayMetrics dm = getResources().getDisplayMetrics();
+            int cols = Math.max(1, gridCols);
+            int itemW = (dm.widthPixels - dp(16) * 2) / cols;
+            // 减去列间距均摊（GridSpace：12dp*(cols-1)/cols）
+            itemW -= dp(12) * (cols - 1) / cols;
+            videoImgH = itemW * 3 / 2;
         }
 
         /**
@@ -2318,7 +2424,9 @@ public class HkPageActivity extends BaseActivity {
             String ct = it.getColType() == null ? "" : it.getColType().trim().toLowerCase();
             switch (t) {
                 case T_VIDEO:
-                    return 20; // movie_3 3/行；movie_1/movie_2 暂按视频卡片网格渲染
+                    // 官方：movie_2 span=30（2/行）；movie_3 按列数切换 3列=20/2列=30/1列=60
+                    if ("movie_2".equals(ct)) return 30;
+                    return 60 / Math.max(1, gridCols);
                 case T_COLS:
                     // text_2=30 text_3=20 text_4=15 text_5=12（N 个条目一行）
                     if (ct.endsWith("_2")) return 30;
@@ -2447,6 +2555,7 @@ public class HkPageActivity extends BaseActivity {
 
         @Override
         public int getItemViewType(int position) {
+            if (position < 0 || position >= items.size()) return T_VIDEO;
             return contentTypeOf(items.get(position));
         }
 
@@ -2508,8 +2617,12 @@ public class HkPageActivity extends BaseActivity {
 
         @Override
         public void onBindViewHolder(@NonNull Holder h, int position) {
+            if (position < 0 || position >= items.size()) return;
             HkItem item = items.get(position);
-            switch (getItemViewType(position)) {
+            // 按 Holder 创建时的 viewType 来 bind：布局过程中若 viewType 发生变化，
+            // 用 position 查到的新 viewType 去 bind 会与 Holder 已初始化的 view 不一致，
+            // 导致 TextView 为 null 崩溃（movie_1/movie_2 改 span 后复现）。
+            switch (h.getItemViewType()) {
                 case T_VIDEO:
                     bindVideo(h, item);
                     break;
@@ -2566,6 +2679,7 @@ public class HkPageActivity extends BaseActivity {
 
         /** 视频卡片：保持原 VideoAdapter 行为；desc 压在封面底部（原版 overlay 样式）。 */
         private void bindVideo(Holder h, HkItem item) {
+            if (h.title == null || h.cover == null) return; // 防 ViewHolder 类型错配
             h.title.setText(titleSpan(item.getTitle()));
             // desc 压在封面上（原版样式），不再放标题下面
             String d = stripHtml(item.getDesc());
@@ -2773,6 +2887,7 @@ public class HkPageActivity extends BaseActivity {
 
         /** 横向图文：左图右文。 */
         private void bindMovie(Holder h, HkItem item) {
+            if (h.title == null || h.desc == null || h.cover == null) return; // 防 ViewHolder 类型错配
             h.title.setText(titleSpan(item.getTitle()));
             String d = stripHtml(item.getDesc());
             h.desc.setText(d);

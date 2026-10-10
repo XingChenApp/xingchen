@@ -89,6 +89,12 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     private volatile boolean refreshToTop;
     /** setPageTitle/getPageTitle 的页标题状态。 */
     private String pageTitle = "";
+    /** setPagePicUrl：官方 SetPagePicEvent 语义，宿主存字段供上层取用。 */
+    private String pagePicUrl = "";
+    /** setLastChapterRule：官方存最新章节规则，宿主存字段供上层取用。 */
+    private String lastChapterRule = "";
+    /** setStrResult/setLastChapterResult：官方 JS 回调字符串结果，宿主存字段供上层取用。 */
+    private volatile String strResult = "";
     /** 当前页码（MY_PAGE 注入用）。 */
     private int page = 1;
     /** 列表页上下文（MY_TYPE/MY_CLASS_URL/MY_CLASS_NAME/MY_PARAMS/MY_AREA/MY_YEAR/MY_SORT 注入用）。 */
@@ -1225,7 +1231,16 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         stub("closeMe", null);
         stub("refresh", null);
         stub("setPageParams", null);
-        stub("setPagePicUrl", null);
+        // 官方 setPagePicUrl(title)：发 SetPagePicEvent 更新页面配图；宿主存字段供上层取用
+        ctx.getGlobalObject().setProperty("setPagePicUrl", args -> {
+            try {
+                pagePicUrl = args != null && args.length > 0 && args[0] != null ? String.valueOf(args[0]) : "";
+                Logger.t(TAG).d("setPagePicUrl: %s", pagePicUrl);
+            } catch (Throwable e) {
+                Logger.t(TAG).d("setPagePicUrl failed: %s", e.getMessage());
+            }
+            return null;
+        });
         stub("showLoading", null);
         stub("hideLoading", null);
         stub("refreshReadData", null);
@@ -1238,11 +1253,53 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         stub("createQRCodeToFile", "");
         stub("openAppIntent", false);
         stub("initChaquopy", null);
-        // 文件/下载类
-        stub("requireDownload", null);
-        stub("saveImage", null);
+        // 文件/下载类（官方行为：saveImage 下载图片到 path；requireDownload 文件不存在才下载；
+        // deleteCache(c) c=-1 清规则全部缓存否则按 url 清，宿主清内存缓存）
+        ctx.getGlobalObject().setProperty("requireDownload", args -> {
+            if (args == null || args.length < 2) return null;
+            try {
+                String url = String.valueOf(args[0]);
+                String dest = resolveHikerPath(String.valueOf(args[1]));
+                File f = new File(dest);
+                if (f.exists()) return null;
+                String headers = args.length > 2 && args[2] != null ? stringifyArg(args[2]) : "{}";
+                downloadToFile(url, dest, headers);
+            } catch (Throwable e) {
+                Logger.t(TAG).d("requireDownload failed: %s", e.getMessage());
+            }
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("saveImage", args -> {
+            // 官方 saveImage(url, path)：参数顺序注意是 (url, path)
+            if (args == null || args.length < 2) return null;
+            try {
+                String url = String.valueOf(args[0]);
+                String path = String.valueOf(args[1]);
+                if (TextUtils.isEmpty(url) || "undefined".equalsIgnoreCase(url)) return null;
+                if (TextUtils.isEmpty(path) || "undefined".equalsIgnoreCase(path)) return null;
+                downloadToFile(url, resolveHikerPath(path), "{}");
+            } catch (Throwable e) {
+                Logger.t(TAG).d("saveImage failed: %s", e.getMessage());
+            }
+            return null;
+        });
         stub("copyFiles", null);
-        stub("deleteCache", null);
+        ctx.getGlobalObject().setProperty("deleteCache", args -> {
+            try {
+                String c = args != null && args.length > 0 && args[0] != null ? String.valueOf(args[0]) : "-1";
+                if ("-1".equals(c) || TextUtils.isEmpty(c)) {
+                    memCache.clear();
+                    Logger.t(TAG).d("deleteCache: cleared all memCache");
+                } else {
+                    final String key = c;
+                    memCache.keySet().removeIf(k -> k.contains(key));
+                    Logger.t(TAG).d("deleteCache: cleared memCache for %s", key);
+                }
+            } catch (Throwable e) {
+                Logger.t(TAG).d("deleteCache failed: %s", e.getMessage());
+            }
+            return null;
+        });
         stub("shareDirectory", null);
         stub("writeHexFile", null);
         // 代理/服务类
@@ -1257,19 +1314,83 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         stub("getEpubChapters", "[]");
         stub("getEpubContent0", "");
         stub("getEpubMetadata", "{}");
-        stub("setStrResult", null);
-        stub("setLastChapterResult", null);
-        stub("setLastChapterRule", null);
+        // 字符串结果回调：官方 setStrResult(o, callbackKey, ruleKey) 完成 JS 回调；
+        // 宿主同步模型无 callbackMap，存 strResult 字段供上层取用（setLastChapterResult 官方即委托 setStrResult）
+        ctx.getGlobalObject().setProperty("setStrResult", args -> {
+            try {
+                strResult = args != null && args.length > 0 && args[0] != null ? String.valueOf(args[0]) : "";
+                Logger.t(TAG).d("setStrResult: %d chars", strResult.length());
+            } catch (Throwable e) {
+                Logger.t(TAG).d("setStrResult failed: %s", e.getMessage());
+            }
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("setLastChapterResult", args -> {
+            try {
+                strResult = args != null && args.length > 0 && args[0] != null ? String.valueOf(args[0]) : "";
+                Logger.t(TAG).d("setLastChapterResult: %d chars", strResult.length());
+            } catch (Throwable e) {
+                Logger.t(TAG).d("setLastChapterResult failed: %s", e.getMessage());
+            }
+            return null;
+        });
+        ctx.getGlobalObject().setProperty("setLastChapterRule", args -> {
+            try {
+                lastChapterRule = args != null && args.length > 0 && args[0] != null ? String.valueOf(args[0]) : "";
+                Logger.t(TAG).d("setLastChapterRule: %d chars", lastChapterRule.length());
+            } catch (Throwable e) {
+                Logger.t(TAG).d("setLastChapterRule failed: %s", e.getMessage());
+            }
+            return null;
+        });
         // 搜索/隐私
         stub("getSearchMode", "");
         stub("setSearchMode", null);
         stub("searchContains", false);
         stub("checkPrivacyPassword", false);
         stub("getPrivacyPasswordLen", 0);
-        // 规则管理
-        stub("getLastRules", "[]");
+        // 规则管理（官方：LitePal 规则表；宿主：HkRuleManager 落盘目录）
+        ctx.getGlobalObject().setProperty("getLastRules", args -> {
+            try {
+                int count = 12;
+                if (args != null && args.length > 0 && args[0] != null) {
+                    try {
+                        count = (int) toDouble(args[0]);
+                    } catch (Throwable ignored) {
+                        return "[]";
+                    }
+                    if (count == -1) count = Integer.MAX_VALUE;
+                }
+                File dir = HkRuleManager.get().getDir();
+                File[] files = dir.listFiles((d, name) -> name.endsWith(".json"));
+                if (files == null || files.length == 0) return "[]";
+                java.util.Arrays.sort(files, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+                List<Object> out = new ArrayList<>();
+                for (File f : files) {
+                    if (out.size() >= count) break;
+                    try {
+                        byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
+                        Object o = GSON.fromJson(new String(bytes, Charset.forName("UTF-8")), Object.class);
+                        if (o != null) out.add(o);
+                    } catch (Throwable ignored) {
+                    }
+                }
+                return GSON.toJson(out);
+            } catch (Throwable e) {
+                Logger.t(TAG).d("getLastRules failed: %s", e.getMessage());
+                return "[]";
+            }
+        });
         stub("publishRule", null);
-        stub("getRuleCount", "0");
+        ctx.getGlobalObject().setProperty("getRuleCount", args -> {
+            try {
+                File dir = HkRuleManager.get().getDir();
+                File[] files = dir.listFiles((d, name) -> name.endsWith(".json"));
+                return String.valueOf(files == null ? 0 : files.length);
+            } catch (Throwable e) {
+                return "0";
+            }
+        });
         stub("isVideoOrMusic", false);
         stub("isShorthand", false);
         // 任务调度
@@ -1279,7 +1400,17 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         stub("getCurrentActivity", null);
         stub("findJavaClass", null);
         stub("loadJavaClass", null);
-        stub("getPrivateJS", "");
+        // 官方 getPrivateJS(c)：AES 加密（key=AES_DEFAULT_KEY="1234567890kkkk"）；
+        // 宿主用同 key 的 AES/ECB/PKCS5Padding 实现（base64 输出），保证宿主内确定性
+        ctx.getGlobalObject().setProperty("getPrivateJS", args -> {
+            if (args == null || args.length == 0 || args[0] == null) return "";
+            try {
+                return aesEncryptECB(String.valueOf(args[0]), "1234567890kkkk");
+            } catch (Throwable e) {
+                Logger.t(TAG).d("getPrivateJS failed: %s", e.getMessage());
+                return "";
+            }
+        });
         // 官方语义：返回内置 Hikerurl.js（$ 工具库）源码，规则 eval(getJsPlugin()) 后使用；
         // init() 已自动注入为全局，规则不 eval 也能用
         ctx.getGlobalObject().setProperty("getJsPlugin", args -> {
@@ -1290,7 +1421,15 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             return code;
         });
-        stub("getJsLazyPlugin", "");
+        // 官方 getJsLazyPlugin()：返回内置 assets/plugin.js 源码
+        ctx.getGlobalObject().setProperty("getJsLazyPlugin", args -> {
+            String code = loadAsset("plugin.js");
+            if (code == null) {
+                Logger.t(TAG).d("getJsLazyPlugin: plugin.js missing in assets");
+                return "";
+            }
+            return code;
+        });
         stub("getMyType", "");
         stub("getMyCallbackKey", "");
         stub("getMyInput", "");
@@ -1550,6 +1689,24 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         }
     }
 
+    /**
+     * getPrivateJS 的加密 counterpart：AES/ECB/PKCS5Padding，key 补 0 到 32 字节，base64 输出。
+     * 官方用 AES_DEFAULT_KEY="1234567890kkkk"，宿主取同 key、ECB 模式实现，保证宿主内确定性。
+     */
+    private static String aesEncryptECB(String plain, String key) {
+        try {
+            byte[] keyBytes = new byte[32];
+            byte[] kb = key.getBytes(Charset.forName("UTF-8"));
+            System.arraycopy(kb, 0, keyBytes, 0, Math.min(kb.length, 32));
+            for (int i = kb.length; i < 32; i++) keyBytes[i] = '0';
+            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("AES/ECB/PKCS5Padding");
+            cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, new javax.crypto.spec.SecretKeySpec(keyBytes, "AES"));
+            return Base64.encodeToString(cipher.doFinal(plain.getBytes(Charset.forName("UTF-8"))), Base64.NO_WRAP);
+        } catch (Throwable e) {
+            return "";
+        }
+    }
+
     /** fc/rc 的内存缓存：hours<=0 不缓存；命中且未过期直接返回。 */
     private String memCached(String key, double hours, java.util.concurrent.Callable<String> loader) {
         try {
@@ -1798,6 +1955,52 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     // ================= 对外接口 =================
 
     /**
+     * 带 headers 下载文件到绝对路径（saveImage/requireDownload 共用）。
+     * headersJson 为 JSON：{headers:{...}} 或直接 {k:v}。
+     */
+    private void downloadToFile(String url, String dest, String headersJson) {
+        if (TextUtils.isEmpty(url)) return;
+        try {
+            File f = new File(dest);
+            if (f.isDirectory() || dest.endsWith("/")) {
+                String name = url.replaceAll("[?#].*$", "").replaceAll("^.*/", "");
+                if (TextUtils.isEmpty(name)) name = "download.bin";
+                f = new File(f, name);
+            }
+            if (f.getParentFile() != null) f.getParentFile().mkdirs();
+            String opt = "{\"headers\":{}}";
+            try {
+                Map<String, Object> m = GSON.fromJson(headersJson,
+                        new com.google.gson.reflect.TypeToken<Map<String, Object>>() {}.getType());
+                if (m != null) {
+                    Object h = m.get("headers");
+                    if (h == null) h = m.get("header");
+                    Map<String, Object> hm = h instanceof Map ? (Map<String, Object>) h : m;
+                    Map<String, String> flat = new HashMap<>();
+                    for (Map.Entry<String, Object> e : hm.entrySet()) {
+                        if (e.getValue() != null) flat.put(e.getKey(), String.valueOf(e.getValue()));
+                    }
+                    Map<String, Object> wrap = new HashMap<>();
+                    wrap.put("headers", flat);
+                    opt = GSON.toJson(wrap);
+                }
+            } catch (Throwable ignored) {
+            }
+            try (okhttp3.Response res = com.fongmi.quickjs.utils.Connect.to(url,
+                    com.fongmi.quickjs.bean.Req.objectFrom(opt)).execute()) {
+                if (res.isSuccessful() && res.body() != null) {
+                    java.nio.file.Files.write(f.toPath(), res.body().bytes());
+                    Logger.t(TAG).d("downloadToFile ok: %s", f.getAbsolutePath());
+                } else {
+                    Logger.t(TAG).d("downloadToFile bad response: %s", url);
+                }
+            }
+        } catch (Throwable e) {
+            Logger.t(TAG).d("downloadToFile failed %s: %s", url, e.getMessage());
+        }
+    }
+
+    /**
      * 执行首页/分类的 js: 规则，返回条目列表。
      */
     public List<HkItem> parseList(String jsCode, String myUrl) throws Exception {
@@ -1852,6 +2055,21 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             }
             return drainResults();
         }).get();
+    }
+
+    /** setStrResult/setLastChapterResult 存下的字符串结果。 */
+    public String getStrResult() {
+        return strResult;
+    }
+
+    /** setLastChapterRule 存下的最新章节规则。 */
+    public String getLastChapterRule() {
+        return lastChapterRule;
+    }
+
+    /** setPagePicUrl 存下的页面配图。 */
+    public String getPagePicUrl() {
+        return pagePicUrl;
     }
 
     /**
