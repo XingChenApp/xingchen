@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/shape_dialog_glass_white_panel"
+    android:background="@drawable/shape_dialog_glass_panel"
     android:orientation="vertical"
     android:padding="20dp">
 
@@ -23,7 +23,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="网站验证"
-                android:textColor="#B3000000"
+                android:textColor="#FFFFFFFF"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -32,7 +32,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="请在下方页面完成人机验证，然后点「完成验证」"
-                android:textColor="#99000000"
+                android:textColor="#B3FFFFFF"
                 android:textSize="12sp" />
 
         </LinearLayout>
@@ -50,7 +50,7 @@
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="420dp"
+        android:layout_height="320dp"
         android:layout_marginTop="12dp"
         android:background="@drawable/shape_shield_webview_frame">
 
@@ -80,10 +80,10 @@
             android:layout_height="44dp"
             android:layout_marginEnd="8dp"
             android:layout_weight="1"
-            android:background="@drawable/shape_shield_btn_ghost"
+            android:background="@drawable/shape_shield_btn_ghost_dark"
             android:gravity="center"
             android:text="刷新"
-            android:textColor="#B3000000"
+            android:textColor="#FFFFFFFF"
             android:textSize="14sp"
             android:textStyle="bold" />
 
