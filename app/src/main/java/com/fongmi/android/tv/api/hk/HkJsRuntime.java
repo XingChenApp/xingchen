@@ -514,6 +514,37 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             return null;
         });
 
+        // ---- storage0 对象（官方：支持存储 JSON 对象的存储封装） ----
+        // put* 用 stringifyArg 把值（含 JSObject）序列化为 JSON 存；get* 存的是 JSON 对象/数组则解析回 JS 对象返回
+        JSObject storage0 = ctx.createNewJSObject();
+        storage0.setProperty("putVar", args -> {
+            if (args != null && args.length > 1) vars.put(String.valueOf(args[0]), stringifyArg(args[1]));
+            return null;
+        });
+        storage0.setProperty("getVar", args -> storage0Get(vars, args));
+        storage0.setProperty("putMyVar", args -> {
+            if (args != null && args.length > 1) myVars.put(String.valueOf(args[0]), stringifyArg(args[1]));
+            return null;
+        });
+        storage0.setProperty("getMyVar", args -> storage0Get(myVars, args));
+        storage0.setProperty("setItem", args -> {
+            if (args != null && args.length > 1) {
+                kv.put(String.valueOf(args[0]), stringifyArg(args[1]));
+                saveKv();
+            }
+            return null;
+        });
+        storage0.setProperty("getItem", args -> storage0Get(kv, args));
+        storage0.setProperty("setPublicItem", args -> {
+            if (args != null && args.length > 1) {
+                publicKv.put(String.valueOf(args[0]), stringifyArg(args[1]));
+                savePublicKv();
+            }
+            return null;
+        });
+        storage0.setProperty("getPublicItem", args -> storage0Get(publicKv, args));
+        ctx.getGlobalObject().setProperty("storage0", storage0);
+
         // ---- 当前结果列表的动态修改（官方经 EventBus 改 UI 列表；本宿主直接改 results） ----
         ctx.getGlobalObject().setProperty("updateItem", args -> {
             // updateItem(id, obj) 或 updateItem(obj)（obj.extra.id / obj.url 作 id）
@@ -2027,6 +2058,27 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         } catch (Throwable ignored) {
         }
         return String.valueOf(arg);
+    }
+
+    /**
+     * storage0.get*：存的是 JSON 对象/数组则解析回 JS 对象返回，否则原样返回字符串。
+     * 缺省值（第 2 参数）有则原样返回，不做解析。
+     */
+    private Object storage0Get(java.util.Map<String, String> map, Object[] args) {
+        if (args == null || args.length == 0) return "";
+        String v = map.get(String.valueOf(args[0]));
+        if (v == null) {
+            if (args.length > 1 && args[1] != null) return args[1];
+            return "";
+        }
+        String t = v.trim();
+        if ((t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"))) {
+            try {
+                return ctx.parse(v);
+            } catch (Throwable ignored) {
+            }
+        }
+        return v;
     }
 
     private static String mergeMethod(String optionsJson, String method) {
