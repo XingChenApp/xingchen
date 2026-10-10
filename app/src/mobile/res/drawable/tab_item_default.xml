@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔：对照 8.83 tab_item_default -->
+<layer-list
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape>
+            <solid android:color="#ffffffff" />
+        </shape>
+    </item>
+    <item android:drawable="@drawable/ripple_gray_corners" android:left="2.0dip" android:right="2.0dip" />
+</layer-list>

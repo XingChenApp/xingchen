@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔：对照 8.83 ic_gradient_half_trans_to_tans -->
+<shape android:shape="rectangle"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <corners android:radius="8.0dip" />
+    <gradient android:startColor="#60000000" android:endColor="@android:color/transparent" android:angle="90" />
+</shape>

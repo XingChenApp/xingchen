@@ -37,4 +37,9 @@
     <color name="xc_glass_stroke">#40FFFFFF</color>
     <color name="xc_glass_dark">#CC2F315E</color>
 
+    <!-- 海阔 8.83 补齐：item_hk_* 布局引用 -->
+    <color name="black_666">#ff222222</color>
+    <color name="chapter_bottom">#fff2f2f2</color>
+    <color name="dark_edit">#ff333333</color>
+
 </resources>

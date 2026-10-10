@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔：对照 8.83 ripple_gray_corners（tab_item_default 引用） -->
+<ripple android:color="#ffdfdfdf"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/shape_gray_corners" />
+</ripple>

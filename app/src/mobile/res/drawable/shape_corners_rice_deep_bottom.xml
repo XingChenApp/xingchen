@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔：对照 8.83 shape_corners_rice_deep_bottom -->
+<shape android:shape="rectangle"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#ffffffff" />
+    <corners android:bottomLeftRadius="10.0dip" android:bottomRightRadius="10.0dip" />
+</shape>
