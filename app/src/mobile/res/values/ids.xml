@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔：对照 8.83 res/values/ids.xml，预声明 item 布局引用的 id -->
+<resources>
+    <item type="id" name="item_result_img_bg" />
+    <item type="id" name="item_bg" />
+    <item type="id" name="textView" />
+    <item type="id" name="item_bg1" />
+    <item type="id" name="item_bg2" />
+    <item type="id" name="textView2" />
+    <item type="id" name="img_bg" />
+    <item type="id" name="bg" />
+    <item type="id" name="clickBg" />
+    <item type="id" name="item_img_bg" />
+    <item type="id" name="shortcut_icon_text" />
+    <item type="id" name="dt1" />
+    <item type="id" name="dt2" />
+    <item type="id" name="dt3" />
+    <item type="id" name="dt4" />
+    <item type="id" name="dt5" />
+    <item type="id" name="dt6" />
+    <item type="id" name="dt7" />
+    <item type="id" name="dt8" />
+    <item type="id" name="descView" />
+    <item type="id" name="clickBg1" />
+    <item type="id" name="textView1" />
+    <item type="id" name="clickBg2" />
+    <item type="id" name="item_chapter_jishu" />
+    <item type="id" name="item_ad_bg" />
+    <item type="id" name="item_ad_title" />
+    <item type="id" name="res_header_item_text" />
+    <item type="id" name="item_rect_text" />
+    <item type="id" name="btn_bg" />
+    <item type="id" name="item_rect_text_desc" />
+</resources>
