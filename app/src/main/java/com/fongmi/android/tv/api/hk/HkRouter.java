@@ -95,27 +95,36 @@ public class HkRouter {
                     detail.setTabSwitch(true);
                     return detail;
                 }
-                if (v != null) {
-                    String vt = v.trim();
-                    if (!vt.isEmpty() && !"hiker://empty".equals(vt)) {
-                        String kind = dealKind(vt);
-                        if (!kind.isEmpty()) {
-                            // 官方 dealWithUrl：video 直接播放；pics/x5/web/image/magnet 按种类分流，均不进 V4
-                            if ("video".equals(kind)) detail.setDirectPlayUrl(vt);
-                            else {
-                                detail.setDealKind(kind);
-                                detail.setDealUrl(vt);
-                            }
-                            return detail;
-                        }
-                        // 未知种类：回退旧逻辑（无详情规则则直接播放，否则继续 V4 流程）
-                        if (vt.contains("#isVideo=true#") || isEmptyDetailRule() || looksLikeMediaUrl(vt)) {
-                            detail.setDirectPlayUrl(vt);
-                            return detail;
-                        }
-                    }
+                // lazyRule 求值失败（null/空）：标记解析失败，调用方不应推空 V4
+                if (v == null || v.trim().isEmpty() || "hiker://empty".equals(v.trim())) {
+                    detail.setLazyParseFailed(true);
+                    return detail;
                 }
-                u = (v == null || v.trim().isEmpty()) ? u.substring(0, lr).trim() : v.trim();
+                String vt = v.trim();
+                String kind = dealKind(vt);
+                if (!kind.isEmpty()) {
+                    // 官方 dealWithUrl：video 直接播放；pics/x5/web/image/magnet 按种类分流，均不进 V4
+                    if ("video".equals(kind)) detail.setDirectPlayUrl(vt);
+                    else {
+                        detail.setDealKind(kind);
+                        detail.setDealUrl(vt);
+                    }
+                    return detail;
+                }
+                // 未知种类：回退旧逻辑（无详情规则则直接播放，否则继续 V4 流程）
+                if (vt.contains("#isVideo=true#") || isEmptyDetailRule() || looksLikeMediaUrl(vt)) {
+                    detail.setDirectPlayUrl(vt);
+                    return detail;
+                }
+                // @lazyRule= 有结果但无法识别种类：如果结果是有效 HTTP URL，默认按直接播放处理，
+                // 避免落入 V4 空详情（官方 dealWithUrl 对未知 http URL 走 web 分流，不进 V4）
+                if (vt.toLowerCase().startsWith("http")) {
+                    detail.setDirectPlayUrl(vt);
+                    return detail;
+                }
+                // 非 http 结果也标记为解析失败，不进 V4 空页面
+                detail.setLazyParseFailed(true);
+                return detail;
             }
 
             // ② 纯 js: 条目（$.toString 生成）：求值得到真实 URL

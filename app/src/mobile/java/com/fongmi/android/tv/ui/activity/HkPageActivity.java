@@ -1284,6 +1284,12 @@ public class HkPageActivity extends BaseActivity {
                     loadContent(true);
                     return;
                 }
+                // lazyRule 解析失败（@lazyRule= 求值无结果）：不推空 V4，直接报错
+                // （避免"0条线路 · 共0集"的空详情页；用户点的是视频，期望播放而非空 V4）
+                if (result != null && result.isLazyParseFailed()) {
+                    android.widget.Toast.makeText(HkPageActivity.this, "解析失败，换一条试试", android.widget.Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 String direct = result == null ? "" : result.getDirectPlayUrl();
                 if (!TextUtils.isEmpty(direct)) {
                     // 直接播放：若已推 V4 先弹出，保证播放器返回时回到列表

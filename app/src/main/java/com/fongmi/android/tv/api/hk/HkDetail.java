@@ -136,6 +136,21 @@ public class HkDetail {
         this.tabSwitch = tabSwitch;
     }
 
+    /**
+     * lazyRule 解析失败标记：条目 URL 自带 @lazyRule=（期望直接播放），但求值
+     * 返回 null/空或抛错时设置。调用方见到此标记不应推空 V4，而应直接报错，
+     * 避免"0条线路 · 共0集"的空详情页。
+     */
+    private boolean lazyParseFailed;
+
+    public boolean isLazyParseFailed() {
+        return lazyParseFailed;
+    }
+
+    public void setLazyParseFailed(boolean lazyParseFailed) {
+        this.lazyParseFailed = lazyParseFailed;
+    }
+
     public String getTitle() {
         return title;
     }
