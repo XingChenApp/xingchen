@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔 V2：全宽大图（pic_1/pic_1_full/pic_1_center），高度按 16:9 由 adapter 计算 -->
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/iv_pic"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:adjustViewBounds="true"
+    android:background="#E8EAEE"
+    android:scaleType="centerCrop" />

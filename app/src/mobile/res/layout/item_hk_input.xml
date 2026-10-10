@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔 V2：输入框行（input），hint 取条目标题 -->
+<EditText xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/et_input"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="6dp"
+    android:background="@drawable/bg_input_light"
+    android:hintTextColor="#9AA0AE"
+    android:imeOptions="actionSearch"
+    android:inputType="text"
+    android:padding="12dp"
+    android:textColor="#1A1D24"
+    android:textSize="14sp" />

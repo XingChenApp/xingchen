@@ -453,6 +453,22 @@
                         android:textColor="#1A1D24"
                         android:textSize="14sp" />
 
+                    <!-- V4 复制按钮行：简介下方、选集上方，每 copy 条目一个按钮 -->
+                    <HorizontalScrollView
+                        android:id="@+id/copy_scroll"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:scrollbars="none"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:id="@+id/copy_row"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal" />
+                    </HorizontalScrollView>
+
                     <TextView
                         android:id="@+id/tv_detail_line_label"
                         android:layout_width="wrap_content"

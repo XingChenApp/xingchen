@@ -8,18 +8,23 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.Outline;
 import android.graphics.Rect;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.text.Editable;
+import android.text.Html;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.DisplayMetrics;
 import android.util.SparseBooleanArray;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewOutlineProvider;
 import android.view.inputmethod.EditorInfo;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
@@ -88,7 +93,7 @@ public class HkPageActivity extends BaseActivity {
     private RuleAdapter ruleAdapter;
     private final List<HkRule> rules = new ArrayList<>();
 
-    private VideoAdapter contentAdapter;
+    private ContentAdapter contentAdapter;
     private final List<HkItem> videos = new ArrayList<>();
     private GridLayoutManager contentGrid;
     private HkRule currentRule;
@@ -853,9 +858,16 @@ public class HkPageActivity extends BaseActivity {
 
     private void initContentView() {
         contentGrid = new GridLayoutManager(this, 3);
+        // 多 viewType：视频卡片/小图标占 1 列，其余占满 3 列
+        contentGrid.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
+            @Override
+            public int getSpanSize(int position) {
+                return contentAdapter == null ? 3 : contentAdapter.spanFor(position);
+            }
+        });
         binding.rvVideos.setLayoutManager(contentGrid);
         binding.rvVideos.addItemDecoration(new GridSpace());
-        contentAdapter = new VideoAdapter(videos, true);
+        contentAdapter = new ContentAdapter(videos);
         binding.rvVideos.setAdapter(contentAdapter);
         binding.rvCategory.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         binding.swipeContent.setColorSchemeColors(0xFFD4A017);
@@ -1013,7 +1025,8 @@ public class HkPageActivity extends BaseActivity {
                 binding.swipeContent.setRefreshing(false);
                 binding.loadingContent.setVisibility(View.GONE);
                 // V2：把导航类条目（scroll_button/flex_button 分类）拆出来做顶部 tab，
-                // 分隔块（blank_block/line）丢弃，只有内容条目进视频网格。
+                // 分隔块（blank_block/line_blank/line）丢弃，其余内容条目按 col_type
+                // 由 ContentAdapter 多 viewType 渲染（视频/文本/图片/输入框等）。
                 List<HkItem> tabs = new ArrayList<>();
                 List<HkItem> contents = new ArrayList<>();
                 for (HkItem it : result) {
@@ -1268,6 +1281,7 @@ public class HkPageActivity extends BaseActivity {
         binding.tvDetailIntroLabel.setVisibility(hasContent ? View.VISIBLE : View.GONE);
         binding.tvDetailContent.setVisibility(hasContent ? View.VISIBLE : View.GONE);
         if (hasContent) binding.tvDetailContent.setText(content);
+        renderCopyButtons(detail.getCopyItems());
         List<HkDetail.Line> lines = detail.getLines();
         List<String[]> pairs = new ArrayList<>();
         for (HkDetail.Line l : lines) pairs.add(new String[]{l.getName(), l.getName()});
@@ -1287,6 +1301,46 @@ public class HkPageActivity extends BaseActivity {
         currentLine = lines.get(0);
         refreshEpisodes();
         binding.detailScroll.scrollTo(0, 0);
+    }
+
+    /**
+     * V4 复制按钮行：简介下方、选集上方横向排列，每 copy 条目一个白色描边按钮；
+     * 点击复制 getText() 到剪贴板并 Toast"已复制"。无条目时整行隐藏。
+     */
+    private void renderCopyButtons(List<HkDetail.CopyItem> items) {
+        binding.copyRow.removeAllViews();
+        if (items == null || items.isEmpty()) {
+            binding.copyScroll.setVisibility(View.GONE);
+            return;
+        }
+        binding.copyScroll.setVisibility(View.VISIBLE);
+        for (HkDetail.CopyItem ci : items) {
+            TextView btn = new TextView(this);
+            btn.setText(ci.getName());
+            btn.setTextColor(0xFF1A1D24);
+            btn.setTextSize(13);
+            btn.setGravity(Gravity.CENTER);
+            btn.setMaxLines(1);
+            btn.setEllipsize(TextUtils.TruncateAt.END);
+            int padH = dp(16), padV = dp(9);
+            btn.setPadding(padH, padV, padH, padV);
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(0xFFFFFFFF);
+            bg.setStroke(dp(1), 0xFFE0E4EA);
+            bg.setCornerRadius(dp(10));
+            btn.setBackground(bg);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.rightMargin = dp(10);
+            binding.copyRow.addView(btn, lp);
+            btn.setOnClickListener(v -> {
+                ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                if (cm != null) {
+                    cm.setPrimaryClip(ClipData.newPlainText("hk_copy", ci.getText()));
+                    Notify.show("已复制");
+                }
+            });
+        }
     }
 
     private void refreshEpisodes() {
@@ -1360,17 +1414,29 @@ public class HkPageActivity extends BaseActivity {
         return (int) (v * getResources().getDisplayMetrics().density + 0.5f);
     }
 
-    /** 视频网格间距：横向 12dp、纵向 16dp，边缘 0（父容器已有 16dp 边距）。 */
+    /** 内容网格间距：1 列条目按实际列算左右边距，全宽条目左右 0、上下留 12dp。 */
     private class GridSpace extends RecyclerView.ItemDecoration {
         @Override
         public void getItemOffsets(@NonNull Rect outRect, @NonNull View view, @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
             int pos = parent.getChildAdapterPosition(view);
             if (pos < 0) return;
-            int col = pos % 3;
+            int span = 1, col = pos % 3;
+            RecyclerView.LayoutParams lp = (RecyclerView.LayoutParams) view.getLayoutParams();
+            if (lp instanceof GridLayoutManager.LayoutParams) {
+                GridLayoutManager.LayoutParams glp = (GridLayoutManager.LayoutParams) lp;
+                span = glp.getSpanSize();
+                if (glp.getSpanIndex() >= 0) col = glp.getSpanIndex();
+            }
             int h = dp(12);
-            outRect.left = col == 0 ? 0 : h / 2;
-            outRect.right = col == 2 ? 0 : h / 2;
-            if (pos >= 3) outRect.top = dp(16);
+            if (span >= 3) {
+                outRect.left = 0;
+                outRect.right = 0;
+                if (pos > 0) outRect.top = dp(12);
+            } else {
+                outRect.left = col == 0 ? 0 : h / 2;
+                outRect.right = col == 2 ? 0 : h / 2;
+                if (pos >= 3) outRect.top = dp(16);
+            }
         }
     }
 
@@ -1427,6 +1493,402 @@ public class HkPageActivity extends BaseActivity {
         @Override
         public int getItemCount() {
             return items.size();
+        }
+    }
+
+    /** col_type 小写形式（js 结果里填充，未设置则空串）。 */
+    private String colTypeOf(HkItem it) {
+        return it.getColType() == null ? "" : it.getColType().trim().toLowerCase();
+    }
+
+    /** 去 HTML 标签（col_type 标题里常带 <font> 等），逻辑同 buildDynamicTabs。 */
+    private String stripHtml(String s) {
+        if (s == null) return "";
+        return s.replaceAll("<[^>]*>", "").replace("‘", "").replace("’", "").trim();
+    }
+
+    /** col_type → viewType：空/movie_3/未知 → 视频卡片。 */
+    private int contentTypeOf(HkItem it) {
+        String ct = colTypeOf(it);
+        switch (ct) {
+            case "text_center_1":
+            case "text_1":
+            case "long_text":
+                return ContentAdapter.T_TEXT;
+            case "rich_text":
+                return ContentAdapter.T_RICH;
+            case "text_2":
+            case "text_3":
+            case "text_4":
+            case "text_5":
+                return ContentAdapter.T_COLS;
+            case "avatar":
+                return ContentAdapter.T_AVATAR;
+            case "input":
+                return ContentAdapter.T_INPUT;
+            case "search":
+                return ContentAdapter.T_SEARCH;
+            case "":
+            case "movie_3":
+                return ContentAdapter.T_VIDEO;
+            default:
+                if (ct.startsWith("icon")) return ContentAdapter.T_ICON;
+                if (ct.startsWith("pic")) return ContentAdapter.T_PIC;
+                if (ct.startsWith("movie")) return ContentAdapter.T_MOVIE;
+                return ContentAdapter.T_VIDEO;
+        }
+    }
+
+    /**
+     * V2 非视频条目的统一点击：无 url 的纯展示行无反应；有 url 走 openDetail，
+     * 其内部已含 @lazyRule= 直接播放分支（detail → getDirectPlayUrl 非空则直接播放）。
+     */
+    private void onContentItemClick(HkItem it) {
+        if (it == null || currentRule == null || TextUtils.isEmpty(it.getUrl())) return;
+        openDetail(it, true);
+    }
+
+    /** V2 内容多 viewType 适配器：视频卡片/小图标占 1 列，其余占满 3 列。 */
+    private class ContentAdapter extends RecyclerView.Adapter<ContentAdapter.Holder> {
+        static final int T_VIDEO = 0;
+        static final int T_TEXT = 1;
+        static final int T_RICH = 2;
+        static final int T_COLS = 3;
+        static final int T_AVATAR = 4;
+        static final int T_ICON = 5;
+        static final int T_PIC = 6;
+        static final int T_MOVIE = 7;
+        static final int T_INPUT = 8;
+        static final int T_SEARCH = 9;
+
+        private final List<HkItem> items;
+        private final int videoImgH;
+        private final int picH;
+
+        ContentAdapter(List<HkItem> items) {
+            this.items = items;
+            DisplayMetrics dm = getResources().getDisplayMetrics();
+            int itemW = (dm.widthPixels - dp(16) * 2 - dp(12) * 2) / 3;
+            videoImgH = itemW * 3 / 2;
+            picH = (dm.widthPixels - dp(16) * 2) * 9 / 16;
+        }
+
+        int spanFor(int position) {
+            if (position < 0 || position >= items.size()) return 3;
+            int t = getItemViewType(position);
+            return (t == T_VIDEO || t == T_ICON) ? 1 : 3;
+        }
+
+        class Holder extends RecyclerView.ViewHolder {
+            ImageView cover;
+            TextView title, desc;
+            LinearLayout cols;
+            EditText input;
+
+            Holder(View v, int type) {
+                super(v);
+                switch (type) {
+                    case T_VIDEO:
+                        cover = v.findViewById(R.id.iv_cover);
+                        title = v.findViewById(R.id.tv_title);
+                        desc = v.findViewById(R.id.tv_desc);
+                        ViewGroup.LayoutParams vlp = cover.getLayoutParams();
+                        vlp.height = videoImgH;
+                        cover.setLayoutParams(vlp);
+                        break;
+                    case T_TEXT:
+                    case T_RICH:
+                        title = v.findViewById(R.id.tv_title);
+                        desc = v.findViewById(R.id.tv_desc);
+                        break;
+                    case T_COLS:
+                        cols = v.findViewById(R.id.cols_container);
+                        break;
+                    case T_AVATAR:
+                        cover = v.findViewById(R.id.iv_avatar);
+                        title = v.findViewById(R.id.tv_title);
+                        cover.setClipToOutline(true);
+                        cover.setOutlineProvider(new ViewOutlineProvider() {
+                            @Override
+                            public void getOutline(View view, Outline outline) {
+                                outline.setOval(0, 0, view.getWidth(), view.getHeight());
+                            }
+                        });
+                        break;
+                    case T_ICON:
+                        cover = v.findViewById(R.id.iv_icon);
+                        title = v.findViewById(R.id.tv_title);
+                        break;
+                    case T_PIC:
+                        cover = v.findViewById(R.id.iv_pic);
+                        ViewGroup.LayoutParams plp = cover.getLayoutParams();
+                        plp.height = picH;
+                        cover.setLayoutParams(plp);
+                        break;
+                    case T_MOVIE:
+                        cover = v.findViewById(R.id.iv_cover);
+                        title = v.findViewById(R.id.tv_title);
+                        desc = v.findViewById(R.id.tv_desc);
+                        break;
+                    case T_INPUT:
+                        input = v.findViewById(R.id.et_input);
+                        break;
+                    case T_SEARCH:
+                        title = v.findViewById(R.id.tv_title);
+                        break;
+                }
+            }
+        }
+
+        @Override
+        public int getItemViewType(int position) {
+            return contentTypeOf(items.get(position));
+        }
+
+        @NonNull
+        @Override
+        public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            int layout;
+            switch (viewType) {
+                case T_TEXT:
+                case T_RICH:
+                    layout = R.layout.item_hk_text;
+                    break;
+                case T_COLS:
+                    layout = R.layout.item_hk_cols;
+                    break;
+                case T_AVATAR:
+                    layout = R.layout.item_hk_avatar;
+                    break;
+                case T_ICON:
+                    layout = R.layout.item_hk_icon;
+                    break;
+                case T_PIC:
+                    layout = R.layout.item_hk_pic;
+                    break;
+                case T_MOVIE:
+                    layout = R.layout.item_hk_movie;
+                    break;
+                case T_INPUT:
+                    layout = R.layout.item_hk_input;
+                    break;
+                case T_SEARCH:
+                    layout = R.layout.item_hk_search;
+                    break;
+                default:
+                    layout = R.layout.item_hk_video;
+                    break;
+            }
+            View v = LayoutInflater.from(parent.getContext()).inflate(layout, parent, false);
+            return new Holder(v, viewType);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull Holder h, int position) {
+            HkItem item = items.get(position);
+            switch (getItemViewType(position)) {
+                case T_VIDEO:
+                    bindVideo(h, item);
+                    break;
+                case T_TEXT:
+                    bindText(h, item);
+                    break;
+                case T_RICH:
+                    bindRich(h, item);
+                    break;
+                case T_COLS:
+                    bindCols(h, item);
+                    break;
+                case T_AVATAR:
+                    bindAvatar(h, item);
+                    break;
+                case T_ICON:
+                    bindIcon(h, item);
+                    break;
+                case T_PIC:
+                    bindPic(h, item);
+                    break;
+                case T_MOVIE:
+                    bindMovie(h, item);
+                    break;
+                case T_INPUT:
+                    bindInput(h, item);
+                    break;
+                case T_SEARCH:
+                    bindSearch(h, item);
+                    break;
+            }
+        }
+
+        @Override
+        public int getItemCount() {
+            return items.size();
+        }
+
+        /** 视频卡片：保持原 VideoAdapter 行为。 */
+        private void bindVideo(Holder h, HkItem item) {
+            h.title.setText(item.getTitle());
+            h.desc.setText(item.getDesc());
+            h.desc.setVisibility(TextUtils.isEmpty(item.getDesc()) ? View.GONE : View.VISIBLE);
+            ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
+            h.itemView.setOnClickListener(v -> {
+                int pos = h.getBindingAdapterPosition();
+                if (pos == RecyclerView.NO_POSITION || currentRule == null) return;
+                openDetail(items.get(pos), true);
+            });
+        }
+
+        /** 文本行：text_center_1 居中灰字；text_1 去标签标题+描述；long_text 多行。 */
+        private void bindText(Holder h, HkItem item) {
+            String ct = colTypeOf(item);
+            if ("text_center_1".equals(ct)) {
+                h.title.setGravity(Gravity.CENTER);
+                h.title.setTextColor(0xFF6E7686);
+                h.title.setTextSize(13);
+                h.title.setMaxLines(4);
+                h.title.setText(stripHtml(item.getTitle()));
+                h.desc.setVisibility(View.GONE);
+            } else {
+                boolean longText = "long_text".equals(ct);
+                h.title.setGravity(Gravity.START);
+                h.title.setTextColor(0xFF1A1D24);
+                h.title.setTextSize(14);
+                h.title.setMaxLines(longText ? 30 : 3);
+                h.title.setText(stripHtml(item.getTitle()));
+                String d = stripHtml(item.getDesc());
+                h.desc.setText(d);
+                h.desc.setMaxLines(longText ? 60 : 5);
+                h.desc.setVisibility(TextUtils.isEmpty(d) ? View.GONE : View.VISIBLE);
+            }
+            setContentClick(h, item);
+        }
+
+        /** 富文本行：Html.fromHtml 显示，失败回退去标签。 */
+        private void bindRich(Holder h, HkItem item) {
+            h.title.setGravity(Gravity.START);
+            h.title.setTextColor(0xFF1A1D24);
+            h.title.setTextSize(14);
+            h.title.setMaxLines(30);
+            try {
+                h.title.setText(Html.fromHtml(item.getTitle() == null ? "" : item.getTitle(), Html.FROM_HTML_MODE_LEGACY));
+            } catch (Throwable t) {
+                h.title.setText(stripHtml(item.getTitle()));
+            }
+            String d = item.getDesc();
+            if (TextUtils.isEmpty(d)) {
+                h.desc.setVisibility(View.GONE);
+            } else {
+                h.desc.setVisibility(View.VISIBLE);
+                try {
+                    h.desc.setText(Html.fromHtml(d, Html.FROM_HTML_MODE_LEGACY));
+                } catch (Throwable t) {
+                    h.desc.setText(stripHtml(d));
+                }
+            }
+            setContentClick(h, item);
+        }
+
+        /** 多列文本：按连续空白/｜/，切分标题为 N 列；切不出则按普通文本行。 */
+        private void bindCols(Holder h, HkItem item) {
+            h.cols.removeAllViews();
+            String ct = colTypeOf(item);
+            int n = 2;
+            if (!ct.isEmpty()) {
+                char c = ct.charAt(ct.length() - 1);
+                if (c >= '2' && c <= '5') n = c - '0';
+            }
+            String raw = item.getTitle() == null ? "" : item.getTitle();
+            List<String> parts = new ArrayList<>();
+            for (String p : raw.split("[\\s　｜|，,、;；]+")) {
+                p = stripHtml(p);
+                if (!p.isEmpty()) parts.add(p);
+            }
+            Context ctx = h.itemView.getContext();
+            if (parts.size() >= n) {
+                for (int i = 0; i < n; i++) {
+                    TextView tv = new TextView(ctx);
+                    tv.setText(parts.get(i));
+                    tv.setTextColor(0xFF1A1D24);
+                    tv.setTextSize(14);
+                    tv.setGravity(Gravity.CENTER);
+                    tv.setMaxLines(2);
+                    tv.setEllipsize(TextUtils.TruncateAt.END);
+                    h.cols.addView(tv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+                }
+            } else {
+                TextView tv = new TextView(ctx);
+                tv.setText(stripHtml(raw));
+                tv.setTextColor(0xFF1A1D24);
+                tv.setTextSize(14);
+                tv.setMaxLines(3);
+                tv.setEllipsize(TextUtils.TruncateAt.END);
+                h.cols.addView(tv, new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            }
+            setContentClick(h, item);
+        }
+
+        /** 头像行：圆形图 + 标题横向。 */
+        private void bindAvatar(Holder h, HkItem item) {
+            h.title.setText(stripHtml(item.getTitle()));
+            ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
+            setContentClick(h, item);
+        }
+
+        /** 小图标按钮：图片+文字居中，占 1 列。 */
+        private void bindIcon(Holder h, HkItem item) {
+            h.title.setText(stripHtml(item.getTitle()));
+            ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
+            setContentClick(h, item);
+        }
+
+        /** 全宽大图：16:9，高度构造时已算好。 */
+        private void bindPic(Holder h, HkItem item) {
+            ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
+            h.cover.setContentDescription(stripHtml(item.getTitle()));
+            setContentClick(h, item);
+        }
+
+        /** 横向图文：左图右文。 */
+        private void bindMovie(Holder h, HkItem item) {
+            h.title.setText(stripHtml(item.getTitle()));
+            String d = stripHtml(item.getDesc());
+            h.desc.setText(d);
+            h.desc.setVisibility(TextUtils.isEmpty(d) ? View.GONE : View.VISIBLE);
+            ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
+            setContentClick(h, item);
+        }
+
+        /** 输入框行：hint 取标题；搜索键触发且有 url 时走点击处理。 */
+        private void bindInput(Holder h, HkItem item) {
+            h.input.setHint(stripHtml(item.getTitle()));
+            h.input.setOnEditorActionListener((v, actionId, event) -> {
+                if (actionId == EditorInfo.IME_ACTION_SEARCH || actionId == EditorInfo.IME_ACTION_DONE) {
+                    if (!TextUtils.isEmpty(item.getUrl())) onContentItemClick(item);
+                    return true;
+                }
+                return false;
+            });
+        }
+
+        /** 搜索框行：假输入框样式，点击进 V3 搜索。 */
+        private void bindSearch(Holder h, HkItem item) {
+            String t = stripHtml(item.getTitle());
+            h.title.setText(TextUtils.isEmpty(t) ? "搜索…" : t);
+            h.itemView.setOnClickListener(v -> openSearch());
+        }
+
+        /** 非视频条目点击：无 url 的纯展示行不设点击。 */
+        private void setContentClick(Holder h, HkItem item) {
+            if (TextUtils.isEmpty(item.getUrl())) {
+                h.itemView.setOnClickListener(null);
+                return;
+            }
+            h.itemView.setOnClickListener(v -> {
+                int pos = h.getBindingAdapterPosition();
+                if (pos == RecyclerView.NO_POSITION || currentRule == null) return;
+                onContentItemClick(items.get(pos));
+            });
         }
     }
 
