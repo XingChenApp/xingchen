@@ -1658,16 +1658,19 @@ public class HkPageActivity extends BaseActivity {
     }
 
     /**
-     * 标题颜色标记（官方）：{@code ""xxx""} → 红色，{@code ''xxx''} → 橙色，并去掉引号。
-     * 返回带颜色的 CharSequence，无标记时返回纯文本。
+     * 标题颜色标记检测（官方约定）："""xxx""" → 红色，''xxx'' → 橙色，并去掉引号。
+     * 返回颜色值，无标记返回 0。富文本路径复用。
      */
+    private int titleMarkColor(String raw) {
+        String t = raw == null ? "" : raw.replaceAll("<[^>]*>", "").trim();
+        if (t.length() >= 4 && t.startsWith("\"\"") && t.endsWith("\"\"")) return 0xFFE53935;
+        if (t.length() >= 4 && t.startsWith("''") && t.endsWith("''")) return 0xFFFF9800;
+        return 0;
+    }
+
     private CharSequence titleSpan(String raw) {
         String s = stripHtml(raw);
-        int color = 0;
-        // stripHtml 已去首尾引号，这里按原始引号数量判断：先看去标签后的原文
-        String t = raw == null ? "" : raw.replaceAll("<[^>]*>", "").trim();
-        if (t.startsWith("\"\"") && t.endsWith("\"\"") && t.length() >= 4) color = 0xFFE53935;
-        else if (t.startsWith("''") && t.endsWith("''") && t.length() >= 4) color = 0xFFFF9800;
+        int color = titleMarkColor(raw);
         if (color == 0) return s;
         android.text.SpannableString sp = new android.text.SpannableString(s);
         sp.setSpan(new android.text.style.ForegroundColorSpan(color), 0, s.length(),
@@ -2182,14 +2185,28 @@ public class HkPageActivity extends BaseActivity {
             setContentClick(h, item);
         }
 
-        /** 富文本行：Html.fromHtml 显示，失败回退去标签。 */
+        /** 富文本行：Html.fromHtml 显示，失败回退去标签；标题颜色标记（"""红/''橙）同样生效。 */
         private void bindRich(Holder h, HkItem item) {
             h.title.setGravity(Gravity.START);
             h.title.setTextColor(0xFF1A1D24);
             h.title.setTextSize(14);
             h.title.setMaxLines(30);
+            int markColor = titleMarkColor(item.getTitle());
+            String rawTitle = item.getTitle() == null ? "" : item.getTitle();
+            if (markColor != 0) {
+                // 先去掉首尾引号标记再走 Html，避免引号原样显示
+                rawTitle = rawTitle.replaceAll("^\"+|\"+$", "").replaceAll("^'+|'+$", "");
+            }
             try {
-                h.title.setText(Html.fromHtml(item.getTitle() == null ? "" : item.getTitle(), Html.FROM_HTML_MODE_LEGACY));
+                CharSequence cs = Html.fromHtml(rawTitle, Html.FROM_HTML_MODE_LEGACY);
+                if (markColor != 0) {
+                    android.text.SpannableStringBuilder ssb = new android.text.SpannableStringBuilder(cs);
+                    ssb.setSpan(new android.text.style.ForegroundColorSpan(markColor), 0, ssb.length(),
+                            android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    h.title.setText(ssb);
+                } else {
+                    h.title.setText(cs);
+                }
             } catch (Throwable t) {
                 h.title.setText(titleSpan(item.getTitle()));
             }
