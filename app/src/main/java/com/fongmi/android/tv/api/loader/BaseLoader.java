@@ -59,6 +59,10 @@ public class BaseLoader {
         pyLoader.remove(key);
     }
 
+    public void watchPyPlugins(java.io.File dir) {
+        pyLoader.watchPlugins(dir);
+    }
+
     public Spider getSpider(String key, String api, String ext, String jar) {
         if (isPy(api)) return pyLoader.getSpider(key, api, ext);
         else if (isJs(api)) return jsLoader.getSpider(key, api, ext, jar);

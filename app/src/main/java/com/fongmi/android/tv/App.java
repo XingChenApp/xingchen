@@ -113,6 +113,10 @@ public class App extends Application implements Application.ActivityLifecycleCal
         AdBlock.refresh(this);
         DanmakuSearchListFocusFixer.start();
         registerActivityLifecycleCallbacks(this);
+        try {
+            com.fongmi.android.tv.api.loader.BaseLoader.get()
+                    .watchPyPlugins(new java.io.File(getFilesDir(), "plugins/py"));
+        } catch (Throwable ignored) {}
         post(this::startBackgroundServices, 1200);
     }
 
