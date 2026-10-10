@@ -2001,7 +2001,13 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         ctx.getGlobalObject().setProperty("MY_CLASS_URL", myClassUrl == null ? "" : myClassUrl);
         ctx.getGlobalObject().setProperty("MY_CLASS_NAME", myClassName == null ? "" : myClassName);
         ctx.getGlobalObject().setProperty("MY_NAME", rule == null ? "" : rule.getTitle());
-        ctx.getGlobalObject().setProperty("MY_PARAMS", myParams == null || myParams.isEmpty() ? "{}" : myParams);
+        // 官方 generateMyParams：MY_PARAMS 是 JSON 对象不是字符串（空时为 {}）
+        try {
+            String mp = myParams == null || myParams.isEmpty() ? "{}" : myParams;
+            ctx.getGlobalObject().setProperty("MY_PARAMS", (JSObject) ctx.parse(mp));
+        } catch (Throwable ignored) {
+            ctx.getGlobalObject().setProperty("MY_PARAMS", ctx.createNewJSObject());
+        }
         ctx.getGlobalObject().setProperty("MY_AREA", myArea == null ? "" : myArea);
         ctx.getGlobalObject().setProperty("MY_YEAR", myYear == null ? "" : myYear);
         ctx.getGlobalObject().setProperty("MY_SORT", mySort == null ? "" : mySort);
@@ -2045,6 +2051,22 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         this.myArea = area == null ? "" : area;
         this.myYear = year == null ? "" : year;
         this.mySort = sort == null ? "" : sort;
+    }
+
+    /**
+     * 设置详情页 params（官方 dealRule 把点击条目的 extra 设为新规则的 params，
+     * detail_find_rule 里通过 MY_PARAMS 取用）。extra 为 Map 时序列化为 JSON。
+     */
+    public void setDetailParams(java.util.Map<String, String> extra) {
+        if (extra == null || extra.isEmpty()) {
+            this.myParams = "";
+        } else {
+            try {
+                this.myParams = GSON.toJson(extra);
+            } catch (Throwable ignored) {
+                this.myParams = "";
+            }
+        }
     }
 
     private static String homeOf(String url) {

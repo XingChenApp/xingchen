@@ -153,6 +153,7 @@ public class HkRouter {
                 String pageUrl = cleanDetailUrl(u.substring(0, ar).trim());
                 String entryRule = u.substring(ar + 6).trim();
                 if (entryRule.startsWith("js:")) {
+                    if (item != null) engine.getJsRuntime().setDetailParams(item.getExtra());
                     buildDetail(detail, fromJsDetail(entryRule, pageUrl));
                     return detail;
                 }
@@ -170,6 +171,8 @@ public class HkRouter {
             String url = cleanDetailUrl(u);
             List<HkDetailItem> items;
             if (HkSelector.isJsRule(ruleText)) {
+                // 官方 dealRule：点击条目的 extra 作为新规则的 params（MY_PARAMS）
+                if (item != null) engine.getJsRuntime().setDetailParams(item.getExtra());
                 items = fromJsDetail(ruleText, url);
             } else {
                 String html = HkHttp.get(url, rule.resolvedUa());
