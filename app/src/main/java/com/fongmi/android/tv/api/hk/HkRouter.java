@@ -157,6 +157,25 @@ public class HkRouter {
     }
 
     /**
+     * V2 分类 tab 点击：求值条目 url 里的 {@code @lazyRule=}，只为其副作用
+     * （如 {@code putMyVar} 设置分类变量），不取播放地址。调用后由上层重新
+     * {@code loadContent(true)} 刷新列表。求值异常只打日志，不抛给上层。
+     */
+    public void evalTab(String tabUrl) {
+        if (tabUrl == null) return;
+        int lr = tabUrl.indexOf("@lazyRule=");
+        if (lr < 0) return;
+        try {
+            String r = decodeConflict(tabUrl.substring(lr + 10).trim()).trim();
+            if (r.startsWith(".js:")) r = r.substring(4);
+            else if (r.startsWith("js:")) r = r.substring(3);
+            engine.getJsRuntime().evalLazy(r, null);
+        } catch (Throwable e) {
+            Logger.t(TAG).d("tab eval (side effects applied): %s", e.getMessage());
+        }
+    }
+
+    /**
      * 拆 {@code ;} URL 增强：{@code url;method;encoding;{K@V&&K2@V2}}。
      * header 块进结果，method/encoding 丢弃，只保留纯 url。
      */

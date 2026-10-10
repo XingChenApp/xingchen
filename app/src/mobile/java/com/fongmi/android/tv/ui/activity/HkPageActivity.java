@@ -900,6 +900,36 @@ public class HkPageActivity extends BaseActivity {
         binding.rvCategory.setVisibility(pairs.size() > 1 ? View.VISIBLE : View.GONE);
     }
 
+    /**
+     * V2 动态分类 tab：规则 find_rule 返回的 scroll_button/flex_button 条目。
+     * 标题去 HTML 标签；含 #ff1493 高亮色的为当前选中。点击 tab 求值其 lazyRule
+     * （putMyVar 设分类变量），再刷新列表。
+     */
+    private void buildDynamicTabs(List<HkItem> tabs) {
+        List<String[]> pairs = new ArrayList<>();
+        int sel = 0;
+        for (int i = 0; i < tabs.size(); i++) {
+            HkItem it = tabs.get(i);
+            String raw = it.getTitle() == null ? "" : it.getTitle();
+            if (raw.toLowerCase().contains("#ff1493")) sel = i;
+            String name = raw.replaceAll("<[^>]*>", "").replace("‘", "").replace("’", "").trim();
+            if (name.isEmpty()) name = "分类" + (i + 1);
+            pairs.add(new String[]{name, it.getUrl() == null ? "" : it.getUrl()});
+        }
+        ChipAdapter adapter = new ChipAdapter(pairs, sel, url -> {
+            if (url == null || url.isEmpty()) return;
+            new Thread(() -> {
+                try {
+                    getRouter().evalTab(url);
+                } catch (Throwable ignored) {
+                }
+                App.post(() -> loadContent(true));
+            }).start();
+        });
+        binding.rvCategory.setAdapter(adapter);
+        binding.rvCategory.setVisibility(View.VISIBLE);
+    }
+
     private void buildFilterRows() {
         binding.filterContainer.removeAllViews();
         addFilterRow("地区", currentRule.getAreaPairs(), value -> {
@@ -969,7 +999,18 @@ public class HkPageActivity extends BaseActivity {
             App.post(() -> {
                 loading = false;
                 binding.swipeContent.setRefreshing(false);
-                if (result.isEmpty()) {
+                // V2：把导航类条目（scroll_button/flex_button 分类）拆出来做顶部 tab，
+                // 分隔块（blank_block/line）丢弃，只有内容条目进视频网格。
+                List<HkItem> tabs = new ArrayList<>();
+                List<HkItem> contents = new ArrayList<>();
+                for (HkItem it : result) {
+                    String ct = it.getColType() == null ? "" : it.getColType().trim();
+                    if ("scroll_button".equals(ct) || "flex_button".equals(ct)) tabs.add(it);
+                    else if ("blank_block".equals(ct) || "line_blank".equals(ct) || "line".equals(ct)) continue;
+                    else contents.add(it);
+                }
+                if (p == 1 && !tabs.isEmpty()) buildDynamicTabs(tabs);
+                if (contents.isEmpty()) {
                     if (p == 1 && videos.isEmpty()) {
                         binding.tvContentEmpty.setVisibility(View.VISIBLE);
                         binding.rvVideos.setVisibility(View.GONE);
@@ -977,7 +1018,7 @@ public class HkPageActivity extends BaseActivity {
                         noMore = true;
                     }
                 } else {
-                    videos.addAll(result);
+                    videos.addAll(contents);
                     page = p + 1;
                     contentAdapter.notifyDataSetChanged();
                 }
