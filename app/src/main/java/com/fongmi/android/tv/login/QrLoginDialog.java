@@ -37,7 +37,8 @@ import com.google.android.material.button.MaterialButton;
  */
 public class QrLoginDialog extends DialogFragment {
 
-    private final Qr115Provider provider = new Qr115Provider();
+    private Qr115Provider provider = new Qr115Provider();
+    private LoginMethod method = LoginMethod.WEB_QR;
 
     private ImageView qrView;
     private TextView tvStatus;
@@ -62,7 +63,14 @@ public class QrLoginDialog extends DialogFragment {
     }
 
     public static QrLoginDialog create() {
-        return new QrLoginDialog();
+        return create(LoginMethod.WEB_QR);
+    }
+
+    public static QrLoginDialog create(LoginMethod method) {
+        QrLoginDialog d = new QrLoginDialog();
+        d.method = method != null ? method : LoginMethod.WEB_QR;
+        d.provider = new Qr115Provider(d.method);
+        return d;
     }
 
     public QrLoginDialog callback(LoginManager.LoginCallback callback) {
@@ -123,7 +131,7 @@ public class QrLoginDialog extends DialogFragment {
         root.addView(createHeader(), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(36)));
 
         TextView hint = new TextView(requireContext());
-        hint.setText("打开 115 App 扫一扫登录");
+        hint.setText(method.desc());
         hint.setTextColor(Color.parseColor("#B3FFFFFF"));
         hint.setTextSize(14);
         hint.setGravity(Gravity.CENTER);
@@ -158,7 +166,7 @@ public class QrLoginDialog extends DialogFragment {
 
     private LinearLayout createHeader() {
         TextView title = new TextView(requireContext());
-        title.setText("115 扫码登录");
+        title.setText("115 · " + method.title());
         title.setTextColor(Color.WHITE);
         title.setTextSize(20);
         title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);

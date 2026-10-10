@@ -21,11 +21,25 @@ import okhttp3.Response;
  */
 public class Qr115Provider implements LoginProvider {
 
-    private static final String API_QR_TOKEN = "https://qrcodeapi.115.com/api/1.0/web/1.0/token/";
+    private static final String API_QR_TOKEN = "https://qrcodeapi.115.com/api/1.0/%s/1.0/token/";
     private static final String API_QR_STATUS = "https://qrcodeapi.115.com/get/status/";
-    private static final String API_QR_LOGIN = "https://passportapi.115.com/app/1.0/web/1.0/login/qrcode";
-    private static final String APP = "web";
+    private static final String API_QR_LOGIN = "https://passportapi.115.com/app/1.0/%s/1.0/login/qrcode";
     private static final String UA_WEB = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+    /** 115 客户端类型：web / android / ios / mac（token 与 login 接口均已实测可用） */
+    private final String app;
+
+    public Qr115Provider() {
+        this("web");
+    }
+
+    public Qr115Provider(String app) {
+        this.app = TextUtils.isEmpty(app) ? "web" : app;
+    }
+
+    public Qr115Provider(LoginMethod method) {
+        this(method != null && method.qrApp() != null ? method.qrApp() : "web");
+    }
 
     /** 扫码状态 */
     public static final int ST_WAITING = 0;
@@ -104,7 +118,7 @@ public class Qr115Provider implements LoginProvider {
 
     /** 申请二维码，返回扫码会话 */
     public QrSession requestQr() throws Exception {
-        String body = get(API_QR_TOKEN, null);
+        String body = get(String.format(API_QR_TOKEN, app), null);
         JSONObject data = new JSONObject(body).optJSONObject("data");
         if (data == null || TextUtils.isEmpty(data.optString("uid"))) {
             throw new Exception("拿二维码失败：" + new JSONObject(body).optString("message", "未知错误"));
@@ -139,9 +153,9 @@ public class Qr115Provider implements LoginProvider {
     public String confirm(QrSession s) throws Exception {
         ArrayMap<String, String> form = new ArrayMap<>();
         form.put("account", s.uid);
-        form.put("app", APP);
+        form.put("app", app);
         String body;
-        try (Response res = OkHttp.newCall(API_QR_LOGIN, headers(), OkHttp.toBody(form)).execute()) {
+        try (Response res = OkHttp.newCall(String.format(API_QR_LOGIN, app), headers(), OkHttp.toBody(form)).execute()) {
             if (!res.isSuccessful() || res.body() == null) throw new Exception("网络错误 " + res.code());
             body = res.body().string();
         }

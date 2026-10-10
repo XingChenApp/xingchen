@@ -77,17 +77,48 @@ public class LoginManager {
     }
 
     /**
-     * 弹 115 扫码登录框（异步，登录结果走 callback）。
+     * 弹 115 登录框：先选登录方式（Web 扫码 / App 扫码 / Mac 扫码 / Cookie 导入…），
+     * 再进具体流程。异步，登录结果走 callback。
      */
     public void login115(FragmentActivity activity, LoginCallback callback) {
+        login115(activity, null, callback);
+    }
+
+    /**
+     * 直接进指定登录方式，methodId 见 {@link LoginMethod#id()}（如 "web_qr"、"cookie"）。
+     * 传 null 或非法值时退回方式选择列表。
+     */
+    public void login115(FragmentActivity activity, String methodId, LoginCallback callback) {
+        login115(activity, LoginMethod.fromId(methodId), callback);
+    }
+
+    public void login115(FragmentActivity activity, LoginMethod method, LoginCallback callback) {
         if (activity == null || activity.isFinishing()) {
             if (callback != null) callback.onError("界面不可用");
             return;
         }
         for (Fragment f : activity.getSupportFragmentManager().getFragments()) {
-            if (f instanceof QrLoginDialog) return;
+            if (f instanceof LoginMethodDialog || f instanceof QrLoginDialog || f instanceof CookieImportDialog) return;
         }
-        QrLoginDialog.create().callback(callback).show(activity.getSupportFragmentManager(), null);
+        if (method == null) {
+            LoginMethodDialog.create()
+                    .callback(callback)
+                    .onPick(picked -> openMethod(activity, picked, callback))
+                    .show(activity);
+            return;
+        }
+        openMethod(activity, method, callback);
+    }
+
+    private void openMethod(FragmentActivity activity, LoginMethod method, LoginCallback callback) {
+        if (method == LoginMethod.COOKIE) {
+            CookieImportDialog.create().callback(callback).show(activity);
+        } else if (method.isQr()) {
+            QrLoginDialog.create(method).callback(callback).show(activity);
+        } else {
+            // 未接入方式理论上在选择列表就被拦截，这里兜底
+            if (callback != null) callback.onError("「" + method.title() + "」正在接入中");
+        }
     }
 
     // ---------------- 静态桥：给 py / js / 海阔规则直接调 ----------------
@@ -97,11 +128,21 @@ public class LoginManager {
         return a instanceof FragmentActivity ? (FragmentActivity) a : null;
     }
 
-    /** 弹壳子统一的 115 扫码登录框（异步）。py 调完轮询 {@link #is115LoggedIn()} 即可。 */
+    /** 弹壳子统一的 115 登录框（先选方式再进流程，异步）。py 调完轮询 {@link #is115LoggedIn()} 即可。 */
     public static void login115() {
         FragmentActivity activity = currentActivity();
         if (activity == null) return;
         App.post(() -> get().login115(activity, null));
+    }
+
+    /**
+     * 直接进指定 115 登录方式（异步）。
+     * methodId：web_qr / app_qr / mac_qr / cookie；其它值退回方式选择列表。
+     */
+    public static void login115(String methodId) {
+        FragmentActivity activity = currentActivity();
+        if (activity == null) return;
+        App.post(() -> get().login115(activity, methodId, null));
     }
 
     /** 115 是否已登录（凭据有效） */
