@@ -227,7 +227,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private ActivityVideoBinding mBinding;
     private ViewGroup.LayoutParams mFrameParams;
     private int mFrameHeight;
-    private int mDefaultFrameHeight;
     private Observer<Result> mObserveDetail;
     private Observer<Result> mObservePlayer;
     private Observer<Result> mObserveSearch;
@@ -673,7 +672,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mKeyDown = CustomKeyDown.create(this, mBinding.exo);
         mFrameParams = mBinding.video.getLayoutParams();
         mFrameHeight = mFrameParams.height;
-        mDefaultFrameHeight = mFrameParams.height;
         mBinding.swipeLayout.setEnabled(false);
         setupAudioStageOverlay();
         configureAudioLandscapeActions();
@@ -5983,7 +5981,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         switch (state) {
             case Player.STATE_BUFFERING:
                 showProgress();
-                resetVideoFrameToDefault();
                 break;
             case Player.STATE_READY:
                 if (mPendingKaraokeResult == null) mKaraokeResultShown = false;
@@ -6067,63 +6064,9 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mPiP.update(this, size.width, size.height, getScale());
         setSizeText();
         updateVideoHeight();
-        adjustPortraitVideoHeight(size);
         applyResizeMode(getScale());
         checkOrientation();
         logVideoFrame("onSizeChanged after size=" + size.width + "x" + size.height);
-    }
-
-    /**
-     * 竖屏非全屏时，按视频实际宽高比调整视频框高度，避免固定 160dp 导致拉伸变形。
-     */
-    private void adjustPortraitVideoHeight(VideoSize size) {
-        try {
-            if (isLand() || isFullscreen() || isInPictureInPictureMode()) return;
-            if (mAudioStageVisible) return;
-            if (size == null || size.width <= 0 || size.height <= 0) return;
-            int viewWidth = mBinding.video.getWidth();
-            if (viewWidth <= 0) viewWidth = getResources().getDisplayMetrics().widthPixels;
-            int targetHeight = (int) (viewWidth * (float) size.height / size.width);
-            if (targetHeight <= 0) return;
-            // Only shrink/grow within reasonable bounds; never exceed 60% of screen height
-            int maxH = (int) (getResources().getDisplayMetrics().heightPixels * 0.6f);
-            targetHeight = Math.min(targetHeight, maxH);
-            if (Math.abs(mFrameParams.height - targetHeight) > 2) {
-                mFrameParams.height = targetHeight;
-                // Sync mFrameHeight so updateVideoHeight() won't revert this adjustment
-                mFrameHeight = targetHeight;
-                mBinding.video.setLayoutParams(mFrameParams);
-                logVideoFrame("adjustPortraitVideoHeight set to " + viewWidth + "x" + targetHeight);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * 新视频加载时（BUFFERING 且播放位置接近开头），把视频框恢复为布局默认高度，
-     * 避免沿用上一个视频的宽高比导致加载中画面被压窄，播出后才恢复。
-     * 中途卡顿重缓冲时不重置，避免画面跳动。
-     */
-    private void resetVideoFrameToDefault() {
-        try {
-            if (isLand() || isFullscreen() || isInPictureInPictureMode()) return;
-            if (mAudioStageVisible) return;
-            if (mDefaultFrameHeight <= 0) return;
-            // 只在新视频开头加载时重置；中途缓冲（已播过几秒）不重置
-            try {
-                if (player().getPosition() > 5000) return;
-            } catch (Exception ignored) {
-            }
-            if (Math.abs(mFrameParams.height - mDefaultFrameHeight) > 2) {
-                mFrameParams.height = mDefaultFrameHeight;
-                mFrameHeight = mDefaultFrameHeight;
-                mBinding.video.setLayoutParams(mFrameParams);
-                logVideoFrame("resetVideoFrameToDefault to " + mDefaultFrameHeight);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     @Override
