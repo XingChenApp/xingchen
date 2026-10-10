@@ -59,7 +59,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="配置后首页海报显示年份与评分"
-            android:textColor="#43484F"
+            android:textColor="#101216"
             android:textSize="13sp"
             android:paddingLeft="4dp" />
 

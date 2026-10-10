@@ -36,7 +36,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:singleLine="true"
-            android:textColor="#464B53"
+            android:textColor="#101216"
             android:textSize="12sp"
             tools:text="127.0.0.1" />
 

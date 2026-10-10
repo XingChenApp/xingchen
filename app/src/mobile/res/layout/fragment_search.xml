@@ -54,7 +54,7 @@
                 android:maxLines="1"
                 android:singleLine="true"
                 android:textColor="#121417"
-                android:textColorHint="#70767E"
+                android:textColorHint="#3A3F45"
                 android:textSize="15sp" />
 
         </androidx.appcompat.widget.LinearLayoutCompat>
@@ -88,7 +88,7 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="8dp"
         android:text="搜索联想"
-        android:textColor="#464B53"
+        android:textColor="#101216"
         android:textSize="13sp"
         android:visibility="gone" />
 

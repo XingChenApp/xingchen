@@ -34,7 +34,7 @@
             android:paddingEnd="16dp"
             android:singleLine="true"
             android:textColor="#121417"
-            android:textColorHint="#6B7280"
+            android:textColorHint="#3A3F45"
             android:textSize="14sp"
             app:drawableStartCompat="@drawable/ic_site_search"
             app:drawableTint="@color/dialog_outlined_button_text" />

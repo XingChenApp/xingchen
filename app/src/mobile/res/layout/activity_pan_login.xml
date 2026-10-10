@@ -101,7 +101,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="登录后分享链接播放速度更快，会员可享高速直链"
-            android:textColor="#43484F"
+            android:textColor="#101216"
             android:textSize="13sp"
             android:paddingLeft="4dp" />
 

@@ -45,7 +45,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:text="@string/update_hint"
-        android:textColor="#464B53"
+        android:textColor="#101216"
         android:textSize="13sp" />
 
     <androidx.core.widget.NestedScrollView
@@ -122,7 +122,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="7dp"
                     android:maxLines="2"
-                    android:textColor="#464B53"
+                    android:textColor="#101216"
                     android:textSize="13sp"
                     tools:text="5.6.0-202608101200" />
 
@@ -220,7 +220,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="7dp"
                     android:maxLines="2"
-                    android:textColor="#464B53"
+                    android:textColor="#101216"
                     android:textSize="13sp"
                     tools:text="5.6.0-beta-202608101200" />
 
@@ -275,7 +275,7 @@
             android:id="@+id/progressText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#464B53"
+            android:textColor="#101216"
             android:textSize="13sp"
             tools:text="正在下载 46% · 3.2 MB/s · 已用 00:12" />
 

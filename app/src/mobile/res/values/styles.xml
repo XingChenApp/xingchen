@@ -121,8 +121,8 @@
 
     <style name="ToolbarPopupTheme" parent="ThemeOverlay.Material3.Light">
         <item name="android:popupBackground">@drawable/shape_toolbar_popup</item>
-        <item name="android:textColorPrimary">#18333A</item>
-        <item name="android:textColorSecondary">#5D7278</item>
+        <item name="android:textColorPrimary">#101216</item>
+        <item name="android:textColorSecondary">#2E3339</item>
         <item name="android:colorControlNormal">#2D4C55</item>
         <item name="colorControlNormal">#2D4C55</item>
         <item name="colorSurface">#F2FFFFFF</item>
@@ -197,7 +197,7 @@
     <style name="XingChen.DialogEditText.HkLight" parent="android:Widget.EditText">
         <item name="android:background">@drawable/bg_input_light</item>
         <item name="android:textColor">#101216</item>
-        <item name="android:textColorHint">#6A7180</item>
+        <item name="android:textColorHint">#3A3F45</item>
         <item name="android:padding">12dp</item>
     </style>
 
@@ -206,7 +206,7 @@
         <item name="android:windowBackground">@drawable/dialog_glass_light</item>
         <item name="android:textColor">#101216</item>
         <item name="android:textColorPrimary">#101216</item>
-        <item name="android:textColorSecondary">#4F555F</item>
+        <item name="android:textColorSecondary">#1E2126</item>
         <item name="android:textColorAlertDialogListItem">#101216</item>
         <item name="textColorAlertDialogListItem">#101216</item>
         <item name="android:colorAccent">#D4A017</item>

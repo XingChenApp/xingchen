@@ -123,7 +123,7 @@
                                 android:layout_marginTop="6dp"
                                 android:gravity="center"
                                 android:text="@string/sync_local_device"
-                                android:textColor="#464B53"
+                                android:textColor="#101216"
                                 android:textSize="12sp" />
 
                             <com.google.android.material.textview.MaterialTextView
@@ -156,7 +156,7 @@
                                 android:ellipsize="end"
                                 android:gravity="center"
                                 android:singleLine="true"
-                                android:textColor="#464B53"
+                                android:textColor="#101216"
                                 android:textSize="11sp"
                                 tools:text="192.168.1.10:9978" />
 
@@ -213,7 +213,7 @@
                                 android:layout_marginTop="6dp"
                                 android:gravity="center"
                                 android:text="@string/sync_remote_device"
-                                android:textColor="#464B53"
+                                android:textColor="#101216"
                                 android:textSize="12sp" />
 
                             <com.google.android.material.textview.MaterialTextView
@@ -246,7 +246,7 @@
                                 android:ellipsize="end"
                                 android:gravity="center"
                                 android:singleLine="true"
-                                android:textColor="#464B53"
+                                android:textColor="#101216"
                                 android:textSize="11sp"
                                 tools:text="192.168.1.20:9978" />
 
@@ -360,7 +360,7 @@
                                 android:layout_marginTop="2dp"
                                 android:ellipsize="end"
                                 android:maxLines="2"
-                                android:textColor="#464B53"
+                                android:textColor="#101216"
                                 android:textSize="12sp"
                                 tools:text="TV&#10;TVBox&#10;TVData" />
 
@@ -488,7 +488,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="@string/sync_discovering"
-                android:textColor="#464B53"
+                android:textColor="#101216"
                 android:textSize="13sp"
                 android:visibility="gone"
                 tools:visibility="visible" />
@@ -527,7 +527,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:textColor="#464B53"
+                android:textColor="#101216"
                 android:textSize="12sp"
                 tools:text="42% · 12.4 MB / 29.6 MB · 1.8 MB/s · 128 个文件" />
 

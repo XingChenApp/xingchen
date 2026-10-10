@@ -44,7 +44,7 @@
         android:layout_height="wrap_content"
         android:layout_marginLeft="10dp"
         android:text="检测中…"
-        android:textColor="#43484F"
+        android:textColor="#101216"
         android:textSize="13sp"
         android:textStyle="bold" />
 </LinearLayout>

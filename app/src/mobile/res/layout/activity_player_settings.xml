@@ -43,7 +43,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="切换视频解码播放核心，切换后立即生效"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout
@@ -79,7 +79,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="硬解兼容性更好，软解画质更稳"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout
@@ -118,7 +118,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="本集播完自动播放下一集"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <Switch android:id="@+id/switch_autonext" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true"  android:thumb="@drawable/xc_switch_thumb"/>
@@ -147,7 +147,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="播放时在播放页也可临时调速"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout
@@ -186,7 +186,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="长按画面临时加速，松开恢复"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout
@@ -223,7 +223,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="切后台时保持播放或小窗"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout
@@ -265,7 +265,7 @@
                     android:layout_height="wrap_content"
                     android:id="@+id/tv_danmu_status"
                     android:text="已开启"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_chev_v2" />
@@ -299,7 +299,7 @@
                     android:layout_height="wrap_content"
                     android:id="@+id/tv_subtitle_status"
                     android:text="已开启"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_chev_v2" />
@@ -342,7 +342,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="自动跳过已标记的片头与片尾片段"
-                        android:textColor="#43484F"
+                        android:textColor="#101216"
                         android:textSize="12sp" />
                 </LinearLayout>
                 <Switch android:id="@+id/switch_skip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="false" android:thumb="@drawable/xc_switch_thumb"/>
@@ -374,7 +374,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="在播放器底部显示跳过片头按钮"
-                        android:textColor="#43484F"
+                        android:textColor="#101216"
                         android:textSize="12sp" />
                 </LinearLayout>
                 <Switch android:id="@+id/switch_skip_opening" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
@@ -406,7 +406,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="在播放器底部显示跳过片尾按钮"
-                        android:textColor="#43484F"
+                        android:textColor="#101216"
                         android:textSize="12sp" />
                 </LinearLayout>
                 <Switch android:id="@+id/switch_skip_ending" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>

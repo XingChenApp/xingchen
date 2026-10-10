@@ -41,7 +41,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
-        android:textColor="#464B53"
+        android:textColor="#101216"
         android:textSize="13sp" />
 
     <androidx.recyclerview.widget.RecyclerView

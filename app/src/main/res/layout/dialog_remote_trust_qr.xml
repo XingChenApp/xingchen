@@ -40,7 +40,7 @@
         android:layout_marginTop="10dp"
         android:gravity="center"
         android:lineSpacingMultiplier="1.08"
-        android:textColor="#464B53"
+        android:textColor="#101216"
         android:textIsSelectable="true"
         android:textSize="12sp"
         tools:text="http://192.168.1.9:9978/remote/trust/setup" />

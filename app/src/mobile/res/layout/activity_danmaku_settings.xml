@@ -44,7 +44,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="播放时自动加载弹幕"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <Switch android:id="@+id/switch_danmu_load" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
@@ -78,7 +78,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="默认：弹弹play · 共 1 个源"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_chev_v2" />
@@ -108,7 +108,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="播放时自动搜索匹配的弹幕"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <Switch android:id="@+id/switch_danmu_autosearch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
@@ -138,7 +138,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="优先使用爬虫源搜索弹幕"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <Switch android:id="@+id/switch_danmu_spider_first" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="false" android:thumb="@drawable/xc_switch_thumb"/>
@@ -168,7 +168,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="播放时在画面上滚动显示弹幕"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <Switch android:id="@+id/switch_danmu_enable" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:thumb="@drawable/xc_switch_thumb"/>
@@ -199,7 +199,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="数值越低弹幕越淡"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <SeekBar
@@ -243,7 +243,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="弹幕滚过屏幕的快慢"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout
@@ -282,7 +282,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="弹幕文字的大小"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout
@@ -321,7 +321,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="弹幕可以出现的画面范围"
-                    android:textColor="#43484F"
+                    android:textColor="#101216"
                     android:textSize="12sp" />
             </LinearLayout>
             <LinearLayout

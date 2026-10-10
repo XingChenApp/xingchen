@@ -155,7 +155,7 @@
         android:layout_weight="1"
         android:gravity="center"
         android:text="暂无下载任务"
-        android:textColor="#43484F"
+        android:textColor="#101216"
         android:textSize="14sp"
         android:visibility="gone" />
 

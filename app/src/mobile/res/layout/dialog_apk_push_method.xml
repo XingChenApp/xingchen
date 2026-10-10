@@ -26,7 +26,7 @@
         android:layout_marginTop="4dp"
         android:ellipsize="end"
         android:singleLine="true"
-        android:textColor="#464B53"
+        android:textColor="#101216"
         android:textSize="14sp"
         tools:text="Target: Living room TV" />
 

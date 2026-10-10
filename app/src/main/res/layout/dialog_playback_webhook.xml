@@ -48,7 +48,7 @@
         android:id="@+id/summary"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#464B53"
+        android:textColor="#101216"
         android:textSize="13sp" />
 
     <com.fongmi.android.tv.ui.custom.CustomNestedScrollView
@@ -80,7 +80,7 @@
                     android:paddingTop="28dp"
                     android:paddingBottom="28dp"
                     android:text="@string/playback_webhook_empty"
-                    android:textColor="#464B53"
+                    android:textColor="#101216"
                     android:textSize="14sp" />
 
                 <androidx.appcompat.widget.LinearLayoutCompat
@@ -229,7 +229,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
                         android:text="@string/playback_webhook_preset"
-                        android:textColor="#464B53"
+                        android:textColor="#101216"
                         android:textSize="12sp" />
 
                     <com.google.android.material.button.MaterialButtonToggleGroup
@@ -311,7 +311,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="5dp"
-                        android:textColor="#464B53"
+                        android:textColor="#101216"
                         android:textSize="12sp" />
 
                     <com.google.android.material.button.MaterialButton

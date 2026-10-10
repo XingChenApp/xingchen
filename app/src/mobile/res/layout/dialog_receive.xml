@@ -59,7 +59,7 @@
         android:layout_alignStart="@+id/name"
         android:layout_marginTop="2dp"
         android:singleLine="true"
-        android:textColor="#464B53"
+        android:textColor="#101216"
         android:textSize="14sp"
         tools:text="Xiaomi 13" />
 

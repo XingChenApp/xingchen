@@ -23,7 +23,7 @@
         android:background="@drawable/shape_dialog_glass_input"
         android:hint="搜索脚本"
         android:textColor="#0C0E12"
-        android:textColorHint="#737373"
+        android:textColorHint="#3A3F45"
         android:textSize="14sp"
         android:singleLine="true"
         android:imeOptions="actionSearch"
@@ -47,7 +47,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="PY"
-                android:textColor="#43484F"
+                android:textColor="#101216"
                 android:textSize="12sp"
                 android:layout_marginBottom="8dp" />
 
@@ -69,7 +69,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="JS"
-                android:textColor="#43484F"
+                android:textColor="#101216"
                 android:textSize="12sp"
                 android:layout_marginBottom="8dp" />
 
@@ -85,7 +85,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="暂无脚本，去插件管理导入"
-        android:textColor="#43484F"
+        android:textColor="#101216"
         android:textSize="14sp"
         android:layout_gravity="center"
         android:padding="24dp"

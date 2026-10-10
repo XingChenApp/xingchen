@@ -62,7 +62,7 @@
                 android:layout_height="wrap_content"
                 android:text="全选"
                 android:textSize="12sp"
-                android:textColor="#464B53"
+                android:textColor="#101216"
                 android:paddingBottom="4dp" />
 
             <androidx.recyclerview.widget.RecyclerView
@@ -98,7 +98,7 @@
                 android:layout_height="wrap_content"
                 android:text="全选"
                 android:textSize="12sp"
-                android:textColor="#464B53"
+                android:textColor="#101216"
                 android:paddingBottom="4dp" />
 
             <androidx.recyclerview.widget.RecyclerView
@@ -134,7 +134,7 @@
                 android:layout_height="wrap_content"
                 android:text="全选"
                 android:textSize="12sp"
-                android:textColor="#464B53"
+                android:textColor="#101216"
                 android:paddingBottom="4dp" />
 
             <androidx.recyclerview.widget.RecyclerView

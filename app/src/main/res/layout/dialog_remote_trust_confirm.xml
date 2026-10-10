@@ -28,7 +28,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
         android:lineSpacingMultiplier="1.16"
-        android:textColor="#464B53"
+        android:textColor="#101216"
         android:textSize="14sp"
         tools:text="将本机默认同步数据发送到 TCL Smart TV Pro，并覆盖目标设备相关数据？" />
 

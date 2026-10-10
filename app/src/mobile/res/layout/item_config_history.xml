@@ -30,7 +30,7 @@
             android:layout_marginTop="4dp"
             android:singleLine="true"
             android:ellipsize="end"
-            android:textColor="#43484F"
+            android:textColor="#101216"
             android:textSize="12sp" />
     </LinearLayout>
 

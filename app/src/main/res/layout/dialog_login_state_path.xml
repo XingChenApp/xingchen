@@ -50,7 +50,7 @@
         android:layout_height="wrap_content"
         android:ellipsize="end"
         android:maxLines="2"
-        android:textColor="#464B53"
+        android:textColor="#101216"
         android:textSize="13sp"
         tools:text="已选 3 条，可同步 3 条，缺失 0 条，待确认 2 条" />
 
@@ -153,7 +153,7 @@
         android:gravity="center"
         android:padding="10dp"
         android:text="@string/login_state_empty"
-        android:textColor="#464B53"
+        android:textColor="#101216"
         android:textSize="13sp"
         android:visibility="gone"
         tools:visibility="visible" />

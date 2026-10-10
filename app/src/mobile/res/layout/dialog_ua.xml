@@ -26,7 +26,7 @@
             android:inputType="text"
             android:singleLine="true"
             android:textColor="#121417"
-            android:textColorHint="#6B7280" />
+            android:textColorHint="#3A3F45" />
 
     </com.google.android.material.textfield.TextInputLayout>
 </androidx.appcompat.widget.LinearLayoutCompat>

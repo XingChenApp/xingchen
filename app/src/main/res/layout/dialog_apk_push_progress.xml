@@ -25,7 +25,7 @@
         android:layout_marginTop="8dp"
         android:lineSpacingExtra="2dp"
         android:text="@string/apk_push_url_progress_hint"
-        android:textColor="#464B53"
+        android:textColor="#101216"
         android:textSize="14sp" />
 
     <com.google.android.material.textview.MaterialTextView

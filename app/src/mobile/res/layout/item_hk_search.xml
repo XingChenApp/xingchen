@@ -21,6 +21,6 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:text="搜索…"
-        android:textColor="#6A7180"
+        android:textColor="#101216"
         android:textSize="14sp" />
 </LinearLayout>
