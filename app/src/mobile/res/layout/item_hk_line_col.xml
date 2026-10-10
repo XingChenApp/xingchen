@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔：对照 8.83 item_line_col -->
+<TextView android:id="@+id/result_bg" android:background="#fff2f4f9" android:layout_width="fill_parent" android:layout_height="1.1999817dip" android:layout_marginStart="15.0dip" android:layout_marginEnd="15.0dip"
+  xmlns:android="http://schemas.android.com/apk/res/android" />

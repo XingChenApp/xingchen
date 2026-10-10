@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔：对照 8.83 item_card_rect_5 -->
+<LinearLayout android:gravity="center" android:id="@id/bg" android:background="@drawable/tab_item_default" android:layout_width="fill_parent" android:layout_height="wrap_content" android:minHeight="40.0dip" android:paddingStart="5.0dip" android:paddingEnd="5.0dip"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:textSize="15.0sp" android:gravity="center" android:layout_gravity="center" android:id="@id/item_chapter_jishu" android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:lines="1" />
+</LinearLayout>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔：对照 8.83 item_pic_square2 -->
+<LinearLayout android:orientation="vertical" android:id="@id/item_bg" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <com.google.android.material.card.MaterialCardView android:orientation="vertical" android:id="@id/item_bg1" android:layout_width="fill_parent" android:layout_height="0.0dip" android:layout_weight="1.0" app:cardCornerRadius="15.0dip" app:cardElevation="0.0dip">
+        <ImageView android:id="@+id/iv_cover" android:layout_width="fill_parent" android:layout_height="fill_parent" android:scaleType="centerCrop" />
+        <TextView android:textSize="16.0sp" android:textStyle="bold" android:textColor="#ffffffff" android:id="@id/textView" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="12.0dip" />
+    </com.google.android.material.card.MaterialCardView>
+    <com.google.android.material.card.MaterialCardView android:orientation="vertical" android:id="@id/item_bg2" android:layout_width="fill_parent" android:layout_height="0.0dip" android:layout_marginTop="15.0dip" android:layout_weight="1.0" app:cardCornerRadius="15.0dip" app:cardElevation="0.0dip">
+        <ImageView android:id="@+id/iv_cover2" android:layout_width="fill_parent" android:layout_height="fill_parent" android:scaleType="centerCrop" />
+        <TextView android:textSize="16.0sp" android:textStyle="bold" android:textColor="#ffffffff" android:id="@id/textView2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="12.0dip" />
+    </com.google.android.material.card.MaterialCardView>
+</LinearLayout>

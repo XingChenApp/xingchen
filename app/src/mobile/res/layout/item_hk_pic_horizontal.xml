@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔：对照 8.83 item_pic_horizontal -->
+<LinearLayout android:gravity="center" android:background="#ff20242f" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <ImageView android:id="@+id/iv_cover" android:layout_width="fill_parent" android:layout_height="wrap_content" android:scaleType="centerCrop" />
+</LinearLayout>

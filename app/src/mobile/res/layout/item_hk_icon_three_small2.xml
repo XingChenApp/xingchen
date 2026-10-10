@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔：对照 8.83 item_icon_three_col_small2 -->
+<com.example.hikerview.ui.view.DrawableInlineTextView android:textSize="15.0sp" android:gravity="center" android:id="@id/bg" android:background="@drawable/hk_ripple_white" android:focusable="true" android:clickable="true" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0" app:center="baseline"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" />

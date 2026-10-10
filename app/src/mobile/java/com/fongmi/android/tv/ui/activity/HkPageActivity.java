@@ -1839,10 +1839,11 @@ public class HkPageActivity extends BaseActivity {
             case "text_center_1":
             case "text_1":
             case "long_text":
-            case "text_icon": // 官方全宽图文行，暂按文本行渲染
             case "header":
             case "footer":
                 return ContentAdapter.T_TEXT;
+            case "text_icon":
+                return ContentAdapter.T_TEXT_ICON;
             case "rich_text":
                 return ContentAdapter.T_RICH;
             case "text_2":
@@ -1866,7 +1867,7 @@ public class HkPageActivity extends BaseActivity {
             case "card_pic_2_2_left":
             case "card_pic_3":
             case "card_pic_3_center":
-                return ContentAdapter.T_PIC;
+                return ContentAdapter.T_CARD;
             case "":
             case "movie_3":
                 return ContentAdapter.T_VIDEO;
@@ -2244,6 +2245,9 @@ public class HkPageActivity extends BaseActivity {
         static final int T_WEB = 10;
         static final int T_BUTTONS = 11;
         static final int T_ICON_FILL = 12;
+        static final int T_TEXT_ICON = 13;
+        static final int T_CARD = 14;
+        static final int T_MOVIE_LEFT_PIC = 15;
 
         private final List<HkItem> source;
         /** 分组后的展示列表（groupButtons 快照；videos 变更后必须调 refreshGroups() 重算）。 */
@@ -2330,6 +2334,15 @@ public class HkPageActivity extends BaseActivity {
                     return 15; // icon_4 / icon_small_4 / icon_round_4 / icon_round_small_4 / icon_4_card
                 case T_ICON_FILL:
                     return 20; // icon_3_fill / icon_3_round_fill：3/行
+                case T_TEXT_ICON:
+                    return 60; // text_icon 全宽
+                case T_CARD:
+                    if ("card_pic_2".equals(ct) || "card_pic_2_2".equals(ct)
+                            || "card_pic_2_2_left".equals(ct)) return 30;
+                    if ("card_pic_3".equals(ct) || "card_pic_3_center".equals(ct)) return 20;
+                    return 60; // card_pic_1 全宽
+                case T_MOVIE_LEFT_PIC:
+                    return 60; // movie_1 左图右文全宽
                 case T_PIC:
                     if (ct.startsWith("pic_2") || "card_pic_2".equals(ct)
                             || "card_pic_2_2".equals(ct) || "card_pic_2_2_left".equals(ct)) return 30;
@@ -2391,6 +2404,20 @@ public class HkPageActivity extends BaseActivity {
                         cover = v.findViewById(R.id.iv_icon);
                         title = v.findViewById(R.id.tv_title);
                         break;
+                    case T_TEXT_ICON:
+                        cover = v.findViewById(R.id.iv_cover);
+                        title = v.findViewById(R.id.tv_title);
+                        break;
+                    case T_CARD:
+                        cover = v.findViewById(R.id.iv_cover);
+                        title = v.findViewById(R.id.tv_title);
+                        overlay = v.findViewById(R.id.tv_overlay);
+                        break;
+                    case T_MOVIE_LEFT_PIC:
+                        cover = v.findViewById(R.id.iv_cover);
+                        title = v.findViewById(R.id.tv_title);
+                        desc = v.findViewById(R.id.tv_desc);
+                        break;
                     case T_PIC:
                         cover = v.findViewById(R.id.iv_pic);
                         ViewGroup.LayoutParams plp = cover.getLayoutParams();
@@ -2447,6 +2474,15 @@ public class HkPageActivity extends BaseActivity {
                 case T_ICON_FILL:
                     layout = R.layout.item_hk_icon_3_fill;
                     break;
+                case T_TEXT_ICON:
+                    layout = R.layout.item_hk_text_icon;
+                    break;
+                case T_CARD:
+                    layout = R.layout.item_hk_card_rect;
+                    break;
+                case T_MOVIE_LEFT_PIC:
+                    layout = R.layout.item_hk_movie_left_pic;
+                    break;
                 case T_PIC:
                     layout = R.layout.item_hk_pic;
                     break;
@@ -2495,6 +2531,15 @@ public class HkPageActivity extends BaseActivity {
                 case T_ICON:
                 case T_ICON_FILL:
                     bindIcon(h, item);
+                    break;
+                case T_TEXT_ICON:
+                    bindTextIcon(h, item);
+                    break;
+                case T_CARD:
+                    bindCard(h, item);
+                    break;
+                case T_MOVIE_LEFT_PIC:
+                    bindMovie(h, item);
                     break;
                 case T_PIC:
                     bindPic(h, item);
@@ -2681,6 +2726,25 @@ public class HkPageActivity extends BaseActivity {
         /** 小图标按钮：图片+文字居中，占 1 列。 */
         private void bindIcon(Holder h, HkItem item) {
             h.title.setText(titleSpan(item.getTitle()));
+            ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
+            setContentClick(h, item);
+        }
+
+        /** 图文行：text_icon，左文字右图标（对照 8.83 item_text_icon）。 */
+        private void bindTextIcon(Holder h, HkItem item) {
+            h.title.setText(titleSpan(item.getTitle()));
+            ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
+            setContentClick(h, item);
+        }
+
+        /** 卡片：card_pic_* 系列，封面+标题+底部 overlay（对照 8.83 item_card_rect）。 */
+        private void bindCard(Holder h, HkItem item) {
+            h.title.setText(titleSpan(item.getTitle()));
+            String d = stripHtml(item.getDesc());
+            if (h.overlay != null) {
+                h.overlay.setText(d);
+                h.overlay.setVisibility(TextUtils.isEmpty(d) ? View.GONE : View.VISIBLE);
+            }
             ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
             setContentClick(h, item);
         }

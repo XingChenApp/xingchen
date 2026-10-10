@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔：对照 8.83 item_pic_one_col -->
+<LinearLayout android:orientation="vertical" android:layout_width="fill_parent" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:orientation="vertical" android:id="@+id/result_bg" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_margin="10.0dip">
+        <RelativeLayout android:id="@+id/cover_container" android:layout_width="fill_parent" android:layout_height="150.0dip">
+            <ImageView android:id="@+id/iv_cover" android:layout_width="fill_parent" android:layout_height="fill_parent" android:scaleType="centerCrop" />
+        </RelativeLayout>
+        <TextView android:textSize="18.0sp" android:textStyle="bold" android:textColor="#101216" android:ellipsize="end" android:gravity="center_vertical" android:id="@+id/tv_title" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:maxLines="2" android:lineSpacingMultiplier="1.2" />
+        <TextView android:ellipsize="end" android:gravity="center_vertical" android:id="@+id/tv_overlay" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:maxLines="3" />
+    </LinearLayout>
+    <TextView android:background="@color/chapter_bottom" android:layout_width="fill_parent" android:layout_height="12.0dip" />
+</LinearLayout>
