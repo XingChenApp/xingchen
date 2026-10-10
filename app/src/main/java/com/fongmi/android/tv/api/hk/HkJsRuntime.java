@@ -401,23 +401,33 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         // ---- __hkRequirePage：$.require(path) 的 Java 实现 ----
         // hiker://page/<path>：从规则 pages 按 path 找页面代码，IIFE 包裹求值（防顶层 const 重声明），
         // 页面代码以 $.exports = xxx 导出，JS 层 $.require 直接返回 $.exports（官方同款语义）。
-        // 其他路径：复用 require 的远程/本地库逻辑。
+        // 裸页面名（如 $.require("Cate")，无 :// scheme）：官方语义也是先查规则 pages，
+        // 找不到再走远程/本地库逻辑。其他路径：复用 require 的远程/本地库逻辑。
         ctx.getGlobalObject().setProperty("__hkRequirePage", args -> {
             if (args == null || args.length == 0) return null;
             String path = String.valueOf(args[0]);
             try {
+                String pageCode = null;
+                boolean isRulePage = false;
                 if (path.startsWith("hiker://page/")) {
                     String p = path.substring("hiker://page/".length());
                     int q = p.indexOf('?');
                     if (q >= 0) p = p.substring(0, q);
                     int h = p.indexOf('#');
                     if (h >= 0) p = p.substring(0, h);
-                    String code = findPageCode(p.trim());
-                    if (code == null) {
+                    pageCode = findPageCode(p.trim());
+                    isRulePage = true;
+                    if (pageCode == null) {
                         Logger.t(TAG).d("$.require: no page for path=%s", p);
                         return null;
                     }
-                    ctx.evaluate("(function(){\n" + stripJsPrefix(code) + "\n})();");
+                } else if (path.indexOf("://") < 0) {
+                    // 裸页面名：先查规则 pages，找不到再走远程/本地库逻辑
+                    pageCode = findPageCode(path.trim());
+                    isRulePage = pageCode != null;
+                }
+                if (isRulePage) {
+                    ctx.evaluate("(function(){\n" + stripJsPrefix(pageCode) + "\n})();");
                 } else {
                     String code = loadLibLocal(path);
                     if (code == null) code = fetchSync(path, null);
@@ -1053,7 +1063,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 "  return 'js:(' + fn.toString() + ')(' + args.join(',') + ');';\n" +
                 "};\n" +
                 "$.require = function(path) {\n" +
-                "  $.exports = undefined;\n" +
+                "  $.exports = {};\n" +
                 "  __hkRequirePage(path);\n" +
                 "  return $.exports;\n" +
                 "};\n" +
