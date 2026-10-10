@@ -48,6 +48,7 @@ import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.hk.HkDetail;
 import com.fongmi.android.tv.api.hk.HkItem;
+import com.fongmi.android.tv.api.hk.HkJsRuntime;
 import com.fongmi.android.tv.api.hk.HkRouter;
 import com.fongmi.android.tv.api.hk.HkRule;
 import com.fongmi.android.tv.api.hk.HkRuleManager;
@@ -1528,6 +1529,8 @@ public class HkPageActivity extends BaseActivity {
                 return ContentAdapter.T_INPUT;
             case "search":
                 return ContentAdapter.T_SEARCH;
+            case "x5_webview_single":
+                return ContentAdapter.T_WEB;
             case "":
             case "movie_3":
                 return ContentAdapter.T_VIDEO;
@@ -1540,12 +1543,161 @@ public class HkPageActivity extends BaseActivity {
     }
 
     /**
-     * V2 非视频条目的统一点击：无 url 的纯展示行无反应；有 url 走 openDetail，
-     * 其内部已含 @lazyRule= 直接播放分支（detail → getDirectPlayUrl 非空则直接播放）。
+     * V2 非视频条目的统一点击：无 url 的纯展示行无反应；有 url 先过动作协议，
+     * 未消费则走 openDetail（其内部已含 @lazyRule= 直接播放分支）。
      */
     private void onContentItemClick(HkItem it) {
         if (it == null || currentRule == null || TextUtils.isEmpty(it.getUrl())) return;
+        String url = it.getUrl().trim();
+        if (handleActionUrl(url, it)) return;
         openDetail(it, true);
+    }
+
+    /**
+     * P2：条目 URL 动作协议的基本处理。返回 true 表示已消费，不再走 openDetail。
+     * <ul>
+     *   <li>{@code toast://文本} → Toast 显示</li>
+     *   <li>{@code copy://文本} → 复制到剪贴板</li>
+     *   <li>{@code input://...}/{@code select://...}/{@code confirm://...} → 对应对话框（基本处理）</li>
+     *   <li>{@code msg@confirmRule=js:...} → $().confirm 序列化：弹确认框，确认后求值 JS</li>
+     *   <li>{@code @inputRule=.js:...} → $().input 序列化：弹输入框，输入后求值 JS（input 为输入值）</li>
+     *   <li>{@code @x5Rule=js:...} → $().x5Rule 序列化：求值取 URL，用 WebView 打开</li>
+     * </ul>
+     */
+    private boolean handleActionUrl(String url, HkItem it) {
+        try {
+            if (url.startsWith("toast://")) {
+                android.widget.Toast.makeText(this, url.substring(8), android.widget.Toast.LENGTH_SHORT).show();
+                return true;
+            }
+            if (url.startsWith("copy://")) {
+                ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                cm.setPrimaryClip(ClipData.newPlainText("hk", url.substring(7)));
+                android.widget.Toast.makeText(this, "已复制", android.widget.Toast.LENGTH_SHORT).show();
+                return true;
+            }
+            if (url.startsWith("confirm://")) {
+                String msg = url.substring(10);
+                int q = msg.indexOf('?');
+                if (q >= 0) msg = msg.substring(0, q);
+                new AlertDialog.Builder(this)
+                        .setMessage(msg.isEmpty() ? "确认？" : msg)
+                        .setPositiveButton("确定", (d, w) -> d.dismiss())
+                        .setNegativeButton("取消", (d, w) -> d.dismiss())
+                        .show();
+                return true;
+            }
+            if (url.startsWith("input://") || url.startsWith("select://")) {
+                boolean isInput = url.startsWith("input://");
+                showSimpleInputDialog(isInput ? "输入" : "选择", "", input -> {
+                    android.widget.Toast.makeText(this,
+                            input.isEmpty() ? "已取消" : "输入：" + input,
+                            android.widget.Toast.LENGTH_SHORT).show();
+                });
+                return true;
+            }
+            int ci = url.indexOf("@confirmRule=");
+            if (ci >= 0) {
+                String msg = url.substring(0, ci);
+                String js = url.substring(ci + 13).trim();
+                if (js.startsWith("js:")) js = js.substring(3);
+                final String code = js;
+                new AlertDialog.Builder(this)
+                        .setMessage(msg.isEmpty() ? "确认？" : msg)
+                        .setPositiveButton("确定", (d, w) -> {
+                            d.dismiss();
+                            evalActionJs(code, "");
+                        })
+                        .setNegativeButton("取消", (d, w) -> d.dismiss())
+                        .show();
+                return true;
+            }
+            int ii = url.indexOf("@inputRule=");
+            if (ii >= 0) {
+                String js = url.substring(ii + 11).trim();
+                if (js.startsWith(".js:")) js = js.substring(4);
+                else if (js.startsWith("js:")) js = js.substring(3);
+                final String code = js;
+                showSimpleInputDialog(it.getTitle(), "", input -> evalActionJs(code, input));
+                return true;
+            }
+            int xi = url.indexOf("@x5Rule=");
+            if (xi >= 0) {
+                String js = url.substring(xi + 8).trim();
+                if (js.startsWith("js:")) js = js.substring(3);
+                final String code = js;
+                new Thread(() -> {
+                    String target = "";
+                    try {
+                        target = getRouter().getEngine().getJsRuntime().evalLazy(code, "");
+                    } catch (Throwable ignored) {
+                    }
+                    final String t = target == null ? "" : target.trim();
+                    App.post(() -> {
+                        if (t.startsWith("http")) showWebViewDialog(t);
+                        else if (!t.isEmpty())
+                            android.widget.Toast.makeText(this, t, android.widget.Toast.LENGTH_SHORT).show();
+                    });
+                }).start();
+                return true;
+            }
+        } catch (Throwable e) {
+            android.util.Log.d("HkPage", "handleActionUrl failed: " + e.getMessage());
+        }
+        return false;
+    }
+
+    /** 在 JS 线程求值动作 JS（@confirmRule/@inputRule 回调），input 为输入值。 */
+    private void evalActionJs(String code, String input) {
+        new Thread(() -> {
+            try {
+                HkJsRuntime rt = getRouter().getEngine().getJsRuntime();
+                // input 变量注入：复用 evalLazy 的 input 形参语义
+                rt.evalLazy("(function(){ var input=" + org.json.JSONObject.quote(input) + "; return (" + code + "); })();", "");
+            } catch (Throwable e) {
+                android.util.Log.d("HkPage", "evalActionJs failed: " + e.getMessage());
+            }
+            App.post(() -> loadContent(true));
+        }).start();
+    }
+
+    /** 简单输入对话框（input:// 与 @inputRule= 共用）。 */
+    private void showSimpleInputDialog(String title, String def, java.util.function.Consumer<String> cb) {
+        final EditText et = new EditText(this);
+        et.setHint("请输入");
+        if (!TextUtils.isEmpty(def)) et.setText(def);
+        et.setTextColor(0xFF1A1D24);
+        int pad = dp(16);
+        et.setPadding(pad, pad, pad, pad);
+        new AlertDialog.Builder(this)
+                .setTitle(title == null || title.isEmpty() ? "输入" : title)
+                .setView(et)
+                .setPositiveButton("确定", (d, w) -> {
+                    d.dismiss();
+                    cb.accept(et.getText().toString().trim());
+                })
+                .setNegativeButton("取消", (d, w) -> d.dismiss())
+                .show();
+    }
+
+    /** WebView 弹窗（@x5Rule= 与 x5_webview_single 共用）。 */
+    private void showWebViewDialog(String url) {
+        try {
+            android.webkit.WebView wv = new android.webkit.WebView(this);
+            wv.getSettings().setJavaScriptEnabled(true);
+            wv.getSettings().setDomStorageEnabled(true);
+            wv.setWebViewClient(new android.webkit.WebViewClient());
+            wv.loadUrl(url);
+            new AlertDialog.Builder(this)
+                    .setView(wv)
+                    .setPositiveButton("关闭", (d, w) -> {
+                        try { wv.destroy(); } catch (Throwable ignored) {}
+                        d.dismiss();
+                    })
+                    .show();
+        } catch (Throwable e) {
+            android.widget.Toast.makeText(this, "打开网页失败", android.widget.Toast.LENGTH_SHORT).show();
+        }
     }
 
     /** V2 内容多 viewType 适配器：视频卡片/小图标占 1 列，其余占满 3 列。 */
@@ -1560,6 +1712,7 @@ public class HkPageActivity extends BaseActivity {
         static final int T_MOVIE = 7;
         static final int T_INPUT = 8;
         static final int T_SEARCH = 9;
+        static final int T_WEB = 10;
 
         private final List<HkItem> items;
         private final int videoImgH;
@@ -1584,6 +1737,7 @@ public class HkPageActivity extends BaseActivity {
             TextView title, desc;
             LinearLayout cols;
             EditText input;
+            android.webkit.WebView web;
 
             Holder(View v, int type) {
                 super(v);
@@ -1636,6 +1790,12 @@ public class HkPageActivity extends BaseActivity {
                     case T_SEARCH:
                         title = v.findViewById(R.id.tv_title);
                         break;
+                    case T_WEB:
+                        web = v.findViewById(R.id.wv_page);
+                        web.getSettings().setJavaScriptEnabled(true);
+                        web.getSettings().setDomStorageEnabled(true);
+                        web.setWebViewClient(new android.webkit.WebViewClient());
+                        break;
                 }
             }
         }
@@ -1674,6 +1834,9 @@ public class HkPageActivity extends BaseActivity {
                     break;
                 case T_SEARCH:
                     layout = R.layout.item_hk_search;
+                    break;
+                case T_WEB:
+                    layout = R.layout.item_hk_web;
                     break;
                 default:
                     layout = R.layout.item_hk_video;
@@ -1716,6 +1879,9 @@ public class HkPageActivity extends BaseActivity {
                     break;
                 case T_SEARCH:
                     bindSearch(h, item);
+                    break;
+                case T_WEB:
+                    bindWeb(h, item);
                     break;
             }
         }
@@ -1876,6 +2042,25 @@ public class HkPageActivity extends BaseActivity {
             String t = stripHtml(item.getTitle());
             h.title.setText(TextUtils.isEmpty(t) ? "搜索…" : t);
             h.itemView.setOnClickListener(v -> openSearch());
+        }
+
+        /** P2：x5_webview_single 内嵌网页（JRKAN直播这类网页版小程序），点击整行用外部 WebView 打开。 */
+        private void bindWeb(Holder h, HkItem item) {
+            String url = item.getUrl() == null ? "" : item.getUrl().trim();
+            // url 可能带选择器后缀，只取纯 http 部分
+            int sp = url.indexOf(' ');
+            if (sp > 0) url = url.substring(0, sp).trim();
+            int semi = url.indexOf(';');
+            if (semi > 0) url = url.substring(0, semi).trim();
+            int hash = url.indexOf('#');
+            if (hash > 0) url = url.substring(0, hash).trim();
+            if (url.startsWith("http") && h.web != null) {
+                h.web.loadUrl(url);
+            }
+            final String target = url;
+            h.itemView.setOnClickListener(v -> {
+                if (target.startsWith("http")) showWebViewDialog(target);
+            });
         }
 
         /** 非视频条目点击：无 url 的纯展示行不设点击。 */

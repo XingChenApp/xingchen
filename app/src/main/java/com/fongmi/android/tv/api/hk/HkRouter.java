@@ -44,6 +44,10 @@ public class HkRouter {
         return rule;
     }
 
+    public HkEngine getEngine() {
+        return engine;
+    }
+
     /** 首页/分类列表。海阔分类即 url 替换词，直接复用 home。 */
     public List<HkItem> home(int page, String cls, String area, String year, String sort) {
         return engine.home(page, cls, area, year, sort);

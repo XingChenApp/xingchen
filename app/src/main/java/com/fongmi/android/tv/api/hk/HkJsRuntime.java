@@ -417,7 +417,21 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             try {
                 String pageCode = null;
                 boolean isRulePage = false;
-                if (path.startsWith("hiker://page/")) {
+                if (path.startsWith("hiker://assets/")) {
+                    // hiker://assets/xxx.js：映射到宿主内置 assets（海阔官方同款内置库，如 crypto-java.js）
+                    String assetPath = path.substring("hiker://assets/".length());
+                    int q = assetPath.indexOf('?');
+                    if (q >= 0) assetPath = assetPath.substring(0, q);
+                    int h = assetPath.indexOf('#');
+                    if (h >= 0) assetPath = assetPath.substring(0, h);
+                    String code = loadAsset(assetPath.trim());
+                    if (TextUtils.isEmpty(code)) {
+                        Logger.t(TAG).d("$.require: no built-in asset for %s", assetPath);
+                        return null;
+                    }
+                    ctx.evaluate(stripJsPrefix(code));
+                    return null;
+                } else if (path.startsWith("hiker://page/")) {
                     String p = path.substring("hiker://page/".length());
                     int q = p.indexOf('?');
                     if (q >= 0) p = p.substring(0, q);
@@ -1097,6 +1111,21 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 "    },\n" +
                 "    rule: function(fn) {\n" +
                 "      return selector + '@rule=js:(' + fn.toString() + ')();';\n" +
+                "    },\n" +
+                "    image: function(fn) {\n" +
+                "      try { var _r = fn(); return _r == null ? '' : String(_r); } catch (_e) { return ''; }\n" +
+                "    },\n" +
+                "    confirm: function(fn) {\n" +
+                "      return selector + '@confirmRule=js:(' + fn.toString() + ')();';\n" +
+                "    },\n" +
+                "    input: function(fn) {\n" +
+                "      return '@inputRule=.js:(' + fn.toString() + ')();';\n" +
+                "    },\n" +
+                "    b64: function() {\n" +
+                "      return $(selector);\n" +
+                "    },\n" +
+                "    x5Rule: function(fn) {\n" +
+                "      return '@x5Rule=js:(' + fn.toString() + ')();';\n" +
                 "    }\n" +
                 "  };\n" +
                 "}\n" +
@@ -1500,6 +1529,25 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             if (!f.exists()) return null;
             byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
             String code = new String(bytes, Charset.forName("UTF-8"));
+            return TextUtils.isEmpty(code) ? null : code;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    /**
+     * hiker://assets/xxx：从宿主内置 assets 读取文件内容（海阔官方内置库同款路径）。
+     * 文件不存在返回 null。
+     */
+    private String loadAsset(String assetPath) {
+        try {
+            java.io.InputStream is = App.get().getAssets().open(assetPath);
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = is.read(buf)) > 0) bos.write(buf, 0, n);
+            is.close();
+            String code = bos.toString("UTF-8");
             return TextUtils.isEmpty(code) ? null : code;
         } catch (Throwable ignored) {
             return null;
