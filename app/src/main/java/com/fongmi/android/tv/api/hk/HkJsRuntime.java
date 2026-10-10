@@ -125,6 +125,12 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     private String lastUrl;
     private volatile boolean destroyed;
     private volatile boolean preRuleDone;
+    /**
+     * 入口口令/输入框一次性 input 覆盖（官方 ArticleListFragment.clickItem 语义）：
+     * input 类型条目点击时，把用户在 EditText 里输入的文本作为 input 全局变量注入，
+     * 而不是默认的 pageUrl。set 后仅下一次 evalLazy 生效，读后清零。
+     */
+    private volatile String nextInputOverride;
 
     public HkJsRuntime(HkRule rule) {
         this.rule = rule;
@@ -1644,7 +1650,11 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         return submit(() -> {
             error = null;
             setContext(pageUrl);
-            ctx.getGlobalObject().setProperty("input", pageUrl == null ? "" : pageUrl);
+            // 入口口令/输入框：若有一次性 input 覆盖（用户输入的文本），优先使用；
+            // 否则按原逻辑用 pageUrl。读后清零，保证只生效一次。
+            String inputVal = nextInputOverride != null ? nextInputOverride : (pageUrl == null ? "" : pageUrl);
+            nextInputOverride = null;
+            ctx.getGlobalObject().setProperty("input", inputVal);
             Object r = ctx.evaluate(stripJsPrefix(jsCode));
             String s = r == null ? "" : String.valueOf(r).trim();
             if (s.isEmpty() || "undefined".equals(s) || "null".equals(s)) {
@@ -1689,6 +1699,14 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     /** refreshPage 请求标记当前是否为 true（不读后清零，供调用方做"变化检测"）。 */
     public boolean isRefreshRequested() {
         return refreshRequested;
+    }
+
+    /**
+     * 设置下一次 evalLazy 的 input 覆盖值（入口口令/输入框流程用）。
+     * 官方语义：input 条目点击时用户输入的文本作为 input 变量，而非 pageUrl。
+     */
+    public void setNextInputOverride(String input) {
+        this.nextInputOverride = input;
     }
 
     public boolean isRefreshToTop() {

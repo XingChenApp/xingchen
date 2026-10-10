@@ -2430,7 +2430,16 @@ public class HkPageActivity extends BaseActivity {
             h.input.setHint(stripHtml(item.getTitle()));
             h.input.setOnEditorActionListener((v, actionId, event) -> {
                 if (actionId == EditorInfo.IME_ACTION_SEARCH || actionId == EditorInfo.IME_ACTION_DONE) {
-                    if (!TextUtils.isEmpty(item.getUrl())) onContentItemClick(item);
+                    if (!TextUtils.isEmpty(item.getUrl())) {
+                        // 官方语义（ArticleListFragment.clickItem）：input 条目把用户输入的文本
+                        // 作为 input 全局变量注入后求值，而非 pageUrl。否则口令验证永远失败。
+                        String key = h.input.getText() == null ? "" : h.input.getText().toString();
+                        try {
+                            getRouter().getEngine().getJsRuntime().setNextInputOverride(key);
+                        } catch (Throwable ignored) {
+                        }
+                        onContentItemClick(item);
+                    }
                     return true;
                 }
                 return false;
