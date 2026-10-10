@@ -161,6 +161,14 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             } catch (Throwable e) {
                 Logger.t(TAG).d("inject CryptoJS failed: " + e.getMessage());
             }
+            // 官方内置 Hikerurl.js（$ 工具库）：自动注入为全局，定义 $.lazyRule/$.rule/$.image 等；
+            // 官方 JSEngine.allFunctionsEnd 会 eval(getJsPlugin())，规则直接调 $ 方法时也需要
+            try {
+                String hikerUrlJs = loadAsset("Hikerurl.js");
+                if (!TextUtils.isEmpty(hikerUrlJs)) ctx.evaluate(hikerUrlJs);
+            } catch (Throwable e) {
+                Logger.t(TAG).d("inject Hikerurl.js failed: " + e.getMessage());
+            }
             loadKv();
             loadConfig();
             runPreRule();
@@ -1107,7 +1115,16 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         stub("findJavaClass", null);
         stub("loadJavaClass", null);
         stub("getPrivateJS", "");
-        stub("getJsPlugin", "");
+        // 官方语义：返回内置 Hikerurl.js（$ 工具库）源码，规则 eval(getJsPlugin()) 后使用；
+        // init() 已自动注入为全局，规则不 eval 也能用
+        ctx.getGlobalObject().setProperty("getJsPlugin", args -> {
+            String code = loadAsset("Hikerurl.js");
+            if (TextUtils.isEmpty(code)) {
+                Logger.t(TAG).d("getJsPlugin: Hikerurl.js missing in assets");
+                return "";
+            }
+            return code;
+        });
         stub("getJsLazyPlugin", "");
         stub("getMyType", "");
         stub("getMyCallbackKey", "");
