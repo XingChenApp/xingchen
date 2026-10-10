@@ -153,6 +153,14 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         submit(() -> {
             ctx = QuickJSContext.create();
             registerApi();
+            // 官方内置 CryptoJS（aes.js）：自动注入为全局，兼容直接使用 CryptoJS 的规则；
+            // 库本身幂等（var CryptoJS = CryptoJS || ...），规则再 eval(getCryptoJS()) 无害
+            try {
+                String cryptoJs = loadAsset("aes.js");
+                if (!TextUtils.isEmpty(cryptoJs)) ctx.evaluate(cryptoJs);
+            } catch (Throwable e) {
+                Logger.t(TAG).d("inject CryptoJS failed: " + e.getMessage());
+            }
             loadKv();
             loadConfig();
             runPreRule();
@@ -909,9 +917,13 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             return rsaCrypto(false, String.valueOf(args[0]), String.valueOf(args[1]));
         });
         ctx.getGlobalObject().setProperty("getCryptoJS", args -> {
-            // 宿主未内置 CryptoJS 资源；规则如需请走 require 远程加载
-            Logger.t(TAG).d("getCryptoJS: empty in host");
-            return "";
+            // 官方语义：返回内置 CryptoJS 库（aes.js）源码，规则 eval(getCryptoJS()) 后使用
+            String code = loadAsset("aes.js");
+            if (code == null) {
+                Logger.t(TAG).d("getCryptoJS: aes.js missing in assets");
+                return "";
+            }
+            return code;
         });
         ctx.getGlobalObject().setProperty("toCorrectJSONString", args -> {
             if (args == null || args.length == 0) return "";
