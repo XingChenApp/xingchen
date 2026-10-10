@@ -1,14 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 海阔单页：分类/过滤 chip -->
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/tv_chip"
+<!-- 海阔：分类/过滤 chip（对照 8.83 item_rect_radius_wrap_search） -->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="wrap_content"
-    android:layout_height="36dp"
-    android:background="@drawable/hk_chip_bg_light"
-    android:ellipsize="end"
-    android:gravity="center"
-    android:maxLines="1"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp"
-    android:textColor="#101216"
-    android:textSize="14sp" />
+    android:layout_height="wrap_content">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="2dp"
+        app:cardBackgroundColor="#FFF5F5F5"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="0dp">
+
+        <TextView
+            android:id="@+id/tv_chip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/hk_ripple_white"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:minHeight="32dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:textColor="#101216"
+            android:textSize="14sp" />
+    </com.google.android.material.card.MaterialCardView>
+</RelativeLayout>

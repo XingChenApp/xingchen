@@ -1722,9 +1722,16 @@ public class HkPageActivity extends BaseActivity {
                 cover = v.findViewById(R.id.iv_cover);
                 title = v.findViewById(R.id.tv_title);
                 desc = v.findViewById(R.id.tv_desc);
-                ViewGroup.LayoutParams lp = cover.getLayoutParams();
-                lp.height = imgHeight;
-                cover.setLayoutParams(lp);
+                View container = v.findViewById(R.id.cover_container);
+                if (container != null) {
+                    ViewGroup.LayoutParams lp = container.getLayoutParams();
+                    lp.height = imgHeight;
+                    container.setLayoutParams(lp);
+                } else {
+                    ViewGroup.LayoutParams lp = cover.getLayoutParams();
+                    lp.height = imgHeight;
+                    cover.setLayoutParams(lp);
+                }
             }
         }
 
@@ -2341,9 +2348,16 @@ public class HkPageActivity extends BaseActivity {
                         title = v.findViewById(R.id.tv_title);
                         desc = v.findViewById(R.id.tv_desc);
                         overlay = v.findViewById(R.id.tv_overlay);
-                        ViewGroup.LayoutParams vlp = cover.getLayoutParams();
-                        vlp.height = videoImgH;
-                        cover.setLayoutParams(vlp);
+                        View containerV = v.findViewById(R.id.cover_container);
+                        if (containerV != null) {
+                            ViewGroup.LayoutParams vlp = containerV.getLayoutParams();
+                            vlp.height = videoImgH;
+                            containerV.setLayoutParams(vlp);
+                        } else {
+                            ViewGroup.LayoutParams vlp = cover.getLayoutParams();
+                            vlp.height = videoImgH;
+                            cover.setLayoutParams(vlp);
+                        }
                         break;
                     case T_TEXT:
                     case T_RICH:

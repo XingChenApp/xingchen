@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 海阔 V2：小图标按钮（icon_*，占 1 列，在网格里横向排列） -->
+<!-- 海阔：小图标按钮（对照 8.83 item_icon_four_col，42dp 图标 + 15sp 文字） -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:gravity="center_horizontal|top"
+    android:gravity="center_horizontal"
     android:orientation="vertical"
     android:paddingTop="4dp"
     android:paddingBottom="4dp">
 
     <FrameLayout
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
         android:background="#E8EAEE">
 
         <ImageView
@@ -26,8 +26,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:ellipsize="end"
-        android:gravity="center"
+        android:gravity="center_horizontal"
         android:maxLines="2"
         android:textColor="#101216"
-        android:textSize="12sp" />
+        android:textSize="15sp" />
 </LinearLayout>
