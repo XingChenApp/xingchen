@@ -16,6 +16,7 @@ public class ConfigHistoryAdapter extends RecyclerView.Adapter<ConfigHistoryAdap
 
     private final List<Config> items;
     private final OnItemClickListener listener;
+    private String currentUrl;
 
     public interface OnItemClickListener {
         void onUse(Config config);
@@ -24,6 +25,11 @@ public class ConfigHistoryAdapter extends RecyclerView.Adapter<ConfigHistoryAdap
     public ConfigHistoryAdapter(List<Config> items, OnItemClickListener listener) {
         this.items = items;
         this.listener = listener;
+        try {
+            currentUrl = com.fongmi.android.tv.api.config.VodConfig.get().getConfig().getUrl();
+        } catch (Exception e) {
+            currentUrl = "";
+        }
     }
 
     @NonNull
@@ -39,6 +45,11 @@ public class ConfigHistoryAdapter extends RecyclerView.Adapter<ConfigHistoryAdap
         String name = config.getName();
         holder.binding.name.setText(name == null || name.isEmpty() ? "未命名" : name);
         holder.binding.url.setText(config.getUrl() == null ? "" : config.getUrl());
+        // Highlight the currently active config
+        boolean active = config.getUrl() != null && config.getUrl().equals(currentUrl);
+        holder.binding.use.setText(active ? "使用中" : "使用");
+        holder.binding.use.setEnabled(!active);
+        holder.binding.use.setAlpha(active ? 0.5f : 1.0f);
         holder.binding.use.setOnClickListener(v -> {
             if (listener != null) listener.onUse(config);
         });

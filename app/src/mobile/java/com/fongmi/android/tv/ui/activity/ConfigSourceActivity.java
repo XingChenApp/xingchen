@@ -102,13 +102,8 @@ public class ConfigSourceActivity extends BaseActivity {
             if (binding.rvHistory == null) return;
             if (historyAdapter == null) {
                 historyAdapter = new ConfigHistoryAdapter(items, config -> {
-                    // Use: set as current VOD config
-                    com.fongmi.android.tv.api.config.VodConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
-                        @Override
-                        public void error(String msg) {}
-                    });
-                    updateCards();
-                    updateHistory();
+                    // Use: set as current VOD config (async load, refresh UI on success)
+                    switchVodConfig(config);
                 });
                 binding.rvHistory.setLayoutManager(new LinearLayoutManager(ctx));
                 binding.rvHistory.setAdapter(historyAdapter);
@@ -142,18 +137,40 @@ public class ConfigSourceActivity extends BaseActivity {
             } else {
                 // Refresh data
                 historyAdapter = new ConfigHistoryAdapter(items, config -> {
-                    com.fongmi.android.tv.api.config.VodConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
-                        @Override
-                        public void error(String msg) {}
-                    });
-                    updateCards();
-                    updateHistory();
+                    switchVodConfig(config);
                 });
                 binding.rvHistory.setAdapter(historyAdapter);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Switch to the given VOD config. VodConfig.load() is async: show a loading
+     * indicator, and refresh the cards/history only after the load succeeds.
+     */
+    private void switchVodConfig(com.fongmi.android.tv.bean.Config config) {
+        android.app.ProgressDialog progress = new android.app.ProgressDialog(this);
+        progress.setMessage("正在切换线路…");
+        progress.setCancelable(false);
+        progress.show();
+        com.fongmi.android.tv.api.config.VodConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
+            @Override
+            public void success() {
+                try { progress.dismiss(); } catch (Exception e) {}
+                updateCards();
+                updateHistory();
+            }
+            @Override
+            public void error(String msg) {
+                try { progress.dismiss(); } catch (Exception e) {}
+                android.widget.Toast.makeText(ConfigSourceActivity.this,
+                        msg == null || msg.isEmpty() ? "切换失败" : msg,
+                        android.widget.Toast.LENGTH_SHORT).show();
+                updateCards();
+            }
+        });
     }
 
 }
