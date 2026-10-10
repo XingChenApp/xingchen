@@ -1666,30 +1666,61 @@ public class HkPageActivity extends BaseActivity {
     /** 去 HTML 标签（col_type 标题里常带 <font> 等），逻辑同 buildDynamicTabs。 */
     private String stripHtml(String s) {
         if (s == null) return "";
-        return s.replaceAll("<[^>]*>", "").replace("‘", "").replace("’", "").trim()
+        return s.replaceAll("<[^>]*>", "").replace("‘", "").replace("’", "")
+                .replace("“", "").replace("”", "").trim()
                 // 规则里常把标题包在引号里（"""最新上传"""），去掉首尾引号
                 .replaceAll("^\"+|\"+$", "").replaceAll("^'+|'+$", "").trim();
     }
 
     /**
-     * 标题颜色标记检测（官方约定）："""xxx""" → 红色，''xxx'' → 橙色，并去掉引号。
-     * 返回颜色值，无标记返回 0。富文本路径复用。
+     * 标题颜色标记（官方 TextViewUtils.setSpanText 逻辑）：
+     * ""xxx""（U+201C×2 开 / U+201D×2 合）→ 红色 #FF0000
+     * ''xxx''（U+2018×2 开 / U+2019×2 合）→ 橙色 #f0983c
+     * split 内联处理，标题中间也能变色；返回带 <font> 标签的 HTML，无标记返回 null。
      */
-    private int titleMarkColor(String raw) {
-        String t = raw == null ? "" : raw.replaceAll("<[^>]*>", "").trim();
-        if (t.length() >= 4 && t.startsWith("\"\"") && t.endsWith("\"\"")) return 0xFFE53935;
-        if (t.length() >= 4 && t.startsWith("''") && t.endsWith("''")) return 0xFFFF9800;
-        return 0;
+    private String applyTitleMarkHtml(String raw) {
+        if (raw == null) return null;
+        String r = applyMark(raw, "““", "””", "#FF0000");
+        if (r != null) return r;
+        return applyMark(raw, "‘‘", "’’", "#f0983c");
+    }
+
+    /** 对文本做开/合标记的 split 内联变色，找到完整标记返回 HTML，否则返回 null。 */
+    private String applyMark(String text, String open, String close, String color) {
+        if (text == null || !text.contains(open)) return null;
+        String[] parts = text.split(java.util.regex.Pattern.quote(open), -1);
+        if (parts.length < 2) return null;
+        StringBuilder sb = new StringBuilder();
+        sb.append(parts[0]);
+        boolean marked = false;
+        for (int i = 1; i < parts.length; i++) {
+            String seg = parts[i];
+            int idx = seg.indexOf(close);
+            if (idx >= 0) {
+                marked = true;
+                sb.append("<font color=\"").append(color).append("\">")
+                        .append(seg, 0, idx)
+                        .append("</font>")
+                        .append(seg.substring(idx + close.length()));
+            } else {
+                // 无闭合标记：把 open 还原，避免吞字
+                sb.append(open).append(seg);
+            }
+        }
+        return marked ? sb.toString() : null;
     }
 
     private CharSequence titleSpan(String raw) {
-        String s = stripHtml(raw);
-        int color = titleMarkColor(raw);
-        if (color == 0) return s;
-        android.text.SpannableString sp = new android.text.SpannableString(s);
-        sp.setSpan(new android.text.style.ForegroundColorSpan(color), 0, s.length(),
-                android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        return sp;
+        if (raw == null) raw = "";
+        String markedHtml = applyTitleMarkHtml(raw);
+        if (markedHtml != null) {
+            try {
+                return Html.fromHtml(markedHtml, Html.FROM_HTML_MODE_LEGACY);
+            } catch (Throwable t) {
+                // fallback 到 strip
+            }
+        }
+        return stripHtml(raw);
     }
 
     /** col_type → viewType：空/movie_3/未知 → 视频卡片。 */
@@ -2222,28 +2253,17 @@ public class HkPageActivity extends BaseActivity {
             setContentClick(h, item);
         }
 
-        /** 富文本行：Html.fromHtml 显示，失败回退去标签；标题颜色标记（"""红/''橙）同样生效。 */
+        /** 富文本行：Html.fromHtml 显示，失败回退去标签；标题颜色标记（弯引号 ""红/''橙）同样生效。 */
         private void bindRich(Holder h, HkItem item) {
             h.title.setGravity(Gravity.START);
             h.title.setTextColor(0xFF1A1D24);
             h.title.setTextSize(14);
             h.title.setMaxLines(30);
-            int markColor = titleMarkColor(item.getTitle());
             String rawTitle = item.getTitle() == null ? "" : item.getTitle();
-            if (markColor != 0) {
-                // 先去掉首尾引号标记再走 Html，避免引号原样显示
-                rawTitle = rawTitle.replaceAll("^\"+|\"+$", "").replaceAll("^'+|'+$", "");
-            }
+            String markedHtml = applyTitleMarkHtml(rawTitle);
             try {
-                CharSequence cs = Html.fromHtml(rawTitle, Html.FROM_HTML_MODE_LEGACY);
-                if (markColor != 0) {
-                    android.text.SpannableStringBuilder ssb = new android.text.SpannableStringBuilder(cs);
-                    ssb.setSpan(new android.text.style.ForegroundColorSpan(markColor), 0, ssb.length(),
-                            android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    h.title.setText(ssb);
-                } else {
-                    h.title.setText(cs);
-                }
+                CharSequence cs = Html.fromHtml(markedHtml != null ? markedHtml : rawTitle, Html.FROM_HTML_MODE_LEGACY);
+                h.title.setText(cs);
             } catch (Throwable t) {
                 h.title.setText(titleSpan(item.getTitle()));
             }
