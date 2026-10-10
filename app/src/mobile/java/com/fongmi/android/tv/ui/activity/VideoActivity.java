@@ -1519,12 +1519,19 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         if (!item.getActor().isEmpty()) line1.append(getString(R.string.detail_actor, item.getActor()));
         StringBuilder line2 = new StringBuilder();
         if (!item.getYear().isEmpty()) line2.append(getString(R.string.detail_year, item.getYear())).append("  ");
+        if (!item.getArea().isEmpty()) line2.append(getString(R.string.detail_area, item.getArea())).append("  ");
         if (!item.getTypeName().isEmpty()) line2.append(getString(R.string.detail_type, item.getTypeName()));
+        StringBuilder line3 = new StringBuilder();
+        if (!item.getRemarks().isEmpty()) line3.append(getString(R.string.detail_remarks, item.getRemarks()));
         StringBuilder sb = new StringBuilder();
         if (line1.length() > 0) sb.append(line1.toString().trim());
         if (line2.length() > 0) {
             if (sb.length() > 0) sb.append("\n");
             sb.append(line2.toString().trim());
+        }
+        if (line3.length() > 0) {
+            if (sb.length() > 0) sb.append("\n");
+            sb.append(line3.toString().trim());
         }
         mBinding.meta.setVisibility(sb.length() == 0 ? View.GONE : View.VISIBLE);
         mBinding.meta.setText(sb.toString());

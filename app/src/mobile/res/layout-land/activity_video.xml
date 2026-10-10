@@ -600,8 +600,7 @@
                         android:ellipsize="end"
                         android:focusable="true"
                         android:lineSpacingExtra="3dp"
-                        android:maxLines="2"
-                        android:textColor="@color/white_80"
+                                                android:textColor="@color/white_80"
                         android:textSize="14sp"
                         tools:text="一個身世神秘的少年范閒，因對自身身世的好奇而離開故鄉澹州，前赴南慶京都。" />
 
