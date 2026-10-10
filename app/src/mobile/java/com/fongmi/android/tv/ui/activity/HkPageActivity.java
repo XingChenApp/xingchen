@@ -1696,6 +1696,9 @@ public class HkPageActivity extends BaseActivity {
         if (raw == null) return null;
         String r = applyMark(raw, "““", "””", "#FF0000");
         if (r != null) return r;
+        // 兼容 ASCII 三引号 """xxx"""（部分规则用直引号，如口令弹窗标题）
+        r = applyMark(raw, "\"\"\"", "\"\"\"", "#FF0000");
+        if (r != null) return r;
         return applyMark(raw, "‘‘", "’’", "#f0983c");
     }
 
@@ -1929,8 +1932,22 @@ public class HkPageActivity extends BaseActivity {
         et.setTextColor(0xFF1A1D24);
         int pad = dp(16);
         et.setPadding(pad, pad, pad, pad);
+        // 弹窗标题也走标题颜色标记逻辑（弯引号/ASCII三引号 → 红色）
+        CharSequence dialogTitle = "输入";
+        if (title != null && !title.isEmpty()) {
+            String markedHtml = applyTitleMarkHtml(title);
+            if (markedHtml != null) {
+                try {
+                    dialogTitle = android.text.Html.fromHtml(markedHtml, android.text.Html.FROM_HTML_MODE_LEGACY);
+                } catch (Throwable t) {
+                    dialogTitle = stripHtml(title);
+                }
+            } else {
+                dialogTitle = stripHtml(title);
+            }
+        }
         new AlertDialog.Builder(this)
-                .setTitle(title == null || title.isEmpty() ? "输入" : title)
+                .setTitle(dialogTitle)
                 .setView(et)
                 .setPositiveButton("确定", (d, w) -> {
                     d.dismiss();
