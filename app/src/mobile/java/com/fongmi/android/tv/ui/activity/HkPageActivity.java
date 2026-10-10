@@ -104,8 +104,6 @@ public class HkPageActivity extends BaseActivity {
     private int page = 1;
     private boolean loading, noMore;
     private final Map<String, Integer> scrollMem = new HashMap<>();
-    /** 内容网格列数（官方三行筛选之第三行：1/2/3 列切换，默认 3）。 */
-    private int gridCols = 3;
 
     private VideoAdapter searchAdapter;
     private final List<HkItem> searchResults = new ArrayList<>();
@@ -1009,53 +1007,6 @@ public class HkPageActivity extends BaseActivity {
             sort = value;
             loadContent(true);
         });
-        addColSwitcherRow();
-    }
-
-    /**
-     * 官方第三行：三列/两列/一列切换。切列数后重算 span 与图高，刷新网格。
-     */
-    private void addColSwitcherRow() {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        TextView tv = new TextView(this);
-        tv.setText("列数");
-        tv.setTextColor(0xFF101216);
-        tv.setTextSize(12);
-        LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(dp(40), ViewGroup.LayoutParams.WRAP_CONTENT);
-        row.addView(tv, labelLp);
-        LinearLayout chips = new LinearLayout(this);
-        chips.setOrientation(LinearLayout.HORIZONTAL);
-        String[] labels = {"三列", "两列", "一列"};
-        int[] cols = {3, 2, 1};
-        for (int i = 0; i < labels.length; i++) {
-            final int c = cols[i];
-            TextView chip = new TextView(this);
-            chip.setText(labels[i]);
-            chip.setTextSize(12);
-            chip.setPadding(dp(16), dp(8), dp(16), dp(8));
-            boolean sel = gridCols == c;
-            chip.setTextColor(sel ? 0xFFFFFFFF : 0xFF101216);
-            chip.setBackgroundResource(sel ? R.drawable.hk_chip_checked : R.drawable.hk_chip);
-            LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            clp.rightMargin = dp(8);
-            final TextView fChip = chip;
-            chip.setOnClickListener(v -> {
-                if (gridCols == c) return;
-                gridCols = c;
-                if (contentAdapter != null) contentAdapter.updateVideoImgH();
-                if (contentGrid != null) contentGrid.requestLayout();
-                if (contentAdapter != null) contentAdapter.notifyDataSetChanged();
-                buildFilterRows();
-            });
-            chips.addView(chip, clp);
-        }
-        row.addView(chips, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        rowLp.topMargin = dp(8);
-        binding.filterContainer.addView(row, rowLp);
     }
 
     private void addFilterRow(String label, List<String[]> pairs, ChipAdapter.OnPick pick) {
@@ -2360,12 +2311,11 @@ public class HkPageActivity extends BaseActivity {
         }
 
         /**
-         * 按当前列数重算视频卡片图高：列宽 = (屏宽-左右边距16dp*2)/列数，图高 = 列宽*3/2。
-         * 列数切换后调用并 notifyDataSetChanged。
+         * 视频卡片图高：固定 3 列，列宽 = (屏宽-左右边距16dp*2)/3，图高 = 列宽*3/2。
          */
         void updateVideoImgH() {
             DisplayMetrics dm = getResources().getDisplayMetrics();
-            int cols = Math.max(1, gridCols);
+            int cols = 3;
             int itemW = (dm.widthPixels - dp(16) * 2) / cols;
             // 减去列间距均摊（GridSpace：12dp*(cols-1)/cols）
             itemW -= dp(12) * (cols - 1) / cols;
@@ -2424,9 +2374,9 @@ public class HkPageActivity extends BaseActivity {
             String ct = it.getColType() == null ? "" : it.getColType().trim().toLowerCase();
             switch (t) {
                 case T_VIDEO:
-                    // 官方：movie_2 span=30（2/行）；movie_3 按列数切换 3列=20/2列=30/1列=60
+                    // 官方：movie_2 span=30（2/行）；movie_3 span=20（3/行）
                     if ("movie_2".equals(ct)) return 30;
-                    return 60 / Math.max(1, gridCols);
+                    return 20;
                 case T_COLS:
                     // text_2=30 text_3=20 text_4=15 text_5=12（N 个条目一行）
                     if (ct.endsWith("_2")) return 30;
