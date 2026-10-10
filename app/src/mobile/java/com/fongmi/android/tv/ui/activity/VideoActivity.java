@@ -1526,7 +1526,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             if (sb.length() > 0) sb.append("\n");
             sb.append(line2.toString().trim());
         }
-        mBinding.meta.setVisibility(sb.length() == 0 ? View.INVISIBLE : View.VISIBLE);
+        mBinding.meta.setVisibility(sb.length() == 0 ? View.GONE : View.VISIBLE);
         mBinding.meta.setText(sb.toString());
     }
 
@@ -4274,6 +4274,13 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         }
         logVideoFrame("exitFullscreen before");
         setFullscreen(false);
+        // Restore system bars: hideSystemUI() set FLAG_FULLSCREEN, must clear it
+        // or the status-bar area stays black ("顶部残留") after rotating to portrait.
+        try {
+            com.fongmi.android.tv.utils.Util.showSystemUI(this);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         if (isLand() && !player().isPortrait()) setTransition();
         setRequestedOrientation(PlaybackOrientation.getExitFullscreenOrientation(isPort()));
         mBinding.episodeGroup.postDelayed(() -> mBinding.episodeGroup.scrollToPosition(mEpisodeGroupAdapter.getPosition()), 100);
@@ -6050,9 +6057,37 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mPiP.update(this, size.width, size.height, getScale());
         setSizeText();
         updateVideoHeight();
+        adjustPortraitVideoHeight(size);
         applyResizeMode(getScale());
         checkOrientation();
         logVideoFrame("onSizeChanged after size=" + size.width + "x" + size.height);
+    }
+
+    /**
+     * 竖屏非全屏时，按视频实际宽高比调整视频框高度，避免固定 160dp 导致拉伸变形。
+     */
+    private void adjustPortraitVideoHeight(VideoSize size) {
+        try {
+            if (isLand() || isFullscreen() || isInPictureInPictureMode()) return;
+            if (mAudioStageVisible) return;
+            if (size == null || size.width <= 0 || size.height <= 0) return;
+            int viewWidth = mBinding.video.getWidth();
+            if (viewWidth <= 0) viewWidth = getResources().getDisplayMetrics().widthPixels;
+            int targetHeight = (int) (viewWidth * (float) size.height / size.width);
+            if (targetHeight <= 0) return;
+            // Only shrink/grow within reasonable bounds; never exceed 60% of screen height
+            int maxH = (int) (getResources().getDisplayMetrics().heightPixels * 0.6f);
+            targetHeight = Math.min(targetHeight, maxH);
+            if (Math.abs(mFrameParams.height - targetHeight) > 2) {
+                mFrameParams.height = targetHeight;
+                // Sync mFrameHeight so updateVideoHeight() won't revert this adjustment
+                mFrameHeight = targetHeight;
+                mBinding.video.setLayoutParams(mFrameParams);
+                logVideoFrame("adjustPortraitVideoHeight set to " + viewWidth + "x" + targetHeight);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
