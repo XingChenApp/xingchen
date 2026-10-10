@@ -151,6 +151,20 @@ public class HkDetail {
         this.lazyParseFailed = lazyParseFailed;
     }
 
+    /**
+     * 纯文本结果：文本型条目（按钮/文本行）的 js: 求值返回非 URL 文本时设置。
+     * 调用方见到非空应弹窗显示文本，不进 V4/播放（官方文本按钮语义）。
+     */
+    private String textResult = "";
+
+    public String getTextResult() {
+        return textResult;
+    }
+
+    public void setTextResult(String textResult) {
+        if (textResult != null) this.textResult = textResult;
+    }
+
     public String getTitle() {
         return title;
     }

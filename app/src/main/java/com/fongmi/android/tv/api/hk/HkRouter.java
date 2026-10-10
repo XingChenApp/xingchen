@@ -130,7 +130,21 @@ public class HkRouter {
             // ② 纯 js: 条目（$.toString 生成）：求值得到真实 URL
             if (u.startsWith("js:")) {
                 String v = evalEntryJs(u);
-                if (v != null && !v.trim().isEmpty()) u = v.trim();
+                if (v != null && !v.trim().isEmpty()) {
+                    String vt = v.trim();
+                    // 文本型结果（非 URL、非规则标记）：设为 textResult，调用方弹窗显示，不进 V4/播放
+                    // （如"查看更新日志"按钮；官方文本按钮语义）
+                    String kind = dealKind(vt);
+                    boolean isUrl = vt.toLowerCase().startsWith("http") || vt.contains("@rule=")
+                            || vt.contains("@lazyRule=") || vt.contains("@inputRule=")
+                            || vt.contains("@confirmRule=") || vt.startsWith("js:")
+                            || !kind.isEmpty();
+                    if (!isUrl) {
+                        detail.setTextResult(vt);
+                        return detail;
+                    }
+                    u = vt;
+                }
             }
 
             // ③ @rule=js: 条目：pageUrl 为 MY_URL，js 部分求值出详情
