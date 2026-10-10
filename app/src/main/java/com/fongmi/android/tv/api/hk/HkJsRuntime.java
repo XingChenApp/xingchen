@@ -1607,6 +1607,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
      */
     @Override
     public String eval(String js, String input) {
+        error = null;
         try {
             return submit(() -> {
                 ctx.getGlobalObject().setProperty("input", input == null ? "" : input);
@@ -1614,6 +1615,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 return r == null ? "" : String.valueOf(r);
             }).get();
         } catch (Exception e) {
+            String msg = e.getCause() != null && e.getCause().getMessage() != null
+                    ? e.getCause().getMessage() : e.getMessage();
+            error = msg == null || msg.isEmpty() ? "JS 执行失败" : msg;
             Logger.t(TAG).d("evalJs failed: %s", e.getMessage());
             return input == null ? "" : input;
         }

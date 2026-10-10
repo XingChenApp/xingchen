@@ -1650,14 +1650,40 @@ public class HkPageActivity extends BaseActivity {
     /** 在 JS 线程求值动作 JS（@confirmRule/@inputRule 回调），input 为输入值。 */
     private void evalActionJs(String code, String input) {
         new Thread(() -> {
+            String errMsg = null;
+            String result = "";
             try {
                 HkJsRuntime rt = getRouter().getEngine().getJsRuntime();
-                // input 变量注入：复用 evalLazy 的 input 形参语义
-                rt.evalLazy("(function(){ var input=" + org.json.JSONObject.quote(input) + "; return (" + code + "); })();", "");
+                // 官方语义：input 全局注入后直接求值。不用 evalLazy + 局部 var 包裹，
+                // 否则规则顶层语句在 return(...) 包裹下报语法错误，异常被静默吞掉导致"点了没反应"。
+                result = rt.eval(code, input);
+                // 取走 refreshPage 请求标记（不清零会污染后续 tab 点击的判断）
+                rt.consumeRefreshRequest();
+                String jsErr = rt.getError();
+                if (jsErr != null && !jsErr.isEmpty()) errMsg = jsErr;
             } catch (Throwable e) {
+                errMsg = e.getMessage() == null || e.getMessage().isEmpty() ? "执行失败" : e.getMessage();
                 android.util.Log.d("HkPage", "evalActionJs failed: " + e.getMessage());
             }
-            App.post(() -> loadContent(true));
+            String r0 = result == null ? "" : result.trim();
+            final String r = ("undefined".equals(r0) || "null".equals(r0)) ? "" : r0;
+            final String em = errMsg;
+            App.post(() -> {
+                if (em != null && !em.isEmpty()) {
+                    android.widget.Toast.makeText(HkPageActivity.this,
+                            "执行失败：" + em, android.widget.Toast.LENGTH_SHORT).show();
+                }
+                // 回调返回非空 URL 则导航（hiker://empty 为官方"无跳转"标记，hiker://* 为内部标记，均不导航）
+                if (!r.isEmpty() && !"hiker://empty".equals(r) && !r.startsWith("hiker://")) {
+                    HkItem nav = new HkItem();
+                    nav.setTitle("");
+                    nav.setUrl(r);
+                    if (handleActionUrl(r, nav)) return;
+                    onContentItemClick(nav);
+                    return;
+                }
+                loadContent(true);
+            });
         }).start();
     }
 
