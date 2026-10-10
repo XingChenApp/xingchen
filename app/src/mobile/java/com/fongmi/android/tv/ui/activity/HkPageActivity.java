@@ -858,12 +858,12 @@ public class HkPageActivity extends BaseActivity {
     // ================= V2 分类+列表 =================
 
     private void initContentView() {
-        contentGrid = new GridLayoutManager(this, 3);
-        // 多 viewType：视频卡片/小图标占 1 列，其余占满 3 列
+        // 官方 12 列栅格：movie_3=4(3列) / icon_4系列=3(4个一行) / icon_2系列=6(2个一行) / 其余=12(全宽)
+        contentGrid = new GridLayoutManager(this, 12);
         contentGrid.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
             @Override
             public int getSpanSize(int position) {
-                return contentAdapter == null ? 3 : contentAdapter.spanFor(position);
+                return contentAdapter == null ? 12 : contentAdapter.spanFor(position);
             }
         });
         binding.rvVideos.setLayoutManager(contentGrid);
@@ -1250,7 +1250,8 @@ public class HkPageActivity extends BaseActivity {
             binding.tvDetailLoading.setVisibility(View.VISIBLE);
             pushView(V_DETAIL);
         } else {
-            binding.loadingContent.setVisibility(View.VISIBLE);
+            // 直接播放预检（条目 URL 自带 @lazyRule=）：后台静默求值，不弹加载框；
+            // 求值完成后直接进播放器（用户要求：点封面即播，不弹"加载中"）
         }
         new Thread(() -> {
             HkDetail detail;
@@ -1298,26 +1299,34 @@ public class HkPageActivity extends BaseActivity {
     }
 
     /**
-     * 直接播放：从当前列表所有条目拼选集（官方 getChapters：每条=一集，当前点击的 use=true），
+     * 直接播放：从当前列表的视频条目拼选集（官方 getChapters：每条=一集，当前点击的 use=true），
      * 把选集传给播放器，解决"没有线路没有选集"。
+     * 只收录视频卡片条目（movie_*），过滤分类/按钮/文本等非视频条目（如粉嫩小BB的
+     * "制服情景""国产情色"等分类按钮不能混进选集）。
      */
     private void startHkDirectPlay(HkItem item, String directUrl) {
+        java.util.List<HkItem> eps = new java.util.ArrayList<>();
+        for (HkItem it : videos) {
+            if (it == null || TextUtils.isEmpty(it.getUrl())) continue;
+            if (contentTypeOf(it) != ContentAdapter.T_VIDEO) continue;
+            eps.add(it);
+        }
+        // 兜底：被点击条目若因类型特殊被过滤，仍把它加入，保证当前集可播可切
+        if (item != null && !TextUtils.isEmpty(item.getUrl()) && !eps.contains(item)) {
+            eps.add(item);
+        }
         org.json.JSONArray arr = new org.json.JSONArray();
-        int selIdx = 0;
         try {
-            int i = 0;
-            for (HkItem it : videos) {
-                if (it == null || TextUtils.isEmpty(it.getUrl())) continue;
+            for (HkItem it : eps) {
                 org.json.JSONObject o = new org.json.JSONObject();
                 o.put("name", stripHtml(it.getTitle()));
                 o.put("url", it.getUrl());
                 o.put("pic", it.getPic() == null ? "" : it.getPic());
                 arr.put(o);
-                if (it == item) selIdx = i;
-                i++;
             }
         } catch (Throwable ignored) {
         }
+        int selIdx = Math.max(0, eps.indexOf(item));
         VideoActivity.startHkPlay(HkPageActivity.this,
                 currentRule == null ? "" : currentRule.getTitle(), "默认",
                 directUrl, item.getTitle(), item.getTitle(), item.getPic(),
@@ -1561,28 +1570,33 @@ public class HkPageActivity extends BaseActivity {
         return (int) (v * getResources().getDisplayMetrics().density + 0.5f);
     }
 
-    /** 内容网格间距：1 列条目按实际列算左右边距，全宽条目左右 0、上下留 12dp。 */
+    /** 内容网格间距：按实际 span/spanIndex 算列边距；兼容 3 列搜索网格与 12 列内容网格。 */
     private class GridSpace extends RecyclerView.ItemDecoration {
         @Override
         public void getItemOffsets(@NonNull Rect outRect, @NonNull View view, @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
             int pos = parent.getChildAdapterPosition(view);
             if (pos < 0) return;
-            int span = 1, col = pos % 3;
+            int total = 12, span = 12, spanIndex = 0;
+            if (parent.getLayoutManager() instanceof GridLayoutManager) {
+                total = ((GridLayoutManager) parent.getLayoutManager()).getSpanCount();
+            }
             RecyclerView.LayoutParams lp = (RecyclerView.LayoutParams) view.getLayoutParams();
             if (lp instanceof GridLayoutManager.LayoutParams) {
                 GridLayoutManager.LayoutParams glp = (GridLayoutManager.LayoutParams) lp;
                 span = glp.getSpanSize();
-                if (glp.getSpanIndex() >= 0) col = glp.getSpanIndex();
+                if (glp.getSpanIndex() >= 0) spanIndex = glp.getSpanIndex();
             }
             int h = dp(12);
-            if (span >= 3) {
+            if (span >= total) {
                 outRect.left = 0;
                 outRect.right = 0;
                 if (pos > 0) outRect.top = dp(12);
             } else {
+                int perRow = Math.max(1, total / Math.max(1, span));
+                int col = span > 0 ? spanIndex / span : 0;
                 outRect.left = col == 0 ? 0 : h / 2;
-                outRect.right = col == 2 ? 0 : h / 2;
-                if (pos >= 3) outRect.top = dp(16);
+                outRect.right = col == perRow - 1 ? 0 : h / 2;
+                if (pos >= perRow) outRect.top = dp(16);
             }
         }
     }
@@ -1973,10 +1987,33 @@ public class HkPageActivity extends BaseActivity {
             return g;
         }
 
+        /**
+         * 官方 12 列栅格的 span（ArticleColTypeEnum.spanCount）：
+         * movie_3=4（3列）；icon_4/icon_small_4/icon_round_4/icon_4_card=3（4个一行，如探色
+         * 的首页/抖阴/二次元/暗网导航按钮）；icon_2/icon_2_round=6（2个一行）；
+         * icon_small_3=4（3个一行）；icon_1_search=12（全宽搜索）；pic_1系列=12；
+         * pic_2=6；pic_3/pic_3_square=4；其余全宽=12。
+         */
         int spanFor(int position) {
-            if (position < 0 || position >= items.size()) return 3;
+            if (position < 0 || position >= items.size()) return 12;
+            HkItem it = items.get(position);
             int t = getItemViewType(position);
-            return (t == T_VIDEO || t == T_ICON) ? 1 : 3;
+            String ct = it.getColType() == null ? "" : it.getColType().trim().toLowerCase();
+            switch (t) {
+                case T_VIDEO:
+                    return 4;
+                case T_ICON:
+                    if (ct.startsWith("icon_2")) return 6;
+                    if ("icon_small_3".equals(ct)) return 4;
+                    if ("icon_1_search".equals(ct)) return 12;
+                    return 3; // icon_4 / icon_small_4 / icon_round_4 / icon_round_small_4 / icon_4_card
+                case T_PIC:
+                    if (ct.startsWith("pic_2")) return 6;
+                    if (ct.startsWith("pic_3")) return 4;
+                    return 12; // pic_1 / pic_1_full / pic_1_card
+                default:
+                    return 12;
+            }
         }
 
         class Holder extends RecyclerView.ViewHolder {
@@ -2336,8 +2373,23 @@ public class HkPageActivity extends BaseActivity {
             setContentClick(h, item);
         }
 
-        /** 全宽大图：16:9，高度构造时已算好。 */
+        /** 图片：pic_1系列全宽16:9；pic_2半宽16:9；pic_3/pic_3_square按列宽正方形。 */
         private void bindPic(Holder h, HkItem item) {
+            String ct = colTypeOf(item);
+            ViewGroup.LayoutParams plp = h.cover.getLayoutParams();
+            if (plp != null) {
+                DisplayMetrics dm = h.itemView.getContext().getResources().getDisplayMetrics();
+                int W = dm.widthPixels - dp(16) * 2;
+                if (ct.startsWith("pic_3")) {
+                    plp.height = (W - dp(12) * 2) / 3; // 3列正方形
+                } else if (ct.startsWith("pic_2")) {
+                    int itemW = (W - dp(12)) / 2;
+                    plp.height = itemW * 9 / 16;
+                } else {
+                    plp.height = picH; // 16:9 全宽
+                }
+                h.cover.setLayoutParams(plp);
+            }
             ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
             h.cover.setContentDescription(stripHtml(item.getTitle()));
             setContentClick(h, item);
