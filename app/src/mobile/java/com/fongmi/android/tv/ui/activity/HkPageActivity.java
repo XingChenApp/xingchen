@@ -46,6 +46,7 @@ import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.api.SiteApi;
 import com.fongmi.android.tv.api.hk.HkDetail;
 import com.fongmi.android.tv.api.hk.HkItem;
 import com.fongmi.android.tv.api.hk.HkJsRuntime;
@@ -1294,6 +1295,9 @@ public class HkPageActivity extends BaseActivity {
                 if (!TextUtils.isEmpty(direct)) {
                     // 直接播放：若已推 V4 先弹出，保证播放器返回时回到列表
                     if (!lazyPrecheck) onBackInvoked();
+                    // 预热播放路由：后台提前做 QuickJS 初始化+preRule，
+                    // 播放器调 playerContent 时直接命中缓存，不用再等几秒初始化
+                    SiteApi.warmHkRouter(currentRule == null ? "" : currentRule.getTitle());
                     startHkDirectPlay(item, direct);
                     return;
                 }
@@ -1420,6 +1424,8 @@ public class HkPageActivity extends BaseActivity {
 
     private void bindDetail(HkDetail detail) {
         currentDetail = detail;
+        // V4 已展示：用户很可能马上点选集，提前预热播放路由，省掉播放时的初始化等待
+        SiteApi.warmHkRouter(currentRule == null ? "" : currentRule.getTitle());
         binding.detailScroll.setVisibility(View.VISIBLE);
         binding.tvDetailEmpty.setVisibility(View.GONE);
         binding.tvDetailTitle.setText(detail.getTitle());

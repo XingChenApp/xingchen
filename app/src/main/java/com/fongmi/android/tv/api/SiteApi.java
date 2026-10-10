@@ -11,6 +11,7 @@ import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.api.hk.HkDetailBridge;
 import com.fongmi.android.tv.api.hk.HkPlay;
 import com.fongmi.android.tv.api.hk.HkRouter;
+import com.fongmi.android.tv.api.hk.HkRuleManager;
 import com.fongmi.android.tv.api.loader.BaseLoader;
 import com.fongmi.android.tv.bean.Class;
 import com.fongmi.android.tv.bean.Result;
@@ -36,7 +37,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
 import okhttp3.Response;
@@ -301,6 +306,134 @@ public class SiteApi {
     }
 
     /**
+     * 海阔播放路由缓存。
+     *
+     * <p>根因：之前每次播放都 {@code HkRouter.open(title)} 全新初始化——新建 QuickJSContext、
+     * 注册上百个 API、读 kv/config 文件、跑 preRule（很多规则的 preRule 会发网络请求）。
+     * 点一次封面要等好几秒，大头是这里重复初始化，而不是真正的地址解析。</p>
+     *
+     * <p>缓存按规则名复用已初始化的 HkRouter：HkJsRuntime 的 JS 调用全部走单线程 executor
+     * 串行，跨播放复用线程安全；每次取用前校验规则文件 mtime（用户改规则立即失效）
+     * 与 15 分钟 TTL（preRule 里的登录态/cookie 定期刷新）。最多缓存 3 个规则，
+     * 淘汰时 destroy 释放 QuickJS 上下文。</p>
+     */
+    private static final int HK_ROUTER_CACHE_MAX = 3;
+    private static final long HK_ROUTER_CACHE_TTL_MS = 15 * 60 * 1000L;
+    private static final ExecutorService HK_INIT_EXEC = Executors.newSingleThreadExecutor();
+    private static final ConcurrentHashMap<String, HkRouterCacheEntry> hkRouterCache = new ConcurrentHashMap<>();
+
+    private static class HkRouterCacheEntry {
+        volatile Future<HkRouter> future;
+        volatile long ruleModified;
+        volatile long createdAt;
+    }
+
+    /**
+     * 预热某规则的播放路由（点封面预检出直接播放地址后调用）：后台提前做
+     * QuickJS 初始化 + preRule，等播放器真正调 playerContent 时缓存已就绪。
+     * UI 线程调用也安全，只提交任务立即返回。
+     */
+    public static void warmHkRouter(String title) {
+        if (title == null || title.isEmpty()) return;
+        try {
+            acquireHkRouterFuture(title);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** 取已初始化的 HkRouter（缓存命中直接返回，未命中则同步初始化）。 */
+    private static HkRouter acquireHkRouter(String title) throws Exception {
+        Future<HkRouter> f = acquireHkRouterFuture(title);
+        try {
+            HkRouter router = f.get(30, TimeUnit.SECONDS);
+            // 口令流程的一次性 input 覆盖只属于详情页那次求值，播放路由复用时清掉，
+            // 防止上次残留污染本次 lazyRule 的 input。
+            try {
+                router.getEngine().getJsRuntime().setNextInputOverride(null);
+            } catch (Throwable ignored) {
+            }
+            return router;
+        } catch (ExecutionException ee) {
+            // 初始化失败：清掉坏条目，下次重建；把原始异常抛给调用方（行为与之前一致）
+            hkRouterCache.remove(title);
+            Throwable c = ee.getCause();
+            if (c instanceof Exception) throw (Exception) c;
+            throw new RuntimeException(c);
+        }
+    }
+
+    private static synchronized Future<HkRouter> acquireHkRouterFuture(String title) {
+        long mtime = HkRuleManager.get().ruleModified(title);
+        HkRouterCacheEntry e = hkRouterCache.get(title);
+        if (e != null && e.ruleModified == mtime && !hkRouterExpired(e) && !hkRouterFailed(e)) {
+            return e.future;
+        }
+        if (e != null) {
+            hkRouterCache.remove(title);
+            destroyHkRouterFuture(e.future);
+        }
+        // LRU 淘汰：按创建时间踢掉最老的
+        while (hkRouterCache.size() >= HK_ROUTER_CACHE_MAX) {
+            String oldest = null;
+            long oldestAt = Long.MAX_VALUE;
+            for (Map.Entry<String, HkRouterCacheEntry> en : hkRouterCache.entrySet()) {
+                if (en.getValue().createdAt < oldestAt) {
+                    oldestAt = en.getValue().createdAt;
+                    oldest = en.getKey();
+                }
+            }
+            if (oldest == null) break;
+            HkRouterCacheEntry out = hkRouterCache.remove(oldest);
+            if (out != null) destroyHkRouterFuture(out.future);
+        }
+        HkRouterCacheEntry ne = new HkRouterCacheEntry();
+        ne.ruleModified = mtime;
+        ne.createdAt = System.currentTimeMillis();
+        ne.future = HK_INIT_EXEC.submit(() -> HkRouter.open(title));
+        hkRouterCache.put(title, ne);
+        return ne.future;
+    }
+
+    private static boolean hkRouterExpired(HkRouterCacheEntry e) {
+        return System.currentTimeMillis() - e.createdAt > HK_ROUTER_CACHE_TTL_MS;
+    }
+
+    private static boolean hkRouterFailed(HkRouterCacheEntry e) {
+        Future<HkRouter> f = e.future;
+        if (f == null || !f.isDone() || f.isCancelled()) return false;
+        try {
+            f.get(1, TimeUnit.MILLISECONDS);
+            return false;
+        } catch (ExecutionException ee) {
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static void destroyHkRouterFuture(Future<HkRouter> f) {
+        if (f == null) return;
+        if (!f.isDone()) {
+            // 初始化还在排队/执行：cancel(false) 不中断，只防未开始的任务启动；
+            // 若已在执行，完成后顺手 destroy，避免泄漏 QuickJS 上下文。
+            f.cancel(false);
+            HK_INIT_EXEC.submit(() -> {
+                try {
+                    HkRouter r = f.get(60, TimeUnit.SECONDS);
+                    if (r != null) r.destroy();
+                } catch (Throwable ignored) {
+                }
+            });
+            return;
+        }
+        try {
+            HkRouter r = f.get(1, TimeUnit.MILLISECONDS);
+            if (r != null) r.destroy();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /**
      * 海阔小程序播放（M4）：{@code hk_<规则名>} key 拦截 → {@link HkRouter#play(String)}
      * 分流链解析出真地址 → 直接组装 Result，不走 spider/嗅探。
      *
@@ -310,20 +443,17 @@ public class SiteApi {
     @NonNull
     private static Result hkPlayerContent(@NonNull String key, @NonNull String flag, @NonNull String id) throws Exception {
         String title = key.substring(HkDetailBridge.KEY_PREFIX.length());
-        HkRouter router = HkRouter.open(title);
-        try {
-            HkPlay play = router.play(id);
-            Result result = new Result();
-            result.setUrl(play.getUrl());
-            result.setParse(0);
-            result.setFlag(flag);
-            if (!play.getHeaders().isEmpty()) result.setHeader(play.getHeaders());
-            result.setKey(key);
-            SpiderDebug.log("player", "hk play resolved: %s", play.getUrl());
-            return result;
-        } finally {
-            router.destroy();
-        }
+        // 路由缓存复用：不再每次播放重建 QuickJS 上下文+跑 preRule（之前点封面等几秒的主因）
+        HkRouter router = acquireHkRouter(title);
+        HkPlay play = router.play(id);
+        Result result = new Result();
+        result.setUrl(play.getUrl());
+        result.setParse(0);
+        result.setFlag(flag);
+        if (!play.getHeaders().isEmpty()) result.setHeader(play.getHeaders());
+        result.setKey(key);
+        SpiderDebug.log("player", "hk play resolved: %s", play.getUrl());
+        return result;
     }
 
     @NonNull

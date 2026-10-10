@@ -806,6 +806,13 @@ public class HkRuleManager {
         }
     }
 
+    /** 规则文件最后修改时间（播放路由缓存失效判断用），文件不存在返回 -1。 */
+    public long ruleModified(String title) {
+        if (title == null) return -1;
+        File f = new File(getDir(), safeFileName(title) + ".json");
+        return f.exists() ? f.lastModified() : -1;
+    }
+
     /** 删除规则（含启用开关记录）。 */
     public boolean delete(String title) {
         if (title == null) return false;
