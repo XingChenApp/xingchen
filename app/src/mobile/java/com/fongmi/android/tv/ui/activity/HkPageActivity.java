@@ -920,14 +920,15 @@ public class HkPageActivity extends BaseActivity {
 
     private void buildCategoryRow() {
         List<String[]> pairs = new ArrayList<>();
-        pairs.add(new String[]{"全部", ""});
         pairs.addAll(currentRule.getClassPairs());
+        // 默认选中规则的第一个分类（原版无"全部"，不自动添加）
+        if (!pairs.isEmpty()) cls = pairs.get(0)[1];
         ChipAdapter adapter = new ChipAdapter(pairs, 0, value -> {
             cls = value;
             loadContent(true);
         });
         binding.rvCategory.setAdapter(adapter);
-        binding.rvCategory.setVisibility(pairs.size() > 1 ? View.VISIBLE : View.GONE);
+        binding.rvCategory.setVisibility(pairs.size() > 0 ? View.VISIBLE : View.GONE);
     }
 
     /**
@@ -1317,6 +1318,17 @@ public class HkPageActivity extends BaseActivity {
                 hideLoadingHint();
                 if (lazyPrecheck) binding.loadingContent.setVisibility(View.GONE);
                 else binding.tvDetailLoading.setVisibility(View.GONE);
+                // 纯文本结果（文本按钮的 js: 求值返回文本）：弹窗显示，不进 V4/播放
+                String textResult = result == null ? "" : result.getTextResult();
+                if (!TextUtils.isEmpty(textResult)) {
+                    if (!lazyPrecheck) onBackInvoked(); // 弹出已推的 V4 空 loading
+                    else binding.loadingContent.setVisibility(View.GONE);
+                    new AlertDialog.Builder(HkPageActivity.this)
+                            .setMessage(textResult)
+                            .setPositiveButton("确定", (d, w) -> d.dismiss())
+                            .show();
+                    return;
+                }
                 // 分类切换（官方 refreshPage 语义：putMyVar 后重刷列表，不进 V4）
                 if (result != null && result.isTabSwitch()) {
                     if (!lazyPrecheck) onBackInvoked(); // 弹出已推的 V4 空 loading
@@ -2316,7 +2328,7 @@ public class HkPageActivity extends BaseActivity {
 
         class Holder extends RecyclerView.ViewHolder {
             ImageView cover;
-            TextView title, desc;
+            TextView title, desc, overlay;
             LinearLayout cols;
             EditText input;
             android.webkit.WebView web;
@@ -2328,6 +2340,7 @@ public class HkPageActivity extends BaseActivity {
                         cover = v.findViewById(R.id.iv_cover);
                         title = v.findViewById(R.id.tv_title);
                         desc = v.findViewById(R.id.tv_desc);
+                        overlay = v.findViewById(R.id.tv_overlay);
                         ViewGroup.LayoutParams vlp = cover.getLayoutParams();
                         vlp.height = videoImgH;
                         cover.setLayoutParams(vlp);
@@ -2480,11 +2493,16 @@ public class HkPageActivity extends BaseActivity {
             return items.size();
         }
 
-        /** 视频卡片：保持原 VideoAdapter 行为。 */
+        /** 视频卡片：保持原 VideoAdapter 行为；desc 压在封面底部（原版 overlay 样式）。 */
         private void bindVideo(Holder h, HkItem item) {
             h.title.setText(titleSpan(item.getTitle()));
-            h.desc.setText(stripHtml(item.getDesc()));
-            h.desc.setVisibility(TextUtils.isEmpty(item.getDesc()) ? View.GONE : View.VISIBLE);
+            // desc 压在封面上（原版样式），不再放标题下面
+            String d = stripHtml(item.getDesc());
+            if (h.overlay != null) {
+                h.overlay.setText(d);
+                h.overlay.setVisibility(TextUtils.isEmpty(d) ? View.GONE : View.VISIBLE);
+            }
+            h.desc.setVisibility(View.GONE);
             ImgUtil.load(item.getTitle(), item.getPic(), h.cover);
             h.itemView.setOnClickListener(v -> {
                 int pos = h.getBindingAdapterPosition();
