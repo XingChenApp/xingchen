@@ -148,6 +148,11 @@ public class HkPageActivity extends BaseActivity {
     @Override
     protected void onBackInvoked() {
         if (stack.size() > 1) {
+            // 子列表返回：先恢复父列表，不弹视图栈（官方 FilmListActivity 返回即回父列表）
+            if (stack.peek() == V_CONTENT && !subStack.isEmpty()) {
+                backSubList();
+                return;
+            }
             if (stack.peek() == V_CONTENT && currentRule != null && contentGrid != null) {
                 scrollMem.put(currentRule.getTitle(), contentGrid.findFirstVisibleItemPosition());
             }
@@ -860,12 +865,14 @@ public class HkPageActivity extends BaseActivity {
     // ================= V2 分类+列表 =================
 
     private void initContentView() {
-        // 官方 12 列栅格：movie_3=4(3列) / icon_4系列=3(4个一行) / icon_2系列=6(2个一行) / 其余=12(全宽)
-        contentGrid = new GridLayoutManager(this, 12);
+        // 官方 60 列栅格（8.83 ArticleColTypeEnum.spanCount 反编译实测）：
+        // movie_3/pic_3/icon_small_3(3/行)=20；icon_4系列(4/行)=15；icon_5/text_5(5/行)=12；
+        // icon_2/pic_2/text_2(2/行)=30；其余全宽=60
+        contentGrid = new GridLayoutManager(this, 60);
         contentGrid.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
             @Override
             public int getSpanSize(int position) {
-                return contentAdapter == null ? 12 : contentAdapter.spanFor(position);
+                return contentAdapter == null ? 60 : contentAdapter.spanFor(position);
             }
         });
         binding.rvVideos.setLayoutManager(contentGrid);
@@ -891,6 +898,7 @@ public class HkPageActivity extends BaseActivity {
 
     private void openRule(HkRule rule) {
         destroyRouterAsync();
+        subStack.clear(); // 切规则时丢弃子列表栈
         currentRule = rule;
         cls = "";
         area = "";
@@ -1036,7 +1044,8 @@ public class HkPageActivity extends BaseActivity {
                 for (HkItem it : result) {
                     String ct = it.getColType() == null ? "" : it.getColType().trim().toLowerCase();
                     if ("scroll_button".equals(ct) || "flex_button".equals(ct)) tabs.add(it);
-                    else if ("blank_block".equals(ct) || "line_blank".equals(ct) || "line".equals(ct)) continue;
+                    else if ("blank_block".equals(ct) || "big_blank_block".equals(ct)
+                            || "big_big_blank_block".equals(ct) || "line_blank".equals(ct) || "line".equals(ct)) continue;
                     else contents.add(it);
                 }
                 if (p == 1 && !tabs.isEmpty()) buildDynamicTabs(tabs);
@@ -1270,6 +1279,15 @@ public class HkPageActivity extends BaseActivity {
      *                     避免 V4 loading 闪一下。非直接播放时再补推 V4 展示结果。
      */
     private void openDetail(HkItem item, boolean fromSearch, boolean lazyPrecheck) {
+        // 官方 clickItem：@rule= 条目进子列表页（dealRule），不进 V4；各调用方统一在此拦截。
+        // 顺序与官方一致：只看 @rule= 前段是否含 @lazyRule=，含则走 lazy 预检不进子列表。
+        if (item != null && !TextUtils.isEmpty(item.getUrl())) {
+            String u = item.getUrl().trim();
+            int ar = u.indexOf("@rule=");
+            if (ar >= 0 && !u.substring(0, ar).contains("@lazyRule=")) {
+                if (openSubList(item, u)) return;
+            }
+        }
         detailItem = item;
         detailFromSearch = fromSearch;
         currentDetail = null;
@@ -1759,13 +1777,16 @@ public class HkPageActivity extends BaseActivity {
         return stripHtml(raw);
     }
 
-    /** col_type → viewType：空/movie_3/未知 → 视频卡片。 */
+    /** col_type → viewType：空/movie_3/未知 → 视频卡片（官方 getItemTypeByCode 未知回退 MOVIE_3）。 */
     private int contentTypeOf(HkItem it) {
         String ct = colTypeOf(it);
         switch (ct) {
             case "text_center_1":
             case "text_1":
             case "long_text":
+            case "text_icon": // 官方全宽图文行，暂按文本行渲染
+            case "header":
+            case "footer":
                 return ContentAdapter.T_TEXT;
             case "rich_text":
                 return ContentAdapter.T_RICH;
@@ -1784,14 +1805,20 @@ public class HkPageActivity extends BaseActivity {
                 return ContentAdapter.T_WEB;
             case "button_group":
                 return ContentAdapter.T_BUTTONS;
+            case "card_pic_1":
+            case "card_pic_2":
+            case "card_pic_2_2":
+            case "card_pic_2_2_left":
+            case "card_pic_3":
+            case "card_pic_3_center":
+                return ContentAdapter.T_PIC;
             case "":
             case "movie_3":
                 return ContentAdapter.T_VIDEO;
             default:
                 if (ct.startsWith("icon")) return ContentAdapter.T_ICON;
-                if (ct.startsWith("pic")) return ContentAdapter.T_PIC;
-                // movie_1/movie_2 等按视频卡片网格渲染（原版粉嫩小BB为 3 列网格，
-                // 全宽横向图文与原版差距大）
+                if (ct.startsWith("pic") || ct.startsWith("card_pic")) return ContentAdapter.T_PIC;
+                // movie_1/movie_2 等按视频卡片网格渲染（全宽横向图文待后版）
                 if (ct.startsWith("movie")) return ContentAdapter.T_VIDEO;
                 return ContentAdapter.T_VIDEO;
         }
@@ -1806,7 +1833,135 @@ public class HkPageActivity extends BaseActivity {
         if (it == null || currentRule == null || TextUtils.isEmpty(it.getUrl())) return;
         String url = it.getUrl().trim();
         if (handleActionUrl(url, it)) return;
-        openDetail(it, true, url.contains("@lazyRule="));
+        // 官方 clickItem 顺序：@rule= 前段里的 @lazyRule= 优先（dealLazyRule），再是 @rule=（dealRule 子列表）
+        int ar = url.indexOf("@rule=");
+        String preRule = ar >= 0 ? url.substring(0, ar) : url;
+        boolean hasLazy = preRule.contains("@lazyRule=");
+        // 官方 clickItem：@rule= 条目进子列表页（dealRule 新建 ArticleListRule 打开 FilmListActivity），不进 V4
+        if (ar >= 0 && !hasLazy && openSubList(it, url)) return;
+        openDetail(it, true, hasLazy);
+    }
+
+    /** 子列表状态（@rule= 进子列表时压栈，返回时恢复）。 */
+    private static class SubListState {
+        HkRule rule;
+        String title;
+        int page;
+        String cls, area, year, sort;
+        java.util.List<HkItem> videos;
+        int scrollPos;
+        int fromView;
+    }
+
+    private final java.util.Deque<SubListState> subStack = new java.util.ArrayDeque<>();
+
+    /**
+     * 官方 dealRule 语义：@rule= 条目打开子列表页。
+     * 解析规则：r = @rule= 后全部；nextRule = r 按 "==>" 切第一段；6 段且非 js: 时第 6 段为 col_type；
+     * 新规则 url=@rule= 前的 pageUrl，find_rule=nextRule(+==>后缀)，col_type=条目指定或父规则默认；
+     * 其余（ua/group/preRule/title/pages/last_chapter_rule）继承父规则。
+     */
+    private boolean openSubList(HkItem it, String url) {
+        try {
+            int ar = url.indexOf("@rule=");
+            String pageUrl = url.substring(0, ar).trim();
+            // 官方 StringUtil.arrayToString(urlRule, 1, "@rule=")：拼接所有后续段
+            String[] parts = url.split("@rule=");
+            StringBuilder rb = new StringBuilder();
+            for (int i = 1; i < parts.length; i++) {
+                if (i > 1) rb.append("@rule=");
+                rb.append(parts[i]);
+            }
+            String r = rb.toString().trim();
+            if (r.isEmpty()) return false;
+            String[] arrow = r.split("==>");
+            String nextRule = arrow[0];
+            StringBuilder s1 = new StringBuilder();
+            for (int i = 1; i < arrow.length; i++) s1.append("==>").append(arrow[i]);
+            String[] rules = nextRule.split(";");
+            String colType = currentRule.getColType();
+            if (rules.length == 6 && !r.startsWith("js:")) {
+                colType = rules[5].trim();
+                StringBuilder nb = new StringBuilder();
+                for (int i = 0; i < 5; i++) {
+                    if (i > 0) nb.append(";");
+                    nb.append(rules[i]);
+                }
+                nextRule = nb.toString();
+            }
+            String findRule = nextRule + s1.toString();
+            if (findRule.trim().isEmpty()) return false;
+            // 压栈保存父列表状态
+            SubListState st = new SubListState();
+            st.rule = currentRule;
+            st.title = binding.tvContentTitle.getText().toString();
+            st.page = page;
+            st.cls = cls;
+            st.area = area;
+            st.year = year;
+            st.sort = sort;
+            st.videos = new java.util.ArrayList<>(videos);
+            st.scrollPos = contentGrid == null ? 0 : contentGrid.findFirstVisibleItemPosition();
+            st.fromView = stack.isEmpty() ? V_CONTENT : stack.peek();
+            subStack.push(st);
+            // 派生子规则并加载（官方 dealRule：新规则不带分类导航字段）
+            HkRule sub = currentRule.deriveSubRule(pageUrl, findRule, colType);
+            sub.clearNav();
+            destroyRouterAsync();
+            currentRule = sub;
+            cls = "";
+            area = "";
+            year = "";
+            sort = "";
+            page = 1;
+            noMore = false;
+            loading = false;
+            contentGen++;
+            videos.clear();
+            String itemTitle = stripHtml(it.getTitle());
+            binding.tvContentTitle.setText(itemTitle.isEmpty() ? st.title : itemTitle);
+            buildCategoryRow();
+            buildFilterRows();
+            // 已在列表页时直接替换内容，不重复压栈；从搜索等其他视图进入时才压栈
+            if (st.fromView != V_CONTENT) pushView(V_CONTENT);
+            else showView(V_CONTENT);
+            loadContent(true);
+            return true;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
+    /** 子列表返回：恢复父列表状态；若从非列表视图进入则回到原视图。 */
+    private boolean backSubList() {
+        if (subStack.isEmpty()) return false;
+        SubListState st = subStack.pop();
+        destroyRouterAsync();
+        currentRule = st.rule;
+        page = st.page;
+        cls = st.cls;
+        area = st.area;
+        year = st.year;
+        sort = st.sort;
+        noMore = false;
+        loading = false;
+        contentGen++;
+        videos.clear();
+        videos.addAll(st.videos);
+        binding.tvContentTitle.setText(st.title);
+        buildCategoryRow();
+        buildFilterRows();
+        contentAdapter.refreshGroups();
+        contentAdapter.notifyDataSetChanged();
+        binding.tvContentEmpty.setVisibility(View.GONE);
+        binding.rvVideos.setVisibility(videos.isEmpty() ? View.GONE : View.VISIBLE);
+        if (contentGrid != null && st.scrollPos > 0) contentGrid.scrollToPosition(st.scrollPos);
+        updateFooter();
+        if (st.fromView != V_CONTENT && stack.size() > 1) {
+            stack.pop();
+            showView(stack.peek());
+        }
+        return true;
     }
 
     /**
@@ -2069,31 +2224,38 @@ public class HkPageActivity extends BaseActivity {
         }
 
         /**
-         * 官方 12 列栅格的 span（ArticleColTypeEnum.spanCount）：
-         * movie_3=4（3列）；icon_4/icon_small_4/icon_round_4/icon_4_card=3（4个一行，如探色
-         * 的首页/抖阴/二次元/暗网导航按钮）；icon_2/icon_2_round=6（2个一行）；
-         * icon_small_3=4（3个一行）；icon_1_search=12（全宽搜索）；pic_1系列=12；
-         * pic_2=6；pic_3/pic_3_square=4；其余全宽=12。
+         * 官方 60 列栅格 span（8.83 ArticleColTypeEnum.spanCount 反编译实测）：
+         * text_2/pic_2/icon_2(2/行)=30；text_3/pic_3/icon_3(3/行)=20；
+         * text_4/icon_4(4/行)=15；text_5/icon_5(5/行)=12；其余全宽=60。
          */
         int spanFor(int position) {
-            if (position < 0 || position >= items.size()) return 12;
+            if (position < 0 || position >= items.size()) return 60;
             HkItem it = items.get(position);
             int t = getItemViewType(position);
             String ct = it.getColType() == null ? "" : it.getColType().trim().toLowerCase();
             switch (t) {
                 case T_VIDEO:
-                    return 4;
+                    return 20; // movie_3 3/行；movie_1/movie_2 暂按视频卡片网格渲染
+                case T_COLS:
+                    // text_2=30 text_3=20 text_4=15 text_5=12（N 个条目一行）
+                    if (ct.endsWith("_2")) return 30;
+                    if (ct.endsWith("_3")) return 20;
+                    if (ct.endsWith("_4")) return 15;
+                    if (ct.endsWith("_5")) return 12;
+                    return 60;
                 case T_ICON:
-                    if (ct.startsWith("icon_2")) return 6;
-                    if ("icon_small_3".equals(ct)) return 4;
-                    if ("icon_1_search".equals(ct)) return 12;
-                    return 3; // icon_4 / icon_small_4 / icon_round_4 / icon_round_small_4 / icon_4_card
+                    if (ct.startsWith("icon_2")) return 30;
+                    if ("icon_small_3".equals(ct) || "icon_3_fill".equals(ct) || "icon_3_round_fill".equals(ct)) return 20;
+                    if ("icon_1_search".equals(ct) || "icon_1_left_pic".equals(ct)) return 60;
+                    if ("icon_5".equals(ct) || "icon_5_no_crop".equals(ct)) return 12;
+                    return 15; // icon_4 / icon_small_4 / icon_round_4 / icon_round_small_4 / icon_4_card
                 case T_PIC:
-                    if (ct.startsWith("pic_2")) return 6;
-                    if (ct.startsWith("pic_3")) return 4;
-                    return 12; // pic_1 / pic_1_full / pic_1_card
+                    if (ct.startsWith("pic_2") || "card_pic_2".equals(ct)
+                            || "card_pic_2_2".equals(ct) || "card_pic_2_2_left".equals(ct)) return 30;
+                    if (ct.startsWith("pic_3") || "card_pic_3".equals(ct) || "card_pic_3_center".equals(ct)) return 20;
+                    return 60; // pic_1 / pic_1_full / pic_1_center / pic_1_card / card_pic_1
                 default:
-                    return 12;
+                    return 60;
             }
         }
 
@@ -2331,43 +2493,24 @@ public class HkPageActivity extends BaseActivity {
             setContentClick(h, item);
         }
 
-        /** 多列文本：按连续空白/｜/，切分标题为 N 列；切不出则按普通文本行。 */
+        /**
+         * 多列文本格：官方语义是一个条目占一格，N 个条目一行（text_2=2/行 … text_5=5/行，
+         * span 由 spanFor 按 60 列栅格给出）。标题居中显示一格，不再切分标题。
+         */
         private void bindCols(Holder h, HkItem item) {
             h.cols.removeAllViews();
-            String ct = colTypeOf(item);
-            int n = 2;
-            if (!ct.isEmpty()) {
-                char c = ct.charAt(ct.length() - 1);
-                if (c >= '2' && c <= '5') n = c - '0';
-            }
-            String raw = item.getTitle() == null ? "" : item.getTitle();
-            List<String> parts = new ArrayList<>();
-            for (String p : raw.split("[\\s　｜|，,、;；]+")) {
-                p = stripHtml(p);
-                if (!p.isEmpty()) parts.add(p);
-            }
             Context ctx = h.itemView.getContext();
-            if (parts.size() >= n) {
-                for (int i = 0; i < n; i++) {
-                    TextView tv = new TextView(ctx);
-                    tv.setText(parts.get(i));
-                    tv.setTextColor(0xFF1A1D24);
-                    tv.setTextSize(14);
-                    tv.setGravity(Gravity.CENTER);
-                    tv.setMaxLines(2);
-                    tv.setEllipsize(TextUtils.TruncateAt.END);
-                    h.cols.addView(tv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-                }
-            } else {
-                TextView tv = new TextView(ctx);
-                tv.setText(stripHtml(raw));
-                tv.setTextColor(0xFF1A1D24);
-                tv.setTextSize(14);
-                tv.setMaxLines(3);
-                tv.setEllipsize(TextUtils.TruncateAt.END);
-                h.cols.addView(tv, new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            }
+            TextView tv = new TextView(ctx);
+            tv.setText(titleSpan(item.getTitle()));
+            tv.setTextColor(0xFF1A1D24);
+            tv.setTextSize(14);
+            tv.setGravity(Gravity.CENTER);
+            tv.setMaxLines(3);
+            tv.setEllipsize(TextUtils.TruncateAt.END);
+            int pad = dp(8);
+            tv.setPadding(pad, dp(10), pad, dp(10));
+            h.cols.addView(tv, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             setContentClick(h, item);
         }
 

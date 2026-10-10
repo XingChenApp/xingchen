@@ -203,6 +203,65 @@ public class HkRule {
         this.findRule = findRule;
     }
 
+    /** 规则级 col_type（官方 dealRule：@rule= 条目无 6 段样式时的默认；空则回退 MOVIE_3）。 */
+    public String getColType() {
+        return colType == null ? "" : colType;
+    }
+
+    public void setColType(String colType) {
+        this.colType = colType;
+    }
+
+    /** 清空分类/地区/年份/类型导航（子列表派生用：官方 dealRule 的新规则不带这些字段）。 */
+    public void clearNav() {
+        className = "";
+        classUrl = "";
+        areaName = "";
+        areaUrl = "";
+        yearName = "";
+        yearUrl = "";
+        sortName = "";
+        sortUrl = "";
+    }
+
+    /**
+     * 派生子列表规则（官方 ArticleListFragment.dealRule 语义）：
+     * 复制当前规则全部字段，仅覆盖 url / find_rule / col_type；
+     * 其余（ua/group/preRule/title/last_chapter_rule/pages 等）继承父规则。
+     */
+    public HkRule deriveSubRule(String url, String findRule, String colType) {
+        HkRule r = new HkRule();
+        r.title = this.title;
+        r.author = this.author;
+        r.version = this.version;
+        r.type = this.type;
+        r.group = this.group;
+        r.ua = this.ua;
+        r.url = url;
+        r.className = this.className;
+        r.classUrl = this.classUrl;
+        r.areaName = this.areaName;
+        r.areaUrl = this.areaUrl;
+        r.yearName = this.yearName;
+        r.yearUrl = this.yearUrl;
+        r.sortName = this.sortName;
+        r.sortUrl = this.sortUrl;
+        r.colType = colType;
+        r.findRule = findRule;
+        r.searchUrl = this.searchUrl;
+        r.searchFind = this.searchFind;
+        r.detailFindRule = this.detailFindRule;
+        r.sdetailFindRule = this.sdetailFindRule;
+        r.detailColType = this.detailColType;
+        r.sdetailColType = this.sdetailColType;
+        r.preRule = this.preRule;
+        r.pages = this.pages;
+        r.lastChapterRule = this.lastChapterRule;
+        r.icon = this.icon;
+        r.enabled = this.enabled;
+        return r;
+    }
+
     public String getSearchUrl() {
         return searchUrl == null ? "" : searchUrl;
     }
