@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 海阔：对照 8.83 item_line_card -->
-<LinearLayout android:orientation="vertical" android:id="@+id/result_bg" android:background="#E8EAEE_deep" android:layout_width="fill_parent" android:layout_height="wrap_content"
+<LinearLayout android:orientation="vertical" android:id="@+id/result_bg" android:background="#E8EAEE" android:layout_width="fill_parent" android:layout_height="wrap_content"
   xmlns:android="http://schemas.android.com/apk/res/android">
     <View android:background="@drawable/shape_corners_rice_deep_bottom" android:layout_width="fill_parent" android:layout_height="10.0dip" android:layout_marginBottom="15.0dip" />
     <View android:background="@drawable/shape_corners_rice_deep_top" android:layout_width="fill_parent" android:layout_height="10.0dip" />

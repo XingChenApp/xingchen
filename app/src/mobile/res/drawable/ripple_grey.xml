@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 海阔：对照 8.83 ripple_grey -->
-<ripple android:color="#ffdfdfdf"
+<ripple android:color="@color/grey_black"
   xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="#fff5f5f5" />
+    <item android:drawable="@color/gray_rice" />
 </ripple>

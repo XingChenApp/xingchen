@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔：对照 8.83 colors.xml -->
+<resources>
+    <color name="gray_rice">#fff5f5f5</color>
+    <color name="gray_rice_deep">#fff2f2f2</color>
+    <color name="gray_rice_light">#fff7f7f7</color>
+    <color name="grey_black">#ffdfdfdf</color>
+</resources>
