@@ -252,9 +252,10 @@ public class OkHttp {
     }
 
     private static OkHttpClient.Builder getBuilder() {
-        // "系统"模式且无自定义解析（无 DoH 服务商、无 hosts 重写）时直接用 Dns.SYSTEM，
-        // 行为与原生客户端/默影视完全一致；有自定义时才走 OkDns 包装器。
-        Dns dns = dns().isCustom() ? dns() : Dns.SYSTEM;
+        // 始终走 OkDns 包装器：即使"系统"模式（无 DoH 服务商）也需要它的 IPv4 优选过滤
+        // （过滤坏 IPv6/回环劫持）和系统 DNS 失败时的公共 DoH 回退，否则封面等图片加载失败。
+        // OkDns 内部在 doh==null 时本来就是用 Dns.SYSTEM，只是多了过滤和回退。
+        Dns dns = dns();
         OkHttpClient.Builder builder = new OkHttpClient.Builder().addInterceptor(requestInterceptor()).addInterceptor(authInterceptor()).addNetworkInterceptor(responseInterceptor()).connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS).readTimeout(TIMEOUT, TimeUnit.MILLISECONDS).writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS).dns(dns).hostnameVerifier((hostname, session) -> true).sslSocketFactory(getSSLContext().getSocketFactory(), trustAllCertificates());
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY);
         //builder.addNetworkInterceptor(logging);
