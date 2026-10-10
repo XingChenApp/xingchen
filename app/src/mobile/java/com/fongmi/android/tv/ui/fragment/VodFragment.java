@@ -129,7 +129,7 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         mBinding.top.setOnClickListener(this::onTop);
         mBinding.link.setOnClickListener(this::onLink);
         mBinding.title.setOnClickListener(this::onSite);
-        mBinding.title.setOnLongClickListener(this::reloadConfig);
+        mBinding.title.setOnLongClickListener(this::onSwitchConfig);
         mBinding.typeMore.setOnTouchListener(this::onTypeMoreTouch);
         mBinding.typeMore.setOnClickListener(this::onTypeMore);
         mBinding.filter.setOnClickListener(this::onFilter);
@@ -278,6 +278,20 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
             // Fallback to native dialog
             SiteDialog.create().show(this);
         }
+    }
+
+    /**
+     * 长按标题：弹出线路切换弹窗（点播接口管理）。
+     */
+    private boolean onSwitchConfig(View view) {
+        try {
+            com.fongmi.android.tv.ui.dialog.ConfigHistoryDialog dialog =
+                    com.fongmi.android.tv.ui.dialog.ConfigHistoryDialog.create(0);
+            dialog.show(getParentFragmentManager(), "config_switch");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return true;
     }
 
     private boolean reloadConfig(View view) {

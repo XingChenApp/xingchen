@@ -33,6 +33,11 @@ public class ConfigHistoryDialog extends DialogFragment {
     private DialogConfigHistoryBinding binding;
     private ConfigHistoryAdapter adapter;
     private int type;
+    private OnSwitchListener switchListener;
+
+    public interface OnSwitchListener {
+        void onSwitch(Config config);
+    }
 
     public static ConfigHistoryDialog create(int type) {
         ConfigHistoryDialog dialog = new ConfigHistoryDialog();
@@ -40,6 +45,11 @@ public class ConfigHistoryDialog extends DialogFragment {
         args.putInt("type", type);
         dialog.setArguments(args);
         return dialog;
+    }
+
+    public ConfigHistoryDialog setOnSwitchListener(OnSwitchListener listener) {
+        this.switchListener = listener;
+        return this;
     }
 
     @Override
@@ -98,9 +108,42 @@ public class ConfigHistoryDialog extends DialogFragment {
 
     private void onUse(Config config) {
         dismiss();
-        if (getParentFragmentManager() != null) {
-            ConfigDialog.create().vod().edit().show(getParentFragmentManager(), "config");
+        if (switchListener != null) {
+            switchListener.onSwitch(config);
+            return;
         }
+        // Default: switch VOD config with loading UI, then notify home to refresh
+        if (type == 0) {
+            switchVodConfig(config);
+        }
+    }
+
+    /**
+     * Shared VOD config switch: async load with progress, posts ConfigEvent on success
+     * (HomeActivity listens and refreshes). Used by long-press title shortcut too.
+     */
+    public static void switchVodConfig(androidx.fragment.app.Fragment fragment, Config config) {
+        android.content.Context ctx = fragment.requireContext();
+        android.app.ProgressDialog progress = new android.app.ProgressDialog(ctx);
+        progress.setMessage("正在切换线路…");
+        progress.setCancelable(false);
+        progress.show();
+        com.fongmi.android.tv.api.config.VodConfig.load(config, new com.fongmi.android.tv.impl.Callback() {
+            @Override
+            public void success() {
+                try { progress.dismiss(); } catch (Exception e) {}
+                Notify.show("已切换");
+            }
+            @Override
+            public void error(String msg) {
+                try { progress.dismiss(); } catch (Exception e) {}
+                Notify.show(msg == null || msg.isEmpty() ? "切换失败" : msg);
+            }
+        });
+    }
+
+    private void switchVodConfig(Config config) {
+        switchVodConfig(this, config);
     }
 
     private void onClear() {
