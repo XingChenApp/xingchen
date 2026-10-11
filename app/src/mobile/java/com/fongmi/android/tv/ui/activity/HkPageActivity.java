@@ -2144,36 +2144,20 @@ public class HkPageActivity extends BaseActivity {
             // 派生子规则：find_rule 用页面 rule；extra → MY_PARAMS
             HkRule sub = currentRule.deriveSubRule(u, pageRule, colType);
             sub.clearNav();
-            // MY_PARAMS：URL query 参数 + item extra 合并（8.83 官方语义）
-            // hiker://page/erji1?model_id=123 中的 query 参数是 MY_PARAMS 的主要来源
+            // D6：MY_PARAMS 唯一来源是点击条目的 extra（8.83 PageParser.getNextPage 语义：
+            // 仅当 extra 非空且以 { 开头 } 结尾才 setParams）。URL query 不进 MY_PARAMS，
+            // 而是随 pageRule params Map 由规则经 fetch('hiker://page/') 自取。#532 的合并做法已 revert。
             try {
-                org.json.JSONObject params = new org.json.JSONObject();
-                // 1. 先解析 URL 中的 query 参数
-                int qq = u.indexOf('?');
-                if (qq >= 0) {
-                    String query = u.substring(qq + 1);
-                    int hh = query.indexOf('#');
-                    if (hh >= 0) query = query.substring(0, hh);
-                    for (String pair : query.split("&")) {
-                        int eq = pair.indexOf('=');
-                        if (eq > 0) {
-                            String k = java.net.URLDecoder.decode(pair.substring(0, eq), "UTF-8");
-                            String v = java.net.URLDecoder.decode(pair.substring(eq + 1), "UTF-8");
-                            params.put(k, v);
-                        } else if (!pair.isEmpty()) {
-                            String k = java.net.URLDecoder.decode(pair, "UTF-8");
-                            params.put(k, "");
-                        }
-                    }
-                }
-                // 2. 再合并 item extra（extra 优先级更高，覆盖同名 query 参数）
+                String extraJson = "";
                 java.util.Map<String, String> extra = it.getExtra();
                 if (extra != null && !extra.isEmpty()) {
+                    org.json.JSONObject jo = new org.json.JSONObject();
                     for (java.util.Map.Entry<String, String> e : extra.entrySet()) {
-                        params.put(e.getKey(), e.getValue());
+                        jo.put(e.getKey(), e.getValue());
                     }
+                    extraJson = jo.toString();
                 }
-                sub.setPageParams(params.toString());
+                sub.setPageParams(extraJson);
             } catch (Throwable ignored) {
                 sub.setPageParams("");
             }

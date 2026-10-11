@@ -172,11 +172,13 @@ public class ImgUtil {
 
     public static Object getUrl(String url) {
         String param = null;
-        boolean noParams = !(url.contains("@Headers=") || url.contains("@Cookie=") || url.contains("@Referer=") || url.contains("@User-Agent="));
+        // 8.83 官方 GlideUtil 只认小写 @headers=（smali const-string "@headers="），规则按官方写法吐小写；兼容保留大写
+        boolean noParams = !(url.contains("@Headers=") || url.contains("@headers=") || url.contains("@Cookie=") || url.contains("@Referer=") || url.contains("@User-Agent="));
         url = UrlUtil.convert(url);
         if (url.startsWith("data:")) return url;
         LazyHeaders.Builder builder = new LazyHeaders.Builder();
         if (url.contains("@Headers=")) addHeader(builder, param = url.split("@Headers=")[1].split("@")[0]);
+        else if (url.contains("@headers=")) addHeader(builder, param = url.split("@headers=")[1].split("@")[0]);
         if (url.contains("@Cookie=")) builder.addHeader(HttpHeaders.COOKIE, param = url.split("@Cookie=")[1].split("@")[0]);
         if (url.contains("@Referer=")) builder.addHeader(HttpHeaders.REFERER, param = url.split("@Referer=")[1].split("@")[0]);
         if (url.contains("@User-Agent=")) builder.addHeader(HttpHeaders.USER_AGENT, param = url.split("@User-Agent=")[1].split("@")[0]);

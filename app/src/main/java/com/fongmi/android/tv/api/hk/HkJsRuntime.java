@@ -140,9 +140,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
 
     /**
      * 把 lambda 注册为 scope 上的全局函数（Rhino BaseFunction）。
-     * Rhino 用 Undefined.instance 表示 undefined；QuickJS 侧对应 Java null，
-     * 这里归一化后 lambda 内的 args[?] != null / String.valueOf 语义与原来一致。
-     * Java 返回 null 时转为 JS undefined（原 QuickJS 行为）。
+     * 8.83 官方语义（JSEngine.smali）：桥接函数内不使用 Context.javaToJS
+     * （22 处调用全在 runScript/evalJS 的 scope 全局注入）；Java 返回值靠 Rhino
+     * LiveConnect 自动包装。Java null 直接返回（Rhino 转为 JS null，
+     * 与官方 STRING/OBJECT 模板的 null 语义一致），不转 undefined。
      */
     private void putFunction(String name, JsFunc fn) {
         putFunction(scope, name, fn);
@@ -156,13 +157,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
                 for (int i = 0; i < a.length; i++) {
                     if (a[i] == Context.getUndefinedValue()) a[i] = null;
                 }
-                Object r = fn.call(a);
-                if (r == null) return Context.getUndefinedValue();
-                // 8.83 同款：用 Context.javaToJS 封装 Java 返回值为 JS 类型
-                // （JSEngine.smali 中多处 invoke-static Context.javaToJS）
-                // 已是 JS 值（String/Number/Boolean/Scriptable）则原样返回，
-                // Java 对象（List/Map/自定义）则封装为 NativeJavaObject
-                return Context.javaToJS(r, scope);
+                return fn.call(a);
             }
         });
     }
@@ -324,6 +319,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         putFunction("fetch", args -> {
             if (args == null || args.length == 0) return "";
             String url = String.valueOf(args[0]);
+            // D2：hiker://assets/ 走内置 asset（官方 HttpHelper.fetch 经 fetchByHiker 拦截同款）
+            if (url.startsWith("hiker://assets/")) return loadAssetText(url);
             String options = args.length > 1 && args[1] != null ? stringifyArg(args[1]) : null;
             return fetchSync(url, options);
         });
@@ -339,6 +336,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             String url = String.valueOf(args[0]);
             // hiker://page/<path> 内部协议：从规则 pages 里按 path 取页面规则，返回 {"rule": "..."}
             if (url.startsWith("hiker://page/")) return handlePageRequest(url);
+            // D2：hiker://assets/ 走内置 asset（官方 $.require 经 getScript→request() 取脚本同款）
+            if (url.startsWith("hiker://assets/")) return loadAssetText(url);
             String options = args.length > 1 && args[1] != null ? stringifyArg(args[1]) : null;
             return fetchSync(url, options);
         });
@@ -400,7 +399,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
         putFunction("getVar", args -> {
             if (args == null || args.length == 0) return "";
             String v = vars.get(String.valueOf(args[0]));
-            if (v == null && args.length > 1) v = String.valueOf(args[1]);
+            // 8.83 官方 getVar：default 为 undefined/null 时返回 ""，不是 "null" 字符串
+            if (v == null && args.length > 1 && args[1] != null) v = String.valueOf(args[1]);
             return v == null ? "" : v;
         });
         putFunction("setItem", args -> {
@@ -1681,12 +1681,36 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
     private String handlePageRequest(String url) {
         try {
             String path = url.substring("hiker://page/".length());
+            // D1：解析 query 中的 rule= 参数（官方 PageParser.parsePageRule：?rule=标题 按标题换规则查库）
+            String ruleTitle = null;
             int q = path.indexOf('?');
-            if (q >= 0) path = path.substring(0, q);
+            if (q >= 0) {
+                String query = path.substring(q + 1);
+                int hh = query.indexOf('#');
+                if (hh >= 0) query = query.substring(0, hh);
+                for (String pair : query.split("&")) {
+                    int eq = pair.indexOf('=');
+                    if (eq > 0) {
+                        String k = java.net.URLDecoder.decode(pair.substring(0, eq), "UTF-8");
+                        if ("rule".equals(k)) {
+                            ruleTitle = java.net.URLDecoder.decode(pair.substring(eq + 1), "UTF-8");
+                            break;
+                        }
+                    }
+                }
+                path = path.substring(0, q);
+            }
             int h = path.indexOf('#');
             if (h >= 0) path = path.substring(0, h);
             path = path.trim();
-            String pagesJson = rule.getPages();
+            // 若指定了 rule= 标题，从目标规则的 pages 里找；找不到标题则回退当前规则
+            HkRule targetRule = rule;
+            if (ruleTitle != null && !ruleTitle.isEmpty()) {
+                HkRule found = HkRuleManager.get().getInstalledRule(ruleTitle);
+                if (found != null) targetRule = found;
+                else Logger.t(TAG).d("handlePageRequest: rule title not found: %s, fallback to current", ruleTitle);
+            }
+            String pagesJson = targetRule.getPages();
             if (!TextUtils.isEmpty(pagesJson)) {
                 List<Map<String, Object>> pages = GSON.fromJson(pagesJson, MAP_LIST_TYPE);
                 if (pages != null) {
@@ -2075,6 +2099,26 @@ public class HkJsRuntime implements HkSelector.JsEvaluator {
             return TextUtils.isEmpty(code) ? null : code;
         } catch (Throwable ignored) {
             return null;
+        }
+    }
+
+    /**
+     * D2：hiker://assets/xxx.js → 读宿主内置 assets 返回文本内容。
+     * 供 request()/fetch() 调用（官方 $.require 经 getScript→request() 取脚本，
+     * 不是 __hkRequirePage）。去 query/fragment 后按 asset 路径读取。
+     * 找不到返回 ""（不抛异常）。
+     */
+    private String loadAssetText(String url) {
+        try {
+            String assetPath = url.substring("hiker://assets/".length());
+            int q = assetPath.indexOf('?');
+            if (q >= 0) assetPath = assetPath.substring(0, q);
+            int h = assetPath.indexOf('#');
+            if (h >= 0) assetPath = assetPath.substring(0, h);
+            String code = loadAsset(assetPath.trim());
+            return code == null ? "" : code;
+        } catch (Throwable ignored) {
+            return "";
         }
     }
 
