@@ -507,7 +507,20 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 for (int i = 0; i < a.length; i++) {
                     if (a[i] == Context.getUndefinedValue()) a[i] = null;
                 }
-                return fn.call(cx, scope, a);
+                try {
+                    return fn.call(cx, scope, a);
+                } catch (org.mozilla.javascript.RhinoException e) {
+                    throw e; // 已是 JS 侧错误，原样穿桥
+                } catch (RuntimeException e) {
+                    // 桥面异常收口（全量宿主 API 只此一处出口）：宿主 lambda 抛的裸
+                    // RuntimeException 必须裹成 WrappedException 才算穿过桥——Rhino 的
+                    // JS try/catch 只接 RhinoException，裸 RuntimeException 会穿透全部
+                    // JS 帧（规则写了 catch 也接不住）、直达线程未捕获处理器变全局崩溃
+                    // 弹窗（2026-10-31 真机案：downloadFile 下载 HTTP 416 抛错炸穿全桥）。
+                    // 8.83 官方走反射注册、抛错由 Rhino 自动裹；我方手写 BaseFunction
+                    // 没有这层自动裹，在注册咽喉补齐。Error 不裹（OOM/栈溢出原样上抛）。
+                    throw new org.mozilla.javascript.WrappedException(e);
+                }
             }
         });
     }
