@@ -822,6 +822,14 @@ public class HongguoMineActivity extends AppCompatActivity {
         if (mode == MODE_FOLLOW && row.latestCount > 0) {
             HgStore.markFollowSeen(row.id, row.latestCount);
         }
+        // 预约分档落点（D-03）：不在「已上线」档里的预约条目直进播放页
+        // 必落失败面（剧还没上线、取不到链）——先落详情页看信息/预约态；
+        // 已上线档由同步回写 reservedOnlineIds 为准，在档内照旧带断点播。
+        if (mode == MODE_RESERVE
+                && !HgStore.reservedOnlineIds().contains(row.id)) {
+            HongguoDetailActivity.start(this, row.id, row.title, null);
+            return;
+        }
         // 首页面墙与历史列表同路：带断点续播
         HgStore.Progress p = mode == MODE_HISTORY || mode == MODE_HOME
                 ? HgStore.progressOf(row.id) : null;
