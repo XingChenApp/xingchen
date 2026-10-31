@@ -37,6 +37,7 @@ public final class HgBookClient {
     private static final String PATH_LANDING = "/reading/bookapi/new_category/landing/v1/";
     private static final String PATH_TONEINFO = "/reading/bookapi/audio/toneinfo/";
     private static final String PATH_BATCH_PLAY = "/reading/bookapi/audio/batch_play/";
+    private static final String PATH_PLAYINFO = "/reading/reader/audio/playinfo/";
 
     private final HgApiClient api = new HgApiClient();
 
@@ -293,6 +294,132 @@ public final class HgBookClient {
         String text = api.getSignedSync(PATH_TONEINFO, pairs);
         JsonObject root = parseRoot(text);
         return obj(root, "data");
+    }
+
+    /** 一个可选音色：TTS 合成音（id＝tone_id）或真人音色（id＝abook_id）。 */
+    public static final class Tone {
+        public static final int KIND_TTS = 0;
+        public static final int KIND_AUDIO = 1;
+        public int kind;
+        public long id;
+        public String title = "";
+        public String iconUrl = "";
+        /** TTS 音色的一句画像（回包 description，如「超自然」）；真人音色无此字段。 */
+        public String desc = "";
+        /** TTS 音色性别（回包 tone_gender：1 男／2 女／0 多角色）；真人音色为 -1。 */
+        public int gender = -1;
+    }
+
+    /** 一本书的音色全貌（toneinfo 回包解析，字段口径见官方模型 BookToneInfo/TtsToneInfo/AudioToneInfo）。 */
+    public static final class ToneSet {
+        public final List<Tone> ttsTones = new ArrayList<>();
+        public final List<Tone> audioTones = new ArrayList<>();
+        /** 服务端推荐（默认）音色 id；0＝回包没给。 */
+        public long recommendTone;
+        /** 本书 genre：0＝TTS 书（合成音）、1＝真人有声书；-1＝回包没给。 */
+        public int genreType = -1;
+        /** 关联的小说书 id（真人书上 tts_tones 归它）；TTS 书回的是自身 id。 */
+        public String relateNovelBookId = "";
+
+        public boolean isEmpty() {
+            return ttsTones.isEmpty() && audioTones.isEmpty();
+        }
+
+        public boolean hasTts(long toneId) {
+            for (Tone t : ttsTones) if (t.id == toneId) return true;
+            return false;
+        }
+    }
+
+    /**
+     * 本书音色表（T-02，2026-10-31 探针实拉定版，样本书 7596021152615517209）：
+     * tts_tones 6 条（id/title/icon_url/description/tone_gender）＋audio_tones
+     * 1 条（abook_id/title/icon_url）＋recommend_tone＝74；真人书同口回的
+     * 是同一张表（req_book_genre_type=1、relate_novel_bookid 指向 TTS 书）。
+     */
+    public ToneSet tones(String bookId) throws Exception {
+        ToneSet set = new ToneSet();
+        JsonObject data = toneInfo(bookId);
+        if (data == null) return set;
+        JsonArray tts = arr(data, "tts_tones");
+        if (tts != null) {
+            for (JsonElement el : tts) {
+                if (!el.isJsonObject()) continue;
+                JsonObject o = el.getAsJsonObject();
+                Tone t = new Tone();
+                t.kind = Tone.KIND_TTS;
+                t.id = longOf(o, "id", 0);
+                if (t.id <= 0) continue;
+                t.title = orEmpty(str(o, "title"));
+                t.iconUrl = orEmpty(str(o, "icon_url"));
+                t.desc = orEmpty(str(o, "description"));
+                t.gender = intOf(o, "tone_gender", -1);
+                set.ttsTones.add(t);
+            }
+        }
+        JsonArray audio = arr(data, "audio_tones");
+        if (audio != null) {
+            for (JsonElement el : audio) {
+                if (!el.isJsonObject()) continue;
+                JsonObject o = el.getAsJsonObject();
+                Tone t = new Tone();
+                t.kind = Tone.KIND_AUDIO;
+                t.id = longOf(o, "abook_id", 0);
+                if (t.id <= 0) continue;
+                t.title = orEmpty(str(o, "title"));
+                t.iconUrl = orEmpty(str(o, "icon_url"));
+                set.audioTones.add(t);
+            }
+        }
+        set.recommendTone = longOf(data, "recommend_tone", 0);
+        set.genreType = intOf(data, "req_book_genre_type", -1);
+        String relate = firstStr(data, "relate_novel_bookid_str", "relate_novel_bookid");
+        set.relateNovelBookId = relate == null ? "" : relate;
+        return set;
+    }
+
+    /**
+     * 按音色取单章播放信息（T-02 换音色的取流口，探针实拉定版）：
+     * GET reader/audio/playinfo 带 tone_id 才出数——不带回 code=101019
+     * （NO_THIS_TONE）；六个音色各回不同 vid/时长，是真换音色不是换名。
+     * batch_play 不认任何客户端音色字段（required_tone_id/tone_id/
+     * tone_histories 三路探针回显恒推荐音色），故换音色只能走本口。
+     * 回包 data[0] 即播放信息本体（main_url/backup_url/encryption_key/
+     * is_encrypt，与 batch 的 play_info_data 同形），空地址失败口径与
+     * audioPlayInfo 对齐（isNoUrlFailure 两句不变）。
+     */
+    public JsonObject audioPlayInfoTone(String bookId, String itemId, long toneId) throws Exception {
+        List<String[]> pairs = HgDevice.deviceQueryPairs();
+        pairs.add(new String[]{"book_id", bookId});
+        pairs.add(new String[]{"item_ids", itemId});
+        pairs.add(new String[]{"tone_id", String.valueOf(toneId)});
+        String text = api.getSignedSync(PATH_PLAYINFO, pairs);
+        JsonObject root = parseRoot(text);
+        JsonArray data = arr(root, "data");
+        if (data == null || data.size() == 0) throw new Exception("播放信息回包为空");
+        JsonObject first = data.get(0).getAsJsonObject();
+        JsonObject info = obj(first, "play_info_data");
+        JsonObject back = info == null ? first : info;
+        String main = str(back, "main_url");
+        String backup = str(back, "backup_url");
+        if ((main == null || main.isEmpty()) && (backup == null || backup.isEmpty())) {
+            throw new Exception("服务端没给播放地址（tone_id=" + toneId + "）");
+        }
+        return back;
+    }
+
+    private static long longOf(JsonObject o, String key, long def) {
+        String s = str(o, key);
+        if (s == null) return def;
+        try {
+            return Long.parseLong(s.trim());
+        } catch (Exception ignored) {
+            return def;
+        }
+    }
+
+    private static String orEmpty(String s) {
+        return s == null ? "" : s;
     }
 
     /**
