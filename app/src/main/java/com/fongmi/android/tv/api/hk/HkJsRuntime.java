@@ -5186,6 +5186,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             tmp = new File(f.getParentFile(),
                     f.getName() + ".part-" + System.nanoTime() + "-" + Thread.currentThread().getId());
             String opt = "{\"headers\":{}}";
+            Map<String, String> flat = null;
             try {
                 Map<String, Object> m = GSON.fromJson(headersJson,
                         new com.google.gson.reflect.TypeToken<Map<String, Object>>() {}.getType());
@@ -5193,7 +5194,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     Object h = m.get("headers");
                     if (h == null) h = m.get("header");
                     Map<String, Object> hm = h instanceof Map ? (Map<String, Object>) h : m;
-                    Map<String, String> flat = new HashMap<>();
+                    flat = new HashMap<>();
                     for (Map.Entry<String, Object> e : hm.entrySet()) {
                         if (e.getValue() != null) flat.put(e.getKey(), String.valueOf(e.getValue()));
                     }
@@ -5203,30 +5204,53 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 }
             } catch (Throwable ignored) {
             }
-            try (okhttp3.Response res = HkHttp.to(url,
-                    com.fongmi.quickjs.bean.Req.objectFrom(opt)).execute()) {
-                if (res.isSuccessful() && res.body() != null) {
-                    byte[] body = res.body().bytes();
-                    if (body.length == 0) {
-                        // 空响应不落盘：规则侧把 0 字节密文当毒（hgpSize 校验），删了反而自愈。
-                        // 与 HTTP 失败同口径抛错（8.83 官方：失败抛 Exception）。
-                        throw new RuntimeException("下载文件失败：空响应");
+            // 断点续传起点（规则自带 Range 头时才有）：本方法自身从不拼 Range，
+            // 416 只可能来自规则传的 Range 起点已达/越过远端总长（见下方处置）。
+            final long rangeStart = rangeStartOf(flat);
+            boolean retried416 = false;
+            while (true) {
+                try (okhttp3.Response res = HkHttp.to(url,
+                        com.fongmi.quickjs.bean.Req.objectFrom(opt)).execute()) {
+                    if (res.isSuccessful() && res.body() != null) {
+                        byte[] body = res.body().bytes();
+                        if (body.length == 0) {
+                            // 空响应不落盘：规则侧把 0 字节密文当毒（hgpSize 校验），删了反而自愈。
+                            // 与 HTTP 失败同口径抛错（8.83 官方：失败抛 Exception）。
+                            throw new RuntimeException("下载文件失败：空响应");
+                        }
+                        java.nio.file.Files.write(tmp.toPath(), body);
+                        try {
+                            java.nio.file.Files.move(tmp.toPath(), f.toPath(),
+                                    java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                            java.nio.file.Files.move(tmp.toPath(), f.toPath(),
+                                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        }
+                        tmp = null; // 已落定，catch 不再删
+                        Logger.t(TAG).d("downloadToFile ok: %s", f.getAbsolutePath());
+                        // 落盘视频自动清理（潇洒哥 2026-10-18 定：6 小时/8 个文件/400MB 删最旧）：
+                        // 后台线程跑，不阻塞规则当前执行；落盘根与 downloadFile 一致。
+                        HkMediaCacheCleaner.scheduleClean(new File(getFilePath("hiker://files/")));
+                        break;
                     }
-                    java.nio.file.Files.write(tmp.toPath(), body);
-                    try {
-                        java.nio.file.Files.move(tmp.toPath(), f.toPath(),
-                                java.nio.file.StandardCopyOption.ATOMIC_MOVE,
-                                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                    } catch (java.nio.file.AtomicMoveNotSupportedException e) {
-                        java.nio.file.Files.move(tmp.toPath(), f.toPath(),
-                                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    if (res.code() == 416 && rangeStart >= 0 && !retried416) {
+                        // HTTP 416＝续传起点已达/越过远端总长。本地最终文件若与远端
+                        // 总长等长（Content-Range: bytes */总长），或总长未知而与规则
+                        // 续传起点等长，就是已经下完了——按成功交回，不许报失败
+                        // （2026-10-31 真机案：下完的文件再点下载回 416 被当失败抛错）。
+                        // 对不上长＝本地是旧/别的文件，摘掉 Range 整包重下一回。
+                        long total = contentRangeTotalOf(res.header("Content-Range"));
+                        if (f.isFile() && ((total >= 0 && f.length() == total)
+                                || (total < 0 && f.length() == rangeStart))) {
+                            Logger.t(TAG).d("downloadToFile 416 already complete: %s",
+                                    f.getAbsolutePath());
+                            return;
+                        }
+                        retried416 = true;
+                        opt = optWithoutRange(flat);
+                        continue;
                     }
-                    tmp = null; // 已落定，catch 不再删
-                    Logger.t(TAG).d("downloadToFile ok: %s", f.getAbsolutePath());
-                    // 落盘视频自动清理（潇洒哥 2026-10-18 定：6 小时/8 个文件/400MB 删最旧）：
-                    // 后台线程跑，不阻塞规则当前执行；落盘根与 downloadFile 一致。
-                    HkMediaCacheCleaner.scheduleClean(new File(getFilePath("hiker://files/")));
-                } else {
                     throw new RuntimeException("下载文件失败：HTTP " + res.code());
                 }
             }
@@ -5238,6 +5262,51 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             if (e instanceof RuntimeException && String.valueOf(e.getMessage()).startsWith("下载文件失败")) throw (RuntimeException) e;
             throw new RuntimeException("下载文件失败：" + e.getMessage());
         }
+    }
+
+    /** 规则 headers 里的 Range 起点（bytes=N- / bytes=N-M）；无 Range 或不可解析回 -1。 */
+    private static long rangeStartOf(Map<String, String> flat) {
+        if (flat == null) return -1;
+        for (Map.Entry<String, String> e : flat.entrySet()) {
+            if (e.getKey() == null || !"Range".equalsIgnoreCase(e.getKey())) continue;
+            String v = e.getValue();
+            if (v == null) return -1;
+            java.util.regex.Matcher m = java.util.regex.Pattern
+                    .compile("(?i)^\\s*bytes\\s*=\\s*(\\d+)\\s*-").matcher(v);
+            if (!m.find()) return -1;
+            try {
+                return Long.parseLong(m.group(1));
+            } catch (NumberFormatException ex) {
+                return -1;
+            }
+        }
+        return -1;
+    }
+
+    /** 416 回包 Content-Range 头（末段斜杠后的远端总长）；没带或不可解析回 -1。 */
+    private static long contentRangeTotalOf(String contentRange) {
+        if (contentRange == null) return -1;
+        int slash = contentRange.lastIndexOf('/');
+        if (slash < 0) return -1;
+        try {
+            return Long.parseLong(contentRange.substring(slash + 1).trim());
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    /** 摘掉 Range 头重拼 downloadToFile 的 opt（416 处置第二发：整包重下）。 */
+    private static String optWithoutRange(Map<String, String> flat) {
+        Map<String, String> kept = new HashMap<>();
+        if (flat != null) {
+            for (Map.Entry<String, String> e : flat.entrySet()) {
+                if (e.getKey() != null && "Range".equalsIgnoreCase(e.getKey())) continue;
+                kept.put(e.getKey(), e.getValue());
+            }
+        }
+        Map<String, Object> wrap = new HashMap<>();
+        wrap.put("headers", kept);
+        return GSON.toJson(wrap);
     }
 
     /** png2Ts 前置：清 hiker://files/_cache 目录内容（原版 FilesUtilsKt.clearCacheDir 为异步清，星辰同步清）。 */
