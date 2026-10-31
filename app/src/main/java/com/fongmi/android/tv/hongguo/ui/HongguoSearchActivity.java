@@ -21,6 +21,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -58,8 +59,8 @@ import java.util.Locale;
  * N集」＋「x万收藏」筹）；点卡直进播放页。视频签＝两列瀑布视频卡：
  * 封面（按 vertical 定横竖比）、文案、作者头像＋名字行；点卡进视频页
  * （合集走专辑路）；签内混入的正剧行回剧集卡承接（B-17：卡型与落点
- * 同型，落点仍是剧集播放页）。帖行（post_data）只出卡不落点——帖子
- * 页已不存在，不编造落点。</p>
+ * 同型，落点仍是剧集播放页）。帖行（post_data）点卡进帖子页
+ * （HongguoPostActivity，料全取回包自带；W-08 他亲裁接上）。</p>
  */
 public class HongguoSearchActivity extends AppCompatActivity {
 
@@ -807,7 +808,7 @@ public class HongguoSearchActivity extends AppCompatActivity {
             DramaSearchRow r = rows.get(position);
             // 绑定分发与卡型同一判据（B-17）：剧集卡只喂正剧行。
             if (getItemViewType(position) == TYPE_POSTER) bindPoster(h, r.series);
-            else if (r.kind == DramaSearchRow.KIND_POST) bindPost(h, r.post);
+            else if (r.kind == DramaSearchRow.KIND_POST) bindPost(h, r);
             else bindClip(h, r.series);
         }
 
@@ -875,7 +876,8 @@ public class HongguoSearchActivity extends AppCompatActivity {
             h.card.setOnClickListener(v -> openItem(item));
         }
 
-        private void bindPost(H h, DramaWork post) {
+        private void bindPost(H h, DramaSearchRow r) {
+            DramaWork post = r.post;
             if (post == null) return;
             h.coverBox.ratio = 4f / 3f;
             bindCover(h.cover, post.cover);
@@ -885,9 +887,27 @@ public class HongguoSearchActivity extends AppCompatActivity {
             }
             h.caption.setText(text == null ? "" : text);
             bindAuthor(h, post.authorAvatar, post.authorName);
-            // 帖子页已不存在：只出卡、不落点，不编造落点
-            h.card.setOnClickListener(null);
-            h.card.setClickable(false);
+            h.card.setOnClickListener(v -> openPost(r));
+            h.card.setClickable(true);
+        }
+
+        /** 帖行落点（W-08 他亲裁「接上呗」）：料全在回包里，点卡进
+         * 帖子页；料残缺到连正文/图/标题都没有时不进空页，给明确
+         * 反馈、不许点了没反应。 */
+        private void openPost(DramaSearchRow r) {
+            DramaWork post = r.post;
+            boolean hasBody = post != null && post.postBody != null
+                    && (!post.postBody.text.isEmpty()
+                    || !post.postBody.imageUrls.isEmpty());
+            boolean hasTitle = post != null && post.title != null
+                    && !post.title.isEmpty();
+            if (!hasBody && !hasTitle) {
+                Toast.makeText(HongguoSearchActivity.this,
+                        "帖子暂时打不开，稍后再试", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            HongguoPostActivity.start(HongguoSearchActivity.this, post,
+                    r.postAuthorUid);
         }
 
         private void bindAuthor(H h, String avatar, String name) {
