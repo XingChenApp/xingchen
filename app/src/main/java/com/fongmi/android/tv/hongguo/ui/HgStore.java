@@ -894,6 +894,22 @@ public final class HgStore {
         return new java.util.ArrayList<>(readSet(K_NOVEL_HIST_INDEX));
     }
 
+    /**
+     * 删除一本小说的全部本地痕迹（断点＋元信息＋历史索引，D-20/D-09）：
+     * 小说历史键组此前只进不出、无任何删除 API。删除逻辑本体先行落
+     * 在此——UI 入口给不给、给什么形态属 W-05 待他裁，本方法现无
+     * 调用方、不许顺手往任何页面挂入口，等他裁了再接。
+     */
+    public static void removeNovelHistory(String bookId) {
+        if (bookId == null || bookId.isEmpty()) return;
+        Prefers.put(K_NOVEL_HIST_PREFIX + bookId, "");
+        Prefers.put(K_NOVEL_META_PREFIX + bookId, "");
+        java.util.List<String> ids = new java.util.ArrayList<>(readSet(K_NOVEL_HIST_INDEX));
+        if (ids.remove(bookId)) {
+            Prefers.put(K_NOVEL_HIST_INDEX, String.join(",", ids));
+        }
+    }
+
     /** 落一本书的展示元信息（标题/作者/封面，\u0001 分隔，与剧目 meta 同法）。 */
     public static void putNovelMeta(String bookId, String title, String author, String cover) {
         if (bookId == null || bookId.isEmpty()) return;
