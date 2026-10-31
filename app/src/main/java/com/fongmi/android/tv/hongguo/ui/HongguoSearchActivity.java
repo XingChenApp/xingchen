@@ -201,6 +201,11 @@ public class HongguoSearchActivity extends AppCompatActivity {
             @Override public void afterTextChanged(Editable s) {
                 clearBtn.setVisibility(s != null && s.length() > 0
                         ? View.VISIBLE : View.GONE);
+                // 词清空即回落地态（B-18）：此前搜过一次后 historyBox
+                // 恒 GONE，清词/删字都不恢复，历史只能退出重进才看得到。
+                if ((s == null || s.length() == 0) && !keyword.isEmpty()) {
+                    restoreLanding();
+                }
             }
         });
         bar.addView(box, new LinearLayout.LayoutParams(0, dp(38), 1f));
@@ -437,6 +442,27 @@ public class HongguoSearchActivity extends AppCompatActivity {
     public void finish() {
         super.finish();
         HgTransition.applyPushExit(this);
+    }
+
+    /**
+     * 回落地态（B-18）：清结果/签行/状态字、历史按 HgStore 现值重绑，
+     * 并 bump 代次放下在途回包（迟到的结果不许把落地态再顶掉）。
+     * 触发点只有输入词变空（清除叉与逐字删空同路）。
+     */
+    private void restoreLanding() {
+        searchGen++;
+        loading = false;
+        keyword = "";
+        rows.clear();
+        adapter.notifyDataSetChanged();
+        hasMore = false;
+        nextOffset = 0;
+        searchFailed = false;
+        pendingContentFade = false;
+        stateText.setVisibility(View.GONE);
+        stateText.setOnClickListener(null);
+        tabRow.setVisibility(View.GONE);
+        bindHistory();
     }
 
     private void doSearch() {
