@@ -517,6 +517,22 @@ public class HongguoFeedActivity extends AppCompatActivity {
         if (currentIndex < 0 || currentIndex >= items.size()) return;
         firstFrameForVid = false;
         mountPlayerView(currentIndex);
+        // 件七（逐帧账 D1/D9 定段）：1.4.68 的重挂修法在真机未生效
+        // ——录屏四次回前台全是「转场中借窗口淡入透出旧帧、落稳硬
+        // 切黑、永不恢复」，且黑屏态进度线为白色（tick 口径＝
+        // isPlaying 为真）＋原症有声：播放器没停，断的是渲染器与
+        // 画面层的交付。重挂只把 PlayerView 物理摘下重挂、循环了
+        // SurfaceView 的面，但全程没有任何一处让播放器把「当前活
+        // 面」重新交给渲染器——普通回前台分支正是缺了领回分支
+        // （reclaimFromLand）一直在做的 setPlayer 重设。补齐同一
+        // 动作：setPlayer(null) 先让播放器 clearVideoSurfaceView
+        // 摘掉旧面登记，再 setPlayer(player) 以 setVideoSurfaceView
+        // 把当前活面重新登记给渲染器；换面后渲染器会重报首帧
+        // （MediaCodecVideoRenderer 对已报过首帧的面有重报路），
+        // onRenderedFirstFrame 的收口（摘转圈/冻结、首帧旗）照旧
+        // 接得住。两分支（领回后/普通回前台）共用此收口。
+        playerView.setPlayer(null);
+        playerView.setPlayer(player);
     }
 
     /**
