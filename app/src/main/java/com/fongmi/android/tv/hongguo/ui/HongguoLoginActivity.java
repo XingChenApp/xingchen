@@ -272,6 +272,11 @@ public class HongguoLoginActivity extends AppCompatActivity {
 
     private void onSendCode() {
         if (sending || remainSeconds > 0) return;
+        // 协议把关守发码（D-11）：此前只守登录，未同意协议即可发短信验证码
+        if (!agreeBox.isChecked()) {
+            toast("请先阅读并同意协议");
+            return;
+        }
         if (!phoneValidForCode()) {
             toast("手机号好像不对，请检查一下再填");
             return;
