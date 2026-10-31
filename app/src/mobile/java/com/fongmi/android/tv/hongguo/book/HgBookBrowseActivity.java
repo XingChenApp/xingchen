@@ -23,6 +23,7 @@ import com.fongmi.android.tv.legado.HgBookBridge;
 import com.fongmi.android.tv.legado.LegadoPipeline;
 import com.fongmi.android.tv.legado.LegadoSource;
 import com.fongmi.android.tv.legado.LegadoStore;
+import com.fongmi.android.tv.read.HgBookSeeder;
 import com.fongmi.android.tv.ui.activity.ReadingSkin;
 import com.fongmi.android.tv.ui.activity.SearchTocActivity;
 import com.fongmi.android.tv.utils.ImgUtil;
@@ -70,6 +71,10 @@ public class HgBookBrowseActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         audio = getIntent().getBooleanExtra(EXTRA_AUDIO, false);
+        // 种源触发面补本页（D-19）：此前书城页能开的前提是先路过任一
+        // 阅读面种过源，没种过时点书必走 D-17 的无声死路——本页进门
+        // 先自种（已存在不重复，朋友版无实现自动不种）
+        HgBookSeeder.ensureSeeded();
         // 官方书城是浅色面（skin_color_bg_fa_light #FAFAFA），系统栏图标随之切深色
         ReadingSkin.enableEdgeToEdge(this, false);
         buildUi();
