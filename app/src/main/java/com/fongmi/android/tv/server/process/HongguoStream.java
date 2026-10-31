@@ -62,7 +62,8 @@ public class HongguoStream implements Process {
             // 其余异常共用一档含糊文本。流式出流途中（HgRangeInputStream
             // .fill）的解密失败同为 IOException，由 Nano 出流层按连接
             // 失败收口，不会把错误文本当媒体数据喂给播放器。
-            return Nano.error(Status.BAD_GATEWAY, "红果上游取数或解密失败: " + e.getMessage());
+            // （nanohttpd 2.3.1 无 BAD_GATEWAY，用 503 SERVICE_UNAVAILABLE。）
+            return Nano.error(Status.SERVICE_UNAVAILABLE, "红果上游取数或解密失败: " + e.getMessage());
         } catch (Exception e) {
             return Nano.error("红果代理解密失败: " + e.getMessage());
         }
