@@ -273,7 +273,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
     private String videoAuthorUid;
     private String videoAuthorName;
     private String videoAuthorAvatar;
-    /** 清屏钮基准位（按模式在建 UI 时定，防烧屏轮位在此基础上偏移）。 */
+    /** 清屏钮基准位（按模式在建 UI 时定，钮固定于此位、不移位）。 */
     private int cleanBaseBottom;
     private int cleanBaseRight = 12;
     private final Map<String, DramaDetail> detailCache = new HashMap<>();
@@ -3126,7 +3126,6 @@ public class HongguoFeedActivity extends AppCompatActivity {
             lastSaveMs = now;
             saveProgressNow();
         }
-        if (cleanMode) shiftCleanBtn();
     }
 
     private void prefetchNextEpisode() {
@@ -3215,19 +3214,6 @@ public class HongguoFeedActivity extends AppCompatActivity {
         if (h != null) h.chrome.setVisibility(vis);
         if (cleanBtn != null) cleanBtn.setAlpha(on ? 0.42f : 1f);
         applyDanmakuVisibility();
-    }
-
-    private int cleanShiftStep;
-
-    private void shiftCleanBtn() {
-        // 防烧屏：清屏态下钮位每 30 秒在 4 个近位间轮换（tick 500ms 计步）
-        if (cleanBtn == null) return;
-        if (++cleanShiftStep % 60 != 0) return;
-        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) cleanBtn.getLayoutParams();
-        int phase = (cleanShiftStep / 60) % 4;
-        lp.rightMargin = dp(cleanBaseRight) + (phase == 1 ? dp(2) : phase == 3 ? -dp(2) : 0);
-        lp.bottomMargin = cleanBaseBottom + (phase == 2 ? dp(2) : 0);
-        cleanBtn.setLayoutParams(lp);
     }
 
     // ---------- 弹幕 ----------
