@@ -273,6 +273,15 @@ public class PluginActivity extends BaseActivity {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+            // 同一脚本的缀号变体一并清掉（与打开方式导入同口径，只留正名一份，
+            // fix168-pyimport2）；删掉的路径并进失效名单，免得旧蜘蛛还认得它
+            try {
+                java.io.File dir = new java.io.File(getFilesDir(), isPy ? "plugins/py" : "plugins/js");
+                for (String dest : new ArrayList<>(imported)) {
+                    imported.addAll(PluginFileJudge.purgeAvoidVariants(dir, new java.io.File(dest).getName()));
+                }
+            } catch (Throwable ignored) {
+            }
             invalidateFiles(imported);
             loadPlugins();
         }
@@ -283,6 +292,9 @@ public class PluginActivity extends BaseActivity {
         if (fileName == null) return null;
         fileName = fileName.trim();
         if (!fileName.endsWith(".py") && !fileName.endsWith(".js")) return null;
+        // 名归一：带避让缀号的名字（「名(1).py」）按正名落盘，同名直接覆盖，
+        // 不许缀号坐实成另一份（他亲令，fix168-pyimport2）
+        fileName = PluginFileJudge.canonicalName(fileName);
         java.io.File dir = new java.io.File(getFilesDir(), isPy ? "plugins/py" : "plugins/js");
         if (!dir.exists()) dir.mkdirs();
         java.io.File dest = new java.io.File(dir, fileName);
