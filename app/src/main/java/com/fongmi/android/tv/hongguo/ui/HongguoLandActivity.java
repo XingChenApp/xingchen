@@ -1276,7 +1276,8 @@ public class HongguoLandActivity extends AppCompatActivity {
         }
         if (!HgStore.isDanmakuOn() || seriesId == null || vid == null) return;
         final String sid = seriesId;
-        safeExecute(() -> HongguoDanmakuApi.fetchToFile(sid, vid, 0, item -> {
+        // 时长传缓存模型的 video_duration 真值（A-20），口径同竖屏页。
+        safeExecute(() -> HongguoDanmakuApi.fetchToFile(sid, vid, DramaCache.durationMs(vid), item -> {
             if (!vid.equals(danmakuVid)) return;
             loadDanmakuFile(vid, item);
         }));

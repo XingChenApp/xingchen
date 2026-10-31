@@ -3342,7 +3342,9 @@ public class HongguoFeedActivity extends AppCompatActivity {
         if (!HgStore.isDanmakuOn() || currentSeriesId == null) return;
         final String sid = currentSeriesId;
         safeExecute(() -> {
-            HongguoDanmakuApi.fetchToFile(sid, vid, 0, item -> {
+            // 时长传缓存模型的 video_duration 真值（A-20）：终止线与
+            // playlet_item_duration 自此有据；模型不在手仍传 0=未知。
+            HongguoDanmakuApi.fetchToFile(sid, vid, DramaCache.durationMs(vid), item -> {
                 if (!vid.equals(danmakuVid)) return;
                 loadDanmakuFile(vid, item);
             });

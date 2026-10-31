@@ -65,6 +65,18 @@ public final class DramaCache {
         return DramaParser.restoreModel(vid, json, 0, 0);
     }
 
+    /**
+     * 弹幕拉取用的本集时长（毫秒，A-20）：缓存模型自带的 video_duration
+     * （DramaVideoModel.durationSec，服务端随播放模型下发的真值）。
+     * 无模型/时长未给返回 0＝未知，HongguoDanmakuApi 按其既定口径
+     * 靠窗数上限收尾、不设终止线——不许拿别处数值冒充。
+     */
+    public static long durationMs(String vid) {
+        DramaVideoModel m = get(vid);
+        if (m == null || !(m.getDurationSec() > 0)) return 0;
+        return (long) (m.getDurationSec() * 1000);
+    }
+
     public static synchronized void put(DramaVideoModel model) {
         if (model == null || model.getSourceJson() == null
                 || model.firstPlayableEntry() == null) return;
