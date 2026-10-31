@@ -598,9 +598,9 @@ public class HongguoAuthorActivity extends AppCompatActivity {
     }
 
     /** 顶签切换：数据/分页/状态字各归各签，子档行只属作品签。 */
-    private void selectTopTab(boolean shelf) {
-        if (shelfTab == shelf) return;
-        shelfTab = shelf;
+    private void selectTopTab(boolean toShelf) {
+        if (shelfTab == toShelf) return;
+        shelfTab = toShelf;
         paintTopTabs();
         tabScrollView.setVisibility(!shelfTab && subTabsBuilt ? View.VISIBLE : View.GONE);
         adapter.notifyDataSetChanged();
