@@ -64,6 +64,10 @@ public final class HgLandCommentsPanel {
         final HongguoCommentApi.Comment comment;
         final boolean reply;
         boolean expanded;
+        /** 已展开回复的分页态：已载子行数、下一页游标、还有没有下一页。 */
+        int replyLoaded;
+        String replyCursor;
+        boolean replyMore;
 
         Row(HongguoCommentApi.Comment c, boolean reply) {
             comment = c;
@@ -354,6 +358,7 @@ public final class HgLandCommentsPanel {
             loading = false;
             firstLoaded = false;
             loadFailed = false;
+            repliesLoading = false;
             lastTotal = -1;
             notifyDataSetChanged();
         }
@@ -429,30 +434,70 @@ public final class HgLandCommentsPanel {
             });
         }
 
-        private void expandReplies(Row row) {
-            // P0 同型收口：面板 destroy 已 shutdownNow，迟到的展开投递
-            // 撞死池即崩——与 loadMore 同口径先查 destroyed（同在主线程、
-            // destroy 亦在主线程，查与投之间无竞态窗）。
-            if (destroyed) return;
-            row.expanded = true;
-            int at = rows.indexOf(row);
-            if (at >= 0) notifyItemChanged(at);
+        private boolean repliesLoading;
+
+        /**
+         * 回复展开三态（与竖屏评论单同口径，官方截图有展开/收起两
+         * 态、旧实现只有展开）：首拉、续拉（旧实现游标恒传空串，
+         * 回复多于一页只看得到第一页）、收起；展开失败或回空页时
+         * 还原未展开，不锁假展开态（账 fix168-comment-surfaces 断
+         * 点二）。投递走 exec 收口（P0 同型：destroy 后不开新拉取、
+         * 迟到投递不撞死池）。
+         */
+        private void loadReplies(Row row, boolean first) {
+            if (destroyed || repliesLoading) return;
+            repliesLoading = true;
+            if (first) {
+                row.expanded = true;
+                int at = rows.indexOf(row);
+                if (at >= 0) notifyItemChanged(at);
+            }
             final int gen = generation;
             final String s = sid;
             final String vv = v;
             final String cid = row.comment.id;
+            final String cur = first ? "" : (row.replyCursor == null ? "" : row.replyCursor);
             exec(() -> {
-                HongguoCommentApi.Page page = HongguoCommentApi.episodeReplies(s, vv, cid, "");
+                HongguoCommentApi.Page page = HongguoCommentApi.episodeReplies(s, vv, cid, cur);
                 activity.runOnUiThread(() -> {
-                    if (destroyed || gen != generation || page == null) return;
+                    repliesLoading = false;
+                    if (destroyed || gen != generation) return;
                     int pos = rows.indexOf(row);
-                    if (pos < 0) return;
+                    // 拉取途中被收起：迟到回包整页丢弃，不往已收起的行下塞
+                    if (pos < 0 || !row.expanded) return;
+                    if (page == null || (first && page.items.isEmpty())) {
+                        if (first) {
+                            row.expanded = false;
+                            notifyItemChanged(pos);
+                        }
+                        return;
+                    }
                     List<Row> sub = new ArrayList<>();
                     for (HongguoCommentApi.Comment c : page.items) sub.add(new Row(c, true));
-                    rows.addAll(pos + 1, sub);
-                    notifyItemRangeInserted(pos + 1, sub.size());
+                    int at = pos + 1 + row.replyLoaded;
+                    rows.addAll(at, sub);
+                    row.replyLoaded += sub.size();
+                    row.replyCursor = page.nextCursor;
+                    row.replyMore = page.hasMore;
+                    if (!sub.isEmpty()) notifyItemRangeInserted(at, sub.size());
+                    notifyItemChanged(pos);
                 });
             });
+        }
+
+        private void collapseReplies(Row row) {
+            int pos = rows.indexOf(row);
+            if (pos < 0) return;
+            int n = row.replyLoaded;
+            if (n > 0) {
+                rows.subList(pos + 1, pos + 1 + n).clear();
+                notifyItemRangeRemoved(pos + 1, n);
+            }
+            row.expanded = false;
+            row.replyLoaded = 0;
+            row.replyCursor = null;
+            row.replyMore = false;
+            notifyItemChanged(pos);
         }
 
         class H extends RecyclerView.ViewHolder {
@@ -569,11 +614,16 @@ public final class HgLandCommentsPanel {
             if (c.likes > 0) meta.append("赞 ").append(c.likes);
             if (!row.reply && c.replyCount > 0) {
                 if (meta.length() > 0) meta.append("  ·  ");
-                meta.append(row.expanded ? "已展开回复" : "展开 " + c.replyCount + " 条回复");
+                if (!row.expanded) meta.append("展开 ").append(c.replyCount).append(" 条回复");
+                else if (row.replyMore) meta.append("展开更多回复");
+                else meta.append("收起");
             }
             h.meta.setText(meta.toString());
-            h.meta.setOnClickListener(!row.reply && c.replyCount > 0 && !row.expanded
-                    ? v -> expandReplies(row) : null);
+            h.meta.setOnClickListener(!row.reply && c.replyCount > 0 ? v -> {
+                if (!row.expanded) loadReplies(row, true);
+                else if (row.replyMore) loadReplies(row, false);
+                else collapseReplies(row);
+            } : null);
         }
 
         @Override
