@@ -2357,23 +2357,10 @@ public final class DramaParser {
                 }
             }
         }
-        // 页头底（data.bg_color/bg_covers）与两签隐私开关（data 层，与 ugc_user 平级）
+        // 页头底色（data.bg_color，data 层与 ugc_user 平级）。bg_covers
+        // 背景图与两签隐私开关曾一并抽取装入 DramaUserProfile，全树零
+        // 读取已随簇十五 P-05 摘除（作者页签显隐不读此二旗）。
         String bgColor = str(data, "bg_color");
-        String bgCover = null;
-        JsonArray covers = arr(data, "bg_covers");
-        if (covers != null && covers.size() > 0 && covers.get(0).isJsonPrimitive()) {
-            try {
-                bgCover = covers.get(0).getAsString();
-            } catch (Exception ignored) {
-            }
-        }
-        boolean shelfOpen = true;
-        boolean diggOpen = true;
-        JsonObject privacy = obj(data, "person_privacy_switch_conf");
-        if (privacy != null) {
-            shelfOpen = !"off".equals(str(privacy, "person_bookshelf_video_list_switcher"));
-            diggOpen = !"off".equals(str(privacy, "person_digg_video_switcher"));
-        }
         // V 标（user_tag.is_blue_vip＋vip_icon_url 定版 2026-10-29：官方
         // KMP 映射 yy3/a 把 isBlueVip 搬进作者页 tag 状态、评论海报侧同旗
         // 选蓝 V 图标 icon_short_video_comment_blue_v_*；实拉两样本的
@@ -2398,8 +2385,7 @@ public final class DramaParser {
                 relationRaw, followed, subTitleLine, hongguoId,
                 titleBadge, titleBadgeIcon, titleBadgeIconW, titleBadgeIconH,
                 bgColor == null || bgColor.isEmpty() ? null : bgColor,
-                bgCover == null || bgCover.isEmpty() ? null : bgCover,
-                shelfOpen, diggOpen, blueVip, vipIconUrl, canFollow);
+                blueVip, vipIconUrl, canFollow);
     }
 
     /** sub_title_list 段文抽取（元素两形并存：对象取 text/content、纯字符串直用；空段跳过）。 */

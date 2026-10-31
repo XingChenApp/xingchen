@@ -59,19 +59,13 @@ public final class DramaUserProfile {
     public final int titleBadgeIconH;
     /** 页头底色（data.bg_color，如 #707070）；无为 null。 */
     public final String bgColor;
-    /** 页头背景图（data.bg_covers 首张，柔光色场垫图）；无为 null。 */
-    public final String bgCover;
-    /** 收藏签可见（person_privacy_switch_conf.person_bookshelf_video_list_switcher 非 off）。 */
-    public final boolean shelfOpen;
-    /** 点赞签可见（person_digg_video_switcher 非 off）。 */
-    public final boolean diggOpen;
 
     public DramaUserProfile(String userId, String name, String avatar, String desc,
                          int followUserNum, int fansNum, int recvDiggedCount,
                          String relationType, Boolean followedByMe) {
         this(userId, name, avatar, desc, followUserNum, fansNum, recvDiggedCount,
-                relationType, followedByMe, null, null, null, null, null, null,
-                true, true, false, null);
+                relationType, followedByMe, null, null, null, null, null,
+                false, null);
     }
 
     public DramaUserProfile(String userId, String name, String avatar, String desc,
@@ -80,7 +74,7 @@ public final class DramaUserProfile {
                          String subTitleLine, String hongguoId) {
         this(userId, name, avatar, desc, followUserNum, fansNum, recvDiggedCount,
                 relationType, followedByMe, subTitleLine, hongguoId,
-                null, null, null, null, true, true, false, null);
+                null, null, null, false, null);
     }
 
     public DramaUserProfile(String userId, String name, String avatar, String desc,
@@ -88,13 +82,12 @@ public final class DramaUserProfile {
                          String relationType, Boolean followedByMe,
                          String subTitleLine, String hongguoId,
                          String titleBadge, String titleBadgeIcon,
-                         String bgColor, String bgCover,
-                         boolean shelfOpen, boolean diggOpen,
+                         String bgColor,
                          boolean blueVip, String vipIconUrl) {
         this(userId, name, avatar, desc, followUserNum, fansNum, recvDiggedCount,
                 relationType, followedByMe, subTitleLine, hongguoId,
                 titleBadge, titleBadgeIcon, 0, 0,
-                bgColor, bgCover, shelfOpen, diggOpen, blueVip, vipIconUrl, true);
+                bgColor, blueVip, vipIconUrl, true);
     }
 
     public DramaUserProfile(String userId, String name, String avatar, String desc,
@@ -103,8 +96,7 @@ public final class DramaUserProfile {
                          String subTitleLine, String hongguoId,
                          String titleBadge, String titleBadgeIcon,
                          int titleBadgeIconW, int titleBadgeIconH,
-                         String bgColor, String bgCover,
-                         boolean shelfOpen, boolean diggOpen,
+                         String bgColor,
                          boolean blueVip, String vipIconUrl, boolean canFollow) {
         this.userId = userId;
         this.name = name;
@@ -122,9 +114,6 @@ public final class DramaUserProfile {
         this.titleBadgeIconW = titleBadgeIconW;
         this.titleBadgeIconH = titleBadgeIconH;
         this.bgColor = bgColor;
-        this.bgCover = bgCover;
-        this.shelfOpen = shelfOpen;
-        this.diggOpen = diggOpen;
         this.blueVip = blueVip;
         this.vipIconUrl = vipIconUrl;
         this.canFollow = canFollow;
