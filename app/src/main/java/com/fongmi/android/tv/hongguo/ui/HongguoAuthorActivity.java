@@ -35,8 +35,9 @@ import java.util.List;
  * 官方形态（普查卡 23）＝三数行右侧「＋关注」浅底橙字胶囊、已关注
  * 灰态、canFollow=false 与本人页不显。账号口径同当日终定：未登录
  * 点关注跳登录页；登录态初态以资料回包 relation_type 校准本地镜像
- * （HgStore 作者关注三法），关注提交口未验到、只落本地态（见
- * hongguo-rulings-20261031.md）。</p>
+ * （HgStore 作者关注三法）。关注提交口已验通（簇四：官方
+ * UgcApiService general/follow＋caller 实证），点击落本地镜像后经
+ * HgAccountSync.reportFollow 提交，失败静默、回包校准收口。</p>
  */
 public class HongguoAuthorActivity extends AppCompatActivity {
 
@@ -428,7 +429,9 @@ public class HongguoAuthorActivity extends AppCompatActivity {
         authorFollowed = !authorFollowed;
         HgStore.setAuthorFollowed(uid, authorFollowed);
         paintFollowBtn();
-        // 关注提交口未验到：只落本地镜像态，不猜接口（见 rulings 账）
+        // 关注提交（簇四已验通）：本地镜像先行、服务端提交随后，
+        // 失败静默，下次进页资料回包的 relation 态校准收口
+        com.fongmi.android.tv.hongguo.api.HgAccountSync.reportFollow(uid, authorFollowed);
     }
 
     private void loadProfile() {
@@ -520,6 +523,13 @@ public class HongguoAuthorActivity extends AppCompatActivity {
 
             @Override
             public void onError(int code, String msg) {
+                // P-02：资料面（三数/关注校准/页头底）整面数据，失败
+                // 不许静默装无事——出声提示，页头占位与作品签照常
+                runOnUiThread(() -> {
+                    if (destroyed) return;
+                    android.widget.Toast.makeText(HongguoAuthorActivity.this,
+                            "资料加载失败", android.widget.Toast.LENGTH_SHORT).show();
+                });
             }
         });
     }
