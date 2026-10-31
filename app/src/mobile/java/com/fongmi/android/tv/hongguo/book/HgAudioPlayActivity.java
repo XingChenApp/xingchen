@@ -81,6 +81,13 @@ public class HgAudioPlayActivity extends Activity implements ServiceConnection {
     private boolean released;
     /** 本书 bookId（hgbook 章节地址解出），HgAudioStore 的键。 */
     private String bookId = "";
+    /**
+     * 本书音色表（服务端真数据，T-02）；null＝未加载/加载失败，
+     * 音色行维持朗读声卡（Edge 默认音色）现状不回退功能。
+     */
+    private HgBookClient.ToneSet toneSet;
+    private TextView toneHint, toneNote;
+    private android.widget.FrameLayout coverWrap;
 
     public static void start(Activity activity, String sessionId) {
         Intent i = new Intent(activity, HgAudioPlayActivity.class);
@@ -125,6 +132,7 @@ public class HgAudioPlayActivity extends Activity implements ServiceConnection {
             }
         }
         bindPlaybackService();
+        loadTones();
         handler.post(ticker);
 
         // 页面进出统一渐入渐出（与 BaseActivity 一致）
@@ -186,39 +194,14 @@ public class HgAudioPlayActivity extends Activity implements ServiceConnection {
         ReadingSkin.applyTopInset(topWrap, this, 8);
 
         // 专辑大封面
-        android.widget.FrameLayout coverWrap =
-                new android.widget.FrameLayout(this);
+        coverWrap = new android.widget.FrameLayout(this);
         android.widget.LinearLayout.LayoutParams cwlp =
                 new android.widget.LinearLayout.LayoutParams(
                         dp(190), dp(190));
         cwlp.gravity = Gravity.CENTER_HORIZONTAL;
         cwlp.topMargin = dp(18);
         body.addView(coverWrap, cwlp);
-        android.widget.ImageView cover = new android.widget.ImageView(this);
-        cover.setLayoutParams(new android.widget.FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT));
-        cover.setScaleType(
-                android.widget.ImageView.ScaleType.CENTER_CROP);
-        ReadingSkin.roundClip(cover, this, 22);
-        coverWrap.addView(cover);
-        if (!android.text.TextUtils.isEmpty(album.coverUrl)) {
-            try {
-                ImgUtil.load(album.title, album.coverUrl, cover, true);
-            } catch (Throwable ignored) {
-            }
-        } else {
-            cover.setBackground(coverPlaceholder());
-            TextView ct = new TextView(this);
-            ct.setText(album.title);
-            ct.setTextSize(22);
-            ct.setTextColor(0xFFFFFFFF);
-            ct.getPaint().setFakeBoldText(true);
-            ct.setGravity(Gravity.CENTER);
-            coverWrap.addView(ct, new android.widget.FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT));
-        }
+        applyCover();
 
         // 金进度条＋两端时间
         android.widget.LinearLayout prog =
@@ -322,6 +305,7 @@ public class HgAudioPlayActivity extends Activity implements ServiceConnection {
         body.addView(ReadingSkin.sectionHeader(this, "音色",
                 null, null));
         TextView vhint = new TextView(this);
+        toneHint = vhint;
         vhint.setText("神经人声 · 机械声不进这儿");
         vhint.setTextSize(12);
         vhint.setTextColor(ReadingSkin.FAINT);
@@ -345,6 +329,7 @@ public class HgAudioPlayActivity extends Activity implements ServiceConnection {
         body.addView(hsv);
         buildVoiceCards();
         TextView vnote = new TextView(this);
+        toneNote = vnote;
         vnote.setText("挑顺耳的定成默认，听哪本都用它；另有方言音色在更多里。");
         vnote.setTextSize(12);
         vnote.setTextColor(ReadingSkin.FAINT);
@@ -384,6 +369,37 @@ public class HgAudioPlayActivity extends Activity implements ServiceConnection {
 
         setContentView(root);
         refreshChapterLabel();
+    }
+
+    /** 封面按当前专辑重绘（建页与换版本共用）：有图拉图，无图素垫＋书名。 */
+    private void applyCover() {
+        if (coverWrap == null) return;
+        coverWrap.removeAllViews();
+        android.widget.ImageView cover = new android.widget.ImageView(this);
+        cover.setLayoutParams(new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+        cover.setScaleType(
+                android.widget.ImageView.ScaleType.CENTER_CROP);
+        ReadingSkin.roundClip(cover, this, 22);
+        coverWrap.addView(cover);
+        if (!android.text.TextUtils.isEmpty(album.coverUrl)) {
+            try {
+                ImgUtil.load(album.title, album.coverUrl, cover, true);
+            } catch (Throwable ignored) {
+            }
+        } else {
+            cover.setBackground(coverPlaceholder());
+            TextView ct = new TextView(this);
+            ct.setText(album.title);
+            ct.setTextSize(22);
+            ct.setTextColor(0xFFFFFFFF);
+            ct.getPaint().setFakeBoldText(true);
+            ct.setGravity(Gravity.CENTER);
+            coverWrap.addView(ct, new android.widget.FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+        }
     }
 
     private android.graphics.drawable.Drawable coverPlaceholder() {
@@ -509,6 +525,10 @@ public class HgAudioPlayActivity extends Activity implements ServiceConnection {
      * 取不到则顺延补齐。选中态＝当前默认音色。
      */
     private void buildVoiceCards() {
+        if (toneSet != null) {
+            buildToneCards();
+            return;
+        }
         voiceRow.removeAllViews();
         java.util.List<EdgeVoice> all = EdgeVoiceCatalog.builtIn();
         String[] want = {"zh-CN-XiaoxiaoNeural", "zh-CN-YunyangNeural",
@@ -598,6 +618,234 @@ public class HgAudioPlayActivity extends Activity implements ServiceConnection {
         tlp.topMargin = dp(8);
         card.addView(tag, tlp);
         return card;
+    }
+
+    // ================= 服务端音色（T-02，真数据） =================
+
+    /**
+     * 音色表异步加载：拉到真数据就把音色行换成服务端音色卡（并把
+     * 说明文案换成与实情一致的口径）；拉不到/空表维持朗读声卡现状。
+     */
+    private void loadTones() {
+        if (bookId == null || bookId.isEmpty()) return;
+        final String forBook = bookId;
+        new Thread(() -> {
+            HgBookClient.ToneSet ts = null;
+            try {
+                ts = new HgBookClient().tones(forBook);
+            } catch (Throwable ignored) {
+            }
+            final HgBookClient.ToneSet got = ts;
+            runOnUiThread(() -> {
+                if (released || !forBook.equals(bookId)) return;
+                if (got == null || got.isEmpty()) return;
+                toneSet = got;
+                if (toneHint != null) toneHint.setText("本书音色");
+                if (toneNote != null) toneNote.setText("音色按书记忆，下次打开沿用。");
+                buildVoiceCards();
+            });
+        }).start();
+    }
+
+    /** 当前是否停在真人版：本书 genre=1，或本书就是音色表里的真人有声书。 */
+    private boolean isOnAudioTone() {
+        if (toneSet == null) return false;
+        if (toneSet.genreType == 1) return true;
+        for (HgBookClient.Tone t : toneSet.audioTones) {
+            if (String.valueOf(t.id).equals(bookId)) return true;
+        }
+        return false;
+    }
+
+    /** 合成音的生效选择：落盘选过且还在表里用落盘的，否则服务端推荐，再否则 0（无选中）。 */
+    private long effectiveTtsTone() {
+        if (toneSet == null) return 0;
+        long stored = HgTonePref.toneOf(bookId);
+        if (stored > 0 && toneSet.hasTts(stored)) return stored;
+        if (toneSet.recommendTone > 0 && toneSet.hasTts(toneSet.recommendTone)) {
+            return toneSet.recommendTone;
+        }
+        return 0;
+    }
+
+    private void buildToneCards() {
+        voiceRow.removeAllViews();
+        boolean onAudio = isOnAudioTone();
+        long eff = effectiveTtsTone();
+        for (HgBookClient.Tone t : toneSet.ttsTones) {
+            voiceRow.addView(toneCard(t, !onAudio && t.id == eff));
+        }
+        for (HgBookClient.Tone t : toneSet.audioTones) {
+            voiceRow.addView(toneCard(t, onAudio
+                    && String.valueOf(t.id).equals(bookId)));
+        }
+    }
+
+    /** 服务端音色卡：与朗读声卡同形（同尺寸/同选中态/同标签位），数据全来自 toneinfo。 */
+    private android.widget.LinearLayout toneCard(HgBookClient.Tone t,
+                                                 boolean selected) {
+        android.widget.LinearLayout card =
+                new android.widget.LinearLayout(this);
+        card.setOrientation(android.widget.LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER_HORIZONTAL);
+        card.setPadding(dp(14), dp(12), dp(14), dp(10));
+        android.widget.LinearLayout.LayoutParams lp =
+                new android.widget.LinearLayout.LayoutParams(
+                        dp(108), ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.rightMargin = dp(10);
+        card.setLayoutParams(lp);
+        android.graphics.drawable.GradientDrawable bg =
+                new android.graphics.drawable.GradientDrawable();
+        if (selected) {
+            bg.setColor(0x3845C08A);
+            bg.setStroke(dp(2), ReadingSkin.GOLD);
+        } else {
+            bg.setColor(0x0DFFFFFF);
+            bg.setStroke(dp(2), 0x24FFFFFF);
+        }
+        bg.setCornerRadius(dp(16));
+        card.setBackground(bg);
+        card.setOnClickListener(vv -> onTonePick(t));
+        TextView n = new TextView(this);
+        n.setText(t.title);
+        n.setSingleLine(true);
+        n.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        n.setTextSize(15);
+        n.getPaint().setFakeBoldText(true);
+        n.setTextColor(selected ? ReadingSkin.GOLD_TEXT : ReadingSkin.TEXT);
+        card.addView(n);
+        TextView d = new TextView(this);
+        d.setText(t.kind == HgBookClient.Tone.KIND_AUDIO
+                ? "真人音色" : tonePortrait(t));
+        d.setMinLines(2);
+        d.setMaxLines(2);
+        d.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        d.setTextSize(11);
+        d.setTextColor(ReadingSkin.SUB);
+        d.setPadding(0, dp(6), 0, 0);
+        d.setGravity(Gravity.CENTER);
+        card.addView(d);
+        // 标签位与朗读声卡同口径：推荐音色（recommend_tone）挂「推荐」，其余 INVISIBLE 占位保同高
+        TextView tag = new TextView(this);
+        tag.setText("推荐");
+        tag.setTextSize(10);
+        tag.setTextColor(0xFF0F0D06);
+        tag.getPaint().setFakeBoldText(true);
+        tag.setPadding(dp(8), dp(4), dp(8), dp(4));
+        android.graphics.drawable.GradientDrawable tb =
+                new android.graphics.drawable.GradientDrawable();
+        tb.setColor(ReadingSkin.GOLD);
+        tb.setCornerRadius(dp(6));
+        tag.setBackground(tb);
+        boolean hasTag = t.kind == HgBookClient.Tone.KIND_TTS
+                && toneSet != null && t.id == toneSet.recommendTone;
+        tag.setVisibility(hasTag ? View.VISIBLE : View.INVISIBLE);
+        android.widget.LinearLayout.LayoutParams tlp =
+                new android.widget.LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT);
+        tlp.topMargin = dp(8);
+        card.addView(tag, tlp);
+        return card;
+    }
+
+    /** TTS 音色画像行：性别（tone_gender 1 男/2 女/0 多角色）＋回包自带 description。 */
+    private String tonePortrait(HgBookClient.Tone t) {
+        String gender = t.gender == 1 ? "男声" : t.gender == 2 ? "女声"
+                : t.gender == 0 ? "多角色" : "";
+        if (t.desc == null || t.desc.isEmpty()) return gender;
+        return gender.isEmpty() ? t.desc : gender + " · " + t.desc;
+    }
+
+    private void onTonePick(HgBookClient.Tone t) {
+        if (released || toneSet == null) return;
+        if (t.kind == HgBookClient.Tone.KIND_AUDIO) {
+            String target = String.valueOf(t.id);
+            if (!target.equals(bookId)) switchAlbum(target, album.index);
+            return;
+        }
+        if (isOnAudioTone()) {
+            // 真人书上选合成音＝换到关联小说书并用这个音色（dig §1.3 口径）
+            String target = toneSet.relateNovelBookId;
+            if (target == null || target.isEmpty() || target.equals(bookId)) {
+                ToastUtil.show(this, "这个音色暂时用不了", Toast.LENGTH_SHORT);
+                return;
+            }
+            HgTonePref.save(target, t.id);
+            switchAlbum(target, album.index);
+            return;
+        }
+        if (t.id == effectiveTtsTone()) return;
+        long pos = mService != null ? player().getPosition() : resumeMs;
+        HgTonePref.save(bookId, t.id);
+        saveProgress();
+        buildVoiceCards();
+        playChapter(album.index, pos);
+    }
+
+    /**
+     * 换版本（合成版⇄真人版）：按关联 book_id 整本换专辑——目录现拉、
+     * 章位按序号带过去、位置从本集开头（两版时长对不齐，带秒数必错位）；
+     * 旧书进度先落盘，新专辑注册新会话、锁屏回调按新专辑重挂，音色表
+     * 随后按新 bookId 重拉。失败留原专辑原样播，话说清不哑着。
+     */
+    private void switchAlbum(final String targetBookId, final int startIndex) {
+        saveProgress();
+        new Thread(() -> {
+            LegadoAudio.AudioAlbum next = null;
+            try {
+                HgBookClient client = new HgBookClient();
+                java.util.List<HgBookClient.Chapter> toc = client.toc(targetBookId);
+                if (toc == null || toc.isEmpty()) throw new Exception("目录为空");
+                HgBookClient.Entry e = null;
+                try {
+                    e = client.detail(targetBookId);
+                } catch (Throwable ignored) {
+                }
+                next = new LegadoAudio.AudioAlbum();
+                next.legadoKey = HgBookBridge.URL_AUDIO;
+                next.sourceName = album.sourceName;
+                next.title = e != null && !e.title.isEmpty() ? e.title : album.title;
+                next.coverUrl = e != null ? e.coverUrl : "";
+                for (HgBookClient.Chapter c : toc) {
+                    next.chapters.add(new LegadoAudio.Chapter(c.title,
+                            HgBookBridge.chapterUrl(targetBookId, c.itemId)));
+                }
+            } catch (Throwable ignored) {
+                next = null;
+            }
+            final LegadoAudio.AudioAlbum ready = next;
+            runOnUiThread(() -> {
+                if (released) return;
+                if (ready == null) {
+                    ToastUtil.show(HgAudioPlayActivity.this,
+                            "切换失败，稍后再试", Toast.LENGTH_LONG);
+                    return;
+                }
+                String oldKey = playbackKey();
+                LegadoAudio.remove(sessionId);
+                sessionId = LegadoAudio.put(ready);
+                album = ready;
+                bookId = targetBookId;
+                toneSet = null;
+                resumeMs = 0;
+                if (mService != null) {
+                    try {
+                        mService.setNavigationCallback(null, oldKey);
+                        mService.setNavigationCallback(navCallback, playbackKey());
+                    } catch (Throwable ignored) {
+                    }
+                }
+                tvTitle.setText(album.title);
+                applyCover();
+                buildVoiceCards();
+                int idx = Math.max(0, Math.min(startIndex, album.chapters.size() - 1));
+                playChapter(idx, 0);
+                loadTones();
+                ToastUtil.show(HgAudioPlayActivity.this,
+                        "已切换版本，从本集开头播放", Toast.LENGTH_SHORT);
+            });
+        }).start();
     }
 
     private int dp(int v) {
