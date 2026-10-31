@@ -722,13 +722,19 @@ public class HongguoDetailActivity extends AppCompatActivity {
         DramaClient.fetchDetail(seriesId, new HgCallback<DramaDetail>() {
             @Override
             public void onSuccess(DramaDetail d) {
-                runOnUiThread(() -> bind(d));
+                runOnUiThread(() -> {
+                    if (destroyed || isFinishing()) return;
+                    bind(d);
+                });
             }
 
             @Override
             public void onError(int code, String msg) {
-                runOnUiThread(() -> Toast.makeText(HongguoDetailActivity.this,
-                        "取数据失败，请重试", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> {
+                    if (destroyed || isFinishing()) return;
+                    Toast.makeText(HongguoDetailActivity.this,
+                            "取数据失败，请重试", Toast.LENGTH_SHORT).show();
+                });
             }
         });
     }
@@ -808,6 +814,7 @@ public class HongguoDetailActivity extends AppCompatActivity {
                     @Override
                     public void onSuccess(DramaUserProfile p) {
                         runOnUiThread(() -> {
+                            if (destroyed || isFinishing()) return;
                             if (p.avatar != null && !p.avatar.isEmpty()) {
                                 Glide.with(HongguoDetailActivity.this).load(p.avatar)
                                         .circleCrop().into(authorAvatar);
@@ -1030,7 +1037,7 @@ public class HongguoDetailActivity extends AppCompatActivity {
             }
             if (page == null) return;
             runOnUiThread(() -> {
-                if (isFinishing() || detail == null) return;
+                if (destroyed || isFinishing() || detail == null) return;
                 if (page.score != null && !page.score.isEmpty()) {
                     scoreBox.setVisibility(View.VISIBLE);
                     scoreCard.setText(scoreWithUnit(page.score));
@@ -1180,6 +1187,7 @@ public class HongguoDetailActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<DramaDetail.RelatedWork> works) {
                 runOnUiThread(() -> {
+                    if (destroyed || isFinishing()) return;
                     planRelated = works == null ? new ArrayList<>() : works;
                     renderRelated();
                 });
@@ -1188,6 +1196,7 @@ public class HongguoDetailActivity extends AppCompatActivity {
             @Override
             public void onError(int code, String msg) {
                 runOnUiThread(() -> {
+                    if (destroyed || isFinishing()) return;
                     planRelated = new ArrayList<>();
                     renderRelated();
                 });
@@ -1201,6 +1210,7 @@ public class HongguoDetailActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<DramaItem> seasons) {
                 runOnUiThread(() -> {
+                    if (destroyed || isFinishing()) return;
                     List<DramaDetail.RelatedWork> rows = new ArrayList<>();
                     if (seasons != null) {
                         for (DramaItem s : seasons) {
@@ -1217,6 +1227,7 @@ public class HongguoDetailActivity extends AppCompatActivity {
             @Override
             public void onError(int code, String msg) {
                 runOnUiThread(() -> {
+                    if (destroyed || isFinishing()) return;
                     albumRelated = new ArrayList<>();
                     renderRelated();
                 });
