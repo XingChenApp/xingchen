@@ -55,27 +55,12 @@ public class HongguoMineActivity extends AppCompatActivity {
     static final int MODE_RESERVE = 5;
     static final int MODE_FOLLOW = 6;
 
-    /** 直达入口（定稿：历史页/收藏页是两个独立页）：带此附加打开即落列表、返回即退页。 */
-    public static final String EXTRA_INITIAL = "hg_mine_initial";
-
     /** 底栏第三签入口标记：带此附加打开落定稿首页面并显白色三签底栏。 */
     public static final String EXTRA_TAB = "hg_mine_tab";
 
     private static final int REQ_EDIT = 41;
 
-    public static void startHistory(android.content.Context context) {
-        android.content.Intent intent = new android.content.Intent(context, HongguoMineActivity.class);
-        intent.putExtra(EXTRA_INITIAL, MODE_HISTORY);
-        HgTransition.push(context, intent);
-    }
-
-    public static void startFav(android.content.Context context) {
-        android.content.Intent intent = new android.content.Intent(context, HongguoMineActivity.class);
-        intent.putExtra(EXTRA_INITIAL, MODE_FAV);
-        HgTransition.push(context, intent);
-    }
-
-    /** 底栏第三签入口：无 EXTRA_INITIAL、带 tab 标记，落首页面＋白色三签底栏。 */
+    /** 底栏第三签入口：带 tab 标记，落首页面＋白色三签底栏。 */
     public static void startTab(android.content.Context context) {
         android.content.Intent intent = new android.content.Intent(context, HongguoMineActivity.class);
         intent.putExtra(EXTRA_TAB, true);
@@ -113,8 +98,6 @@ public class HongguoMineActivity extends AppCompatActivity {
     /** 底栏第三签入口进来：首页面底下挂白色三签底栏（只此页、只 home 态显）。 */
     private boolean tabEntry;
     private int mode = MODE_HOME;
-    /** 直达列表模式（抽屉两行进入）：返回直接退页，不回「我的」格。 */
-    private boolean directList;
     private final List<Row> rows = new ArrayList<>();
     /** 海报格全量行（未过滤）与当前过滤下标（历史/收藏共用一套筹机制）。 */
     private final List<GridRow> allRows = new ArrayList<>();
@@ -239,16 +222,7 @@ public class HongguoMineActivity extends AppCompatActivity {
         root.addView(tabBar, new LinearLayout.LayoutParams(-1, -2));
 
         setContentView(root);
-        int initial = getIntent().getIntExtra(EXTRA_INITIAL, MODE_HOME);
-        if (initial == MODE_HISTORY) {
-            directList = true;
-            openList(MODE_HISTORY, "观看历史");
-        } else if (initial == MODE_FAV) {
-            directList = true;
-            openList(MODE_FAV, "我的收藏");
-        } else {
-            showHome();
-        }
+        showHome();
     }
 
     @Override
@@ -563,9 +537,7 @@ public class HongguoMineActivity extends AppCompatActivity {
     }
 
     private void onBackRow() {
-        if (mode != MODE_HOME && directList) {
-            finish();
-        } else if (mode != MODE_HOME) {
+        if (mode != MODE_HOME) {
             HgTransition.fadeSwap(this::showHome, homeBox, list, emptyText);
         } else {
             finish();
