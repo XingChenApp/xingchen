@@ -1016,7 +1016,9 @@ public final class DramaClient {
         payload.addProperty("tab_type", tabType);
         if (subTabType > 0) payload.addProperty("sub_tab_type", subTabType);
         payload.addProperty("target_user_id", userId);
-        DramaCommentTransport.post("user/profile/" + userId, payload.toString(),
+        // 传输头传 0/0：官方此口不挂 Comment-Source/Server-Channel 头
+        // （GetUserProfile 组参无此二头，f3aad982d 定版实证），不补。
+        DramaCommentTransport.post("user/profile/" + userId, payload.toString(), 0, 0,
                 new DramaCommentTransport.Sink() {
                     @Override
                     public void onText(String text) {

@@ -63,7 +63,9 @@ public final class DramaCommentPoster {
         business.addProperty("req_type", 0);
         payload.add("business_param", business);
 
-        DramaCommentTransport.postAuthed("comment/add", payload.toString(),
+        // 传输头同传 4/18：与体 comment_source/server_channel 同值，
+        // 照单集评论面 list 口的头=体惯例（HongguoCommentApi 同面口径）。
+        DramaCommentTransport.postAuthed("comment/add", payload.toString(), 4, 18,
                 new DramaCommentTransport.Sink() {
                     @Override
                     public void onText(String resp) {

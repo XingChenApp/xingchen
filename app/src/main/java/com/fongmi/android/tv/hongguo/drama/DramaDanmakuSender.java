@@ -51,7 +51,9 @@ public final class DramaDanmakuSender {
         business.add("shark_param", shark);
         payload.add("business_param", business);
 
-        DramaCommentTransport.post("comment/add", payload.toString(), new DramaCommentTransport.Sink() {
+        // 传输头传 0/0：发弹幕是写操作，官方写口不挂 Comment-Source/
+        // Server-Channel 头（do_action 惯例 0/0，f3aad982d 定版）。
+        DramaCommentTransport.post("comment/add", payload.toString(), 0, 0, new DramaCommentTransport.Sink() {
             @Override
             public void onText(String resp) {
                 int r = writeResult(resp);
