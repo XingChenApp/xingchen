@@ -2553,7 +2553,17 @@ public class HongguoFeedActivity extends AppCompatActivity {
      *（实测尺寸）共用本口，实测到后以实测重选为准。
      */
     private void applyResizeModeFor(int w, int h) {
-        if (playerView == null || w <= 0 || h <= 0) return;
+        if (playerView == null) return;
+        if (w <= 0 || h <= 0) {
+            // 预报缺失（逐帧 D14 的陈旧判支残口）：fplay 直取的集不
+            // 落 DramaCache（A-12），这类 vid 走 Resolver 缓存直出路
+            // 时预报恒 0——旧写法直接返回、上一条的 resizeMode 原样
+            // 留着，新条尺寸判支实际用的是上一条的结论（上一条竖版
+            // ZOOM 遇新条横版即先按裁切渲）。未知时先落 FIT（不裁、
+            // 安全侧），实测尺寸一到由 onVideoSizeChanged 按定稿重选。
+            playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
+            return;
+        }
         playerView.setResizeMode(playingClipContent() || w >= h
                 ? AspectRatioFrameLayout.RESIZE_MODE_FIT
                 : AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
