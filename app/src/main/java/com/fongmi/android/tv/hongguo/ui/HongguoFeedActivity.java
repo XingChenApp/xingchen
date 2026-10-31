@@ -4481,10 +4481,17 @@ public class HongguoFeedActivity extends AppCompatActivity {
             } else {
                 h.title.setText(item.getTitle() == null ? "" : item.getTitle());
                 h.title.setOnClickListener(v -> {
-                    if (position == currentIndex && item.kind == DramaItemKind.SERIES
+                    if (position != currentIndex) return;
+                    if (item.kind == DramaItemKind.SERIES
                             && item.getSeriesId() != null) {
                         HongguoDetailActivity.start(HongguoFeedActivity.this,
                                 item.getSeriesId(), item.getTitle(), item.getAlbumId());
+                    } else if (item.kind == DramaItemKind.ALBUM) {
+                        // B-09：合集条的标题行此前落空（只 SERIES 分支
+                        // 有落点）——合集本体在流内除了底条没有第二个
+                        // 入口，标题行补同落点（与观看完整条同路进
+                        // 合集队列页）。
+                        startVideoAlbum(HongguoFeedActivity.this, item);
                     }
                 });
             }
