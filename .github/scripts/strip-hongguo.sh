@@ -68,7 +68,7 @@ grep -qF "<string name=\"nav_duanju\">短剧</string>" "$MSTRINGS" || fail "短�
 if grep -q "Hongguo" "$LM"; then
   fail "LoginManager 出现红果字样（重建后应为零，疑回潮）"
 fi
-for a in HongguoFeedActivity HongguoDetailActivity HongguoTheaterActivity HongguoSearchActivity HongguoAuthorActivity HongguoMineActivity HongguoMineEditActivity HongguoLandActivity HongguoNovelDetailActivity HongguoLoginActivity; do
+for a in HongguoFeedActivity HongguoDetailActivity HongguoTheaterActivity HongguoSearchActivity HongguoAuthorActivity HongguoPostActivity HongguoMineActivity HongguoMineEditActivity HongguoLandActivity HongguoNovelDetailActivity HongguoLoginActivity; do
   grep -qF "android:name=\"com.fongmi.android.tv.hongguo.ui.$a\"" "$MANIFEST" || fail "Manifest 的红果登记对不上：$a"
 done
 grep -qF "android:name=\"com.fongmi.android.tv.hongguo.book.HgBookBrowseActivity\"" "$MANIFEST" || fail "Manifest 的红果书城浏览页登记对不上"
@@ -203,7 +203,7 @@ manifest = cut_exact(manifest, """        <!-- 红果书城浏览（内置小说
 """, "书城浏览页登记注释")
 manifest = cut_exact(manifest, """        <!-- 红果听书单独的播放页（分家令：不与普通听书共用播放页） -->
 """, "红果听书播放页登记注释")
-for name in ("HongguoFeedActivity", "HongguoDetailActivity", "HongguoTheaterActivity", "HongguoSearchActivity", "HongguoAuthorActivity", "HongguoMineActivity", "HongguoMineEditActivity", "HongguoNovelDetailActivity", "HongguoLandActivity", "HongguoLoginActivity"):
+for name in ("HongguoFeedActivity", "HongguoDetailActivity", "HongguoTheaterActivity", "HongguoSearchActivity", "HongguoAuthorActivity", "HongguoPostActivity", "HongguoMineActivity", "HongguoMineEditActivity", "HongguoNovelDetailActivity", "HongguoLandActivity", "HongguoLoginActivity"):
     pattern = r"<activity\s+android:name=\"com\.fongmi\.android\.tv\.hongguo\.ui\." + name + r"\"[^>]*/>"
     manifest, n = re.subn(pattern, "", manifest)
     if n != 1:
