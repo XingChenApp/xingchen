@@ -865,6 +865,14 @@ public class HongguoLandActivity extends AppCompatActivity {
 
             @Override
             public void onError(int code, String msg) {
+                // P-02：详情失败连带评论数不刷、清晰度暖机不出、选集
+                // 反复假装「加载中」，不许静默——出声提示；detail 仍
+                // 为空，点选集会走 showEpisodes 的重拉路重试
+                runOnUiThread(() -> {
+                    if (destroyed) return;
+                    Toast.makeText(HongguoLandActivity.this,
+                            "详情加载失败", Toast.LENGTH_SHORT).show();
+                });
             }
         });
     }

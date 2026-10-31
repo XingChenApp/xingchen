@@ -855,6 +855,12 @@ public class HongguoDetailActivity extends AppCompatActivity {
 
                     @Override
                     public void onError(int code, String msg) {
+                        // P-02：本拉取只补作者行头像/名（主详情已上屏、
+                        // 作者名已有详情侧值），失败不出弹提示打扰，
+                        // 但不许静默——记日志留痕，头像缺位即其可见态
+                        android.util.Log.w("HongguoDetail",
+                                "作者资料拉取失败 uid=" + uid + " code=" + code
+                                        + " " + msg);
                     }
                 });
             }
