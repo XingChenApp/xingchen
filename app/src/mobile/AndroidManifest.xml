@@ -425,6 +425,17 @@
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"
             android:screenOrientation="fullUser" />
 
+        <!-- 红果听书专属播放服务（W-15 拆套：与主 PlaybackService 同机制、独立实例） -->
+        <service
+            android:name="com.fongmi.android.tv.hongguo.book.HgAudioPlaybackService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaLibraryService" />
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+
         <activity
             android:name="com.fongmi.android.tv.hongguo.ui.HongguoNovelDetailActivity"
             android:theme="@style/Theme.XingChen.HkPage"
