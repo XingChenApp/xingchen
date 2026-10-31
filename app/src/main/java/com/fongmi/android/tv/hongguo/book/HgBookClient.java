@@ -67,6 +67,8 @@ public final class HgBookClient {
         public final List<Category> categories = new ArrayList<>();
         public HgContinuation next;
         public boolean hasMore;
+        /** 分类 landing 回包自带的下一批游标（A-22）；-1＝回包没给。 */
+        public int nextOffset = -1;
     }
 
     // ---------- 频道/分类/搜索 ----------
@@ -117,17 +119,43 @@ public final class HgBookClient {
         return page;
     }
 
-    public List<Entry> search(boolean audio, String keyword, int offset) throws Exception {
-        String text = api.getSignedSync(PATH_SEARCH, HgRequests.searchPairs(
-                keyword, offset, audio ? SEARCH_TAB_AUDIO : SEARCH_TAB_NOVEL));
+    /**
+     * 搜索签整池（A-22，2026-10-31 探针 Probe6/7/8 实证，样本词「都市」小说签）：
+     * offset 不是条数偏移——offset=0 是多签首屏形态、目标签只给头部 6 条；
+     * 目标签自带的 has_more/next_offset 是唯一续拉信号，按它补一发即得整池
+     * （20 条）；此后 1/20/23/40 任意 offset 恒回同一池、has_more 恒 true、
+     * next_offset 纯数字递增，没有第 21 条之后。故整池一次交付、hasMore
+     * 恒 false，调用方不许再按页码/条数推 offset 假装续拉。听书签未单独
+     * 探针，同口同签机制、同一处置。
+     */
+    public Page search(boolean audio, String keyword) throws Exception {
+        int tab = audio ? SEARCH_TAB_AUDIO : SEARCH_TAB_NOVEL;
+        String text = api.getSignedSync(PATH_SEARCH, HgRequests.searchPairs(keyword, 0, tab));
         JsonObject root = parseRoot(text);
-        List<Entry> out = new ArrayList<>();
-        collectEntries(root, out);
-        return out;
+        Page page = new Page();
+        collectEntries(root, page.entries);
+        JsonObject tabObj = findSearchTab(root, tab);
+        if (tabObj != null && boolOf(tabObj, "has_more")) {
+            int next = intOf(tabObj, "next_offset", 0);
+            if (next > 0) {
+                String more = api.getSignedSync(PATH_SEARCH,
+                        HgRequests.searchPairs(keyword, next, tab));
+                // collectEntries 按 book_id 去重并入：首屏头部与整池同序子集，
+                // 并入后即完整池序，池外漂移条目按回包序尾随。
+                collectEntries(parseRoot(more), page.entries);
+            }
+        }
+        page.hasMore = false;
+        return page;
     }
 
-    /** 分类落地页：query_gender 8＝全部（页签值 全部8/男生1/女生0，规格 §1.1）。 */
-    public List<Entry> categoryLanding(String categoryId, int offset) throws Exception {
+    /**
+     * 分类落地页：query_gender 8＝全部（页签值 全部8/男生1/女生0，规格 §1.1）。
+     * offset 是推荐流批次游标不是条数偏移（A-22 探针实证）：每批恒 10 条、
+     * 批间零重叠，回包 data.offset 恒＝请求 offset＋本批条数、has_more 恒
+     * true。续拉起点只认回包 offset（Page.nextOffset），本地不许假设步长。
+     */
+    public Page categoryLanding(String categoryId, int offset) throws Exception {
         List<String[]> pairs = HgDevice.deviceQueryPairs();
         pairs.add(new String[]{"category_id", categoryId});
         pairs.add(new String[]{"query_gender", "8"});
@@ -135,9 +163,12 @@ public final class HgBookClient {
         pairs.add(new String[]{"count", "20"});
         String text = api.getSignedSync(PATH_LANDING, pairs);
         JsonObject root = parseRoot(text);
-        List<Entry> out = new ArrayList<>();
-        collectEntries(root, out);
-        return out;
+        Page page = new Page();
+        collectEntries(root, page.entries);
+        JsonObject data = obj(root, "data");
+        page.nextOffset = data == null ? -1 : intOf(data, "offset", -1);
+        page.hasMore = data != null && boolOf(data, "has_more");
+        return page;
     }
 
     // ---------- 详情/目录/正文 ----------
@@ -458,6 +489,29 @@ public final class HgBookClient {
         }
         String out = sb.toString().replaceAll("\n{3,}", "\n\n").trim();
         return out;
+    }
+
+    /** 搜索回包顶层 search_tabs 里按 tab_type 找目标签（has_more/next_offset 在签上）。 */
+    private static JsonObject findSearchTab(JsonObject root, int tabType) {
+        JsonArray tabs = root == null ? null : arr(root, "search_tabs");
+        if (tabs == null) return null;
+        for (JsonElement el : tabs) {
+            if (el != null && el.isJsonObject()
+                    && intOf(el.getAsJsonObject(), "tab_type", -1) == tabType) {
+                return el.getAsJsonObject();
+            }
+        }
+        return null;
+    }
+
+    private static boolean boolOf(JsonObject o, String key) {
+        if (o == null) return false;
+        JsonElement e = o.get(key);
+        if (e == null || !e.isJsonPrimitive()) return false;
+        if (e.getAsJsonPrimitive().isBoolean()) return e.getAsBoolean();
+        if (e.getAsJsonPrimitive().isNumber()) return e.getAsInt() != 0;
+        String s = e.getAsString();
+        return "true".equalsIgnoreCase(s) || "1".equals(s);
     }
 
     private static JsonObject findTab(JsonObject data, int tabType) {

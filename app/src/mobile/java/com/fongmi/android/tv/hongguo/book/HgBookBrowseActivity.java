@@ -65,9 +65,10 @@ public class HgBookBrowseActivity extends AppCompatActivity {
     private HgContinuation cont;
     private boolean feedHasMore;
     private String categoryId = "";
+    /** 分类 landing 下一批的请求 offset：只由回包 offset 推进（A-22），不本地算步长。 */
     private int listOffset;
     private String keyword = "";
-    /** 搜索/分类续拉止损旗（A-21）：一页零新增即判到底，不再往下翻。 */
+    /** 续拉止损旗（A-21）：一页零新增即判到底，不再往下翻。搜索是单池、首拉即全（A-22），进门即置真。 */
     private boolean listExhausted;
 
     @Override
@@ -213,7 +214,8 @@ public class HgBookBrowseActivity extends AppCompatActivity {
      * 续页并入（A-21 能定的部分）：按 bookId 对已列去重、返回新增条数。
      * 凭证 advanced 在 next_offset 空时保留旧值（与剧场页共用、不动它），
      * 服务端同页重回时旧写法无限重复追加——消费侧去重＋调用方以
-     * 「零新增即到底」收口，把无限续拉钉死。offset 语义本身待探针（A-22）。
+     * 「零新增即到底」收口，把无限续拉钉死。offset 语义已由 A-22 探针
+     * 定段：搜索单池一次交付、分类 landing 是批次游标（见 HgBookClient）。
      */
     private int appendEntries(List<HgBookClient.Entry> page) {
         java.util.Set<String> seen = new java.util.HashSet<>();
@@ -271,14 +273,15 @@ public class HgBookBrowseActivity extends AppCompatActivity {
         loading = true;
         new Thread(() -> {
             try {
-                List<HgBookClient.Entry> found = client.search(audio, kw, 0);
+                HgBookClient.Page page = client.search(audio, kw);
                 runOnUiThread(() -> {
                     if (destroyed) return;
                     loading = false;
-                    appendEntries(found);
-                    listOffset = found.size();
+                    appendEntries(page.entries);
+                    // A-22：搜索整池一次交付、没有续页，置到底停拉
+                    listExhausted = true;
                     adapter.notifyDataSetChanged();
-                    setStatus(found.isEmpty() ? "没搜到相关的书" : "");
+                    setStatus(page.entries.isEmpty() ? "没搜到相关的书" : "");
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
@@ -301,14 +304,17 @@ public class HgBookBrowseActivity extends AppCompatActivity {
         loading = true;
         new Thread(() -> {
             try {
-                List<HgBookClient.Entry> found = client.categoryLanding(c.id, 0);
+                HgBookClient.Page page = client.categoryLanding(c.id, 0);
                 runOnUiThread(() -> {
                     if (destroyed) return;
                     loading = false;
-                    appendEntries(found);
-                    listOffset = found.size();
+                    appendEntries(page.entries);
+                    // A-22：下一批起点只认回包游标；回包说没了或游标
+                    // 没从 0 前进（没给/异常值）即判到底，不本地推步长
+                    listOffset = page.nextOffset;
+                    listExhausted = !page.hasMore || page.nextOffset <= 0;
                     adapter.notifyDataSetChanged();
-                    setStatus(found.isEmpty() ? "这个分类暂时没拉到书" : "");
+                    setStatus(page.entries.isEmpty() ? "这个分类暂时没拉到书" : "");
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
@@ -343,22 +349,25 @@ public class HgBookBrowseActivity extends AppCompatActivity {
                     });
                 }
             }, "HgBookMore").start();
-        } else if (mode == MODE_SEARCH || mode == MODE_CATEGORY) {
-            if (listExhausted) return;
+        } else if (mode == MODE_SEARCH) {
+            // A-22：搜索单池首拉即全、loadSearch 已置 listExhausted，没有续拉
+            return;
+        } else if (mode == MODE_CATEGORY) {
+            if (listExhausted || listOffset < 0) return;
             loading = true;
             final int offset = listOffset;
             new Thread(() -> {
                 try {
-                    List<HgBookClient.Entry> found = mode == MODE_SEARCH
-                            ? client.search(audio, keyword, offset)
-                            : client.categoryLanding(categoryId, offset);
+                    HgBookClient.Page page = client.categoryLanding(categoryId, offset);
                     runOnUiThread(() -> {
                         if (destroyed) return;
                         loading = false;
-                        int added = appendEntries(found);
-                        listOffset += found.size();
-                        // 整页都是已列过的书＝offset 没把数据往前推，停拉
-                        if (added == 0) listExhausted = true;
+                        int added = appendEntries(page.entries);
+                        // A-22：游标只认回包值推进——回包没给（-1）、
+                        // 没比请求前进、说没了、或整批零新增，任一即到底
+                        listOffset = page.nextOffset;
+                        if (added == 0 || !page.hasMore
+                                || page.nextOffset <= offset) listExhausted = true;
                         adapter.notifyDataSetChanged();
                     });
                 } catch (Exception e) {

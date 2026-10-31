@@ -27,8 +27,11 @@ public final class HgBookOpsImpl implements HgBookOps {
     @Override
     public List<LegadoPipeline.Book> search(boolean audio, String key, int page) {
         try {
-            int offset = Math.max(0, page - 1) * 20;
-            List<HgBookClient.Entry> entries = client.search(audio, key, offset);
+            // A-22：搜索签是单池、无第 21 条之后（探针实证，见 HgBookClient.search）
+            // ——整池只在第 1 页交付；第 2 页起直接回空页让管线收口，
+            // 不再按 (page-1)×20 发无效 offset 请求把同一池反复当新页。
+            if (page > 1) return new ArrayList<>();
+            List<HgBookClient.Entry> entries = client.search(audio, key).entries;
             List<LegadoPipeline.Book> out = new ArrayList<>();
             for (HgBookClient.Entry e : entries) {
                 LegadoPipeline.Book b = new LegadoPipeline.Book();
