@@ -166,48 +166,63 @@ public final class DramaResolver {
     // ---------- 模型 → 本地 URL ----------
 
     private void settleWithModel(String videoId, DramaVideoModel model) {
+        settleWithModel(videoId, model, false);
+    }
+
+    /**
+     * fplayRetried＝已换过 fplay 形态。两条死路共用这一次重试：明文链
+     * 拿不到（旧路）、以及明文链在手但 DEK 推不出（A-24：spade 命中
+     * v2 形态时 SpadeKey 只有「未支持」一果——GCM 分支算法与 keystr
+     * 来源在 JS 原版与全部在树参照里同样缺位，不许猜造；但 fplay 形
+     * 态的 spade 未必同为 v2，先换形态重试，别一命中就 E4 即死）。
+     */
+    private void settleWithModel(String videoId, DramaVideoModel model, boolean fplayRetried) {
         DramaEntry entry = pickEntry(model, videoId);
         if (entry == null) {
             finish(videoId, null, "E2");
             return;
         }
         String plain = plainUrl(model, entry);
-        if (plain != null) {
-            finishWithEntry(videoId, model, entry, plain);
+        if (plain == null) {
+            if (!fplayRetried) retryViaFplay(videoId, model, "E3");
+            else finish(videoId, null, "E3");
             return;
         }
-        // 明文链拿不到（加密且无 key_seed）：经 fallback_api 换 fplay 形态重试
+        String dek = null;
+        if (model.isProtected()) {
+            dek = model.deriveDekHex();
+            if (dek == null) {
+                if (!fplayRetried) retryViaFplay(videoId, model, "E4");
+                else finish(videoId, null, "E4");
+                return;
+            }
+        }
+        finishWithEntry(videoId, model, entry, plain, dek);
+    }
+
+    /** 经 fallback_api 换 fplay 形态重走定档；无 fallback_api 时按原失败码收口。 */
+    private void retryViaFplay(String videoId, DramaVideoModel model, String failCode) {
         String api = model.getFallbackApi();
         if (api == null || api.isEmpty()) {
-            finish(videoId, null, "E3");
+            finish(videoId, null, failCode);
             return;
         }
         DramaClient.fetchFplay(api, new HgCallback<DramaVideoModel>() {
             @Override
             public void onSuccess(DramaVideoModel fplay) {
-                DramaEntry e2 = pickEntry(fplay, videoId);
-                String p2 = e2 == null ? null : plainUrl(fplay, e2);
-                if (e2 == null) finish(videoId, null, "E2");
-                else if (p2 == null) finish(videoId, null, "E3");
-                else finishWithEntry(videoId, fplay, e2, p2);
+                DramaCache.putFor(videoId, fplay);
+                settleWithModel(videoId, fplay, true);
             }
 
             @Override
             public void onError(int code, String message) {
-                finish(videoId, null, "E3");
+                finish(videoId, null, failCode);
             }
         });
     }
 
-    private void finishWithEntry(String videoId, DramaVideoModel model, DramaEntry entry, String plain) {
-        String dek = null;
-        if (model.isProtected()) {
-            dek = model.deriveDekHex();
-            if (dek == null) {
-                finish(videoId, null, "E4");
-                return;
-            }
-        }
+    private void finishWithEntry(String videoId, DramaVideoModel model, DramaEntry entry,
+                                 String plain, String dek) {
         chosenDefByVideo.put(videoId, entry.getDefinition());
         HgStreamSpec spec = new HgStreamSpec(plain, dek, entry.getSize(), entry.getFileHash(),
                 videoId + "/" + entry.getDefinition());
