@@ -255,9 +255,9 @@ public final class HgLandCommentsPanel {
                     @Override
                     public void onSuccess(String commentId) {
                         activity.runOnUiThread(() -> {
+                            if (destroyed) return;
                             sending = false;
                             sendBtn.setEnabled(true);
-                            if (destroyed) return;
                             input.setText("");
                             if (sid.equals(seriesId) && v.equals(vid)) {
                                 com.fongmi.android.tv.hongguo.api.HgAccountStore.Session s =
@@ -273,9 +273,9 @@ public final class HgLandCommentsPanel {
                     @Override
                     public void onError(int code, String msg) {
                         activity.runOnUiThread(() -> {
+                            if (destroyed) return;
                             sending = false;
                             sendBtn.setEnabled(true);
-                            if (destroyed) return;
                             android.widget.Toast.makeText(activity,
                                     "没发出去，再试试", android.widget.Toast.LENGTH_SHORT).show();
                         });
