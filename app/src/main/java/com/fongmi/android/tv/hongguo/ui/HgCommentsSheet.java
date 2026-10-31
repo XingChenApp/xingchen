@@ -184,6 +184,12 @@ public final class HgCommentsSheet {
         input.setPadding(dp.applyAsInt(14), dp.applyAsInt(8),
                 dp.applyAsInt(14), dp.applyAsInt(8));
         footRow.addView(input, new LinearLayout.LayoutParams(0, -2, 1f));
+        TextView emojiBtn = new TextView(activity);
+        emojiBtn.setText(HgEmojiPanel.BUTTON_FACE);
+        emojiBtn.setTextSize(20);
+        emojiBtn.setPadding(dp.applyAsInt(10), dp.applyAsInt(6),
+                dp.applyAsInt(2), dp.applyAsInt(6));
+        footRow.addView(emojiBtn, new LinearLayout.LayoutParams(-2, -2));
         TextView sendBtn = new TextView(activity);
         sendBtn.setText("发送");
         sendBtn.setTextColor(0xFF1B1B1F);
@@ -194,6 +200,37 @@ public final class HgCommentsSheet {
         footRow.addView(sendBtn, new LinearLayout.LayoutParams(-2, -2));
         foot.addView(footRow);
         root.addView(foot);
+
+        // 表情面板（T-06）：脚行之下、初始 GONE；展开时手势区让
+        // 位改由面板底部承担（脚行底距收回 12dp 本值），收起还原；
+        // 列表同步让高（面板总高 187dp），防单总高超屏把头顶出。
+        final int footBottom0 = footRow.getPaddingBottom();
+        final int[] listHSaved = {-1};
+        View emojiPanel = HgEmojiPanel.create(activity, dp, false, input,
+                navBarHeight(activity));
+        root.addView(emojiPanel);
+        emojiBtn.setOnClickListener(v -> {
+            if (!com.fongmi.android.tv.hongguo.api.HgAccountStore.isLoggedIn()) {
+                HongguoLoginActivity.start(activity);
+                return;
+            }
+            boolean show = emojiPanel.getVisibility() != View.VISIBLE;
+            emojiPanel.setVisibility(show ? View.VISIBLE : View.GONE);
+            footRow.setPadding(footRow.getPaddingLeft(), footRow.getPaddingTop(),
+                    footRow.getPaddingRight(),
+                    show ? dp.applyAsInt(12) : footBottom0);
+            ViewGroup.LayoutParams llp2 = list.getLayoutParams();
+            if (llp2 != null && llp2.height > 0) {
+                if (show) {
+                    listHSaved[0] = llp2.height;
+                    llp2.height = Math.max(dp.applyAsInt(140),
+                            llp2.height - dp.applyAsInt(187));
+                } else if (listHSaved[0] > 0) {
+                    llp2.height = listHSaved[0];
+                }
+                list.setLayoutParams(llp2);
+            }
+        });
 
         final boolean[] dismissed = {false};
         ExecutorService worker = Executors.newSingleThreadExecutor(r -> {

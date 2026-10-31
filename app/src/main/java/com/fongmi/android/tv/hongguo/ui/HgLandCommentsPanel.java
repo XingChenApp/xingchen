@@ -88,6 +88,9 @@ public final class HgLandCommentsPanel {
     private final LinearLayout footRow;
     private final android.widget.EditText input;
     private final TextView sendBtn;
+    private final View emojiPanel;
+    private int bottomInsetPx;
+    private boolean emojiOpen;
     private final RecyclerView list;
     private final LandAdapter adapter;
     private String seriesId;
@@ -221,6 +224,22 @@ public final class HgLandCommentsPanel {
             return false;
         });
         footRow.addView(input, new LinearLayout.LayoutParams(0, -2, 1f));
+        TextView emojiBtn = new TextView(activity);
+        emojiBtn.setText(HgEmojiPanel.BUTTON_FACE);
+        emojiBtn.setTextSize(20);
+        emojiBtn.setPadding(dp.applyAsInt(10), dp.applyAsInt(6),
+                dp.applyAsInt(2), dp.applyAsInt(6));
+        emojiBtn.setOnClickListener(v -> {
+            if (destroyed) return;
+            if (!com.fongmi.android.tv.hongguo.api.HgAccountStore.isLoggedIn()) {
+                HongguoLoginActivity.start(activity);
+                return;
+            }
+            emojiOpen = !emojiOpen;
+            emojiPanel.setVisibility(emojiOpen ? View.VISIBLE : View.GONE);
+            applyFootInset();
+        });
+        footRow.addView(emojiBtn, new LinearLayout.LayoutParams(-2, -2));
         sendBtn = new TextView(activity);
         sendBtn.setText("发送");
         sendBtn.setTextColor(Color.WHITE);
@@ -231,6 +250,11 @@ public final class HgLandCommentsPanel {
         sendBtn.setOnClickListener(v -> trySend());
         footRow.addView(sendBtn, new LinearLayout.LayoutParams(-2, -2));
         root.addView(footRow);
+
+        // 表情面板（T-06）：脚行之下、初始 GONE；底部让位由
+        // applyFootInset 按展开态在脚行/面板间分配（见下）。
+        emojiPanel = HgEmojiPanel.create(activity, dp, true, input, 0);
+        root.addView(emojiPanel);
     }
 
     /**
@@ -294,10 +318,21 @@ public final class HgLandCommentsPanel {
 
     /** 手势区让位：宿主 insets 捕获的底部系统栏高喂进来补输入行下边距。 */
     public void setBottomInset(int px) {
+        bottomInsetPx = px;
+        applyFootInset();
+    }
+
+    /**
+     * 底部让位分配：面板收起时让位挂脚行（原口径）；面板展开时
+     * 面板在最底部，让位转给面板底部、脚行回 13dp 本值，不叠加。
+     */
+    private void applyFootInset() {
         float density = activity.getResources().getDisplayMetrics().density;
-        int base = (int) (13 * density + 0.5f);
+        java.util.function.IntUnaryOperator dp = v -> (int) (v * density + 0.5f);
+        int base = dp.applyAsInt(13);
         footRow.setPadding(footRow.getPaddingLeft(), footRow.getPaddingTop(),
-                footRow.getPaddingRight(), base + px);
+                footRow.getPaddingRight(), emojiOpen ? base : base + bottomInsetPx);
+        if (emojiOpen) HgEmojiPanel.setBottomPad(emojiPanel, dp, bottomInsetPx);
     }
 
     public boolean isBound() {
