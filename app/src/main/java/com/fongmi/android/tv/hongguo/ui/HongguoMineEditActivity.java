@@ -28,17 +28,19 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 五模式（历史/收藏/点赞/预约/追更）的独立编辑页（2026-10-30 海报格批
- * 立页，2026-10-31 他亲定扩到五模式全量）：点「编辑」与长按任意一格
+ * 六模式（历史/收藏/点赞/预约/追更/小说）的独立编辑页（2026-10-30 海报格批
+ * 立页，2026-10-31 他亲定扩到五模式全量；小说支同日晚 W-05 裁定补入，
+ * 与五模式同一套交互）：点「编辑」与长按任意一格
  * 海报都进本页（长按的那格预勾），不是在原页原地切换状态。顶栏三段——
- * 左「全选」、中标题（全部历史/全部收藏/全部点赞/全部预约/全部追更）
+ * 左「全选」、中标题（全部历史/全部收藏/全部点赞/全部预约/全部追更/全部小说）
  * ＋副行「已选择 N 个」、右「完成」返回上一页；每格海报右下角圆形
  * 勾选圈（未选＝深色半透底白勾，选中＝橙色实心白勾）；底部固定删除
  * 条（垃圾桶＋「删除」红橙字，选中 0 个置灰禁点、不隐藏）。删除落
  * 本地 HgStore 对应 id 集（追更与收藏同源同删法：删一边两边同消，
  * 批二同体定案），收藏/追更/预约的删除同步上报服务端（登录态，
- * HgAccountSync），删完留在本页刷新格子。数据全量（不吃原页的筹
- * 过滤——标题「全部」即此义）。
+ * HgAccountSync），删完留在本页刷新格子。小说支数据走 HgStore 小说
+ * 键组、删走 removeNovelHistory（纯本地、无服务端上报）。数据全量
+ * （不吃原页的筹过滤——标题「全部」即此义）。
  */
 public class HongguoMineEditActivity extends AppCompatActivity {
 
@@ -226,6 +228,17 @@ public class HongguoMineEditActivity extends AppCompatActivity {
                         ? ep + "集/" + r.episodeCount + "集" : "看到第" + ep + "集";
                 rows.add(row);
             }
+        } else if (editMode == HongguoMineActivity.MODE_NOVEL) {
+            // 小说支：id 与元信息走小说键组（标题/作者/封面），无类型角标
+            for (String id : HgStore.novelHistoryIds()) {
+                String[] meta = HgStore.novelMetaOf(id);
+                EditRow row = new EditRow();
+                row.id = id;
+                row.title = meta == null ? "" : meta[0];
+                row.sub = meta == null ? "" : meta[1];
+                row.cover = meta == null ? null : meta[2];
+                rows.add(row);
+            }
         } else {
             for (String id : idsFor(editMode)) {
                 String[] meta = HgStore.metaOf(id);
@@ -266,6 +279,7 @@ public class HongguoMineEditActivity extends AppCompatActivity {
         if (mode == HongguoMineActivity.MODE_LIKE) return "全部点赞";
         if (mode == HongguoMineActivity.MODE_RESERVE) return "全部预约";
         if (mode == HongguoMineActivity.MODE_FOLLOW) return "全部追更";
+        if (mode == HongguoMineActivity.MODE_NOVEL) return "全部小说";
         return "全部收藏";
     }
 
@@ -274,6 +288,7 @@ public class HongguoMineEditActivity extends AppCompatActivity {
         if (mode == HongguoMineActivity.MODE_LIKE) return "暂无点赞";
         if (mode == HongguoMineActivity.MODE_RESERVE) return "暂无预约";
         if (mode == HongguoMineActivity.MODE_FOLLOW) return "暂无追更";
+        if (mode == HongguoMineActivity.MODE_NOVEL) return "还没有小说记录";
         return "暂无收藏";
     }
 
@@ -290,6 +305,10 @@ public class HongguoMineEditActivity extends AppCompatActivity {
         if (editMode == HongguoMineActivity.MODE_FOLLOW) {
             return "删除所选 " + n + " 条追更？将取消追更。";
         }
+        if (editMode == HongguoMineActivity.MODE_NOVEL) {
+            // 与历史同型：纯本地记录，删后无法恢复（无服务端可取消的动作）
+            return "删除所选 " + n + " 条小说记录？删除后无法恢复。";
+        }
         return "删除所选 " + n + " 条收藏？将取消收藏。";
     }
 
@@ -299,11 +318,14 @@ public class HongguoMineEditActivity extends AppCompatActivity {
      * 定案）；点赞摘 liked 集（上报口已通、粒度是集 vid，见
      * HgAccountSync.reportLike；本面只持剧 id、无集 vid，取消上报
      * 缺粒度未接，云端残留待 liked 集补存 vid 后收口）；
-     * 预约摘 reserved 集并上报取消预约。
+     * 预约摘 reserved 集并上报取消预约；小说走 removeNovelHistory
+     * 整组摘除（断点＋元信息＋索引，纯本地无上报）。
      */
     private void deleteOne(String id) {
         if (editMode == HongguoMineActivity.MODE_HISTORY) {
             HgStore.removeHistory(id);
+        } else if (editMode == HongguoMineActivity.MODE_NOVEL) {
+            HgStore.removeNovelHistory(id);
         } else if (editMode == HongguoMineActivity.MODE_LIKE) {
             HgStore.setLiked(id, false);
         } else if (editMode == HongguoMineActivity.MODE_RESERVE) {

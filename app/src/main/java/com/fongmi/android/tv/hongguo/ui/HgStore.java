@@ -818,9 +818,9 @@ public final class HgStore {
 
     /**
      * 删除一本小说的全部本地痕迹（断点＋元信息＋历史索引，D-20/D-09）：
-     * 小说历史键组此前只进不出、无任何删除 API。删除逻辑本体先行落
-     * 在此——UI 入口给不给、给什么形态属 W-05 待他裁，本方法现无
-     * 调用方、不许顺手往任何页面挂入口，等他裁了再接。
+     * 小说历史键组此前只进不出、无任何删除 API。删除入口形态属
+     * W-05——他已裁要给，入口在 HongguoMineEditActivity 小说支
+     * （与五模式同一套编辑/长按/确认口径），删除落本方法。
      */
     public static void removeNovelHistory(String bookId) {
         if (bookId == null || bookId.isEmpty()) return;

@@ -43,14 +43,15 @@ import java.util.List;
  * 独立编辑页（HongguoMineEditActivity，五模式全开——他 2026-10-31
  * 亲定：历史/收藏/点赞/预约/追更都要有编辑删除口，追更与收藏同源
  * 同删法），长按任意一格同落点且该格预勾。
- * 小说历史维持原列表行与深底。</p>
+ * 小说历史维持原列表行与深底，删除口同套对齐（W-05，他裁要给）：
+ * 顶栏右端「编辑」钮＋长按一行预勾，同进编辑页小说支删。</p>
  */
 public class HongguoMineActivity extends AppCompatActivity {
 
     private static final int MODE_HOME = 0;
     static final int MODE_HISTORY = 1;
     static final int MODE_FAV = 2;
-    private static final int MODE_NOVEL = 3;
+    static final int MODE_NOVEL = 3;
     static final int MODE_LIKE = 4;
     static final int MODE_RESERVE = 5;
     static final int MODE_FOLLOW = 6;
@@ -84,6 +85,8 @@ public class HongguoMineActivity extends AppCompatActivity {
     private LinearLayout homeBox;
     private LinearLayout chipsBar;
     private TextView editBtn;
+    /** 小说历史面的「编辑」钮（顶栏右端；小说面无筹行，钮挂顶栏，进同一编辑页）。 */
+    private TextView novelEditBtn;
     /** 追更入口砖右上红点（官方 id_mine_follow 同位），showHome 时重算。 */
     private View followTileDot;
     private RecyclerView list;
@@ -184,6 +187,18 @@ public class HongguoMineActivity extends AppCompatActivity {
         titleText.setTextSize(18);
         titleText.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
         top.addView(titleText);
+        View topSpacer = new View(this);
+        top.addView(topSpacer, new LinearLayout.LayoutParams(0, -2, 1f));
+        novelEditBtn = new TextView(this);
+        novelEditBtn.setText("编辑");
+        novelEditBtn.setTextColor(Color.WHITE);
+        novelEditBtn.setTextSize(14.5f);
+        novelEditBtn.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        novelEditBtn.setGravity(Gravity.CENTER);
+        novelEditBtn.setPadding(dp(10), dp(6), dp(2), dp(6));
+        novelEditBtn.setVisibility(View.GONE);
+        novelEditBtn.setOnClickListener(v -> openEditPage(null));
+        top.addView(novelEditBtn);
         root.addView(top);
 
         chipsBar = new LinearLayout(this);
@@ -281,6 +296,11 @@ public class HongguoMineActivity extends AppCompatActivity {
         list.setVisibility(rows.isEmpty() ? View.GONE : View.VISIBLE);
         emptyText.setVisibility(rows.isEmpty() ? View.VISIBLE : View.GONE);
         if (rows.isEmpty()) emptyText.setText("还没有小说记录");
+        // 删除入口显隐随行数（与海报格面 editBtn 同口径：有行才给）
+        if (novelEditBtn != null) {
+            novelEditBtn.setVisibility(mode == MODE_NOVEL && !rows.isEmpty()
+                    ? View.VISIBLE : View.GONE);
+        }
     }
 
     // ---------- 定稿首页面：账号行 ----------
@@ -496,6 +516,7 @@ public class HongguoMineActivity extends AppCompatActivity {
         topBar.setPadding(dp(16), statusBarHeight() + dp(6), dp(16), dp(8));
         applyChrome(true);
         chipsBar.setVisibility(View.GONE);
+        if (novelEditBtn != null) novelEditBtn.setVisibility(View.GONE);
         homeBox.setVisibility(View.VISIBLE);
         tabBar.setVisibility(tabEntry ? View.VISIBLE : View.GONE);
         refreshAccountRow();
@@ -557,6 +578,7 @@ public class HongguoMineActivity extends AppCompatActivity {
         int fg = light ? 0xFF1B1B1E : Color.WHITE;
         backBtn.setTextColor(fg);
         titleText.setTextColor(fg);
+        if (novelEditBtn != null) novelEditBtn.setTextColor(fg);
         emptyText.setTextColor(light ? 0xFF8E8E96 : 0xFF9E9EA7);
         HgWindowStyle.apply(this, light, light);
     }
@@ -580,6 +602,7 @@ public class HongguoMineActivity extends AppCompatActivity {
             return;
         }
         // 历史/收藏：白底海报格＋筹行
+        if (novelEditBtn != null) novelEditBtn.setVisibility(View.GONE);
         applyChrome(true);
         filterIndex = 0;
         loadGridRows(target);
@@ -814,6 +837,8 @@ public class HongguoMineActivity extends AppCompatActivity {
         // 编辑页删完回来：本地记录已变，整表按现行过滤重读（删的要消失）
         if (requestCode == REQ_EDIT && mode == MODE_HOME) {
             loadHomeWall();
+        } else if (requestCode == REQ_EDIT && mode == MODE_NOVEL) {
+            reloadNovelRows();
         } else if (requestCode == REQ_EDIT
                 && (mode == MODE_HISTORY || mode == MODE_FAV || mode == MODE_FOLLOW
                 || mode == MODE_LIKE || mode == MODE_RESERVE)) {
@@ -1057,6 +1082,11 @@ public class HongguoMineActivity extends AppCompatActivity {
             h.title.setText(row.title);
             h.sub.setText(row.sub == null ? "" : row.sub);
             h.itemView.setOnClickListener(v -> openRow(row));
+            h.itemView.setOnLongClickListener(v -> {
+                // 与海报格同口径：长按一行进编辑页且该行预勾（W-05）
+                openEditPage(row.id);
+                return true;
+            });
         }
 
         @Override
