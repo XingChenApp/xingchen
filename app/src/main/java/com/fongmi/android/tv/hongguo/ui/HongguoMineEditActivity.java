@@ -350,6 +350,7 @@ public class HongguoMineEditActivity extends AppCompatActivity {
     private void confirmDelete() {
         int n = selected.size();
         if (n == 0) return;
+        if (isFinishing() || isDestroyed()) return;
         new AlertDialog.Builder(this)
                 .setMessage(confirmFor(n))
                 .setNegativeButton("取消", null)
