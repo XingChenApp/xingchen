@@ -85,6 +85,13 @@ public class HongguoLandActivity extends AppCompatActivity {
     private String danmakuVid;
     private boolean locked;
     private boolean exited;
+    /** 切后台暂停标记（C-14）：onPause 是本页收的才置位——回前台
+     * 只续这一类，用户自己按停的不自作主张续；且 parkBack 写交
+     * 接单的播放意愿要按它还原（pause() 会把 playWhenReady 清
+     * 成 false，原样写单会让竖屏领回停住不播）。 */
+    private boolean bgPausedByUs;
+    /** 进度节流落盘计数（ticker 500ms 一跳，10 跳＝5s 一写）。 */
+    private int progressWriteTicks;
     /** 引擎已泊回池里（exitLand/销毁兜底）：销毁关流时要给泊回的
      * 引擎正播的那条流留命，见 onDestroy。 */
     private boolean parkedOut;
@@ -156,6 +163,18 @@ public class HongguoLandActivity extends AppCompatActivity {
                     setProgressFraction((float) pos / (float) dur);
                     timeView.setText(formatTime(pos));
                     timeDurView.setText(formatTime(dur));
+                }
+            }
+            // 进度节流落盘（C-14：横屏此前全页无 HgStore 写点，
+            // 进度只活在播放器与泊回时刻，进程被杀整段丢失、历史
+            // 断点停在进横屏那一刻）：与竖屏 ticker 5s 节流同键
+            // 同义，10 跳一写、进程被杀最多丢 5 秒；拖动预演位的
+            // 假位置不写（scrubbing 排除），泊回落盘仍是最后一笔。
+            if (++progressWriteTicks >= 10) {
+                progressWriteTicks = 0;
+                if (player != null && !scrubbing && seriesId != null) {
+                    long p = player.getCurrentPosition();
+                    if (p > 0) HgStore.saveProgress(seriesId, curEp, p);
                 }
             }
             main.postDelayed(this, 500);
@@ -1414,7 +1433,10 @@ public class HongguoLandActivity extends AppCompatActivity {
         bag.vid = curVid;
         bag.episodeIndex = curEp;
         bag.positionMs = player.getCurrentPosition();
-        bag.playWhenReady = player.getPlayWhenReady();
+        // 播放意愿：正处切后台暂停时 player 的 playWhenReady 已被
+        // pause() 清掉，按暂停前的意愿（bgPausedByUs）写单，竖屏
+        // 领回才续得上（C-14）。
+        bag.playWhenReady = bgPausedByUs || player.getPlayWhenReady();
         bag.danmakuOn = HgStore.isDanmakuOn();
         bag.speed = player.getPlaybackParameters().speed;
         bag.seriesTitle = seriesTitle;
@@ -1476,11 +1498,25 @@ public class HongguoLandActivity extends AppCompatActivity {
             if (systemAutoRotateOn()) orientationListener.enable();
             else orientationListener.disable();
         }
+        // 切后台回补（C-14）：只续 onPause 亲手收过的那一类。
+        if (bgPausedByUs) {
+            bgPausedByUs = false;
+            if (player != null && !exited) player.play();
+        }
     }
 
     @Override
     protected void onPause() {
         if (orientationListener != null) orientationListener.disable();
+        // 切后台暂停（C-14，缝合线挂账项按口径落）：此前 onPause
+        // 只摘传感器、播放一直在后台出声。退场路（exitLand）先
+        // parkBack 交出 player（置 null）才 finish，走不到这里；
+        // 异常销毁路 onDestroy 的泊回兜底在本方法之后，交接单的
+        // 播放意愿由 bgPausedByUs 在 parkBack 还原。
+        if (player != null && !parkedOut && player.getPlayWhenReady()) {
+            bgPausedByUs = true;
+            player.pause();
+        }
         super.onPause();
     }
 
