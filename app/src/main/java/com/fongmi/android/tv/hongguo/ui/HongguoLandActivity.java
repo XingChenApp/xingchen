@@ -857,6 +857,7 @@ public class HongguoLandActivity extends AppCompatActivity {
             @Override
             public void onSuccess(DramaDetail d) {
                 runOnUiThread(() -> {
+                    if (destroyed) return;
                     detail = d;
                     refreshCommentCount();
                     warmModelCache();
@@ -1270,7 +1271,7 @@ public class HongguoLandActivity extends AppCompatActivity {
                     HongguoFeedActivity.parseDanmakuXml(item.getRealUrl());
             if (parsed == null) return;
             runOnUiThread(() -> {
-                if (!vid.equals(danmakuVid) || playerView == null) return;
+                if (destroyed || !vid.equals(danmakuVid) || playerView == null) return;
                 dmItems.clear();
                 dmItems.addAll(parsed);
                 playerView.getDanmakuController().setItems(new ArrayList<>(dmItems));
@@ -1443,6 +1444,7 @@ public class HongguoLandActivity extends AppCompatActivity {
                             @Override
                             public void onSuccess(Void r) {
                                 runOnUiThread(() -> {
+                                    if (destroyed) return;
                                     dialog.dismiss();
                                     if (vid.equals(curVid) && playerView != null) {
                                         dmItems.add(new androidx.media3.ui.danmaku.Danmaku(
@@ -1460,6 +1462,7 @@ public class HongguoLandActivity extends AppCompatActivity {
                             @Override
                             public void onError(int c, String m) {
                                 runOnUiThread(() -> {
+                                    if (destroyed) return;
                                     ok.setEnabled(true);
                                     Toast.makeText(HongguoLandActivity.this,
                                             "没发出去，再试试", Toast.LENGTH_SHORT).show();
@@ -1590,7 +1593,7 @@ public class HongguoLandActivity extends AppCompatActivity {
             com.fongmi.android.tv.api.HongguoCommentApi.Page page =
                     com.fongmi.android.tv.api.HongguoCommentApi.episodeComments(sid, vid, "");
             runOnUiThread(() -> {
-                if (commentCount == null || !vid.equals(curVid)) return;
+                if (destroyed || commentCount == null || !vid.equals(curVid)) return;
                 if (page != null && page.total > 0) {
                     commentCount.setText(
                             HongguoFeedActivity.HgTimeTextCount.format(page.total));
