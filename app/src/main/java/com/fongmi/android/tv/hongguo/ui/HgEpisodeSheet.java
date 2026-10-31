@@ -158,43 +158,17 @@ public final class HgEpisodeSheet {
         foot.addView(footText);
         root.addView(foot);
 
-        // 几何收口（#2）：网格高度按内容实量定死、根按内容 wrap——
-        // 不再用 weight 把网格直挂在根下、也不再回写根的高度（两样
-        // 都是 1.4.64 重落形态，真机上网格拿不到可见面积、只剩头行：
-        // 账 hongguo-panel-bisect-20261031 的 72% 根定高已证无效）。
-        fitListHeight(activity, root, grid, false);
+        // 几何（回炉定根，账 fix168-episodesheet-diag）：网格入根
+        // 即 (-1,-2) wrap 自然高、格高走构造定数（见 EpAdapter），
+        // 整单零脱窗实量、零高度回写——旧 fitListHeight 的开单前
+        // 实量定高在真机上把三单的纵向排布一并锁坏（头在底、身
+        // 空白、脚出界），已整步摘除。
         dialog.setContentView(root);
         View sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
         if (sheet != null) {
             sheet.setBackgroundColor(Color.TRANSPARENT);
         }
         dialog.show();
-    }
-
-    /**
-     * 列表定高（#2 三单同口径，见 HgCommentsSheet 同名法）：开单前
-     * 实量——非列表部分（grab/头/脚）量出真高，列表拿「整单封顶
-     * 72% 屏高 − 其余部分」的可用高；fillCap=false 时再与内容自然
-     * 高取小（内容矮就矮、不撑满），列表在定高内滚动。横竖屏都走
-     * 当次 DisplayMetrics，横屏形态同法（封顶按横屏高算）。
-     */
-    static void fitListHeight(AppCompatActivity activity, LinearLayout root,
-                              RecyclerView list, boolean fillCap) {
-        android.util.DisplayMetrics dm = activity.getResources().getDisplayMetrics();
-        int wSpec = View.MeasureSpec.makeMeasureSpec(dm.widthPixels, View.MeasureSpec.EXACTLY);
-        int hSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
-        list.measure(wSpec, hSpec);
-        int natural = list.getMeasuredHeight();
-        root.measure(wSpec, hSpec);
-        int others = Math.max(0, root.getMeasuredHeight() - natural);
-        int cap = Math.max(0, (int) (dm.heightPixels * 0.72f) - others);
-        int h = fillCap ? cap : (natural > 0 ? Math.min(natural, cap) : cap);
-        ViewGroup.LayoutParams lp = list.getLayoutParams();
-        if (lp != null) {
-            lp.width = ViewGroup.LayoutParams.MATCH_PARENT;
-            lp.height = h;
-            list.setLayoutParams(lp);
-        }
     }
 
     private static final class EpAdapter extends RecyclerView.Adapter<EpAdapter.H> {
@@ -246,7 +220,11 @@ public final class HgEpisodeSheet {
             dlp.topMargin = dp.applyAsInt(5);
             dlp.rightMargin = dp.applyAsInt(5);
             cell.addView(dot, dlp);
-            cell.setLayoutParams(new RecyclerView.LayoutParams(-1, -2));
+            // 格高写死构造定数 48dp（现行皮肤格内距＋字高定，照能
+            // 用版 46dp 的做法）：网格自然高＝行数×定数＋行距＋内
+            // 距，由挂窗后的正式布局一趟算出，不依赖任何实量；
+            // 集数多到超屏时容器 AT_MOST 封顶、网格在封顶内滚。
+            cell.setLayoutParams(new RecyclerView.LayoutParams(-1, dp.applyAsInt(48)));
             return new H(cell);
         }
 
