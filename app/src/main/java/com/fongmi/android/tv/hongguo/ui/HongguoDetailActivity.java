@@ -179,9 +179,21 @@ public class HongguoDetailActivity extends AppCompatActivity {
         rootFrame.addView(backdropView, new FrameLayout.LayoutParams(-1, -1));
 
         scroll = new ScrollView(this);
-        scroll.setFillViewport(true);
+        // 件八定根（逐帧账 D6–D8＋hongguo-detail-check 双图实证）：
+        // 不许 fillViewport 把列强量成视口高——见下方 col 的 gravity
+        // 注释，列被拉高＋内容不足视口高是首开整列塌陷的发作条件。
+        scroll.setFillViewport(false);
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
+        // 程序化 LinearLayout 的默认 gravity 含 CENTER_VERTICAL：
+        // 竖列总高小于列高时整列竖向居中（AOSP layoutVertical 按
+        // majorGravity 摆栈）。本页初始内容大半 GONE、总高远小于
+        // 视口，旧骨架又开 fillViewport 把列拉满视口高——首量即把
+        // 整列居中：顶栏钮落到屏高近半、其余孩子被挤出可视区，
+        // bind 后内容仍不足视口高时居中不解除（1.4.68 录屏里两进
+        // 详情页全程空壳即此）；切后台回前台偶然归位是系统全量重
+        // 排撞上内容已长高、不是治法。钉死 TOP：列永远自顶摆栈。
+        col.setGravity(Gravity.TOP);
         col.setPadding(0, statusBarHeight() + dp(6), 0, dp(28) + navBarHeight());
 
         // 顶栏（定稿 .d-top）：三枚玻璃圆钮 38dp（底 rgba(20,12,6,
@@ -884,16 +896,11 @@ public class HongguoDetailActivity extends AppCompatActivity {
             dueText.setVisibility(View.GONE);
         }
         loadComments();
-        // 首开塌陷兜底（2026-10-31）：首遍布局会把整列摆错（顶栏
-        // 钮落到屏高近半、糊底满屏），切后台回前台经系统全量重排
-        // 即归位（双图实证，账 hongguo-detail-check-20261031）。
-        // bind 把作者行/标签行等初始 GONE 件转 VISIBLE 后，主动对
-        // scroll 子树请求一次同样的全量重排，不等系统停启。
-        if (scroll != null) {
-            scroll.post(() -> {
-                if (scroll != null) scroll.requestLayout();
-            });
-        }
+        // 首开塌陷已在骨架定根（件八）：塌陷源是 col 默认 gravity
+        // 居中＋fillViewport 拉高（onCreate 建列处注释），结构已
+        // 摘除；此前在此 post(requestLayout) 的兜底对已自洽的错
+        // 误度量无效（规格不变、旧度量复用，1.4.68 录屏实证整段
+        // 停留仍塌），随定根一并摘除，不留假保险。
     }
 
     private void addStat(String value, String label) {

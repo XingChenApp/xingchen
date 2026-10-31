@@ -656,7 +656,7 @@
         <activity
             android:name="com.fongmi.android.tv.hongguo.ui.HongguoDetailActivity"
             android:theme="@style/Theme.XingChen.HkPage"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:configChanges="fontScale|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:screenOrientation="fullUser" />
         <activity
             android:name="com.fongmi.android.tv.hongguo.ui.HongguoTheaterActivity"
