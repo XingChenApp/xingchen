@@ -4328,17 +4328,55 @@ public class HongguoFeedActivity extends AppCompatActivity {
             h.pill.setBackground(roundBg(faved ? 0xFFFFB03A : 0x59000000, dp(15)));
         }
 
+        /** 无头像图时的字母头像底色（与评论面 AV_COLORS 同源同值，草稿 cmtHTML 口径）。 */
+        private final int[] AVATAR_COLORS = {
+                0xFFE63A2E, 0xFFE8A13A, 0xFF3E8E6E, 0xFF4A6FD4,
+                0xFF8A5FC0, 0xFFC2507A, 0xFF2E8EA6, 0xFF7A6A53};
+
+        /** 字母头像位图：色块（按名首字＋名长取色，与评论面同法）＋白色粗体首字。 */
+        private android.graphics.Bitmap letterAvatarBitmap(String name) {
+            int size = dp(90);
+            android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
+                    size, size, android.graphics.Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas canvas = new android.graphics.Canvas(bmp);
+            int seed = name.charAt(0) + name.length();
+            android.graphics.Paint paint =
+                    new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            paint.setColor(AVATAR_COLORS[seed % AVATAR_COLORS.length]);
+            canvas.drawRect(0, 0, size, size, paint);
+            paint.setColor(Color.WHITE);
+            paint.setTextSize(size * 0.5f);
+            paint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+            paint.setTextAlign(android.graphics.Paint.Align.CENTER);
+            android.graphics.Paint.FontMetrics fm = paint.getFontMetrics();
+            canvas.drawText(name.substring(0, 1), size / 2f,
+                    size / 2f - (fm.ascent + fm.descent) / 2f, paint);
+            return bmp;
+        }
+
         private void bindRailAvatar(Holder h, String uid, String name, String avatar) {
             if (uid == null || uid.isEmpty()) {
                 h.avatar.setVisibility(View.GONE);
                 return;
             }
-            h.avatar.setVisibility(View.VISIBLE);
             if (avatar != null && !avatar.isEmpty()) {
+                h.avatar.setVisibility(View.VISIBLE);
                 Glide.with(HongguoFeedActivity.this).load(avatar)
                         .circleCrop().into(h.avatar);
+            } else if (name != null && !name.isEmpty()) {
+                // B-10：uid 有、头像 URL 空时旧写法只清图，白环底＋
+                // 2dp 内距留成一只空白白环（全域账 B 片定格）。改走
+                // 字母头像兜底（评论面同口径），环内是名首字色块、
+                // 不再是空环；点击进作者页不变。
+                h.avatar.setVisibility(View.VISIBLE);
+                Glide.with(HongguoFeedActivity.this).load(letterAvatarBitmap(name))
+                        .circleCrop().into(h.avatar);
             } else {
-                h.avatar.setImageDrawable(null);
+                // 无图又无名：没什么可显，整件收起（标题行在 hasAuthor
+                // 时另有作者入口，无名条目本就没有）
+                h.avatar.setVisibility(View.GONE);
+                h.avatar.setOnClickListener(null);
+                return;
             }
             h.avatar.setOnClickListener(v -> HongguoAuthorActivity.start(
                     HongguoFeedActivity.this, uid, name, avatar));
