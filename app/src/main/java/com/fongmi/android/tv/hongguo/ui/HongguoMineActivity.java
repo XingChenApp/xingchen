@@ -70,6 +70,20 @@ public class HongguoMineActivity extends AppCompatActivity {
         HgTransition.fade(context, intent);
     }
 
+    /** 直达模式附加：带此附加打开直落指定列表面，不经首页面。 */
+    public static final String EXTRA_MODE = "hg_mine_mode";
+
+    /**
+     * 阅读板块直达小说历史（他 2026-10-31 亲裁：短剧跟小说不搞
+     * 一起、小说就放在阅读那——红果侧不设小说入口，小说历史面
+     * 只从阅读板块进）。既有入口的调用口径不变，此口只加不改。
+     */
+    public static void startNovelHistory(android.content.Context context) {
+        android.content.Intent intent = new android.content.Intent(context, HongguoMineActivity.class);
+        intent.putExtra(EXTRA_MODE, MODE_NOVEL);
+        HgTransition.push(context, intent);
+    }
+
     @Override
     public void finish() {
         super.finish();
@@ -100,6 +114,8 @@ public class HongguoMineActivity extends AppCompatActivity {
     private TextView accountBtn;
     /** 底栏第三签入口进来：首页面底下挂白色三签底栏（只此页、只 home 态显）。 */
     private boolean tabEntry;
+    /** 阅读板块直达小说历史进来：返回直退回阅读板块，不落本页首页面。 */
+    private boolean novelDirectEntry;
     private int mode = MODE_HOME;
     private final List<Row> rows = new ArrayList<>();
     /** 海报格全量行（未过滤）与当前过滤下标（历史/收藏共用一套筹机制）。 */
@@ -162,6 +178,7 @@ public class HongguoMineActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         HgWindowStyle.apply(this, false, false);
         tabEntry = getIntent().getBooleanExtra(EXTRA_TAB, false);
+        novelDirectEntry = getIntent().getIntExtra(EXTRA_MODE, MODE_HOME) == MODE_NOVEL;
 
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -237,7 +254,8 @@ public class HongguoMineActivity extends AppCompatActivity {
         root.addView(tabBar, new LinearLayout.LayoutParams(-1, -2));
 
         setContentView(root);
-        showHome();
+        if (novelDirectEntry) openList(MODE_NOVEL, "小说历史");
+        else showHome();
     }
 
     @Override
@@ -559,7 +577,11 @@ public class HongguoMineActivity extends AppCompatActivity {
     }
 
     private void onBackRow() {
-        if (mode != MODE_HOME) {
+        if (mode == MODE_NOVEL && novelDirectEntry) {
+            // 阅读板块直达进来的：返回直退出回阅读板块，不落本页
+            // 首页面（短剧与小说分家，他 2026-10-31 亲裁）
+            finish();
+        } else if (mode != MODE_HOME) {
             HgTransition.fadeSwap(this::showHome, homeBox, list, emptyText);
         } else {
             finish();
