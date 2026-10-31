@@ -15,6 +15,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -370,20 +371,31 @@ public class HgBookBrowseActivity extends AppCompatActivity {
         return tv;
     }
 
-    private void openBook(HgBookClient.Entry e) {
-        String sourceJson = null;
+    /** 按源址找已入库的哨兵源 JSON（与小说详情页 findNovelSourceJson 同法）。 */
+    private String findSourceJson() {
         String want = audio ? HgBookBridge.URL_AUDIO : HgBookBridge.URL_NOVEL;
         for (LegadoStore.Entry en : LegadoStore.all()) {
             try {
                 LegadoSource s = LegadoStore.parse(en.json);
-                if (s != null && want.equals(s.bookSourceUrl)) {
-                    sourceJson = en.json;
-                    break;
-                }
+                if (s != null && want.equals(s.bookSourceUrl)) return en.json;
             } catch (Throwable ignored) {
             }
         }
-        if (sourceJson == null) return;
+        return null;
+    }
+
+    private void openBook(HgBookClient.Entry e) {
+        String sourceJson = findSourceJson();
+        if (sourceJson == null) {
+            // 兜底种源（D-17，与小说详情页同口径）：此前找不到源直接
+            // 静默 return、点书毫无反应；种完再找一次，仍没有才出声
+            HgBookSeeder.ensureSeeded();
+            sourceJson = findSourceJson();
+        }
+        if (sourceJson == null) {
+            Toast.makeText(this, "书源还没准备好，稍后再试", Toast.LENGTH_SHORT).show();
+            return;
+        }
         LegadoPipeline.Book b = new LegadoPipeline.Book();
         b.name = e.title;
         b.author = e.author;
