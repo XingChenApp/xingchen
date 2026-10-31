@@ -343,6 +343,48 @@ public class VodConfig extends BaseConfig {
         if (site != null && !TextUtils.isEmpty(site.getKey())) dynamicSites.put(site.getKey(), site);
     }
 
+    // ── 导入待开标记（确定性打开的凭据，定根账 fix168-pyimport2）──
+    // setHome 发的 RefreshEvent.home 是普通 EventBus 事件：首页 Fragment 尚不存在
+    // （冷开）或其生命周期时点对不上时就丢了，两轮靠 Fragment 生命周期兜底仍被他
+    // 真机证伪。改走持久标记：导入成功登记目标 key，首页 Fragment 在 initView／
+    // onResume／切回可见任一时点自查消费——只要它最终露面就必然补开，不依赖
+    // 事件送达、也不靠手动点。标记落 SharedPreferences，导入后进程被杀也不丢。
+    private static final String IMPORT_PREFS = "xc_import";
+    private static final String KEY_PENDING_IMPORT = "pending_home_key";
+    private volatile String pendingImportKey;
+
+    /** 导入成功且 setHome 已落到当前 home 后登记待开目标（调用方负责核对 home key）。 */
+    public void markImportedHome(String key) {
+        if (TextUtils.isEmpty(key)) return;
+        pendingImportKey = key;
+        try {
+            App.get().getSharedPreferences(IMPORT_PREFS, android.content.Context.MODE_PRIVATE)
+                    .edit().putString(KEY_PENDING_IMPORT, key).apply();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** 读待开目标（不消费）；没有返回 null。 */
+    public String pendingImportedHome() {
+        if (pendingImportKey != null) return pendingImportKey;
+        try {
+            pendingImportKey = App.get().getSharedPreferences(IMPORT_PREFS, android.content.Context.MODE_PRIVATE)
+                    .getString(KEY_PENDING_IMPORT, null);
+        } catch (Throwable ignored) {
+        }
+        return pendingImportKey;
+    }
+
+    /** 首页已按待开目标补开后清除标记。 */
+    public void clearImportedHome() {
+        pendingImportKey = null;
+        try {
+            App.get().getSharedPreferences(IMPORT_PREFS, android.content.Context.MODE_PRIVATE)
+                    .edit().remove(KEY_PENDING_IMPORT).apply();
+        } catch (Throwable ignored) {
+        }
+    }
+
     private void setParse(Config config, Parse parse, boolean save) {
         this.parse = parse;
         this.parse.setSelected(true);
