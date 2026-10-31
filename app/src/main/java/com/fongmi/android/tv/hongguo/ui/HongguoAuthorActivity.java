@@ -107,6 +107,20 @@ public class HongguoAuthorActivity extends AppCompatActivity {
     private boolean subTabsBuilt;
     private final List<TextView> tabChips = new ArrayList<>();
     private final List<Integer> tabChipTypes = new ArrayList<>();
+    /** 顶签：false＝作品、true＝收藏（A-02 剧集架/收藏签，fetchAuthorShelf）。 */
+    private boolean shelfTab;
+    private TextView topTabWorks;
+    private TextView topTabShelf;
+    private final List<DramaWork> shelf = new ArrayList<>();
+    private int shelfOffset;
+    private boolean shelfHasMore;
+    private boolean shelfLoading;
+    private boolean shelfLoaded;
+
+    /** 当前顶签的数据表（网格/分页/点开都按此取）。 */
+    private List<DramaWork> activeList() {
+        return shelfTab ? shelf : works;
+    }
 
     private int dp(float v) {
         return (int) (v * getResources().getDisplayMetrics().density + 0.5f);
@@ -290,13 +304,15 @@ public class HongguoAuthorActivity extends AppCompatActivity {
         LinearLayout.LayoutParams wlp = new LinearLayout.LayoutParams(-1, -2);
         wlp.topMargin = dp(24);
         wlp.bottomMargin = dp(2);
-        TextView worksLabel = new TextView(this);
-        worksLabel.setText("作品");
-        worksLabel.setTextColor(0xFF1B1B1F);
-        worksLabel.setTextSize(16);
-        worksLabel.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        worksLabel.setIncludeFontPadding(false);
-        worksHead.addView(worksLabel);
+        // 顶签：作品／收藏（官方作者页三签之二，点赞签无客户端链、
+        // 不摆占位）。筹式与子档签同色板（浅橙选中/浅灰未选）。
+        topTabWorks = buildTopTab("作品", v -> selectTopTab(false));
+        worksHead.addView(topTabWorks);
+        topTabShelf = buildTopTab("收藏", v -> selectTopTab(true));
+        LinearLayout.LayoutParams stlp2 = new LinearLayout.LayoutParams(-2, -2);
+        stlp2.leftMargin = dp(8);
+        worksHead.addView(topTabShelf, stlp2);
+        paintTopTabs();
         root.addView(worksHead, wlp);
 
         // 子档签行（服务端 sub_tabs 下发后才建：全部/合集/剧评…，
@@ -318,8 +334,8 @@ public class HongguoAuthorActivity extends AppCompatActivity {
         glm.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
             @Override
             public int getSpanSize(int position) {
-                return position < works.size()
-                        && works.get(position).kind == DramaWork.KIND_ALBUM ? 3 : 1;
+                return position < activeList().size()
+                        && activeList().get(position).kind == DramaWork.KIND_ALBUM ? 3 : 1;
             }
         });
         grid.setLayoutManager(glm);
@@ -330,7 +346,13 @@ public class HongguoAuthorActivity extends AppCompatActivity {
         grid.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
-                if (dy > 0 && !loading && hasMore
+                if (dy <= 0) return;
+                if (shelfTab) {
+                    if (!shelfLoading && shelfHasMore
+                            && glm.findLastVisibleItemPosition() >= shelf.size() - 6) {
+                        loadShelf(false);
+                    }
+                } else if (!loading && hasMore
                         && glm.findLastVisibleItemPosition() >= works.size() - 6) {
                     loadWorks(false);
                 }
@@ -349,7 +371,11 @@ public class HongguoAuthorActivity extends AppCompatActivity {
         stateText.setPadding(0, dp(10), 0, dp(10));
         stateText.setVisibility(View.GONE);
         stateText.setOnClickListener(v -> {
-            if (works.isEmpty()) loadWorks(true);
+            if (shelfTab) {
+                if (shelf.isEmpty()) loadShelf(true);
+            } else if (works.isEmpty()) {
+                loadWorks(true);
+            }
         });
         stage.addView(stateText, new android.widget.FrameLayout.LayoutParams(-1, -1));
 
@@ -501,7 +527,7 @@ public class HongguoAuthorActivity extends AppCompatActivity {
     private void loadWorks(boolean first) {
         if (loading || uid == null) return;
         loading = true;
-        if (first) {
+        if (first && !shelfTab) {
             stateText.setText("加载中…");
             stateText.setVisibility(View.VISIBLE);
         }
@@ -528,8 +554,10 @@ public class HongguoAuthorActivity extends AppCompatActivity {
                     cursor = page.nextCursor;
                     hasMore = page.hasMore;
                     adapter.notifyDataSetChanged();
-                    stateText.setVisibility(works.isEmpty() ? View.VISIBLE : View.GONE);
-                    if (works.isEmpty()) stateText.setText("暂无作品");
+                    if (!shelfTab) {
+                        stateText.setVisibility(works.isEmpty() ? View.VISIBLE : View.GONE);
+                        if (works.isEmpty()) stateText.setText("暂无作品");
+                    }
                 });
             }
 
@@ -538,7 +566,100 @@ public class HongguoAuthorActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (destroyed) return;
                     loading = false;
-                    if (works.isEmpty()) {
+                    if (!shelfTab && works.isEmpty()) {
+                        stateText.setText("取数据失败，点按重试");
+                        stateText.setVisibility(View.VISIBLE);
+                    }
+                });
+            }
+        });
+    }
+
+    /** 顶签筹（与子档签同式：15dp 圆角胶囊、选中浅橙底橙字粗体）。 */
+    private TextView buildTopTab(String label, View.OnClickListener onClick) {
+        TextView chip = new TextView(this);
+        chip.setText(label);
+        chip.setTextSize(13.5f);
+        chip.setPadding(dp(15), dp(6), dp(15), dp(6));
+        chip.setOnClickListener(onClick);
+        return chip;
+    }
+
+    private void paintTopTabs() {
+        if (topTabWorks == null || topTabShelf == null) return;
+        topTabWorks.setTextColor(!shelfTab ? 0xFFE86A17 : 0xFF6E6E76);
+        topTabWorks.setTypeface(!shelfTab ? android.graphics.Typeface.DEFAULT_BOLD
+                : android.graphics.Typeface.DEFAULT);
+        topTabWorks.setBackground(roundBg(!shelfTab ? 0xFFFFEFE3 : 0xFFF0EFED, dp(15)));
+        topTabShelf.setTextColor(shelfTab ? 0xFFE86A17 : 0xFF6E6E76);
+        topTabShelf.setTypeface(shelfTab ? android.graphics.Typeface.DEFAULT_BOLD
+                : android.graphics.Typeface.DEFAULT);
+        topTabShelf.setBackground(roundBg(shelfTab ? 0xFFFFEFE3 : 0xFFF0EFED, dp(15)));
+    }
+
+    /** 顶签切换：数据/分页/状态字各归各签，子档行只属作品签。 */
+    private void selectTopTab(boolean shelf) {
+        if (shelfTab == shelf) return;
+        shelfTab = shelf;
+        paintTopTabs();
+        tabScrollView.setVisibility(!shelfTab && subTabsBuilt ? View.VISIBLE : View.GONE);
+        adapter.notifyDataSetChanged();
+        if (shelfTab) {
+            if (!shelfLoaded) {
+                loadShelf(true);
+            } else {
+                stateText.setVisibility(shelf.isEmpty() ? View.VISIBLE : View.GONE);
+                if (shelf.isEmpty()) stateText.setText("暂无收藏");
+            }
+        } else {
+            stateText.setVisibility(works.isEmpty() ? View.VISIBLE : View.GONE);
+            if (works.isEmpty() && !loading) stateText.setText("暂无作品");
+        }
+    }
+
+    /**
+     * 收藏签（A-02）：fetchAuthorShelf 整链此前零调用——作者收藏的
+     * 剧集架在本页不存在。offset 分页（Page.nextCursor 是下页
+     * offset 数字串，解析层已归一）；失败只在本签空表时显可重试
+     * 状态字，不连坐作品签。
+     */
+    private void loadShelf(boolean first) {
+        if (shelfLoading || uid == null) return;
+        shelfLoading = true;
+        if (first && shelfTab && shelf.isEmpty()) {
+            stateText.setText("加载中…");
+            stateText.setVisibility(View.VISIBLE);
+        }
+        DramaClient.fetchAuthorShelf(uid, first ? 0 : shelfOffset,
+                new HgCallback<DramaWork.Page>() {
+            @Override
+            public void onSuccess(DramaWork.Page page) {
+                runOnUiThread(() -> {
+                    if (destroyed) return;
+                    shelfLoading = false;
+                    shelfLoaded = true;
+                    shelf.addAll(page.items);
+                    shelfHasMore = page.hasMore;
+                    int next = -1;
+                    try {
+                        next = Integer.parseInt(page.nextCursor);
+                    } catch (Exception ignored) {
+                    }
+                    shelfOffset = next >= 0 ? next : shelf.size();
+                    if (shelfTab) {
+                        adapter.notifyDataSetChanged();
+                        stateText.setVisibility(shelf.isEmpty() ? View.VISIBLE : View.GONE);
+                        if (shelf.isEmpty()) stateText.setText("暂无收藏");
+                    }
+                });
+            }
+
+            @Override
+            public void onError(int code, String msg) {
+                runOnUiThread(() -> {
+                    if (destroyed) return;
+                    shelfLoading = false;
+                    if (shelfTab && shelf.isEmpty()) {
                         stateText.setText("取数据失败，点按重试");
                         stateText.setVisibility(View.VISIBLE);
                     }
@@ -567,7 +688,7 @@ public class HongguoAuthorActivity extends AppCompatActivity {
             tabChipTypes.add(st.tabType);
         }
         paintSubTabs();
-        tabScrollView.setVisibility(View.VISIBLE);
+        tabScrollView.setVisibility(shelfTab ? View.GONE : View.VISIBLE);
     }
 
     private void paintSubTabs() {
@@ -666,7 +787,7 @@ public class HongguoAuthorActivity extends AppCompatActivity {
 
         @Override
         public int getItemViewType(int position) {
-            return works.get(position).kind == DramaWork.KIND_ALBUM ? 1 : 0;
+            return activeList().get(position).kind == DramaWork.KIND_ALBUM ? 1 : 0;
         }
 
         @NonNull
@@ -870,7 +991,7 @@ public class HongguoAuthorActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder vh, int position) {
-            DramaWork work = works.get(position);
+            DramaWork work = activeList().get(position);
             if (vh instanceof AH) {
                 bindAlbum((AH) vh, work);
                 return;
@@ -907,6 +1028,18 @@ public class HongguoAuthorActivity extends AppCompatActivity {
             }
             h.meta.setText(meta == null ? "" : meta);
             h.itemView.setOnClickListener(v -> {
+                if (shelfTab) {
+                    // 收藏签条目是「剧」（架上条目带 series_id）：
+                    // 有剧 id 进详情页；缺剧 id 才回落单条 UGC 路
+                    if (work.seriesId != null && !work.seriesId.isEmpty()) {
+                        HongguoDetailActivity.start(HongguoAuthorActivity.this,
+                                work.seriesId, work.title, null);
+                    } else if (work.id != null && !work.id.isEmpty()) {
+                        HongguoFeedActivity.startUgc(HongguoAuthorActivity.this, work.id,
+                                work.seriesId, work.title, work.cover, 1001);
+                    }
+                    return;
+                }
                 if (work.seriesId != null && !work.seriesId.isEmpty()
                         && work.kind != DramaWork.KIND_VIDEO) {
                     HongguoDetailActivity.start(HongguoAuthorActivity.this,
@@ -920,7 +1053,7 @@ public class HongguoAuthorActivity extends AppCompatActivity {
 
         @Override
         public int getItemCount() {
-            return works.size();
+            return activeList().size();
         }
     }
 }
