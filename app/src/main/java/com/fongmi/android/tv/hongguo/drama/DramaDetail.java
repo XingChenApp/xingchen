@@ -190,9 +190,9 @@ public final class DramaDetail {
      * 作者 uid（详情 video_data 的 ugc_user_info.user_id 抬升）：2026-10-29
      * 本机实拉 5 部正剧（含账号自制剧）单剧＋批量两口全量扫——详情口对
      * 剧集内容恒不下发作者身份，此字段在现行回包里恒 null，抬升口先建好
-     * （回包形状变了/别的面带了即刻生效）；正剧作者 uid 的实际来源是会话
-     * 层的搜索「用户」签反查兜底（见流页会话层）。解析期回填（与
-     * ugcVideoModel 同惯例），之后只读；反查命中时会话层也经此回填缓存。
+     * （回包形状变了/别的面带了即刻生效）。解析期回填（与
+     * ugcVideoModel 同惯例），之后只读。旧注称的「会话层搜索『用户』签
+     * 反查兜底/反查命中回填」从未实现，P-03 已摘链（簇二账）。
      */
     private String authorUid;
 
@@ -244,12 +244,12 @@ public final class DramaDetail {
         this.ugcVideoHeight = height;
     }
 
-    /** 回填作者 uid（DramaParser 解析期／流页会话层反查命中时调用）。 */
+    /** 回填作者 uid（仅 DramaParser 解析期调用）。 */
     public void attachAuthorUid(String uid) {
         if (uid != null && !uid.isEmpty()) this.authorUid = uid;
     }
 
-    /** 作者 uid；详情没下发且未反查为 null。 */
+    /** 作者 uid；详情没下发为 null。 */
     public String getAuthorUid() { return authorUid; }
 
     /** UGC 随详情下发的播放模型原串；非 UGC 详情为 null。 */

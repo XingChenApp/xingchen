@@ -61,9 +61,10 @@ public final class DramaItem {
     private final String authorDesc;
     /**
      * 出品方品牌（cell video_list[].copyright 抬升，如「魔方短剧」）；
-     * 没带为 null。正剧条目作者身份全链无源（详情口恒不下发 uid），
-     * 会话层拿它走搜索「用户」签反查作者 uid 兜底（定根账
-     * author-page-why-missing-20261029 追补）。
+     * 没带为 null。唯一消费：流页作者名缺失时回落显示（正剧条目作者
+     * 身份全链无源、详情口恒不下发 uid，认人只认 cell 自带的
+     * authorUid，没带就点不开主页）。旧注称的「会话层拿它走搜索
+     * 『用户』签反查作者 uid」从未实现，P-03 已摘链（簇二账）。
      */
     private final String publisher;
 

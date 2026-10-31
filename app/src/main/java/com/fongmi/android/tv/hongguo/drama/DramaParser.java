@@ -357,7 +357,8 @@ public final class DramaParser {
         // base_info.user_id 兜底；author 对象形也认）。2026-10-29 实拉
         // 定根（author-page-why-missing-20261029 追补）：单剧/批量详情对
         // 剧集内容恒不下发，此处现行恒空转——口先建对，UGC 形详情或回包
-        // 形状变化时即刻生效；正剧实际来源走会话层搜索反查兜底。
+        // 形状变化时即刻生效。（旧注称「正剧实际来源走会话层搜索反查
+        // 兜底」——该反查从未实现，P-03 已摘链，见簇二账。）
         JsonObject dUgc = obj(d, "ugc_user_info");
         String dUid = null;
         if (dUgc != null) {
@@ -1032,7 +1033,7 @@ public final class DramaParser {
                 str(b, "abstract"), intOf(b, "serial_count", 0), str(b, "author"));
     }
 
-    /** celebrity_user_list 一员 → 用户行（与 parseUserTab 的抽取同口径）。 */
+    /** celebrity_user_list 一员 → 搜索结果用户行。 */
     private static DramaSearchRow searchUserRow(JsonElement el) {
         if (el == null || !el.isJsonObject()) return null;
         JsonObject u = el.getAsJsonObject();
@@ -1521,9 +1522,9 @@ public final class DramaParser {
                     merged.addProperty("content_type", intOf(v0, "content_type", -1));
                 }
                 // 出品方品牌同在这条上（copyright，存档频道回包与搜索
-                // 剧集签实证）——正剧作者 uid 反查兜底的搜索词来源，
-                // 漏抬则反查无词可用（定根账 author-page-why-missing
-                // -20261029 追补）
+                // 剧集签实证）——流页作者名缺失时以它回落显示（唯一
+                // 消费点 HongguoFeedActivity 作者行）；旧注称的「作者
+                // uid 反查搜索词」从未实现，P-03 已摘链（簇二账）
                 putIfPresent(merged, "publisher", str(v0, "copyright"));
             }
             putIfPresent(merged, "series_id", firstStr(vd, "series_id", "series_id_str"));
@@ -2345,58 +2346,6 @@ public final class DramaParser {
                     : Double.parseDouble(e.getAsString());
         } catch (Exception ex) {
             return 0;
-        }
-    }
-
-    /**
-     * 搜索「用户」签回包 → 账号命中表（2026-10-29 本机实拉定版）：
-     * search_tabs 里 tab_type＝27 的 data[] 是 cell，账号挂在 cell 的
-     * celebrity_user_list[]（user_id＋base_info{user_name/user_avatar}＋
-     * user_stat.celebrity_work_cnt）——递归全树收，凡带 celebrity_user_list
-     * 的对象都抽（回包层级随 tab 形态变，不绑死路径）。同 uid 只收一次。
-     * 选正主的口径在会话层（同名精确匹配＋作品数最高），此处只忠实抽取。
-     */
-    public static List<DramaAuthorHit> parseUserTab(String json) {
-        List<DramaAuthorHit> out = new ArrayList<>();
-        if (json == null || json.isEmpty()) return out;
-        JsonObject root;
-        try {
-            root = JsonParser.parseString(json).getAsJsonObject();
-        } catch (Exception e) {
-            return out;
-        }
-        collectAuthorHits(root, out, new java.util.HashSet<>(), 0);
-        return out;
-    }
-
-    private static void collectAuthorHits(JsonElement el, List<DramaAuthorHit> out,
-                                          java.util.Set<String> seen, int depth) {
-        if (el == null || depth > 10) return;
-        if (el.isJsonArray()) {
-            for (JsonElement child : el.getAsJsonArray()) collectAuthorHits(child, out, seen, depth + 1);
-            return;
-        }
-        if (!el.isJsonObject()) return;
-        JsonObject o = el.getAsJsonObject();
-        JsonArray users = arr(o, "celebrity_user_list");
-        if (users != null) {
-            for (JsonElement ue : users) {
-                if (ue == null || !ue.isJsonObject()) continue;
-                JsonObject u = ue.getAsJsonObject();
-                JsonObject base = obj(u, "base_info");
-                String uid = str(u, "user_id");
-                if (uid == null && base != null) uid = str(base, "user_id");
-                String name = base == null ? null : str(base, "user_name");
-                if (name == null) name = str(u, "user_name");
-                if (uid == null || name == null || !seen.add(uid)) continue;
-                JsonObject stat = obj(u, "user_stat");
-                out.add(new DramaAuthorHit(uid, name,
-                        base == null ? null : str(base, "user_avatar"),
-                        stat == null ? -1 : intOf(stat, "celebrity_work_cnt", -1)));
-            }
-        }
-        for (Map.Entry<String, JsonElement> e : o.entrySet()) {
-            collectAuthorHits(e.getValue(), out, seen, depth + 1);
         }
     }
 

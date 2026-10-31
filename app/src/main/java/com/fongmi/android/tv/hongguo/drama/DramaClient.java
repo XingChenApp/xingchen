@@ -991,12 +991,6 @@ public final class DramaClient {
                 sinkOf(cb, text -> DramaParser.parseCellPage(text, tabType)));
     }
 
-    /** 按名反查作者（作者 uid 兜底/搜索用户签共用）。 */
-    public static void searchUsers(String keyword, HgCallback<List<DramaAuthorHit>> cb) {
-        getBrowse("/reading/bookapi/search/tab/v", HgRequests.searchPairs(keyword, 0, 27), true,
-                sinkOf(cb, DramaParser::parseUserTab));
-    }
-
     /** 作者作品流（评论栈 user/profile 口，tab_type=11 作品签，cursor 翻页）。 */
     public static void fetchAuthorWorks(String userId, String cursor, HgCallback<DramaWork.Page> cb) {
         fetchAuthorWorks(userId, cursor, 11, 0, cb);
