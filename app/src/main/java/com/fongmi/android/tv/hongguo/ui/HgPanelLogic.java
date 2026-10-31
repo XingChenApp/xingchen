@@ -52,24 +52,6 @@ public final class HgPanelLogic {
         return Float.toString(speed) + "x";
     }
 
-    /**
-     * 横屏条倍速位文案（官方 ca_ 的 hls 位口径，kr3/t0.x0 定版）：1 倍速显
-     * 「倍速」二字（与布局静态文本同），其余显浮点原样＋x（2.0x/1.25x/0.75x），
-     * 与 speedLabel 的整数去小数口径是两回事，不混用。
-     */
-    public static String landSpeedLabel(float speed) {
-        if (speed == 1f) return "倍速";
-        return Float.toString(speed) + "x";
-    }
-
-    /** 速度在档表中的下标；不在表内回落 1x 的下标（官方找不到回落下标 1 同口径）。 */
-    public static int speedIndex(float speed) {
-        for (int i = 0; i < SPEEDS.length; i++) {
-            if (SPEEDS[i] == speed) return i;
-        }
-        return 1;
-    }
-
     // ---------- 清晰度 ----------
 
     /** 官方档位序（高→低），与 HgVideoModel.firstPlayableEntry 的序一致。 */
@@ -235,16 +217,6 @@ public final class HgPanelLogic {
         return DM_SPEED_FACTORS[clampDanmakuIndex(index, DM_SPEED_FACTORS.length)];
     }
 
-    /** 移动速度档下标 → 标签。 */
-    public static String danmakuSpeedLabel(int index) {
-        return DM_SPEED_LABELS[clampDanmakuIndex(index, DM_SPEED_LABELS.length)];
-    }
-
-    /** 字体大小档下标 → 标签。 */
-    public static String danmakuFontLabel(int index) {
-        return DM_FONT_LABELS[clampDanmakuIndex(index, DM_FONT_LABELS.length)];
-    }
-
     /**
      * 字体大小档下标 → 相对缩放（以适中 16 为 1.0 基准：0.75/0.875/1/1.125/1.25）。
      * 渲染实际出字＝DM_TEXT_SIZE_SP(16sp)×此缩放＝档位实数 12/14/16/18/20。
@@ -271,11 +243,6 @@ public final class HgPanelLogic {
     /** 红果滚动穿越时长·横屏（ms；官方 View 组装亲设 12000，同上除倍率）。 */
     public static final long DM_DURATION_MS_LANDSCAPE = 12000L;
 
-    /** 显示区域值文案（官方「%d行」定版）。 */
-    public static String danmakuAreaText(int lines) {
-        return clampDanmakuLines(lines) + "行";
-    }
-
     // ---------- 显示区域横屏档（批三 C 卡 37：官方 key_line_space） ----------
     // 官方 DanmakuLineSpace 枚举（jadx2 一手）：SINGLE=1/QUARTER=2/
     // HALF=3/THREE_QUARTER=4，存储缺省 QUARTER；语义是横屏显示区高度
@@ -288,11 +255,6 @@ public final class HgPanelLogic {
 
     /** 显示区域横屏档缺省下标（QUARTER，官方存储缺省）。 */
     public static final int DM_AREA_DEFAULT_INDEX = 1;
-
-    /** 显示区域档下标 → 标签。 */
-    public static String danmakuAreaLabel(int index) {
-        return DM_AREA_LABELS[clampDanmakuIndex(index, DM_AREA_LABELS.length)];
-    }
 
     /**
      * 显示区域档下标 → 引擎滚动区高度比（DanmakuConfig.scrollAreaRatio

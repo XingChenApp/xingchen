@@ -960,21 +960,6 @@ public class HongguoLandActivity extends AppCompatActivity {
     private HgFeedPanels.Host landHost() {
         return new HgFeedPanels.Host() {
             @Override
-            public Player player() {
-                return player;
-            }
-
-            @Override
-            public String vid() {
-                return curVid;
-            }
-
-            @Override
-            public String seriesId() {
-                return seriesId;
-            }
-
-            @Override
             public DramaVideoModel currentModel() {
                 return curVid == null ? null : DramaCache.get(curVid);
             }
@@ -1013,11 +998,6 @@ public class HongguoLandActivity extends AppCompatActivity {
             public void setSpeed(float speed) {
                 HgStore.setSpeed(speed);
                 if (player != null) player.setPlaybackSpeed(speed);
-            }
-
-            @Override
-            public void openEpisodes() {
-                showEpisodes();
             }
 
             @Override

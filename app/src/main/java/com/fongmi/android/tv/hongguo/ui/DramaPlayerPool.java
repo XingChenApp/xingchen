@@ -86,9 +86,4 @@ public final class DramaPlayerPool {
         parkedEngine = null;
         parkedBag = null;
     }
-
-    /** 池里有没有泊出物（诊断/防崩扫查用）。 */
-    public static synchronized boolean hasParked() {
-        return parkedEngine != null || parkedBag != null;
-    }
 }

@@ -10,7 +10,6 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.media3.common.Player;
 
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.hongguo.drama.DramaEntry;
@@ -32,12 +31,6 @@ public final class HgFeedPanels {
 
     /** 宿主回调面（竖屏页实现；横屏页阶段8 共用同一面）。 */
     public interface Host {
-        Player player();
-
-        String vid();
-
-        String seriesId();
-
         DramaVideoModel currentModel();
 
         String currentDefinition();
@@ -45,8 +38,6 @@ public final class HgFeedPanels {
         void changeDefinition(String definition);
 
         void setSpeed(float speed);
-
-        void openEpisodes();
 
         /** 定时关闭设档后回调（宿主可据此提示/重排检查）；缺省无动作。 */
         default void onTimerChanged() {

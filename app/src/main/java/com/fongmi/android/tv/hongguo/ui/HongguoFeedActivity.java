@@ -3411,21 +3411,6 @@ public class HongguoFeedActivity extends AppCompatActivity {
     private HgFeedPanels.Host host() {
         return new HgFeedPanels.Host() {
             @Override
-            public Player player() {
-                return player;
-            }
-
-            @Override
-            public String vid() {
-                return currentVid;
-            }
-
-            @Override
-            public String seriesId() {
-                return currentSeriesId;
-            }
-
-            @Override
             public DramaVideoModel currentModel() {
                 return currentVid == null ? null : DramaCache.get(currentVid);
             }
@@ -3472,11 +3457,6 @@ public class HongguoFeedActivity extends AppCompatActivity {
             public void setSpeed(float speed) {
                 HgStore.setSpeed(speed);
                 if (player != null) player.setPlaybackSpeed(speed);
-            }
-
-            @Override
-            public void openEpisodes() {
-                showEpisodeSheet();
             }
 
             @Override
