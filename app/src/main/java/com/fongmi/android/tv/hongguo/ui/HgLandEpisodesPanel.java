@@ -57,6 +57,7 @@ public final class HgLandEpisodesPanel {
     private final LinearLayout root;
     private final TextView title;
     private final RecyclerView grid;
+    private final TextView emptyView;
 
     public HgLandEpisodesPanel(AppCompatActivity activity, Host host) {
         this.activity = activity;
@@ -116,6 +117,16 @@ public final class HgLandEpisodesPanel {
             }
         });
         root.addView(grid, new LinearLayout.LayoutParams(-1, 0, 1f));
+
+        // 空态（C-21 同型，与竖屏选集单同文案）：集表为空时显，
+        // 与网格互斥切换（bind 内定）。
+        emptyView = new TextView(activity);
+        emptyView.setText("暂无集数");
+        emptyView.setTextColor(0xFF8A8A93);
+        emptyView.setTextSize(13.5f);
+        emptyView.setGravity(Gravity.CENTER);
+        emptyView.setVisibility(View.GONE);
+        root.addView(emptyView, new LinearLayout.LayoutParams(-1, 0, 1f));
     }
 
     public View view() {
@@ -134,6 +145,9 @@ public final class HgLandEpisodesPanel {
         HgStore.Progress prog = detail.getSeriesId() == null ? null
                 : HgStore.progressOf(detail.getSeriesId());
         int seen = prog == null ? 0 : prog.episodeIndex;
+        boolean empty = total == 0;
+        grid.setVisibility(empty ? View.GONE : View.VISIBLE);
+        emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
         grid.setAdapter(new EpAdapter(total, currentEpisode, seen,
                 idx -> {
                     if (host != null) host.onPick(idx);

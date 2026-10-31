@@ -129,13 +129,27 @@ public final class HgEpisodeSheet {
                 outRect.top = pos < 6 ? 0 : gap;
             }
         });
-        grid.setAdapter(new EpAdapter(activity, total, currentEpisode, seen, idx -> {
-            dialog.dismiss();
-            onPick.onPick(idx);
-        }, dp));
-        root.addView(grid, new LinearLayout.LayoutParams(-1, -2));
-        if (currentEpisode > 1) {
-            grid.scrollToPosition(currentEpisode - 1);
+        if (total > 0) {
+            grid.setAdapter(new EpAdapter(activity, total, currentEpisode, seen, idx -> {
+                dialog.dismiss();
+                onPick.onPick(idx);
+            }, dp));
+            root.addView(grid, new LinearLayout.LayoutParams(-1, -2));
+            if (currentEpisode > 1) {
+                grid.scrollToPosition(currentEpisode - 1);
+            }
+        } else {
+            // 空态（C-21）：detail 在手但集表为空时此前照开一张
+            // 只有「更新至 0 集」头行的空白单——挂一行空态文案，
+            // 不再让用户对着空网格猜。
+            TextView empty = new TextView(activity);
+            empty.setText("暂无集数");
+            empty.setTextColor(0xFF8A8A93);
+            empty.setTextSize(13.5f);
+            empty.setGravity(Gravity.CENTER);
+            empty.setPadding(dp.applyAsInt(18), dp.applyAsInt(26),
+                    dp.applyAsInt(18), dp.applyAsInt(26));
+            root.addView(empty, new LinearLayout.LayoutParams(-1, -2));
         }
 
         // 脚（定稿 .s-foot）：剧名居中，#FBFAF8 底＋顶线，下沿给
