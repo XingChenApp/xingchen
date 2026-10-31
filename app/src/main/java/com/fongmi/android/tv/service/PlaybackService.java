@@ -51,13 +51,23 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
+/**
+ * 播放服务（共享机制本体）：视频与普通听书/TTS 共用本服务（主服务）。
+ * 红果听书自 2026-10-31 W-15 拆套起走子类 HgAudioPlaybackService 的独立
+ * 实例——同一套机制、两份运行时状态（各自的 PlayerManager/会话/通知/
+ * 导航槽），互不顶播。子类只覆写下方三个钩子，其余逻辑一律共用。
+ */
 public class PlaybackService extends MediaLibraryService implements MediaLibrarySession.Callback, PlayerManager.Callback {
 
     public static final String LOCAL_BIND_ACTION = BuildConfig.APPLICATION_ID.concat(".LOCAL_BIND");
 
     private static final SessionCommand COMMAND_REPEAT = new SessionCommand(ActionEvent.REPEAT, Bundle.EMPTY);
 
+    /** 主服务存活旗（类级）：isRunning() 的既有调用方问的都是主服务，只许主服务写。 */
     private static volatile boolean running;
+
+    /** 本实例存活旗：内部判定一律读它，双服务时各读各的，不许读类级旗串扰。 */
+    private boolean alive;
 
     private final List<PlayerCallback> playerCallbacks = new CopyOnWriteArrayList<>();
     private final IBinder binder = new LocalBinder();
@@ -75,6 +85,25 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         return running;
     }
 
+    /** 媒体会话 id（主服务 xc_video；红果听书服务覆写为 xc_hgaudio）。 */
+    protected String sessionId() {
+        return "xc_video";
+    }
+
+    /** 通知 id（主服务沿用 media3 默认 1001；红果听书服务覆写避撞）。 */
+    protected int notificationId() {
+        return DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID;
+    }
+
+    /**
+     * 是否主服务：只有主服务写类级 running 旗、注册 Server 单例、接管
+     * PlaybackEventCollector 指针——这三处都是全局单槽，拆套后必须归一，
+     * 不许两个服务轮流抢（今日之前是「最后创建者赢」，属隐性串扰）。
+     */
+    protected boolean isPrimaryService() {
+        return true;
+    }
+
     public void replaceBinding(Runnable callback) {
         if (onNewBinding != null) onNewBinding.run();
         onNewBinding = callback;
@@ -85,7 +114,7 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     }
 
     private String serviceState() {
-        return "running=" + running +
+        return "running=" + alive +
                 " player=" + (player != null && !player.isReleased()) +
                 " key=" + (player == null || player.isReleased() ? null : player.getKey()) +
                 " callbacks=" + playerCallbacks.size() +
@@ -100,7 +129,7 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     }
 
     private boolean isPlayerAvailable() {
-        return running && player != null && !player.isReleased();
+        return alive && player != null && !player.isReleased();
     }
 
     @Override
@@ -108,18 +137,19 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         long start = System.currentTimeMillis();
         super.onCreate();
         if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-flow", "service onCreate start");
-        running = true;
+        alive = true;
+        if (isPrimaryService()) running = true;
         player = new PlayerManager(this);
         desktopLyrics = new DesktopLyricsWindow(this);
-        PlaybackEventCollector.get().setPlayer(player);
+        if (isPrimaryService()) PlaybackEventCollector.get().setPlayer(player);
         if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-flow", "service player ready cost=%dms", System.currentTimeMillis() - start);
         exoPlayer = player.getPlayer();
         exoPlayer.addListener(listener);
-        session = new MediaLibrarySession.Builder(this, wrap(exoPlayer), this).setId("xc_video").build();
+        session = new MediaLibrarySession.Builder(this, wrap(exoPlayer), this).setId(sessionId()).build();
         if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-flow", "service session ready cost=%dms", System.currentTimeMillis() - start);
         session.setSessionActivity(buildDefaultIntent());
         EventBus.getDefault().register(this);
-        Server.get().setService(this);
+        if (isPrimaryService()) Server.get().setService(this);
         setupNotification();
         if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-flow", "service onCreate end cost=%dms", System.currentTimeMillis() - start);
     }
@@ -131,7 +161,7 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     }
 
     private void setupNotification() {
-        DefaultMediaNotificationProvider provider = new DefaultMediaNotificationProvider.Builder(this).build();
+        DefaultMediaNotificationProvider provider = new DefaultMediaNotificationProvider.Builder(this).setNotificationId(notificationId()).build();
         session.setMediaButtonPreferences(ImmutableList.of(buildRepeatButton(), buildStopButton()));
         provider.setSmallIcon(R.drawable.ic_notification);
         setMediaNotificationProvider(provider);
@@ -205,12 +235,13 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     @Override
     public void onDestroy() {
         if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-lifecycle", "service destroy before %s", serviceState());
-        running = false;
+        alive = false;
+        if (isPrimaryService()) running = false;
         // player 在 onCreate 首段才赋值：构造中途抛错时 player 为 null，
         // 这里无条件解引用会以二次 NPE 把真因盖掉，故逐处判空。
         if (player != null) {
             player.prepareTerminalRelease();
-            PlaybackEventCollector.get().onStop(player);
+            if (isPrimaryService()) PlaybackEventCollector.get().onStop(player);
         }
         if (desktopLyrics != null) desktopLyrics.release();
         releaseSession();
@@ -219,14 +250,14 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
             player.release();
         }
         removeForeground();
-        Server.get().setService(null);
+        if (isPrimaryService()) Server.get().setService(null);
         EventBus.getDefault().unregister(this);
         super.onDestroy();
-        if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-lifecycle", "service destroy after running=%s", running);
+        if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-lifecycle", "service destroy after running=%s", alive);
     }
 
     private void stopAndClear() {
-        PlaybackEventCollector.get().onStop(player);
+        if (isPrimaryService()) PlaybackEventCollector.get().onStop(player);
         player.stop();
         // 视频会话退出（suspend/shutdown）：被视频暂停的音乐显式续播。
         // stop() 本身不续（刷新/换源/报错路也会调 stop，视频页还开着）。
@@ -245,9 +276,10 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     }
 
     public void shutdown() {
-        if (!running) return;
+        if (!alive) return;
         if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-lifecycle", "service shutdown %s", serviceState());
-        running = false;
+        alive = false;
+        if (isPrimaryService()) running = false;
         player.prepareTerminalRelease();
         stopAndClear();
         removeForeground();
@@ -441,7 +473,7 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
                 MediaItem next = BrowseTree.navigate(current.mediaId, delta);
                 if (next == null || next.localConfiguration == null) return;
                 Result result = BrowseTree.consumeBrowseResult(next.mediaId);
-                if (result == null || !isRunning()) return;
+                if (result == null || !alive) return;
                 App.post(() -> startBrowse(next, result, 0));
             } catch (Exception ignored) {
             }
@@ -604,7 +636,7 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         exoPlayer.removeListener(listener);
         exoPlayer = newPlayer;
         exoPlayer.addListener(listener);
-        PlaybackEventCollector.get().setPlayer(player);
+        if (isPrimaryService()) PlaybackEventCollector.get().setPlayer(player);
         if (session != null) session.setPlayer(wrap(newPlayer));
         playerCallbacks.forEach(callback -> callback.onPlayerRebuild(newPlayer, resetVideoSurface));
     }
