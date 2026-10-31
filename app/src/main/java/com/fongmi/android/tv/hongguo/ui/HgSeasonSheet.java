@@ -219,7 +219,7 @@ public final class HgSeasonSheet {
             cover.setScaleType(ImageView.ScaleType.CENTER_CROP);
             cover.setBackground(roundBg(0xFFE8E6E2, dp.applyAsInt(10)));
             row.addView(cover, new LinearLayout.LayoutParams(
-                    dp.applyAsInt(58), dp.applyAsInt(76));
+                    dp.applyAsInt(58), dp.applyAsInt(76)));
             LinearLayout info = new LinearLayout(activity);
             info.setOrientation(LinearLayout.VERTICAL);
             info.setGravity(Gravity.CENTER_VERTICAL);
