@@ -278,7 +278,7 @@ public class HongguoTheaterActivity extends AppCompatActivity {
         });
         stage.addView(stateText, new android.widget.FrameLayout.LayoutParams(-1, -1));
 
-        root.addView(buildBottomBar());
+        root.addView(buildBottomBar(), new LinearLayout.LayoutParams(-1, -2));
         setContentView(root);
         selectTab();
         applyLayout();
@@ -316,8 +316,12 @@ public class HongguoTheaterActivity extends AppCompatActivity {
 
     private View buildBottomBar() {
         // 底栏（他定案：纯文字签、不要图标；剧场版浅白底，定稿
-        // .tabbar）：顶线＋浅白底，签组左右收 64dp，选中靠字色＋
-        // 字重分；底部 padding 给系统手势区让位，文字不掉进手势区。
+        // .tabbar）：顶线＋浅白底，选中靠字色＋字重分；底部 padding
+        // 给系统手势区让位，文字不掉进手势区。三签均分全宽（件四，
+        // 他 17:2x 点名分布不均）：旧落码签组左右收 64dp、且 wrap 与
+        // bar 都是默认 wrap 宽入父，权重分配没锚在窗宽上——左右垫
+        // 摘除、两层容器宽度都锚满、三格 weight 等分（与首页/我的页
+        // 同口径，定稿 v6 均分三等分）。
         LinearLayout wrap = new LinearLayout(this);
         wrap.setOrientation(LinearLayout.VERTICAL);
         wrap.setBackgroundColor(0xFFFCFBF9);
@@ -326,7 +330,7 @@ public class HongguoTheaterActivity extends AppCompatActivity {
         wrap.addView(line, new LinearLayout.LayoutParams(-1, 1));
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
-        bar.setPadding(dp(64), dp(8), dp(64), dp(10) + navBarHeight());
+        bar.setPadding(0, dp(8), 0, dp(10) + navBarHeight());
         bar.addView(bottomCell("首页", false, v -> goHomeFeed()),
                 new LinearLayout.LayoutParams(0, -2, 1f));
         bar.addView(bottomCell("剧场", true, null),
@@ -334,7 +338,7 @@ public class HongguoTheaterActivity extends AppCompatActivity {
         bar.addView(bottomCell("我的", false,
                         v -> HongguoMineActivity.startTab(this)),
                 new LinearLayout.LayoutParams(0, -2, 1f));
-        wrap.addView(bar);
+        wrap.addView(bar, new LinearLayout.LayoutParams(-1, -2));
         return wrap;
     }
 

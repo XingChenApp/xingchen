@@ -233,7 +233,9 @@ public class HongguoMineActivity extends AppCompatActivity {
 
         tabBar = buildTabBar();
         watchNavInsets();
-        root.addView(tabBar);
+        // 宽度锚满（件四）：默认 wrap 宽入父时三签权重分配不锚窗宽、
+        // 真机整组偏左（他截图 113861 实测中心 3%/37%/70%），显式满宽。
+        root.addView(tabBar, new LinearLayout.LayoutParams(-1, -2));
 
         setContentView(root);
         int initial = getIntent().getIntExtra(EXTRA_INITIAL, MODE_HOME);
@@ -411,7 +413,9 @@ public class HongguoMineActivity extends AppCompatActivity {
 
     // ---------- 定稿首页面：白色三签底栏 ----------
 
-    /** 白色三签底栏：纯文字格，选中（我的）黑粗、无橙点；只 tab 入口的 home 态显。 */
+    /** 白色三签底栏：纯文字格，选中（我的）黑粗、无橙点；只 tab 入口的 home 态显。
+     * 三签均分全宽（定稿 v6 三等分；件四他点名分布不均后锚死）：row 满宽入 bar、
+     * bar 满宽入 root（调用点），三格 weight=1 等分，左右不留空不贴边。 */
     private LinearLayout buildTabBar() {
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.VERTICAL);
@@ -432,7 +436,7 @@ public class HongguoMineActivity extends AppCompatActivity {
             finish();
         }), new LinearLayout.LayoutParams(0, dp(56), 1f));
         row.addView(tabCell("我的", true, null), new LinearLayout.LayoutParams(0, dp(56), 1f));
-        bar.addView(row);
+        bar.addView(row, new LinearLayout.LayoutParams(-1, -2));
         return bar;
     }
 

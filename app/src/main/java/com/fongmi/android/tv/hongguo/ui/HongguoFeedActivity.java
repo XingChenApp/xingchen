@@ -773,13 +773,16 @@ public class HongguoFeedActivity extends AppCompatActivity {
             watchWrap.addView(buildProgressLine(), new LinearLayout.LayoutParams(-1, dp(3)));
             watchBar = watchWrap;
             stack.addView(watchWrap);
-            // 底栏纯文字两签（黑 #202023；选中白＋粗、未选 rgba(白,.55)）；
-            // 定稿 .tabbar 总高 56＋手势区让位，签在高内垂直居中
+            // 底栏纯文字三签（黑 #202023；选中白＋粗、未选 rgba(白,.55)）；
+            // 定稿 .tabbar 总高 56＋手势区让位，签在高内垂直居中。
+            // 三签均分全宽（件四，他 17:2x 点名分布不均）：旧落码左右
+            // 各垫 64dp 把签组收在中间、与定稿 v6 的均分三等分对不上，
+            // 左右垫摘除、三格 weight 等分锚满整宽（与我的页/剧场同口径）。
             LinearLayout bar = new LinearLayout(this);
             bar.setOrientation(LinearLayout.HORIZONTAL);
             bar.setGravity(Gravity.CENTER_VERTICAL);
             bar.setBackgroundColor(0xFF202023);
-            bar.setPadding(dp(64), 0, dp(64), nav);
+            bar.setPadding(0, 0, 0, nav);
             LinearLayout.LayoutParams cell = new LinearLayout.LayoutParams(0, -2, 1f);
             bar.addView(bottomCell("首页", true, null), cell);
             bar.addView(bottomCell("剧场", false,
