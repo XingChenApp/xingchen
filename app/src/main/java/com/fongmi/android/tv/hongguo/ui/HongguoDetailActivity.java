@@ -669,7 +669,13 @@ public class HongguoDetailActivity extends AppCompatActivity {
     }
 
     private void shareDrama() {
-        if (detail == null) return;
+        // 簇六 C-07（账 D25）：详情未回时也要有反馈，此前静默 return
+        // 像钮死了；顶栏分享与更多菜单分享行共用此点，一处收口。
+        if (detail == null) {
+            Toast.makeText(this, "详情还没加载完，请稍后再试",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
         Intent send = new Intent(Intent.ACTION_SEND);
         send.setType("text/plain");
         send.putExtra(Intent.EXTRA_TEXT, detail.getTitle() == null ? ""
