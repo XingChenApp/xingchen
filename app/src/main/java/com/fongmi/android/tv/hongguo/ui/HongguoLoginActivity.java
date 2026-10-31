@@ -19,6 +19,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -57,6 +58,9 @@ public class HongguoLoginActivity extends AppCompatActivity {
     private boolean sending;
     private boolean loggingIn;
     private int remainSeconds;
+    /** 发码倒计时截止时刻（重建存档口 E-03）：存截止点而非剩余秒，
+     * 重建恢复时按真实流逝时间折算，不把倒计时凭空续满。 */
+    private long countdownEndAtMs;
 
     private final Runnable countdownTick = new Runnable() {
         @Override
@@ -239,7 +243,37 @@ public class HongguoLoginActivity extends AppCompatActivity {
         codeInput.addTextChangedListener(watcher);
         refreshLoginBtn();
 
+        if (savedInstanceState != null) {
+            // 进程重建存档口（E-03）：手机号/验证码/协议勾选/发码倒
+            // 计时此前全无存档，重建即清——验证码短信已到手却要重填
+            // 重发。倒计时按截止时刻折算剩余秒续跑。
+            String savedPhone = savedInstanceState.getString("hg_phone");
+            if (savedPhone != null) phoneInput.setText(savedPhone);
+            String savedCode = savedInstanceState.getString("hg_code");
+            if (savedCode != null) codeInput.setText(savedCode);
+            agreeBox.setChecked(savedInstanceState.getBoolean("hg_agree", false));
+            long leftMs = savedInstanceState.getLong("hg_countdown_end", 0)
+                    - System.currentTimeMillis();
+            if (leftMs > 0) {
+                countdownEndAtMs = System.currentTimeMillis() + leftMs;
+                remainSeconds = (int) ((leftMs + 999) / 1000);
+                sendCodeBtn.setEnabled(false);
+                sendCodeBtn.setText(remainSeconds + "秒后重发");
+                mainHandler.postDelayed(countdownTick, 1000);
+            }
+            refreshLoginBtn();
+        }
+
         setContentView(root);
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString("hg_phone", phoneText());
+        outState.putString("hg_code", codeText());
+        outState.putBoolean("hg_agree", agreeBox != null && agreeBox.isChecked());
+        outState.putLong("hg_countdown_end", countdownEndAtMs);
     }
 
     @Override
@@ -308,6 +342,7 @@ public class HongguoLoginActivity extends AppCompatActivity {
     private void startCountdown(int seconds) {
         mainHandler.removeCallbacks(countdownTick);
         remainSeconds = seconds > 0 ? seconds : 60;
+        countdownEndAtMs = System.currentTimeMillis() + remainSeconds * 1000L;
         sendCodeBtn.setEnabled(false);
         sendCodeBtn.setText(remainSeconds + "秒后重发");
         mainHandler.postDelayed(countdownTick, 1000);
@@ -316,6 +351,7 @@ public class HongguoLoginActivity extends AppCompatActivity {
     private void restoreSendCodeBtn() {
         mainHandler.removeCallbacks(countdownTick);
         remainSeconds = 0;
+        countdownEndAtMs = 0;
         sendCodeBtn.setText("获取验证码");
         sendCodeBtn.setEnabled(!sending);
     }
