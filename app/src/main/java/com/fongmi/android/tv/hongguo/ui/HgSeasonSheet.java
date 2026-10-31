@@ -158,9 +158,11 @@ public final class HgSeasonSheet {
 
         // 几何与三单同口径：列表 wrap 自然高、零实量零回写。
         dialog.setContentView(root);
-        View sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
-        if (sheet != null) {
-            sheet.setBackgroundColor(Color.TRANSPARENT);
+        // sheet 容器即 root 的父（design_bottom_sheet 包裹层）：不引
+        // material R 类（符号门桩缺该类、引一次多一条伪影错误），
+        // 从父容器直取同效。
+        if (root.getParent() instanceof View) {
+            ((View) root.getParent()).setBackgroundColor(Color.TRANSPARENT);
         }
         dialog.show();
     }
