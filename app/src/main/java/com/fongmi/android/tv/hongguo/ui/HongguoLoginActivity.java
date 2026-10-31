@@ -262,9 +262,9 @@ public class HongguoLoginActivity extends AppCompatActivity {
         return phone.length() == 11 && phone.startsWith("1");
     }
 
-    /** 登录钮可点口径：手机号 11 位＋验证码至少 4 位，随输入刷新置灰。 */
+    /** 登录钮可点口径：与发码同一校验（D-10，此前只判长度 11、非 1 开头号码也能点登录发请求）＋验证码至少 4 位。 */
     private void refreshLoginBtn() {
-        boolean ready = !loggingIn && phoneText().length() == 11 && codeText().length() >= 4;
+        boolean ready = !loggingIn && phoneValidForCode() && codeText().length() >= 4;
         loginBtn.setEnabled(ready);
         loginBtn.setBackground(roundBg(ready ? 0xFFF0761A : 0xFFE3E3E6, dp(10)));
         loginBtn.setTextColor(ready ? Color.WHITE : 0xFF9B9BA1);
@@ -319,6 +319,10 @@ public class HongguoLoginActivity extends AppCompatActivity {
         if (loggingIn) return;
         if (!agreeBox.isChecked()) {
             toast("请先阅读并同意协议");
+            return;
+        }
+        if (!phoneValidForCode()) {
+            toast("手机号好像不对，请检查一下再填");
             return;
         }
         loggingIn = true;
