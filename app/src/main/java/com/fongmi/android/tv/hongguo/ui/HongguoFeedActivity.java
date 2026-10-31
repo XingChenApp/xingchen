@@ -279,6 +279,11 @@ public class HongguoFeedActivity extends AppCompatActivity {
     private final Map<String, DramaDetail> detailCache = new HashMap<>();
     private HgContinuation continuation;
     private boolean hasMore;
+    /** 进程重建恢复目标条位（B-23）：存档条位落在已拉页之外时，
+     * 沿续拉链逐页补到够得着再落位；-1＝不在恢复中。 */
+    private int restoreTarget = -1;
+    private int restorePulls;
+    private static final int RESTORE_MAX_PULLS = 20;
     private boolean loadingPage;
     private int currentIndex = -1;
     private String currentVid;
@@ -1561,11 +1566,43 @@ public class HongguoFeedActivity extends AppCompatActivity {
         hideState();
         if (first) {
             int start = HgStore.feedPosIndex(HOME_POS_KEY);
+            if (start > 0 && start >= items.size() && hasMore) {
+                // 进程重建恢复（B-23）：存档条位在首批之外——旧写法
+                // 直接夹回 0，已拉页与位置一起丢。沿续拉链逐页补到
+                // 存档位够得着再落位（补拉封顶防服务端异常时无限追
+                // 页）；补拉途中用户先滑走（settle 已接管
+                // currentIndex）即弃恢复。冷启断点续看同走此路
+                // （feedPos 存档的本义就是续看位置）。
+                restoreTarget = start;
+                restorePulls = 0;
+                showState("加载中…", true);
+                loadChannel(false);
+                return;
+            }
             if (start < 0 || start >= items.size()) start = 0;
             feedStartPending = true;
             pager.scrollToPosition(start);
             final int startPos = start;
             main.post(() -> settleTo(startPos));
+        } else if (restoreTarget >= 0) {
+            if (currentIndex >= 0) {
+                restoreTarget = -1;
+            } else if (items.size() > restoreTarget || !hasMore
+                    || ++restorePulls >= RESTORE_MAX_PULLS) {
+                int start = Math.min(restoreTarget, items.size() - 1);
+                restoreTarget = -1;
+                if (start >= 0) {
+                    feedStartPending = true;
+                    pager.scrollToPosition(start);
+                    final int startPos = start;
+                    main.post(() -> {
+                        if (currentIndex < 0) settleTo(startPos);
+                    });
+                }
+            } else {
+                showState("加载中…", true);
+                loadChannel(false);
+            }
         }
     }
 
@@ -1871,7 +1908,33 @@ public class HongguoFeedActivity extends AppCompatActivity {
         if (item.getCommentCount() > 0) return;
         String sid = item.getSeriesId();
         String vid = item.getVid();
-        if (sid == null || vid == null || sid.isEmpty() || vid.isEmpty()) return;
+        if (sid == null || sid.isEmpty()) return;
+        if (vid != null && !vid.isEmpty()) {
+            pullCommentCount(index, item, sid, vid);
+            return;
+        }
+        // 无内联 vid 的剧头条（B-27）：旧门槛要求 sid+vid 双非空，
+        // 这类条目恒不拉、评论数恒显「评论」原文。头条起播走详情定
+        // 首集（playFeedItem 同路），计数同口径——取详情首集 vid 拉
+        // 本集计数；ensureDetail 有缓存、与起播共用一份详情不重取。
+        String rkey = sid + "|resolve";
+        synchronized (countInFlight) {
+            if (!countInFlight.add(rkey)) return;
+        }
+        ensureDetail(sid, detail -> {
+            synchronized (countInFlight) {
+                countInFlight.remove(rkey);
+            }
+            if (detail == null || detail.getEpisodes().isEmpty()) return;
+            String epVid = detail.getEpisodes().get(0).getVideoId();
+            if (epVid == null || epVid.isEmpty()) return;
+            if (index < 0 || index >= items.size() || items.get(index) != item) return;
+            pullCommentCount(index, item, sid, epVid);
+        });
+    }
+
+    /** 按（剧＋集）拉一次评论真 total 回写条目并重绑右列。 */
+    private void pullCommentCount(int index, DramaItem item, String sid, String vid) {
         String key = sid + "|" + vid;
         synchronized (countInFlight) {
             if (!countInFlight.add(key)) return;
@@ -1883,6 +1946,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
                 synchronized (countInFlight) {
                     countInFlight.remove(key);
                 }
+                if (destroyed) return;
                 if (page != null && page.total > 0
                         && index >= 0 && index < items.size()
                         && items.get(index) == item
