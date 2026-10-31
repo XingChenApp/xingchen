@@ -3,6 +3,7 @@ package com.fongmi.android.tv.hongguo.ui;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -178,7 +179,37 @@ public class HongguoMineEditActivity extends AppCompatActivity {
                 }
             }
         }
+        if (savedInstanceState != null) {
+            // 进程重建存档口（E-02）：已选项此前只活内存 LinkedHashSet，
+            // 重建后整表丢失要重选（数据在 HgStore 不丢）。rows 由
+            // HgStore 同步重组、与重建前同源同序，按 id 交集恢复已选
+            // （重建间被删的条目自然落选），滚动状态一并恢复。
+            ArrayList<String> savedSel = savedInstanceState.getStringArrayList("hg_selected");
+            if (savedSel != null) {
+                for (String id : savedSel) {
+                    for (EditRow row : rows) {
+                        if (id.equals(row.id)) {
+                            selected.add(id);
+                            break;
+                        }
+                    }
+                }
+            }
+            Parcelable scroll = savedInstanceState.getParcelable("hg_scroll");
+            if (scroll != null && grid.getLayoutManager() != null) {
+                grid.getLayoutManager().onRestoreInstanceState(scroll);
+            }
+        }
         refreshState();
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putStringArrayList("hg_selected", new ArrayList<>(selected));
+        if (grid != null && grid.getLayoutManager() != null) {
+            outState.putParcelable("hg_scroll", grid.getLayoutManager().onSaveInstanceState());
+        }
     }
 
     private void loadRows() {
