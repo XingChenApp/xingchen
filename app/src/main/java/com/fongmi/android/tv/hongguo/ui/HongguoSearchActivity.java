@@ -98,6 +98,11 @@ public class HongguoSearchActivity extends AppCompatActivity {
      * 回调代次不符或已销毁整发丢弃（不动新代的 loading）。 */
     private volatile boolean destroyed;
     private int searchGen;
+    /** 上一发回包是否失败（B-04/B-19）：失败与真空此前同文案
+     * 「没有找到相关内容」且无重试——失败被装成没搜到。口径与评论
+     * 面（c3781149d）同型：失败只置此旗，不拿失败当到底；空表时
+     * 状态行按此旗分文案，失败文案可点重试。 */
+    private boolean searchFailed;
     /** 进程重建待恢复的列表滚动状态：首批结果落数后消费一次。 */
     private Parcelable pendingLmState;
 
@@ -456,10 +461,12 @@ public class HongguoSearchActivity extends AppCompatActivity {
             hasMore = false;
             nextOffset = 0;
             stateText.setText("搜索中…");
+            stateText.setOnClickListener(null);
             stateText.setVisibility(View.VISIBLE);
         }
         loading = true;
         final int offset = first ? 0 : nextOffset;
+        final boolean isFirst = first;
         final int gen = searchGen;
         DramaClient.searchTab(keyword, offset, tab, new HgCallback<DramaCellPage>() {
             @Override
@@ -467,6 +474,7 @@ public class HongguoSearchActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (destroyed || gen != searchGen) return;
                     loading = false;
+                    searchFailed = false;
                     for (DramaSearchRow r : page.getSearchRows()) {
                         if (r.kind == DramaSearchRow.KIND_SERIES && r.series != null) {
                             rows.add(r);
@@ -488,7 +496,11 @@ public class HongguoSearchActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (destroyed || gen != searchGen) return;
                     loading = false;
-                    hasMore = false;
+                    // 失败不当到底（B-04/B-19）：只置失败旗；首发失败
+                    // 才锁续拉，续拉失败保留 hasMore——已有行时不打扰，
+                    // 滚动近底自然再试（与评论面同型）。
+                    searchFailed = true;
+                    if (isFirst) hasMore = false;
                     afterRows();
                 });
             }
@@ -516,7 +528,18 @@ public class HongguoSearchActivity extends AppCompatActivity {
         }
         if (arriveFade) HgTransition.contentIn(list);
         stateText.setVisibility(rows.isEmpty() ? View.VISIBLE : View.GONE);
-        if (rows.isEmpty()) stateText.setText("没有找到相关内容");
+        if (!rows.isEmpty()) {
+            stateText.setOnClickListener(null);
+        } else if (searchFailed) {
+            // 失败装空是 B-04/B-19 的断点：文案与真空分开，且可点重试
+            stateText.setText("没拉到结果，点这里再试");
+            stateText.setOnClickListener(v -> {
+                if (!loading && !keyword.isEmpty()) runSearch(true);
+            });
+        } else {
+            stateText.setText("没有找到相关内容");
+            stateText.setOnClickListener(null);
+        }
     }
 
     /** 计数简写（与详情页 HgTimeTextCount 同口径：万级一位小数去尾零）。 */
