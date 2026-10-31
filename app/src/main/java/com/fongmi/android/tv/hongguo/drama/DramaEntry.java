@@ -57,16 +57,10 @@ public final class DramaEntry {
     }
 
     public String getDefinition() { return definition; }
-    public String getQuality() { return quality; }
-    public String getVtype() { return vtype; }
     public int getWidth() { return width; }
     public int getHeight() { return height; }
-    public long getBitrate() { return bitrate; }
-    public long getRealBitrate() { return realBitrate; }
-    public double getFps() { return fps; }
     public String getCodecType() { return codecType; }
     public long getSize() { return size; }
-    public String getFileId() { return fileId; }
     public String getFileHash() { return fileHash; }
     /** 原始 main_url：multi 形态为明文链，fplay 形态为加密串（见 {@link #isUrlEncrypted()}）。 */
     public String getMainUrl() { return mainUrl; }

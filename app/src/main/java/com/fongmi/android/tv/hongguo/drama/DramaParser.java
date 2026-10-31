@@ -161,12 +161,8 @@ public final class DramaParser {
         return new DramaVideoModel(
                 requestedId,
                 str(vm, "video_id"),
-                intOf(vm, "status", 0),
-                str(vm, "message"),
                 doubleOf(vm, "video_duration", 0),
-                str(vm, "media_type"),
                 longOf(vm, "url_expire", 0),
-                str(vm, "poster_url"),
                 str(vm, "key_seed"),
                 fallback,
                 vw, vh,

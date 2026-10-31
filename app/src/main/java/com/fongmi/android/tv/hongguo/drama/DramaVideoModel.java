@@ -11,12 +11,8 @@ public final class DramaVideoModel {
 
     private final String requestedId;
     private final String videoId;
-    private final int status;
-    private final String message;
     private final double durationSec;
-    private final String mediaType;
     private final long urlExpire;
-    private final String posterUrl;
     private final String keySeed;
     private final String fallbackApi;
     private final int videoWidth;
@@ -27,18 +23,14 @@ public final class DramaVideoModel {
     /** 构建本模型的 video_model 原始 JSON 串（buildModel 入参原文）；模型缓存落盘时存它、读回经 DramaParser.restoreModel 同路重建，保证字段零漂移。 */
     private final String sourceJson;
 
-    DramaVideoModel(String requestedId, String videoId, int status, String message,
-                 double durationSec, String mediaType, long urlExpire, String posterUrl,
+    DramaVideoModel(String requestedId, String videoId,
+                 double durationSec, long urlExpire,
                  String keySeed, String fallbackApi, int videoWidth, int videoHeight,
                  long diggCount, List<DramaEntry> entries, String sourceJson) {
         this.requestedId = requestedId;
         this.videoId = videoId;
-        this.status = status;
-        this.message = message;
         this.durationSec = durationSec;
-        this.mediaType = mediaType;
         this.urlExpire = urlExpire;
-        this.posterUrl = posterUrl;
         this.keySeed = keySeed;
         this.fallbackApi = fallbackApi;
         this.videoWidth = videoWidth;
@@ -52,13 +44,9 @@ public final class DramaVideoModel {
     public String getRequestedId() { return requestedId; }
     /** 服务端 video_id（v 开头的内部 id）。 */
     public String getVideoId() { return videoId; }
-    public int getStatus() { return status; }
-    public String getMessage() { return message; }
     public double getDurationSec() { return durationSec; }
-    public String getMediaType() { return mediaType; }
     /** 直链过期时间戳（秒）；0 表示回包未给。 */
     public long getUrlExpire() { return urlExpire; }
-    public String getPosterUrl() { return posterUrl; }
     /** 点赞数；模型没带为 -1。 */
     public long getDiggCount() { return diggCount; }
     /** fplay 形态才有：URL 解密用的 key_seed（Base64，32 字节）；multi 明文链形态为 null。 */
@@ -86,11 +74,6 @@ public final class DramaVideoModel {
         }
         for (DramaEntry e : entries) if (e.isPlayableCodec()) return e;
         return entries.isEmpty() ? null : entries.get(0);
-    }
-
-    /** 直链是否已过期（urlExpire 为 0 时按未过期处理，交给上层重试口径）。 */
-    public boolean isExpired(long nowSec) {
-        return urlExpire > 0 && nowSec >= urlExpire;
     }
 
     /**
