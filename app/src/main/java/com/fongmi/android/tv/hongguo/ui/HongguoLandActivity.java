@@ -1070,6 +1070,13 @@ public class HongguoLandActivity extends AppCompatActivity {
                 player.setMediaItem(MediaItem.fromUri(localUrl));
                 player.prepare();
                 player.setPlayWhenReady(true);
+                // 切集重断言配置（C-12）：danmakuConfig 此前只在
+                // 进页与面板变更（applyDanmakuOptions）时建，集与
+                // 集之间不重建——换集落定按当前 HgStore 档位重算
+                // 一次，配置与档位不漂移。
+                if (playerView != null) {
+                    playerView.getDanmakuController().setConfig(danmakuConfig());
+                }
                 startDanmaku(videoId);
             }
 
