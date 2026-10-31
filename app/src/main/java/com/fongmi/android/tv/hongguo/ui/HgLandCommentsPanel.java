@@ -332,6 +332,7 @@ public final class HgLandCommentsPanel {
         private boolean hasMore = true;
         private boolean loading;
         private boolean firstLoaded;
+        private boolean loadFailed;
         private int generation;
         private long lastTotal = -1;
 
@@ -352,8 +353,22 @@ public final class HgLandCommentsPanel {
             hasMore = true;
             loading = false;
             firstLoaded = false;
+            loadFailed = false;
             lastTotal = -1;
             notifyDataSetChanged();
+        }
+
+        /**
+         * 池投递收口（与竖屏评论单 exec 同口径）：destroy 已关池后
+         * 的迟到投递静默丢弃，RejectedExecutionException catch 兜
+         * 竞态窗，不让评论面成为 P0 同型漏网。
+         */
+        private void exec(Runnable task) {
+            if (destroyed) return;
+            try {
+                worker.execute(task);
+            } catch (java.util.concurrent.RejectedExecutionException ignored) {
+            }
         }
 
         /** 自己刚发的评论本地插顶回显＋计数 +1（标题与宿主计数签同源回写，单独隔离）。 */
@@ -378,17 +393,23 @@ public final class HgLandCommentsPanel {
             final String cur = cursor;
             final String s = sid;
             final String vv = v;
-            worker.execute(() -> {
+            exec(() -> {
                 HongguoCommentApi.Page page = HongguoCommentApi.episodeComments(s, vv, cur);
                 activity.runOnUiThread(() -> {
                     if (destroyed || gen != generation) return;
                     loading = false;
-                    firstLoaded = true;
                     if (page == null) {
-                        hasMore = false;
+                        // 失败态与真空态分离（与竖屏评论单同口径）：
+                        // 数据层失败一律回 null，旧写法锁死 hasMore
+                        // 并上「还没有评论」——抖一次整面作废且无重
+                        // 试路。改不锁 hasMore、游标不前进，状态行
+                        // 给失败文案＋点按重试（账 fix168-comment-surfaces）
+                        loadFailed = true;
                         notifyDataSetChanged();
                         return;
                     }
+                    loadFailed = false;
+                    firstLoaded = true;
                     if (page.total > 0) {
                         lastTotal = page.total;
                         // 计数回写单独隔离（与评论单同纪律）：标题与
@@ -420,7 +441,7 @@ public final class HgLandCommentsPanel {
             final String s = sid;
             final String vv = v;
             final String cid = row.comment.id;
-            worker.execute(() -> {
+            exec(() -> {
                 HongguoCommentApi.Page page = HongguoCommentApi.episodeReplies(s, vv, cid, "");
                 activity.runOnUiThread(() -> {
                     if (destroyed || gen != generation || page == null) return;
@@ -506,16 +527,21 @@ public final class HgLandCommentsPanel {
         @Override
         public void onBindViewHolder(@NonNull H h, int position) {
             if (position >= rows.size()) {
-                // 底部状态行（加载/空/到底），与评论单同文
+                // 底部状态行（加载/空/失败/到底），与评论单同文同
+                // 口径：失败态空表时上文案并可点重试
                 h.name.setText("");
                 h.text.setTextColor(0xFF8A8A93);
-                h.text.setText(!firstLoaded ? "加载中…" : (rows.isEmpty() ? "还没有评论" : ""));
+                h.text.setText(loadFailed && rows.isEmpty() ? "没拉到评论，点这里再试"
+                        : !firstLoaded ? "加载中…" : (rows.isEmpty() ? "还没有评论" : ""));
                 h.meta.setText("");
                 h.letter.setText("");
                 h.letter.setBackground(null);
                 h.avatar.setImageDrawable(null);
+                h.itemView.setOnClickListener(
+                        loadFailed && rows.isEmpty() ? v -> loadMore() : null);
                 return;
             }
+            h.itemView.setOnClickListener(null);
             Row row = rows.get(position);
             HongguoCommentApi.Comment c = row.comment;
             if (row.reply) {

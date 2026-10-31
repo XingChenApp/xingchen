@@ -357,6 +357,7 @@ public final class HgCommentsSheet {
         private boolean hasMore = true;
         private boolean loading;
         private boolean firstLoaded;
+        private boolean loadFailed;
         private long lastTotal = -1;
 
         CommentsAdapter(AppCompatActivity a, java.util.function.IntUnaryOperator dp,
@@ -411,12 +412,19 @@ public final class HgCommentsSheet {
                 HongguoCommentApi.Page page = HongguoCommentApi.episodeComments(seriesId, vid, cur);
                 activity.runOnUiThread(() -> {
                     loading = false;
-                    firstLoaded = true;
                     if (page == null) {
-                        hasMore = false;
+                        // 拉取失败（数据层失败一律回 null）须与真空态
+                        // 分开：旧写法当成到底、锁死 hasMore 并上
+                        // 「还没有评论」——网络抖一次整面作废且无重试
+                        // 路。改为不锁 hasMore、游标不前进，状态行给
+                        // 失败文案＋点按重试；已有行时滚动近底亦会再
+                        // 试（账 fix168-comment-surfaces）。
+                        loadFailed = true;
                         notifyDataSetChanged();
                         return;
                     }
+                    loadFailed = false;
+                    firstLoaded = true;
                     if (page.total > 0) {
                         lastTotal = page.total;
                         // 计数回写单独隔离：格式化/宿主回调哪一步抛了，
@@ -530,15 +538,20 @@ public final class HgCommentsSheet {
         @Override
         public void onBindViewHolder(@NonNull H h, int position) {
             if (position >= rows.size()) {
-                // 底部状态行（加载/空/到底）
+                // 底部状态行（加载/空/失败/到底）：失败态只在空表
+                // 时上文案并可点重试，有行时不打扰（滚动自会再试）
                 h.name.setText("");
-                h.text.setText(!firstLoaded ? "加载中…" : (rows.isEmpty() ? "还没有评论" : ""));
+                h.text.setText(loadFailed && rows.isEmpty() ? "没拉到评论，点这里再试"
+                        : !firstLoaded ? "加载中…" : (rows.isEmpty() ? "还没有评论" : ""));
                 h.meta.setText("");
                 h.letter.setText("");
                 h.letter.setBackground(null);
                 h.avatar.setImageDrawable(null);
+                h.itemView.setOnClickListener(
+                        loadFailed && rows.isEmpty() ? v -> loadMore() : null);
                 return;
             }
+            h.itemView.setOnClickListener(null);
             Row row = rows.get(position);
             HongguoCommentApi.Comment c = row.comment;
             if (row.reply) {
