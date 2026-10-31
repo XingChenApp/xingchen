@@ -886,7 +886,23 @@ public class HongguoLandActivity extends AppCompatActivity {
             }
         }
         if (target == null || target.getVideoId() == null) {
-            if (!retry) Toast.makeText(this, "没有这一集", Toast.LENGTH_SHORT).show();
+            if (!retry) {
+                // 末集完播的连播探头（集号越过集表尾）不是「这一集
+                // 不存在」：与竖屏同口径按完结态分文案（官方
+                // P8/Q8，C-17）；其余越界（集表未齐、首集再往前）
+                // 维持原报错文案。
+                int last = 0;
+                for (DramaDetail.Episode e : detail.getEpisodes()) {
+                    if (e.getIndex() > last) last = e.getIndex();
+                }
+                if (last > 0 && episodeIndex > last) {
+                    Toast.makeText(this, detail.isFinished()
+                                    ? "当前已是最后一集" : "当前已是最新一集",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "没有这一集", Toast.LENGTH_SHORT).show();
+                }
+            }
             return;
         }
         final String vid = target.getVideoId();
