@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.text.Editable;
 import android.text.SpannableString;
 import android.text.Spanned;
@@ -91,6 +92,14 @@ public class HongguoSearchActivity extends AppCompatActivity {
     private boolean loading;
     private boolean hasMore;
     private int nextOffset;
+    /** 销毁旗＋搜索代次（B-22）：此前回调无代次无销毁守卫——同词
+     * 同签的在途旧回包与新回包先后到达会重复 append；页销毁后回包
+     * 仍动 adapter。新搜/切签先 bump 代次并放下 loading（顶替在途），
+     * 回调代次不符或已销毁整发丢弃（不动新代的 loading）。 */
+    private volatile boolean destroyed;
+    private int searchGen;
+    /** 进程重建待恢复的列表滚动状态：首批结果落数后消费一次。 */
+    private Parcelable pendingLmState;
 
     /** 带词直达（详情页标签筹点搜的落点）：打开即填词出结果。 */
     public static void startWithKeyword(Context context, String kw) {
@@ -221,6 +230,8 @@ public class HongguoSearchActivity extends AppCompatActivity {
                     pendingContentFade = true;
                     HgTransition.fadeSwap(() -> {
                         applyLayoutManager();
+                        searchGen++;
+                        loading = false; // 顶替旧签在途回包（B-22）
                         runSearch(true);
                     }, list, stateText);
                 }
@@ -276,6 +287,29 @@ public class HongguoSearchActivity extends AppCompatActivity {
 
         setContentView(root);
 
+        if (savedInstanceState != null) {
+            // 进程重建存档口（B-05 搜索面）：configChanges 补齐后旋转
+            // 不再重建，这里兜系统回收——恢复词/签后按原词重搜（结果
+            // 走服务端重拉），滚动状态在首批落数后消费。
+            int savedTab = savedInstanceState.getInt("hg_tab", TAB_DRAMA);
+            tab = savedTab == TAB_VIDEO ? TAB_VIDEO : TAB_DRAMA;
+            String savedInput = savedInstanceState.getString("hg_input");
+            if (savedInput != null && !savedInput.isEmpty()) {
+                input.setText(savedInput);
+                input.setSelection(savedInput.length());
+            }
+            pendingLmState = savedInstanceState.getParcelable("hg_scroll");
+            String savedKw = savedInstanceState.getString("hg_keyword");
+            if (savedKw != null && !savedKw.isEmpty()) {
+                keyword = savedKw;
+                historyBox.setVisibility(View.GONE);
+                tabRow.setVisibility(View.VISIBLE);
+                styleTabs();
+                applyLayoutManager();
+                runSearch(true);
+                return;
+            }
+        }
         String preset = getIntent() == null ? null : getIntent().getStringExtra(EXTRA_KEYWORD);
         if (preset != null && !preset.isEmpty()) {
             input.setText(preset);
@@ -284,6 +318,24 @@ public class HongguoSearchActivity extends AppCompatActivity {
         } else {
             input.requestFocus();
         }
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString("hg_input", input == null || input.getText() == null
+                ? "" : input.getText().toString());
+        outState.putString("hg_keyword", keyword);
+        outState.putInt("hg_tab", tab);
+        if (list != null && list.getLayoutManager() != null) {
+            outState.putParcelable("hg_scroll", list.getLayoutManager().onSaveInstanceState());
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        destroyed = true;
+        super.onDestroy();
     }
 
     private void applyLayoutManager() {
@@ -391,6 +443,8 @@ public class HongguoSearchActivity extends AppCompatActivity {
         tabRow.setVisibility(View.VISIBLE);
         styleTabs();
         applyLayoutManager();
+        searchGen++;
+        loading = false; // 顶替同词在途的旧回包（B-22）
         runSearch(true);
     }
 
@@ -406,10 +460,12 @@ public class HongguoSearchActivity extends AppCompatActivity {
         }
         loading = true;
         final int offset = first ? 0 : nextOffset;
+        final int gen = searchGen;
         DramaClient.searchTab(keyword, offset, tab, new HgCallback<DramaCellPage>() {
             @Override
             public void onSuccess(DramaCellPage page) {
                 runOnUiThread(() -> {
+                    if (destroyed || gen != searchGen) return;
                     loading = false;
                     for (DramaSearchRow r : page.getSearchRows()) {
                         if (r.kind == DramaSearchRow.KIND_SERIES && r.series != null) {
@@ -430,6 +486,7 @@ public class HongguoSearchActivity extends AppCompatActivity {
             @Override
             public void onError(int code, String msg) {
                 runOnUiThread(() -> {
+                    if (destroyed || gen != searchGen) return;
                     loading = false;
                     hasMore = false;
                     afterRows();
@@ -453,6 +510,10 @@ public class HongguoSearchActivity extends AppCompatActivity {
         pendingContentFade = false;
         if (arriveFade) list.setAlpha(0f);
         adapter.notifyDataSetChanged();
+        if (pendingLmState != null && list.getLayoutManager() != null) {
+            list.getLayoutManager().onRestoreInstanceState(pendingLmState);
+            pendingLmState = null;
+        }
         if (arriveFade) HgTransition.contentIn(list);
         stateText.setVisibility(rows.isEmpty() ? View.VISIBLE : View.GONE);
         if (rows.isEmpty()) stateText.setText("没有找到相关内容");
