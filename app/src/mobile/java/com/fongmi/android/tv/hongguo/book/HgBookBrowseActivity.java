@@ -67,6 +67,8 @@ public class HgBookBrowseActivity extends AppCompatActivity {
     private String categoryId = "";
     private int listOffset;
     private String keyword = "";
+    /** 搜索/分类续拉止损旗（A-21）：一页零新增即判到底，不再往下翻。 */
+    private boolean listExhausted;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -207,10 +209,30 @@ public class HgBookBrowseActivity extends AppCompatActivity {
 
     // ---------- 数据 ----------
 
+    /**
+     * 续页并入（A-21 能定的部分）：按 bookId 对已列去重、返回新增条数。
+     * 凭证 advanced 在 next_offset 空时保留旧值（与剧场页共用、不动它），
+     * 服务端同页重回时旧写法无限重复追加——消费侧去重＋调用方以
+     * 「零新增即到底」收口，把无限续拉钉死。offset 语义本身待探针（A-22）。
+     */
+    private int appendEntries(List<HgBookClient.Entry> page) {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (HgBookClient.Entry e : entries) seen.add(e.bookId);
+        int added = 0;
+        for (HgBookClient.Entry e : page) {
+            if (e == null || e.bookId == null || e.bookId.isEmpty()) continue;
+            if (!seen.add(e.bookId)) continue;
+            entries.add(e);
+            added++;
+        }
+        return added;
+    }
+
     private void loadFeedFirst() {
         mode = MODE_FEED;
         cont = null;
         feedHasMore = false;
+        listExhausted = false;
         entries.clear();
         adapter.notifyDataSetChanged();
         setStatus("加载中…");
@@ -221,7 +243,7 @@ public class HgBookBrowseActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (destroyed) return;
                     loading = false;
-                    entries.addAll(page.entries);
+                    appendEntries(page.entries);
                     cont = page.next;
                     feedHasMore = page.hasMore && cont != null;
                     buildChips(page.categories);
@@ -242,6 +264,7 @@ public class HgBookBrowseActivity extends AppCompatActivity {
         mode = MODE_SEARCH;
         keyword = kw;
         listOffset = 0;
+        listExhausted = false;
         entries.clear();
         adapter.notifyDataSetChanged();
         setStatus("搜索中…");
@@ -252,7 +275,7 @@ public class HgBookBrowseActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (destroyed) return;
                     loading = false;
-                    entries.addAll(found);
+                    appendEntries(found);
                     listOffset = found.size();
                     adapter.notifyDataSetChanged();
                     setStatus(found.isEmpty() ? "没搜到相关的书" : "");
@@ -271,6 +294,7 @@ public class HgBookBrowseActivity extends AppCompatActivity {
         mode = MODE_CATEGORY;
         categoryId = c.id;
         listOffset = 0;
+        listExhausted = false;
         entries.clear();
         adapter.notifyDataSetChanged();
         setStatus("加载「" + c.name + "」…");
@@ -281,7 +305,7 @@ public class HgBookBrowseActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (destroyed) return;
                     loading = false;
-                    entries.addAll(found);
+                    appendEntries(found);
                     listOffset = found.size();
                     adapter.notifyDataSetChanged();
                     setStatus(found.isEmpty() ? "这个分类暂时没拉到书" : "");
@@ -307,9 +331,10 @@ public class HgBookBrowseActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         if (destroyed) return;
                         loading = false;
-                        entries.addAll(page.entries);
+                        int added = appendEntries(page.entries);
                         cont = page.next;
-                        feedHasMore = page.hasMore && page.next != null;
+                        // 零新增＝同页重回（凭证 offset 没前进），判到底停拉
+                        feedHasMore = page.hasMore && page.next != null && added > 0;
                         adapter.notifyDataSetChanged();
                     });
                 } catch (Exception e) {
@@ -319,6 +344,7 @@ public class HgBookBrowseActivity extends AppCompatActivity {
                 }
             }, "HgBookMore").start();
         } else if (mode == MODE_SEARCH || mode == MODE_CATEGORY) {
+            if (listExhausted) return;
             loading = true;
             final int offset = listOffset;
             new Thread(() -> {
@@ -329,8 +355,10 @@ public class HgBookBrowseActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         if (destroyed) return;
                         loading = false;
-                        entries.addAll(found);
+                        int added = appendEntries(found);
                         listOffset += found.size();
+                        // 整页都是已列过的书＝offset 没把数据往前推，停拉
+                        if (added == 0) listExhausted = true;
                         adapter.notifyDataSetChanged();
                     });
                 } catch (Exception e) {
