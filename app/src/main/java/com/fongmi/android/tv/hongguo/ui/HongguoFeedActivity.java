@@ -1031,7 +1031,11 @@ public class HongguoFeedActivity extends AppCompatActivity {
             lp.gravity = Gravity.BOTTOM;
             lp.bottomMargin = nav;
             root.addView(line, lp);
-            cleanBaseBottom = dp(148) + nav;
+            // 清屏钮基线（B-08）：旧值 148 落在右列底端（railBase
+            // 140＋心件高）正上方、与点赞心同位相叠——钮一直没敢建。
+            // 改贴底线之上 12：右列从 140 起向上排，与钮（12..62）
+            // 不相交，钮按下去全隐后只剩它自己也不压任何件。
+            cleanBaseBottom = nav + dp(12);
         }
     }
 
@@ -1130,8 +1134,13 @@ public class HongguoFeedActivity extends AppCompatActivity {
         // 清屏钮：正剧播放页＋合集页两面建（他 2026-10-31 点名合集页
         // 也得有；原 triage2 §4.1 只给正剧页的口径就此扩面）。形态＝选集
         // 条/合集条外右侧的独立圆角方钮，按下清屏、全隐只剩它且变淡
-        // （alpha .42）；刷流/单条短片面不建（无条可依、且与右列钮相叠）
-        if (mode == MODE_SERIES || (mode == MODE_VIDEO && videoAlbumId != null)) {
+        // （alpha .42）。簇七扩面（全域账 B-13/B-08）：首页流与 UGC
+        // 单条页此前缺席——两面的基线在 buildBottomAssemblies 已按
+        // 各自底部整块预先算好（FEED＝底整块＋12、与右列 248 基线
+        // 不相交；UGC＝贴底线＋12、右列 140 基线不相交），就此补建；
+        // 单条视频页（MODE_VIDEO 无合集）仍不建（无条可依的旧口径）。
+        if (mode == MODE_SERIES || mode == MODE_FEED || mode == MODE_UGC
+                || (mode == MODE_VIDEO && videoAlbumId != null)) {
             cleanBtn = new ImageView(this);
             cleanBtn.setImageResource(R.drawable.ic_drama_exitfull);
             cleanBtn.setColorFilter(Color.WHITE);
