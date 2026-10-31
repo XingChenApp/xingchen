@@ -1028,10 +1028,9 @@ public final class DramaParser {
 
     /**
      * post_data 一员 → 帖行（存档 tab11 真回包逐字：post_id/title/
-     * pure_content 正文/content 字符串化 materials 图集与关联剧/
-     * user_info 平铺作者/digg_cnt/reply_cnt/favorite_cnt/create_time/
-     * cover_url）。料组装成帖子页的入参形态（DramaWork.PostBody），
-     * 落点 HongguoPostActivity 与作者页帖子同一承接。
+     * pure_content 正文/user_info 平铺作者/digg_cnt/cover_url）。
+     * 正文装入 DramaWork.PostBody（只承载正文，搜索帖行在用）；
+     * materials 图集/关联剧与计数曾一并抽取，全树零消费已摘（P-05）。
      */
     private static DramaSearchRow searchPostRow(JsonElement el) {
         if (el == null || !el.isJsonObject()) return null;
@@ -1048,48 +1047,11 @@ public final class DramaParser {
                 : ui == null ? null : str(ui, "user_name");
         String authorAvatar = base != null ? str(base, "user_avatar")
                 : ui == null ? null : str(ui, "user_avatar");
-        List<String> images = new ArrayList<>();
-        List<String> seriesIds = new ArrayList<>();
-        String raw = str(p, "content");
-        if (raw != null && !raw.isEmpty()) {
-            try {
-                JsonObject textObj = JsonParser.parseString(raw).getAsJsonObject();
-                JsonArray mats = arr(textObj, "materials");
-                if (mats != null) {
-                    for (JsonElement mEl : mats) {
-                        if (!mEl.isJsonObject()) continue;
-                        JsonObject m = mEl.getAsJsonObject();
-                        JsonObject mData = obj(m, "data");
-                        if (mData == null) continue;
-                        String mt = str(m, "type");
-                        if ("img-list".equals(mt)) {
-                            JsonArray datas = arr(mData, "datas");
-                            if (datas != null) {
-                                for (JsonElement dEl : datas) {
-                                    if (!dEl.isJsonObject()) continue;
-                                    String u = str(dEl.getAsJsonObject(), "web_url");
-                                    if (u != null && !u.isEmpty()) images.add(u);
-                                }
-                            }
-                        } else if ("series_card_id".equals(mt)) {
-                            String sid = str(mData, "series_card_id");
-                            if (sid != null && !sid.isEmpty() && !seriesIds.contains(sid)) {
-                                seriesIds.add(sid);
-                            }
-                        }
-                    }
-                }
-            } catch (Exception ignored) {
-                // materials 串坏只丢图集/关联剧，正文与卡面不受影响
-            }
-        }
-        DramaWork.PostBody body = new DramaWork.PostBody(
-                str(p, "pure_content"), images, seriesIds,
-                longOf(p, "reply_cnt", 0), longOf(p, "favorite_cnt", 0));
+        DramaWork.PostBody body = new DramaWork.PostBody(str(p, "pure_content"));
         return DramaSearchRow.ofPost(new DramaWork(DramaWork.KIND_POST,
                 postId, null, firstStr(p, "cover_url", "cover"), title, null, 0,
-                longOf(p, "digg_cnt", 0), 0, 0, null,
-                authorName, authorAvatar, -1, longOf(p, "create_time", 0), body),
+                longOf(p, "digg_cnt", 0), 0, null,
+                authorName, authorAvatar, -1, body),
                 authorUid);
     }
 
@@ -2535,12 +2497,10 @@ public final class DramaParser {
                     expand == null ? 0 : intOf(expand, "episode_cnt", 0),
                     stat == null ? 0 : longOf(stat, "digg_cnt", 0),
                     stat == null ? 0 : longOf(stat, "play_cnt", 0),
-                    stat == null ? 0 : longOf(stat, "hot", 0),
                     subs,
                     base == null ? null : str(base, "user_name"),
                     base == null ? null : str(base, "user_avatar"),
-                    -1,
-                    common == null ? 0 : longOf(common, "create_timestamp", 0));
+                    -1);
         }
         if (type == DramaWork.KIND_POST) {
             JsonObject p = obj(row, "post");
@@ -2560,12 +2520,11 @@ public final class DramaParser {
                     str(p, "post_id"),
                     null, cover, title, null, 0,
                     stat == null ? 0 : longOf(stat, "digg_count", 0),
-                    0, 0, null,
+                    0, null,
                     base == null ? null : str(base, "user_name"),
                     base == null ? null : str(base, "user_avatar"),
                     -1,
-                    common == null ? 0 : longOf(common, "create_timestamp", 0),
-                    postBodyOf(content, stat));
+                    postBodyOf(content));
         }
         if (type == DramaWork.KIND_COMMENT) {
             JsonObject c = obj(row, "comment");
@@ -2581,11 +2540,10 @@ public final class DramaParser {
                     content == null ? null : str(content, "text"),
                     null, 0,
                     stat == null ? 0 : longOf(stat, "digg_count", 0),
-                    0, 0, null,
+                    0, null,
                     base == null ? null : str(base, "user_name"),
                     base == null ? null : str(base, "user_avatar"),
-                    scoreOf(expand),
-                    common == null ? 0 : longOf(common, "create_timestamp", 0));
+                    scoreOf(expand));
         }
         if (type == DramaWork.KIND_ALBUM) {
             // 合集形（2026-10-31 本机复打定版）：row 只挂 album{}——
@@ -2615,17 +2573,8 @@ public final class DramaParser {
                     eps.add(new DramaWork.AlbumEp(
                             str(eo, "video_id"),
                             ec == null ? null : str(ec, "cover"),
-                            ec == null ? null : str(ec, "title"),
                             ec == null ? eps.size() : intOf(ec, "vid_index", eps.size()),
                             es == null ? 0 : longOf(es, "digg_cnt", 0)));
-                }
-            }
-            long publish = 0;
-            String pt = str(a, "publish_time");
-            if (pt != null && !pt.isEmpty()) {
-                try {
-                    publish = Long.parseLong(pt.trim());
-                } catch (Exception ignored) {
                 }
             }
             String albumId = str(a, "album_id");
@@ -2640,58 +2589,19 @@ public final class DramaParser {
                     str(a, "album_name"),
                     str(a, "desc"),
                     intOf(a, "video_count", 0),
-                    0, 0, 0, null, null, null, -1, publish, null, info);
+                    0, 0, null, null, null, -1, null, info);
         }
         return null;
     }
 
     /**
-     * 帖子正文包抽取（实拉回包逐字）：正文＝content.pure_text；图集与
-     * 关联剧在 content.text（字符串化 JSON）的 materials 里——
-     * type=img-list 的 data.datas[].web_url 是图，type=series_card_id 的
-     * data.series_card_id 是关联剧 id。content 缺失返回 null（卡面照旧）。
+     * 帖子正文包抽取：正文＝content.pure_text。content 缺失返回 null
+     * （卡面照旧）。materials 图集/关联剧与 stat 计数曾一并抽取装入，
+     * 全树零消费已随簇十五 P-05 摘除，stat 参数随之撤下。
      */
-    private static DramaWork.PostBody postBodyOf(JsonObject content, JsonObject stat) {
+    private static DramaWork.PostBody postBodyOf(JsonObject content) {
         if (content == null) return null;
-        String text = str(content, "pure_text");
-        List<String> images = new ArrayList<>();
-        List<String> seriesIds = new ArrayList<>();
-        String raw = str(content, "text");
-        if (raw != null && !raw.isEmpty()) {
-            try {
-                JsonObject textObj = JsonParser.parseString(raw).getAsJsonObject();
-                JsonArray mats = arr(textObj, "materials");
-                if (mats != null) {
-                    for (JsonElement el : mats) {
-                        if (!el.isJsonObject()) continue;
-                        JsonObject m = el.getAsJsonObject();
-                        JsonObject data = obj(m, "data");
-                        if (data == null) continue;
-                        String mt = str(m, "type");
-                        if ("img-list".equals(mt)) {
-                            JsonArray datas = arr(data, "datas");
-                            if (datas != null) {
-                                for (JsonElement dEl : datas) {
-                                    if (!dEl.isJsonObject()) continue;
-                                    String u = str(dEl.getAsJsonObject(), "web_url");
-                                    if (u != null && !u.isEmpty()) images.add(u);
-                                }
-                            }
-                        } else if ("series_card_id".equals(mt)) {
-                            String sid = str(data, "series_card_id");
-                            if (sid != null && !sid.isEmpty() && !seriesIds.contains(sid)) {
-                                seriesIds.add(sid);
-                            }
-                        }
-                    }
-                }
-            } catch (Exception ignored) {
-                // materials 串坏只丢图集/关联剧，正文与卡面不受影响
-            }
-        }
-        return new DramaWork.PostBody(text, images, seriesIds,
-                stat == null ? 0 : longOf(stat, "reply_count", 0),
-                stat == null ? 0 : longOf(stat, "collect_count", 0));
+        return new DramaWork.PostBody(str(content, "pure_text"));
     }
 
     /** 剧评分（expand.score 真回包是字符串型 "10"，数字型也容忍）；没带为 -1。 */
@@ -2741,8 +2651,7 @@ public final class DramaParser {
                         firstStr(o, "series_title", "title"),
                         str(o, "series_intro"),
                         vd == null ? 0 : intOf(vd, "episode_cnt", 0),
-                        0, 0, 0, null, null, null, -1,
-                        longOf(o, "collect_time", 0)));
+                        0, 0, null, null, null, -1));
             }
         }
         boolean more = boolOf(data, "has_more");
