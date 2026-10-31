@@ -57,6 +57,7 @@ public class HongguoLoginActivity extends AppCompatActivity {
     private TextView loginBtn;
     private boolean sending;
     private boolean loggingIn;
+    private volatile boolean destroyed;
     private int remainSeconds;
     /** 发码倒计时截止时刻（重建存档口 E-03）：存截止点而非剩余秒，
      * 重建恢复时按真实流逝时间折算，不把倒计时凭空续满。 */
@@ -278,6 +279,7 @@ public class HongguoLoginActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        destroyed = true;
         mainHandler.removeCallbacks(countdownTick);
         super.onDestroy();
     }
@@ -322,6 +324,7 @@ public class HongguoLoginActivity extends AppCompatActivity {
             @Override
             public void onSuccess(Integer seconds) {
                 runOnUiThread(() -> {
+                    if (destroyed) return;
                     sending = false;
                     toast("验证码已发送，请查看手机短信");
                     startCountdown(seconds == null ? 60 : seconds);
@@ -331,6 +334,7 @@ public class HongguoLoginActivity extends AppCompatActivity {
             @Override
             public void onError(int code, String msg) {
                 runOnUiThread(() -> {
+                    if (destroyed) return;
                     sending = false;
                     restoreSendCodeBtn();
                     toast(msg);
@@ -376,6 +380,7 @@ public class HongguoLoginActivity extends AppCompatActivity {
                 // 落盘的会话去同步。save 内部已读回自验。
                 if (!HgAccountStore.save(session)) {
                     runOnUiThread(() -> {
+                        if (destroyed) return;
                         loggingIn = false;
                         refreshLoginBtn();
                         toast("登录状态没能保存下来，请再试一次");
@@ -386,6 +391,7 @@ public class HongguoLoginActivity extends AppCompatActivity {
                 // HgAccountSync 内部后台跑、失败静默，不挡退页）
                 com.fongmi.android.tv.hongguo.api.HgAccountSync.syncAfterLogin();
                 runOnUiThread(() -> {
+                    if (destroyed) return;
                     loggingIn = false;
                     toast("登录成功");
                     finish();
@@ -395,6 +401,7 @@ public class HongguoLoginActivity extends AppCompatActivity {
             @Override
             public void onError(int code, String msg) {
                 runOnUiThread(() -> {
+                    if (destroyed) return;
                     loggingIn = false;
                     refreshLoginBtn();
                     toast(msg);
