@@ -4607,6 +4607,13 @@ public class HongguoFeedActivity extends AppCompatActivity {
                 h.favCount.setText(HgTimeTextCount.format(item.followedCnt));
                 h.favCount.setVisibility(View.VISIBLE);
             }
+            // 收藏药丸（B-12）：pill 此前只有 UGC 单条页点亮，本面
+            // toggleFav 虽调 styleFavPill 刷文案底色、件本身恒 GONE
+            // 永不显。与 UGC 同装配：显形＋按收藏态上色＋点击同路。
+            String favKey = favKeyOf(item);
+            h.pill.setVisibility(View.VISIBLE);
+            styleFavPill(h, favKey != null && HgStore.isFaved(favKey));
+            h.pill.setOnClickListener(v -> toggleFav(item, h));
         }
 
         /** 短剧播放页条目：左下只带箭头剧名（点进详情），无其余信息件。 */
@@ -4653,6 +4660,12 @@ public class HongguoFeedActivity extends AppCompatActivity {
             h.desc.setText(caption == null ? "" : caption);
             h.desc.setVisibility(caption == null || caption.isEmpty()
                     ? View.GONE : View.VISIBLE);
+            // 收藏药丸（B-12）：与首页流同装配点亮（favKeyOf 在合集
+            // 模式按 album 取键，与 toggleFav 同口径）。
+            String favKey = favKeyOf(item);
+            h.pill.setVisibility(View.VISIBLE);
+            styleFavPill(h, favKey != null && HgStore.isFaved(favKey));
+            h.pill.setOnClickListener(v -> toggleFav(item, h));
         }
 
         /** 旧 UGC 单条（作者作品等旧入口）：原形态不动。 */
