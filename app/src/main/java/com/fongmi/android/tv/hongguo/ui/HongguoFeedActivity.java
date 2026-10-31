@@ -512,6 +512,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
         player.addListener(playerListener);
         playerView.setPlayer(player);
         applyDanmakuVisibility();
+        adoptCurrentStream(bag.vid);
         if (decision == DramaLandLogic.RECLAIM_SERIES_JUMP) {
             playEpisodeFromSheet(bag.episodeIndex);
         } else if (decision == DramaLandLogic.RECLAIM_FEED_DIFF) {
@@ -519,6 +520,21 @@ public class HongguoFeedActivity extends AppCompatActivity {
         } else {
             player.setPlayWhenReady(bag.playWhenReady);
         }
+    }
+
+    /**
+     * 领回时把引擎正播那条流的账接到本页 resolver：流若是泊出页
+     * （横屏/播放页）的 resolver 注册的，本页账上没有这笔——不接
+     * 过来，它就只剩泊出页销毁时 closeAllExcept 留的一条命、永远
+     * 无人关也无人重解。URL 从播放器当前媒体项取（本地链里带
+     * token），自家解的流 resolver 已有记录、adoptStream 自跳过。
+     */
+    private void adoptCurrentStream(String vid) {
+        if (vid == null || player == null) return;
+        androidx.media3.common.MediaItem mi = player.getCurrentMediaItem();
+        if (mi == null || mi.localConfiguration == null
+                || mi.localConfiguration.uri == null) return;
+        resolver.adoptStream(vid, mi.localConfiguration.uri.toString());
     }
 
     /**

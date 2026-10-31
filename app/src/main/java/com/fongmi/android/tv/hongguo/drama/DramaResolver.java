@@ -125,6 +125,44 @@ public final class DramaResolver {
         urlByVideo.clear();
     }
 
+    /**
+     * 关掉除指定 vid 外的全部流（交接泊回方销毁时用）：泊回的引擎
+     * 若正播本 resolver 解出的那条流，整表关流会把领回页的续播当场
+     * 掐断——注册表 close 是摘规格＋关活流，在途读直接断。当前集
+     * 那条留命，领回页 reclaim 时经 adoptStream 把账接过去。
+     */
+    public void closeAllExcept(String keepVideoId) {
+        for (String id : tokenByVideo.keySet().toArray(new String[0])) {
+            if (keepVideoId == null || !keepVideoId.equals(id)) close(id);
+        }
+        for (String id : urlByVideo.keySet().toArray(new String[0])) {
+            if (keepVideoId == null || !keepVideoId.equals(id)) {
+                urlByVideo.remove(id);
+            }
+        }
+    }
+
+    /**
+     * 认领一条不是本 resolver 注册的流（交接领回）：引擎在泊出页
+     * 解的链、本地 URL 里带 token，领回页把这条流的账接过来——
+     * 之后这条流的关流/重解归本 resolver，生命周期有着落。自家已
+     * 解过的 vid（urlByVideo 已有记录）不动。
+     */
+    public void adoptStream(String videoId, String localUrl) {
+        if (videoId == null || localUrl == null) return;
+        if (urlByVideo.containsKey(videoId)) return;
+        String token = null;
+        int i = localUrl.indexOf("t=");
+        if (i >= 0) {
+            int end = localUrl.indexOf('&', i + 2);
+            token = end > i ? localUrl.substring(i + 2, end)
+                    : localUrl.substring(i + 2);
+        }
+        if (token == null || token.isEmpty()) return;
+        urlByVideo.put(videoId, localUrl);
+        tokenByVideo.put(videoId, token);
+    }
+
     // ---------- 模型 → 本地 URL ----------
 
     private void settleWithModel(String videoId, DramaVideoModel model) {

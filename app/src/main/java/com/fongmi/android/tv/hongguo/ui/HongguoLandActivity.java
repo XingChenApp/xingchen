@@ -85,6 +85,9 @@ public class HongguoLandActivity extends AppCompatActivity {
     private String danmakuVid;
     private boolean locked;
     private boolean exited;
+    /** 引擎已泊回池里（exitLand/销毁兜底）：销毁关流时要给泊回的
+     * 引擎正播的那条流留命，见 onDestroy。 */
+    private boolean parkedOut;
     private boolean scrubbing;
     private long createdAtMs;
 
@@ -1419,6 +1422,7 @@ public class HongguoLandActivity extends AppCompatActivity {
         player.removeListener(playerListener);
         if (playerView != null) playerView.setPlayer(null);
         DramaPlayerPool.park(bag, engine);
+        parkedOut = true;
         engine = null;
         player = null;
     }
@@ -1484,7 +1488,13 @@ public class HongguoLandActivity extends AppCompatActivity {
         if (commentPanel != null) commentPanel.destroy();
         clearFreezeBitmap();
         if (!exited) parkBack(); // 异常退出兜底：把播放器泊回，不许泄漏
-        resolver.closeAll();
+        // 引擎泊回后销毁关流的口径（交接缝定根）：横屏里切过集时，
+        // 引擎正播的流是本页 resolver 注册的——整表 closeAll 会摘
+        // 规格＋关活流，把竖屏页领回的续播当场掐断（缓冲耗尽即断
+        // 流报错）。泊出过就只关其余集的流，当前集那条留给领回页
+        // reclaim 时 adoptStream 接账；没泊出（早退/无引擎）整表关。
+        if (parkedOut) resolver.closeAllExcept(curVid);
+        else resolver.closeAll();
         // 先摘本页主队列残留回调、后关池（P0 对齐，同竖屏页）
         main.removeCallbacksAndMessages(null);
         worker.shutdownNow();
