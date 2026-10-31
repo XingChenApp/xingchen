@@ -1491,6 +1491,33 @@ public class HongguoLandActivity extends AppCompatActivity {
         exitLand();
     }
 
+    /**
+     * singleTop 复入（C-16）：本页已在栈顶时新的一发进横屏只投到
+     * 这里，此前不覆写＝新交接单被静默吞、画面停在旧剧。交接单
+     * 与当前同剧同集＝重复投递，忽略；已换单时（进页方先泊新单
+     * 新引擎、旧引擎已被池顶掉释放）本页弃旧重开：摘监听、置
+     * exited 防 onDestroy 泊回旧单覆写新单、resolver 旧账由
+     * onDestroy 整表关，finish 后重拉新实例走 onCreate 读新单。
+     */
+    @Override
+    protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (destroyed) return;
+        DramaPlayerPool.Bag bag = DramaPlayerPool.peekBag();
+        if (bag == null) return;
+        if (bag.seriesId != null && bag.seriesId.equals(seriesId)
+                && bag.vid != null && bag.vid.equals(curVid)) return;
+        if (player != null) player.removeListener(playerListener);
+        if (playerView != null) playerView.setPlayer(null);
+        engine = null;
+        player = null;
+        exited = true;
+        finish();
+        HgTransition.fade(this,
+                new android.content.Intent(this, HongguoLandActivity.class));
+    }
+
     /** 件六：系统自动旋转开关现读，读失败按关（与竖屏页同口径）。 */
     private boolean systemAutoRotateOn() {
         try {
