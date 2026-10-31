@@ -43,10 +43,18 @@ import java.util.Map;
  *
  * <p>构成（旧页定版逐项）：作者行（头像 40、名 15 粗、时间 12 灰，
  * yyyy-MM-dd HH:mm）＋标题（17 粗，与正文同文只显正文、防一句
- * 两遍）＋正文（15、行距 1.35）＋图集逐张（全宽、原图比、张距 8）
- * ＋关联剧卡（浅灰底、封面 48×64、剧名 14 粗、集数 12 灰）＋计数行
- * （点赞/收藏/评论 13 灰，只展示）。白底深字与搜索/作者页同族；
+ * 两遍）＋正文（15、行距 1.35）＋图集逐张（全宽、原图比、张距 8、
+ * 12dp 圆角裁剪）＋关联剧卡（白卡圆角细边加投影、封面 48×64、
+ * 剧名 14 粗、集数 12 灰）＋计数行（真矢量图标＋数、13 灰，
+ * 只展示）。配色归红果家族色（主字 #1D2129、正文 #3C424B、
+ * 灰字 #86909C）。白底深字与搜索/作者页同族；
  * 顶栏只放圆返回钮（新栈各页同款），不自带标题字（旧页同口径）。</p>
+ *
+ * <p>质感返工对齐（2026-10-31 追加，施工图＝旧栈 210cd9e35＋
+ * 04d83238b）：计数行换图标去文字签、关联剧卡换白卡、家族色、
+ * 图集圆角均已在本页代码形态落齐；04d83238b 的正文列状态栏
+ * 避让在本页已等效——顶栏自身垫 statusBarHeight＋8dp、正文列
+ * 恒在顶栏之下，作者行不会钻状态栏区，不再重复加 insets。</p>
  *
  * <p>未落（记账，与旧页同口径）：帖子评论区——帖子评论的
  * group_type 候选（UgcCommentGroupType.Post=11）未实拉验通，不接
@@ -177,7 +185,7 @@ public class HongguoPostActivity extends AppCompatActivity {
         nclp.leftMargin = dp(10);
         TextView nameView = new TextView(this);
         nameView.setText(authorName);
-        nameView.setTextColor(0xFF1A1A1A);
+        nameView.setTextColor(0xFF1D2129);
         nameView.setTextSize(15);
         nameView.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
         nameCol.addView(nameView);
@@ -189,7 +197,7 @@ public class HongguoPostActivity extends AppCompatActivity {
         } else {
             timeView.setVisibility(View.GONE);
         }
-        timeView.setTextColor(0xFF999999);
+        timeView.setTextColor(0xFF86909C);
         timeView.setTextSize(12);
         LinearLayout.LayoutParams tvlp = new LinearLayout.LayoutParams(-2, -2);
         tvlp.topMargin = dp(2);
@@ -206,7 +214,7 @@ public class HongguoPostActivity extends AppCompatActivity {
         if (!title.isEmpty() && !title.equals(text)) {
             TextView titleView = new TextView(this);
             titleView.setText(title);
-            titleView.setTextColor(0xFF1A1A1A);
+            titleView.setTextColor(0xFF1D2129);
             titleView.setTextSize(17);
             titleView.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
             titleView.setLineSpacing(0, 1.25f);
@@ -217,7 +225,7 @@ public class HongguoPostActivity extends AppCompatActivity {
         TextView textView = new TextView(this);
         if (!text.isEmpty()) {
             textView.setText(text);
-            textView.setTextColor(0xFF333333);
+            textView.setTextColor(0xFF3C424B);
             textView.setTextSize(15);
             textView.setLineSpacing(0, 1.35f);
         } else if (title.isEmpty() && !hasImages) {
@@ -239,6 +247,9 @@ public class HongguoPostActivity extends AppCompatActivity {
                 ImageView iv = new ImageView(this);
                 iv.setAdjustViewBounds(true);
                 iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                // 图集圆角（210cd9e35 与家族封面同手法：圆角底＋clipToOutline 裁角）
+                iv.setBackgroundResource(R.drawable.bg_hg_cover_r12);
+                iv.setClipToOutline(true);
                 LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(-1, -2);
                 ilp.topMargin = dp(8);
                 col.addView(iv, ilp);
@@ -260,14 +271,17 @@ public class HongguoPostActivity extends AppCompatActivity {
         counts.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(-1, -2);
         clp.topMargin = dp(20);
-        counts.addView(countText("点赞 " + HongguoFeedActivity.HgTimeTextCount.format(
+        counts.addView(countText(R.drawable.ic_hg_author_heart,
+                HongguoFeedActivity.HgTimeTextCount.format(
                 intent.getLongExtra(EXTRA_DIGG, 0))), new LinearLayout.LayoutParams(-2, -2));
-        TextView collect = countText("收藏 " + HongguoFeedActivity.HgTimeTextCount.format(
+        TextView collect = countText(R.drawable.ic_hg_author_collect,
+                HongguoFeedActivity.HgTimeTextCount.format(
                 intent.getLongExtra(EXTRA_COLLECT, 0)));
         LinearLayout.LayoutParams colp = new LinearLayout.LayoutParams(-2, -2);
         colp.leftMargin = dp(24);
         counts.addView(collect, colp);
-        TextView comment = countText("评论 " + HongguoFeedActivity.HgTimeTextCount.format(
+        TextView comment = countText(R.drawable.ic_hg_author_comment,
+                HongguoFeedActivity.HgTimeTextCount.format(
                 intent.getLongExtra(EXTRA_COMMENTS, 0)));
         LinearLayout.LayoutParams cmlp = new LinearLayout.LayoutParams(-2, -2);
         cmlp.leftMargin = dp(24);
@@ -275,11 +289,15 @@ public class HongguoPostActivity extends AppCompatActivity {
         col.addView(counts, clp);
     }
 
-    private TextView countText(String s) {
+    /** 计数行一格（210cd9e35：真矢量图标＋数，不再拿文字当前缀凑图标）。 */
+    private TextView countText(int iconRes, String s) {
         TextView t = new TextView(this);
         t.setText(s);
-        t.setTextColor(0xFF666666);
+        t.setTextColor(0xFF86909C);
         t.setTextSize(13);
+        t.setCompoundDrawablesWithIntrinsicBounds(iconRes, 0, 0, 0);
+        t.setCompoundDrawablePadding(dp(4));
+        t.setGravity(Gravity.CENTER_VERTICAL);
         return t;
     }
 
@@ -307,7 +325,9 @@ public class HongguoPostActivity extends AppCompatActivity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.HORIZONTAL);
         card.setGravity(Gravity.CENTER_VERTICAL);
-        card.setBackground(roundBg(0xFFF5F5F5, 0));
+        // 卡底（210cd9e35）：白卡＋10dp 圆角＋0.5dp 细边 drawable＋2dp 投影，代旧平板灰块
+        card.setBackgroundResource(R.drawable.bg_hg_author_series_card);
+        card.setElevation(dp(2));
         card.setPadding(dp(8), dp(8), dp(8), dp(8));
         LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(-1, -2);
         cardLp.topMargin = dp(8);
@@ -324,7 +344,7 @@ public class HongguoPostActivity extends AppCompatActivity {
         tclp.leftMargin = dp(12);
         TextView titleView = new TextView(this);
         titleView.setText(detail.getTitle());
-        titleView.setTextColor(0xFF1A1A1A);
+        titleView.setTextColor(0xFF1D2129);
         titleView.setTextSize(14);
         titleView.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
         titleView.setMaxLines(2);
@@ -333,7 +353,7 @@ public class HongguoPostActivity extends AppCompatActivity {
         if (detail.getEpisodeCount() > 0) {
             TextView meta = new TextView(this);
             meta.setText("全" + detail.getEpisodeCount() + "集");
-            meta.setTextColor(0xFF999999);
+            meta.setTextColor(0xFF86909C);
             meta.setTextSize(12);
             LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(-2, -2);
             mlp.topMargin = dp(4);

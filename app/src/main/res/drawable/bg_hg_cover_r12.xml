@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「我的」书架卡封面圆角 12dp（官方新样式定版：x33/k.java:248-253 调
+     bookcover.a.f(12dp, 0)；与系列单行 bg_hg_cover_r6 同手法——ImageView
+     以此为 background＋clipToOutline 裁角）。底色为加载中的浅灰占位，
+     封面图盖上后不可见。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="12dp" />
+    <solid android:color="#F7F7F7" />
+</shape>

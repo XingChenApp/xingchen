@@ -100,6 +100,11 @@ app/src/main/res/drawable/bg_hg_badge.xml
 app/src/main/res/drawable/bg_hg_book_chip.xml
 app/src/main/res/drawable/bg_hg_book_searchbar.xml
 app/src/main/res/drawable/bg_hg_cover_r6.xml
+app/src/main/res/drawable/bg_hg_cover_r12.xml
+app/src/main/res/drawable/bg_hg_author_series_card.xml
+app/src/main/res/drawable/ic_hg_author_heart.xml
+app/src/main/res/drawable/ic_hg_author_collect.xml
+app/src/main/res/drawable/ic_hg_author_comment.xml
 app/src/main/res/drawable/bg_hg_follow_btn.xml
 app/src/main/res/drawable/ic_hg_search_gray.xml
 app/src/main/res/drawable/ic_mine_clock.xml

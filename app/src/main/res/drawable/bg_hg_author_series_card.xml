@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 帖子页关联剧卡底（代旧 #FFF5F5F5 平板灰块：白卡＋10dp 圆角＋
+     0.5dp 细边，与作者页浮动关注卡 bg_hg_float_card 同族口径）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="10dp" />
+    <solid android:color="#FFFFFFFF" />
+    <stroke
+        android:width="0.5dp"
+        android:color="#FFE5E6EB" />
+</shape>
