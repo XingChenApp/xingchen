@@ -158,6 +158,14 @@ public class ImportActivity extends AppCompatActivity {
             else BaseLoader.get().clearJs();
         } catch (Throwable ignored) {
         }
+        // 同一脚本的缀号变体清掉（此前按「名(1)」落过盘的存量双份）：只留正名
+        // 这一份，列表/条目不许再双份（fix168-pyimport2）；py 变体一并失效
+        try {
+            for (String variant : PluginFileJudge.purgeAvoidVariants(dir, dest.getName())) {
+                if (py) BaseLoader.get().invalidatePyScript(variant);
+            }
+        } catch (Throwable ignored) {
+        }
         RefreshEvent.home();
         runOnUiThread(() -> openImported(dest, py, bytes));
     }
@@ -393,6 +401,12 @@ public class ImportActivity extends AppCompatActivity {
             site.setJar("");
             VodConfig.get().registerDynamicSite(site);
             VodConfig.get().setHome(site);
+            // 确定性打开凭据：setHome 真落到当前 home 才登记待开标记——首页
+            // Fragment 在 initView/onResume/切回可见任一时点消费它补开，不再只靠
+            // setHome 发的那发会丢的 RefreshEvent（fix168-pyimport2）
+            if (site.getKey().equals(VodConfig.get().getHome().getKey())) {
+                VodConfig.get().markImportedHome(site.getKey());
+            }
         } catch (Throwable ignored) {
         }
         RefreshEvent.home();
