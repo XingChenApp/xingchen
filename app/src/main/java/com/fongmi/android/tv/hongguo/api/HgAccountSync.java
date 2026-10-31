@@ -84,15 +84,42 @@ public final class HgAccountSync {
 
     // ---------- 对外口 ----------
 
+    /** 本进程是否已完成过一轮全量拉取（D-12 进程级闸：进面补拉只跑一次）。 */
+    private static volatile boolean syncedThisProcess;
+
     /** 登录成功后全量拉取合并（收藏/历史/点赞/预约四面，逐面独立、互不连坐）。 */
     public static void syncAfterLogin() {
         if (!HgAccountStore.isLoggedIn()) return;
         WORKER.execute(() -> {
-            pullReservations();
-            pullShelf();
-            pullHistory();
-            pullLikes();
+            runPulls();
+            syncedThisProcess = true;
         });
+    }
+
+    /**
+     * 进我的页补拉（D-12）：此前同步唯一触发点是登录成功瞬间——靠落盘
+     * 会话恢复登录态的后续冷启从不重拉，他端新增的收藏/历史永不进本地。
+     * 现：已登录且本进程未同步过才跑一轮，跑完回调（在 WORKER 线程，
+     * 调用方自行切主线程刷面）；已同步过/未登录则立即回调。
+     */
+    public static void syncOnEnter(Runnable onDone) {
+        if (!HgAccountStore.isLoggedIn() || syncedThisProcess) {
+            if (onDone != null) onDone.run();
+            return;
+        }
+        WORKER.execute(() -> {
+            runPulls();
+            syncedThisProcess = true;
+            if (onDone != null) onDone.run();
+        });
+    }
+
+    /** 四面拉取合并一轮（调用方须在 WORKER 线程）。 */
+    private static void runPulls() {
+        pullReservations();
+        pullShelf();
+        pullHistory();
+        pullLikes();
     }
 
     /** 收藏/追更动作上报（追剧架 AddShelf/DelShelf）；未登录空转、失败静默。 */

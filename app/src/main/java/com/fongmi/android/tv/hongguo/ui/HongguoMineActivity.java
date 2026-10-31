@@ -24,6 +24,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.hongguo.api.HgAccountStore;
+import com.fongmi.android.tv.hongguo.api.HgAccountSync;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -256,6 +257,12 @@ public class HongguoMineActivity extends AppCompatActivity {
         // 返回本页（登录页回来/播放页回来/编辑页回来）整面按落盘现态
         // 重拉（D-06，此前只刷账号行、墙格与已开列表停在旧数据须重进页）
         reloadCurrentView();
+        // 落盘会话进面补拉（D-12）：冷启靠落盘会话恢复登录态时四面
+        // 同步从不触发——进程内只补一轮，落盘后同口再重拉一次本面，
+        // 他端新增的收藏/历史这次进得来、也看得见
+        HgAccountSync.syncOnEnter(() -> runOnUiThread(() -> {
+            if (!isFinishing() && !isDestroyed()) reloadCurrentView();
+        }));
     }
 
     /**
