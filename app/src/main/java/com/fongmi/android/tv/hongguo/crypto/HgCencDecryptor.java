@@ -379,7 +379,8 @@ public final class HgCencDecryptor {
      * <p>缓冲纪律：除每窗一把 Cipher 与一块 15 字节零垫外不分配新缓冲，
      * 样本粒度直接在调用方 buf 上原地异或。</p>
      */
-    public static int decryptWindow(Meta meta, byte[] dek, byte[] buf, long bufStart, int off, int len) {
+    public static int decryptWindow(Meta meta, byte[] dek, byte[] buf, long bufStart, int off, int len)
+            throws IOException {
         long ws = bufStart, we = bufStart + len;
         int blocks = 0;
         try {
@@ -416,7 +417,11 @@ public final class HgCencDecryptor {
                 }
             }
         } catch (Exception e) {
-            throw new IllegalStateException("CENC 解密失败", e);
+            // 必须以 IOException 出（A-10）：调用链 readClear/fill 只声明
+            // IOException，运行时异常会穿透 NanoHTTPD 的出流线程、把错误
+            // 文本混进媒体流且无状态可分；IOException 则由出流层按
+            // 502 明码收口（HongguoStream）。
+            throw new IOException("CENC 解密失败", e);
         }
         return blocks;
     }

@@ -56,6 +56,13 @@ public class HongguoStream implements Process {
             res.addHeader("Accept-Ranges", "bytes");
             if (len < total) res.addHeader("Content-Range", "bytes " + start + "-" + end + "/" + total);
             return res;
+        } catch (java.io.IOException e) {
+            // 上游取数/解密的 IO 失败（A-10）：与「流不存在 404」「Range
+            // 非法 416」分开，给播放器一个可区分的上游失败码，不再与
+            // 其余异常共用一档含糊文本。流式出流途中（HgRangeInputStream
+            // .fill）的解密失败同为 IOException，由 Nano 出流层按连接
+            // 失败收口，不会把错误文本当媒体数据喂给播放器。
+            return Nano.error(Status.BAD_GATEWAY, "红果上游取数或解密失败: " + e.getMessage());
         } catch (Exception e) {
             return Nano.error("红果代理解密失败: " + e.getMessage());
         }
