@@ -211,7 +211,7 @@ public final class DramaItem {
                  boolean hasAppointment, boolean appointmentSubscribed, String dueStartText) {
         this(seriesId, title, coverUrl, desc, episodeCount, hasAppointment, appointmentSubscribed,
                 dueStartText, null, null, null, Collections.emptyList(), null, false, null, -1,
-                Collections.emptyList(), -1, -1, null, null, null, null, null, null, null);
+                Collections.emptyList(), -1, -1, null, null, null, null, null, null);
     }
 
     DramaItem(String seriesId, String title, String coverUrl, String desc, int episodeCount,

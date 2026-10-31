@@ -502,7 +502,7 @@ public final class DramaParser {
                     rowVid, null, null, subTitleList(r), null, false,
                     firstStr(album, "album_id_str", "album_id"), intOf(album, "season_cnt", -1),
                     Collections.emptyList(), -1, -1, intOrNull(r, "series_status"), null, null, null,
-                    null, null, null);
+                    null, null);
             // 行的类型码（取链按它分口，缺了 fetchModelForPlay 拿
             // -1 恒取空）：行自带优先、合集本体兜底，都没有保持 -1。
             int rowType = intOf(r, "content_type", -1);
