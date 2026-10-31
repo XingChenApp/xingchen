@@ -1407,6 +1407,7 @@ public class HongguoLandActivity extends AppCompatActivity {
      * 跳登录页，登录后开编辑层；发表走 DramaDanmakuSender 定版
      * 载荷，成功把自己这条并入弹幕列表回显。 */
     private void onDanmakuSendTap() {
+        if (isFinishing() || isDestroyed()) return;
         if (!com.fongmi.android.tv.hongguo.api.HgAccountStore.isLoggedIn()) {
             HongguoLoginActivity.start(this);
             return;
