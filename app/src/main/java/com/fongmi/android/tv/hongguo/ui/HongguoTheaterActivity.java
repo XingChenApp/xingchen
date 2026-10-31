@@ -124,6 +124,13 @@ public class HongguoTheaterActivity extends AppCompatActivity {
     private boolean pageSettled;
     /** 请求代次：切格后旧格的在途回包一律作废，防串进当前格。 */
     private int loadGen;
+    /** 销毁旗（B-21）：loadGen 只防切格串入，防不了页销毁——在途
+     * 回包在销毁后仍 runOnUiThread 动 adapter/筹面。置位后全回调
+     * 先查此旗（与 Feed/Detail 的 destroyed 同口径）。 */
+    private volatile boolean destroyed;
+    /** 进程重建恢复的滚动位（B-24）：onCreate 从存档口读入，首个
+     * onPage 落数后消费一次（夹到已拉条数内），消费完置 -1。 */
+    private int restoreScrollPos = -1;
 
     private static final class TabState {
         final List<DramaItem> items = new ArrayList<>();
@@ -280,10 +287,63 @@ public class HongguoTheaterActivity extends AppCompatActivity {
 
         root.addView(buildBottomBar(), new LinearLayout.LayoutParams(-1, -2));
         setContentView(root);
+        if (savedInstanceState != null) {
+            // 进程重建存档口（B-24）：configChanges 补齐后旋转/暗色
+            // 不再重建，这里只兜系统回收后的进程级重建——恢复当时
+            // 的格与筛选（数据按恢复后的格/筛选重拉首批，与冷启该
+            // 格同内容），滚动位在首个 onPage 落数后夹位恢复。
+            int savedChannel = savedInstanceState.getInt("hg_tab", 0);
+            channel = savedChannel >= 0 && savedChannel < CHANNEL_NAMES.length
+                    ? savedChannel : 0;
+            activeDimKey = savedInstanceState.getString("hg_dim_key");
+            activeDimValue = savedInstanceState.getString("hg_dim_value");
+            restoreScrollPos = savedInstanceState.getInt("hg_scroll", -1);
+        }
         selectTab();
         applyLayout();
         load(true);
         ensurePanel(channel);
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt("hg_tab", channel);
+        outState.putString("hg_dim_key", activeDimKey);
+        outState.putString("hg_dim_value", activeDimValue);
+        outState.putInt("hg_scroll", firstVisiblePosition());
+    }
+
+    @Override
+    protected void onDestroy() {
+        destroyed = true;
+        super.onDestroy();
+    }
+
+    private int firstVisiblePosition() {
+        RecyclerView.LayoutManager lm = grid == null ? null : grid.getLayoutManager();
+        if (lm instanceof GridLayoutManager) {
+            return ((GridLayoutManager) lm).findFirstVisibleItemPosition();
+        }
+        if (lm instanceof StaggeredGridLayoutManager) {
+            int[] pos = ((StaggeredGridLayoutManager) lm)
+                    .findFirstVisibleItemPositions(null);
+            int min = -1;
+            for (int p : pos) if (p >= 0 && (min < 0 || p < min)) min = p;
+            return min;
+        }
+        return -1;
+    }
+
+    /** 重建滚动位消费：首个回包落数后夹位滚回，普通翻页不触发。 */
+    private void consumeRestoreScroll() {
+        if (restoreScrollPos < 0) return;
+        int count = channel == TAB_CLIPS ? clips.size() : items.size();
+        int target = restoreScrollPos;
+        restoreScrollPos = -1;
+        if (count > 0 && target > 0) {
+            grid.scrollToPosition(Math.min(target, count - 1));
+        }
     }
 
     private int lastVisiblePosition() {
@@ -497,6 +557,7 @@ public class HongguoTheaterActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<DramaFilterRow> rows) {
                 runOnUiThread(() -> {
+                    if (destroyed) return;
                     panelPending.remove(ch);
                     panelCache.put(ch, rows);
                     if (channel == ch) {
@@ -515,6 +576,7 @@ public class HongguoTheaterActivity extends AppCompatActivity {
             @Override
             public void onError(int code, String msg) {
                 runOnUiThread(() -> {
+                    if (destroyed) return;
                     panelPending.remove(ch);
                     panelDead.add(ch);
                 });
@@ -627,14 +689,14 @@ public class HongguoTheaterActivity extends AppCompatActivity {
             @Override
             public void onSuccess(DramaCellPage page) {
                 runOnUiThread(() -> {
-                    if (gen == loadGen) onPage(page, first);
+                    if (!destroyed && gen == loadGen) onPage(page, first);
                 });
             }
 
             @Override
             public void onError(int code, String msg) {
                 runOnUiThread(() -> {
-                    if (gen != loadGen) return;
+                    if (destroyed || gen != loadGen) return;
                     loading = false;
                     pendingContentFade = false;
                     if ((channel == TAB_CLIPS ? clips : items).isEmpty()) {
@@ -731,6 +793,7 @@ public class HongguoTheaterActivity extends AppCompatActivity {
                 added++;
             }
             clipAdapter.notifyDataSetChanged();
+            consumeRestoreScroll();
             arriveFadeIn(added > 0);
             stateText.setVisibility(clips.isEmpty() ? View.VISIBLE : View.GONE);
             if (clips.isEmpty()) stateText.setText("暂时没有内容，点按重试");
@@ -790,6 +853,7 @@ public class HongguoTheaterActivity extends AppCompatActivity {
             added++;
         }
         gridAdapter.notifyDataSetChanged();
+        consumeRestoreScroll();
         arriveFadeIn(added > 0);
         stateText.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
         if (items.isEmpty()) stateText.setText("暂时没有内容，点按重试");
