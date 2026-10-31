@@ -253,20 +253,23 @@ public final class HgFeedPanels {
         // 倍速（定稿行序在前）：竖屏六段升序（0.75/1/1.25/1.5/2/3，
         // 默认 1x）；横屏走官方 LAND_SPEEDS（2/1.75/1.5/1.25/1/
         // 0.75，C-04——此前横屏借竖屏表，1.75 无处可选、3x 冒充
-        // 官方档）。横屏当前速度不在表内（如竖屏存过的 3x）时高
-        // 亮就近档、不许静默回落 1x 误显（落值仍以点选为准）。
+        // 官方档）。两张表互有表外值（横屏存的 1.75 在竖屏表外、
+        // 竖屏存的 3x 在横屏表外）：横竖回显口径收齐（C-04＋
+        // C-09）——当前速度不在本面表内时高亮就近档，不许静默
+        // 回落 1x 误显（此前竖屏侧恒回落下标 1＝1x，横屏选过
+        // 1.75 后竖屏面板会把 1.75 显示成 1x）；落值仍以点选为准。
         TextView speedHead = rowLabel(a, "倍速", true);
         speedHead.setPadding(0, dp(a, 12), 0, dp(a, 11));
         card1.addView(speedHead);
         final float[] speedTable = land ? HgPanelLogic.LAND_SPEEDS : HgPanelLogic.SPEEDS;
         float curSpeed = HgStore.getSpeed();
-        int curSpeedIdx = land ? -1 : 1;
+        int curSpeedIdx = -1;
         String[] speedLabels = new String[speedTable.length];
         for (int i = 0; i < speedLabels.length; i++) {
             speedLabels[i] = speedLabel(speedTable[i]);
             if (speedTable[i] == curSpeed) curSpeedIdx = i;
         }
-        if (land && curSpeedIdx < 0) {
+        if (curSpeedIdx < 0) {
             float best = Float.MAX_VALUE;
             for (int i = 0; i < speedTable.length; i++) {
                 float d = Math.abs(speedTable[i] - curSpeed);
