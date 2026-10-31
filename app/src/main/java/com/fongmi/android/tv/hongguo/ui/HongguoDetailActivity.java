@@ -1285,7 +1285,6 @@ public class HongguoDetailActivity extends AppCompatActivity {
                 if (w.getSeriesId() != null && seen.add(w.getSeriesId())) merged.add(w);
             }
         }
-        if (detail != null) detail.attachRelatedWorks(merged);
         if (merged.isEmpty()) {
             relatedBox.setVisibility(View.GONE);
             return;

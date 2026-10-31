@@ -37,46 +37,43 @@ public final class DramaDetail {
      * 绑定的作品：同剧其它季在前、同 IP 衍生/其它形态（漫剧等）在后，
      * 不是分类/标签推荐流（2026-10-30 本机实拉三部剧定版，账
      * hongguo-related-20261030）。字段口径照 547 cell 的 video_data 条目：
-     * series_id/title/cover/episode_cnt/content_type/tag_info.text
+     * series_id/title/cover/episode_cnt/tag_info.text
      * （角标，如「第2季」「同IP」）/sub_title_list（副行文案，如
      * 「爱情 · 3868万热度」「预告 · 141.2万人已预约」）。集数官方在
-     * cell 条目里常给 0，DramaClient 取回后用批量详情补 episode_cnt 与
-     * series_status，补不到保持 0（未知，卡片回落副行文案，不编数）。
+     * cell 条目里常给 0，DramaClient 取回后用批量详情补 episode_cnt，
+     * 补不到保持 0（未知，卡片回落副行文案，不编数）。
      * book_data（同 IP 的书形态）不进本列表：红果详情页不落书行。
+     * （series_status/content_type/subText 的 getter 曾在模型上备而不用：
+     * 完结态与类型原值全树零消费、subText 只供 isComingSoon 内部判定，
+     * 已随簇十五 P-05 摘除字段与出口，只留 isComingSoon 的内部料。）
      */
     public static final class RelatedWork {
         private final String seriesId;
         private final String title;
         private final String coverUrl;
         private final int episodeCount;
-        private final Integer seriesStatus;
         private final String tagText;
         private final String subText;
-        private final int contentType;
 
         RelatedWork(String seriesId, String title, String coverUrl, int episodeCount,
-                    Integer seriesStatus, String tagText, String subText, int contentType) {
+                    String tagText, String subText) {
             this.seriesId = seriesId;
             this.title = title;
             this.coverUrl = coverUrl;
             this.episodeCount = episodeCount;
-            this.seriesStatus = seriesStatus;
             this.tagText = tagText;
             this.subText = subText;
-            this.contentType = contentType;
         }
 
-        /** 合集季行 → 相关作品条（集数/完结态/角标都走季行自有字段）。 */
+        /** 合集季行 → 相关作品条（集数/角标走季行自有字段）。 */
         public static RelatedWork fromAlbumItem(DramaItem item) {
             return new RelatedWork(item.getSeriesId(), item.getTitle(), item.getCoverUrl(),
-                    item.getEpisodeCount(), item.getSeriesStatus(), item.getBadge(),
-                    null, -1);
+                    item.getEpisodeCount(), item.getBadge(), null);
         }
 
-        /** 批量详情补回集数/完结态后的副本（原条不动）。 */
-        RelatedWork withEpisodeInfo(int count, Integer status) {
-            return new RelatedWork(seriesId, title, coverUrl, count,
-                    status != null ? status : seriesStatus, tagText, subText, contentType);
+        /** 批量详情补回集数后的副本（原条不动）。 */
+        RelatedWork withEpisodeInfo(int count) {
+            return new RelatedWork(seriesId, title, coverUrl, count, tagText, subText);
         }
 
         public String getSeriesId() { return seriesId; }
@@ -84,19 +81,8 @@ public final class DramaDetail {
         public String getCoverUrl() { return coverUrl; }
         /** 集数；未知为 0。 */
         public int getEpisodeCount() { return episodeCount; }
-        /** 完结态原值（series_status）；没补到为 null。 */
-        public Integer getSeriesStatus() { return seriesStatus; }
         /** 封面角标文案（第N季/同IP 等）；没带为 null。 */
         public String getTagText() { return tagText; }
-        /** 副行文案（官方 sub_title_list 拼接）；没带为 null。 */
-        public String getSubText() { return subText; }
-        /** 内容类型原值（content_type，1004＝漫剧）；没带为 -1。 */
-        public int getContentType() { return contentType; }
-
-        /** 是否已完结（与 DramaDetail 同口径：status＝1 或没带判完结）。 */
-        public boolean isFinished() {
-            return seriesStatus == null || seriesStatus == 1;
-        }
 
         /**
          * 未上线（预告/预约态）：官方副行带「预告」「已预约」字样即是
@@ -113,25 +99,22 @@ public final class DramaDetail {
     public static final class Episode {
         private final String videoId;
         private final int index;
-        private final String title;
         /** 本集点赞数（回包 video_list[i].digged_count）；没带为 -1。 */
         private final long diggCount;
 
-        Episode(String videoId, int index, String title) {
-            this(videoId, index, title, -1);
+        Episode(String videoId, int index) {
+            this(videoId, index, -1);
         }
 
-        Episode(String videoId, int index, String title, long diggCount) {
+        Episode(String videoId, int index, long diggCount) {
             this.videoId = videoId;
             this.index = index;
-            this.title = title;
             this.diggCount = diggCount;
         }
 
         public String getVideoId() { return videoId; }
         /** 集序号（从回包顺序或字段取，未知为 -1）。 */
         public int getIndex() { return index; }
-        public String getTitle() { return title; }
         public long getDiggCount() { return diggCount; }
     }
 
@@ -156,22 +139,12 @@ public final class DramaDetail {
      * 回包没带为 null。
      */
     private final Integer seriesStatus;
-    /** 作者声明文案（ai_usage_type 映射）；没带为 null。 */
-    private final String statement;
-    /** 是否多季系列（is_multi_season）。 */
-    private final boolean multiSeason;
-    /** 所属专辑 id（related_album_id，系列单取数钥匙）；没带为 null。 */
-    private final String relatedAlbumId;
     /** 热度原值（hot_score，详情页「红果热度值」拼串用）；没带为 -1。 */
     private final long hotScore;
-    /** 服务端收藏态（followed）；回包没带为 false。 */
-    private final boolean followed;
     /** 收藏数（followed_cnt）；没带为 -1。 */
     private final long followedCnt;
     /** 服务端下发的剧主色（series_color_hex，详情页沉浸底色）；没带为 null。 */
     private final String colorHex;
-    /** 副标题段（series_sub_title_list，如「全74集」「红果热度值4463万」）；没带为空表。 */
-    private final List<String> subTitles;
     /** 分类标签名（category_schema 的 name 列）；没带为空表。 */
     private final List<String> tags;
 
@@ -195,22 +168,6 @@ public final class DramaDetail {
      * 反查兜底/反查命中回填」从未实现，P-03 已摘链（簇二账）。
      */
     private String authorUid;
-
-    /**
-     * 相关作品表（官方 plan 口 547 cell ＋合集兄弟季合并，详情页
-     * loadRelatedWorks 组装后回填，见 attachRelatedWorks）；解析期
-     * 恒空表，详情回包本身不带相关字段（实拉定版）。
-     */
-    private List<RelatedWork> relatedWorks = Collections.emptyList();
-
-    /** 回填相关作品表（详情页组装完成后调用一次，之后只读）。 */
-    public void attachRelatedWorks(List<RelatedWork> works) {
-        this.relatedWorks = works == null ? Collections.emptyList()
-                : Collections.unmodifiableList(new java.util.ArrayList<>(works));
-    }
-
-    /** 相关作品表；未回填为空表。 */
-    public List<RelatedWork> getRelatedWorks() { return relatedWorks; }
 
     /**
      * 内容类型原值（详情回包 data.video_data.content_type，官方
@@ -260,8 +217,8 @@ public final class DramaDetail {
     DramaDetail(String seriesId, String title, String coverUrl, String desc,
                    String authorName, int episodeCount, List<Episode> episodes, JsonObject raw) {
         this(seriesId, title, coverUrl, desc, authorName, episodeCount, episodes, raw,
-                false, false, null, Collections.emptyList(), null, null, false, null,
-                -1, false, -1, null, Collections.emptyList(), Collections.emptyList());
+                false, false, null, Collections.emptyList(), null,
+                -1, -1, null, Collections.emptyList());
     }
 
     DramaDetail(String seriesId, String title, String coverUrl, String desc,
@@ -269,28 +226,24 @@ public final class DramaDetail {
                    boolean hasAppointment, boolean appointmentSubscribed, String dueStartText) {
         this(seriesId, title, coverUrl, desc, authorName, episodeCount, episodes, raw,
                 hasAppointment, appointmentSubscribed, dueStartText,
-                Collections.emptyList(), null, null, false, null,
-                -1, false, -1, null, Collections.emptyList(), Collections.emptyList());
+                Collections.emptyList(), null, -1, -1, null, Collections.emptyList());
     }
 
     DramaDetail(String seriesId, String title, String coverUrl, String desc,
                    String authorName, int episodeCount, List<Episode> episodes, JsonObject raw,
                    boolean hasAppointment, boolean appointmentSubscribed, String dueStartText,
-                   List<Celebrity> celebrities, Integer seriesStatus, String statement,
-                   boolean multiSeason, String relatedAlbumId) {
+                   List<Celebrity> celebrities, Integer seriesStatus) {
         this(seriesId, title, coverUrl, desc, authorName, episodeCount, episodes, raw,
                 hasAppointment, appointmentSubscribed, dueStartText,
-                celebrities, seriesStatus, statement, multiSeason, relatedAlbumId,
-                -1, false, -1, null, Collections.emptyList(), Collections.emptyList());
+                celebrities, seriesStatus, -1, -1, null, Collections.emptyList());
     }
 
     DramaDetail(String seriesId, String title, String coverUrl, String desc,
                    String authorName, int episodeCount, List<Episode> episodes, JsonObject raw,
                    boolean hasAppointment, boolean appointmentSubscribed, String dueStartText,
-                   List<Celebrity> celebrities, Integer seriesStatus, String statement,
-                   boolean multiSeason, String relatedAlbumId,
-                   long hotScore, boolean followed, long followedCnt, String colorHex,
-                   List<String> subTitles, List<String> tags) {
+                   List<Celebrity> celebrities, Integer seriesStatus,
+                   long hotScore, long followedCnt, String colorHex,
+                   List<String> tags) {
         this.seriesId = seriesId;
         this.title = title;
         this.coverUrl = coverUrl;
@@ -304,28 +257,17 @@ public final class DramaDetail {
         this.dueStartText = dueStartText;
         this.celebrities = Collections.unmodifiableList(celebrities);
         this.seriesStatus = seriesStatus;
-        this.statement = statement;
-        this.multiSeason = multiSeason;
-        this.relatedAlbumId = relatedAlbumId;
         this.hotScore = hotScore;
-        this.followed = followed;
         this.followedCnt = followedCnt;
         this.colorHex = colorHex;
-        this.subTitles = subTitles == null ? Collections.emptyList()
-                : Collections.unmodifiableList(subTitles);
         this.tags = tags == null ? Collections.emptyList()
                 : Collections.unmodifiableList(tags);
     }
 
-    public String getStatement() { return statement; }
     public long getHotScore() { return hotScore; }
-    public boolean isFollowed() { return followed; }
     public long getFollowedCnt() { return followedCnt; }
     public String getColorHex() { return colorHex; }
-    public List<String> getSubTitles() { return subTitles; }
     public List<String> getTags() { return tags; }
-    public boolean isMultiSeason() { return multiSeason; }
-    public String getRelatedAlbumId() { return relatedAlbumId; }
 
     public String getSeriesId() { return seriesId; }
     public String getTitle() { return title; }

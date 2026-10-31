@@ -253,7 +253,7 @@ public final class DramaParser {
                 int idx = intOf(eo, "index", -1);
                 if (idx < 0) idx = intOf(eo, "episode_index", -1);
                 if (idx < 0) idx = intOf(eo, "vid_index", i + 1);
-                episodes.add(new DramaDetail.Episode(vid, idx, firstStr(eo, "title", "name"),
+                episodes.add(new DramaDetail.Episode(vid, idx,
                         longOf(eo, "digged_count", -1)));
                 i++;
             }
@@ -283,7 +283,9 @@ public final class DramaParser {
             }
         }
         // 详情页增量（video_data 真回包逐字，e1_detail 存档实证）：热度原值、
-        // 服务端收藏态与收藏数、剧主色、副标题段、分类标签名。
+        // 收藏数、剧主色、分类标签名。（服务端收藏态 followed／副标题段
+        // sub_title_list／声明／多季／专辑 id 曾在此抽取装入详情模型，
+        // 全树零消费，已随簇十五 P-05 摘除，不再抽取。）
         List<String> tags = new ArrayList<>();
         String schema = str(d, "category_schema");
         if (schema != null && !schema.isEmpty()) {
@@ -329,7 +331,7 @@ public final class DramaParser {
         if (ugcShape && episodes.isEmpty()) {
             String ugcVid = firstStr(d, "video_id", "vid");
             if (ugcVid != null) {
-                episodes.add(new DramaDetail.Episode(ugcVid, 1, title));
+                episodes.add(new DramaDetail.Episode(ugcVid, 1));
                 if (count < 0) count = 1;
             } else {
                 ugcShape = false;
@@ -340,12 +342,10 @@ public final class DramaParser {
                 appt != null, appt != null && boolOf(appt, "is_subscribed"),
                 appt == null ? null : str(appt, "due_start_text"),
                 celebrities, intOrNull(d, "series_status"),
-                statementOf(intOrNull(d, "ai_usage_type")),
-                boolOf(d, "is_multi_season"), firstStr(d, "related_album_id_str", "related_album_id"),
-                longOf(d, "hot_score", -1), boolOf(d, "followed"),
+                longOf(d, "hot_score", -1),
                 longOf(d, "followed_cnt", -1),
                 colorHex == null || colorHex.isEmpty() ? null : colorHex,
-                subTitleList(d), tags);
+                tags);
         // 内容类型与 series_status 同在 video_data 本体（官方
         // VideoDetailInfo 两键并列，抠查账 manju-follow-dig 件 1）：
         // 构造器没带此参，照 ugcVideoModel 的 attach 惯例回填
@@ -433,9 +433,9 @@ public final class DramaParser {
                 out.add(new DramaDetail.RelatedWork(sid,
                         firstStr(o, "title", "series_title"),
                         firstStr(o, "cover", "series_cover"),
-                        intOf(o, "episode_cnt", 0), null,
+                        intOf(o, "episode_cnt", 0),
                         tagInfo == null ? null : str(tagInfo, "text"),
-                        subText, intOf(o, "content_type", -1)));
+                        subText));
             }
         }
         return out;

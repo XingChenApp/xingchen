@@ -820,7 +820,7 @@ public final class DramaClient {
                         for (DramaDetail.RelatedWork w : works) {
                             DramaDetail d = map.get(w.getSeriesId());
                             merged.add(d == null ? w : w.withEpisodeInfo(
-                                    d.getEpisodeCount(), d.getSeriesStatus()));
+                                    d.getEpisodeCount()));
                         }
                         cb.onSuccess(merged);
                     }
