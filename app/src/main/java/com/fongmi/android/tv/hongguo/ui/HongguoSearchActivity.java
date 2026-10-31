@@ -57,8 +57,9 @@ import java.util.Locale;
  * （命中词橙染）、再下一排小筹（infoChips 筹＋状态筹「全N集/更新至
  * N集」＋「x万收藏」筹）；点卡直进播放页。视频签＝两列瀑布视频卡：
  * 封面（按 vertical 定横竖比）、文案、作者头像＋名字行；点卡进视频页
- * （合集走专辑路）。帖行（post_data）只出卡不落点——帖子页已不存在，
- * 不编造落点。</p>
+ * （合集走专辑路）；签内混入的正剧行回剧集卡承接（B-17：卡型与落点
+ * 同型，落点仍是剧集播放页）。帖行（post_data）只出卡不落点——帖子
+ * 页已不存在，不编造落点。</p>
  */
 public class HongguoSearchActivity extends AppCompatActivity {
 
@@ -618,8 +619,18 @@ public class HongguoSearchActivity extends AppCompatActivity {
         @Override
         public int getItemViewType(int position) {
             DramaSearchRow r = rows.get(position);
-            if (tab == TAB_VIDEO) return TYPE_CLIP;
-            return TYPE_POSTER;
+            if (tab == TAB_DRAMA) return TYPE_POSTER;
+            // 视频签混入的正剧行（B-17）：此前整签一律短片卡——正剧
+            // 被按短片卡渲染（封面比/文案位），点开却走 startSeries，
+            // 卡型与落点分型不一致。正剧行回剧集卡（落点即剧集播放
+            // 页），真视频（短片/合集/帖）维持短片卡。
+            return isSeriesRow(r) ? TYPE_POSTER : TYPE_CLIP;
+        }
+
+        /** 行内条目是否为正剧（卡型与落点同判据，绑定分发共用）。 */
+        private boolean isSeriesRow(DramaSearchRow r) {
+            return r.kind == DramaSearchRow.KIND_SERIES && r.series != null
+                    && r.series.kind == DramaItemKind.SERIES;
         }
 
         @NonNull
@@ -762,7 +773,8 @@ public class HongguoSearchActivity extends AppCompatActivity {
         @Override
         public void onBindViewHolder(@NonNull H h, int position) {
             DramaSearchRow r = rows.get(position);
-            if (tab == TAB_DRAMA) bindPoster(h, r.series);
+            // 绑定分发与卡型同一判据（B-17）：剧集卡只喂正剧行。
+            if (getItemViewType(position) == TYPE_POSTER) bindPoster(h, r.series);
             else if (r.kind == DramaSearchRow.KIND_POST) bindPost(h, r.post);
             else bindClip(h, r.series);
         }
