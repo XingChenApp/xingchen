@@ -252,3 +252,11 @@
 
 # 红果登录会话落盘 JSON 字段名保活（gson 按字段名序列化，防跨版本混淆改名把已存会话读废）
 -keep class com.fongmi.android.tv.hongguo.api.HgAccountStore$Session { *; }
+
+# 收官大扫查类二加固（2026-10-31，账 hongguo-round-close-20261031）：以下三类含
+# 泛型集合字段、走 Gson .class 读回，此前只靠 -keepattributes Signature 保险丝
+# 单层防护（无 TypeToken/retype/点名 keep）——保险丝在位时不崩，但单层就是单层，
+# 按 HkRule/HkItem 同口径补点名保名作第二层。保险丝本体一字未动。
+-keep class com.fongmi.android.tv.api.hk.HkProxyServer$ProxyResult { *; }
+-keep class com.fongmi.android.tv.api.hk.browser.HkBrowserProxyRule { *; }
+-keep class com.fongmi.android.tv.ui.hk.HkX5Extra { *; }
