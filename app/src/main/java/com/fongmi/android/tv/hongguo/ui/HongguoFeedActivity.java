@@ -1379,13 +1379,26 @@ public class HongguoFeedActivity extends AppCompatActivity {
 
     private void onChannelPage(com.fongmi.android.tv.hongguo.drama.DramaCellPage page, boolean first) {
         loadingPage = false;
-        hasMore = page.isHasMore();
+        // 续拉触发门改以 offset 推进为准（#13 活体定段，账
+        // fix168-remedies-20261031 件一）：固定脸实拉 bookmall/tab，
+        // 开页 tab16 的 has_more 在场但恒 false、next_offset 在场（0），
+        // 旧门 hasMore＝page.isHasMore() 在开页就把续拉焊死（凭证与
+        // offset 都在、门不开，与「只有四条」同形）。新判据：凭证带
+        // 着 next_offset 且较本页所用 offset 前进了就还有下页——
+        // has_more 缺失/为 false 不再单独否决；offset 不前进（同值/
+        // 缺失）即停，防服务端卡住时同页死循环。首轮开页无所用
+        // offset，凭证在位即算有下页（与剧场 advanceContinuation 的
+        // 首轮口径一致）。
+        String usedOffset = continuation != null ? continuation.getOffset() : null;
         if (page.getContinuation() != null) continuation = page.getContinuation();
         else if (page.getNextOffset() != null && continuation != null) {
             continuation = new HgContinuation(continuation.getCellId(), page.getSessionId(),
                     continuation.getClientTemplate(), continuation.getShowType(),
                     continuation.getTabType(), page.getNextOffset());
         }
+        String nextOffset = continuation != null ? continuation.getOffset() : null;
+        hasMore = nextOffset != null && !nextOffset.isEmpty()
+                && (usedOffset == null || !nextOffset.equals(usedOffset));
         java.util.Set<String> seen = new java.util.HashSet<>();
         for (DramaItem it : items) if (it.getSeriesId() != null) seen.add(it.getSeriesId() + "/" + it.getVid());
         int added = 0;
