@@ -371,7 +371,17 @@ public class HongguoLoginActivity extends AppCompatActivity {
         passportClient.smsLogin(phoneText(), codeText(), new HgCallback<HgAccountStore.Session>() {
             @Override
             public void onSuccess(HgAccountStore.Session session) {
-                HgAccountStore.save(session);
+                // 漏派 A-17：落盘失败不许报假成功——会话没存住重启
+                // 即掉登录态；给真失败、留在本页可重试，也不拿没
+                // 落盘的会话去同步。save 内部已读回自验。
+                if (!HgAccountStore.save(session)) {
+                    runOnUiThread(() -> {
+                        loggingIn = false;
+                        refreshLoginBtn();
+                        toast("登录状态没能保存下来，请再试一次");
+                    });
+                    return;
+                }
                 // 登录成功即拉云端片单合并本地镜像（收藏/历史/点赞/预约，
                 // HgAccountSync 内部后台跑、失败静默，不挡退页）
                 com.fongmi.android.tv.hongguo.api.HgAccountSync.syncAfterLogin();

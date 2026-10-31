@@ -27,8 +27,10 @@ import javax.crypto.spec.GCMParameterSpec;
  * 无则生成 AES-256）——这是 hongguo-assistant 的 official-account.enc
  * 系统保护加密的等价物（定版见 metasec-integration-design-20261031.md §5）。
  *
- * <p>文件字节＝12B IV 前缀＋密文。读写全程吞异常：load 无文件/损坏/解密
- * 失败一律返 null，save 失败静默，clear 删文件。文件很小，主线程可调。</p>
+ * <p>文件字节＝12B IV 前缀＋密文。load 无文件/损坏/解密失败一律返
+ * null，clear 删文件。save 返回成败（写完读回自验，能原样读回才算
+ * 成）——漏派 A-17 定根：旧版 save 失败全静默，登录面报了成功却没
+ * 落盘、重启即掉登录态无从归因；登录面必须据返回值给真失败。</p>
  */
 public final class HgAccountStore {
 
@@ -79,25 +81,35 @@ public final class HgAccountStore {
         return s != null && s.cookie != null && s.cookie.contains("sessionid");
     }
 
-    /** 加密落盘；失败静默。 */
-    public static void save(Session session) {
+    /**
+     * 加密落盘；写完读回自验、能原样读回才返 true（漏派 A-17）。
+     * 全树唯一调用方是登录面，它据此决定报成功还是真失败。
+     */
+    public static boolean save(Session session) {
         try {
-            if (session == null) return;
+            if (session == null) return false;
             File file = file();
-            if (file == null) return;
+            if (file == null) return false;
             // IV 由 Cipher 生成再取回（AndroidKeyStore 密钥默认要求随机加密、
             // 调用方自带 IV 加密会被拒；生成 IV 恒 12B，与 GitCloudTokenStore 同口径）。
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(Cipher.ENCRYPT_MODE, key());
             byte[] iv = cipher.getIV();
-            if (iv == null || iv.length != IV_BYTES) return;
+            if (iv == null || iv.length != IV_BYTES) return false;
             byte[] body = cipher.doFinal(GSON.toJson(session).getBytes(StandardCharsets.UTF_8));
             try (OutputStream out = new FileOutputStream(file)) {
                 out.write(iv);
                 out.write(body);
+                out.flush();
             }
+            // 读回自验：写完读不回等于没落盘（重启即掉登录态），
+            // 按失败报，让登录面给得出真失败、不报假成功。
+            Session back = load();
+            return back != null
+                    && java.util.Objects.equals(back.cookie, session.cookie)
+                    && java.util.Objects.equals(back.userId, session.userId);
         } catch (Exception e) {
-            // 静默：落盘失败不拦登录流程，下次登录再写。
+            return false;
         }
     }
 
