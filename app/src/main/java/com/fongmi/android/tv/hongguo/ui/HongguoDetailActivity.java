@@ -702,6 +702,7 @@ public class HongguoDetailActivity extends AppCompatActivity {
     }
 
     private void showMoreSheet() {
+        if (isFinishing() || isDestroyed()) return;
         BottomSheetDialog dialog = new BottomSheetDialog(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
