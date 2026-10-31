@@ -473,10 +473,15 @@ public final class HgFeedPanels {
         LinearLayout root = sheetRoot(a, Color.WHITE);
         root.addView(sheetHead(a, "弹幕设置"));
 
-        addSlider(a, root, "不透明度", HgStore.getDanmakuOpacity(), 100, v -> {
-            HgStore.setDanmakuOpacity(v);
-            host.onDanmakuOptionsChanged();
-        });
+        // 不透明度（C-10）：值域 20–100（HgPanelLogic 界），滑杆
+        // 照官方口径 max 80＋偏移 20 映射——此前滑杆直用 0–100 原
+        // 始进度、靠 HgStore clamp 到 20，左端约两成行程为空程。
+        addSlider(a, root, "不透明度",
+                HgStore.getDanmakuOpacity() - HgPanelLogic.DM_OPACITY_MIN,
+                HgPanelLogic.DM_OPACITY_MAX - HgPanelLogic.DM_OPACITY_MIN, v -> {
+                    HgStore.setDanmakuOpacity(v + HgPanelLogic.DM_OPACITY_MIN);
+                    host.onDanmakuOptionsChanged();
+                });
         addSlider(a, root, "移动速度", HgStore.getDanmakuSpeedIndex(),
                 HgPanelLogic.DM_SPEED_LABELS.length - 1, v -> {
                     HgStore.setDanmakuSpeedIndex(v);
