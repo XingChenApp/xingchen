@@ -520,6 +520,12 @@ public final class DramaClient {
             cb.onSuccess(cached);
             return;
         }
+        if (cached != null && cached.getFallbackApi() != null && !cached.getFallbackApi().isEmpty()) {
+            // 只剩 fallback_api 的落盘模型（A-12）：直奔 fplay 定档，
+            // 不再每次重走 multi＋单集两发烧配额。
+            settlePlayModel(vid, cached, cb);
+            return;
+        }
         List<ModelRequest> one = new ArrayList<>();
         one.add(new ModelRequest(vid, contentType));
         fetchModels(one, new HgCallback<Map<String, DramaVideoModel>>() {
@@ -571,6 +577,9 @@ public final class DramaClient {
             cb.onSuccess(m);
             return;
         }
+        // 带 fallback_api 的模型本身先按请求 vid 落盘（A-12）：即便
+        // 本次 fplay 失败，下次起播也能命中缓存直奔 fplay。
+        DramaCache.putFor(vid, m);
         String fplay = m.getFallbackApi();
         if (fplay == null || fplay.isEmpty()) {
             cb.onError(-2, "回包无可播档");
@@ -580,8 +589,12 @@ public final class DramaClient {
             @Override
             public void body(String text) {
                 DramaVideoModel fm = DramaParser.parseFplay(text);
-                if (fm != null && fm.firstPlayableEntry() != null) cb.onSuccess(fm);
-                else cb.onError(-2, "回包无可播档");
+                if (fm != null && fm.firstPlayableEntry() != null) {
+                    // fplay 成品回写缓存（A-12）：下次同集起播直接命中，
+                    // 不重走全链。此前成功也不回写，是重复烧配额的主因。
+                    DramaCache.putFor(vid, fm);
+                    cb.onSuccess(fm);
+                } else cb.onError(-2, "回包无可播档");
             }
 
             @Override
