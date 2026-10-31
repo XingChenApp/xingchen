@@ -496,8 +496,9 @@ public final class DramaClient {
     }
 
     /**
-     * 起播取模型全链：落盘缓存 → multi 单发 →（回包无此条才）单集口 →
-     * 仍无可播档且模型带 fallback_api 时直取 fplay。
+     * 起播取模型全链：落盘缓存 →（UGC 单条先走随详情 model，见
+     * fetchModelForPlay 的 1001 支）→ multi 单发 →（回包无此条才）
+     * 单集口 → 仍无可播档且模型带 fallback_api 时直取 fplay。
      */
     public static void fetchModelForPlay(String vid, int contentType, HgCallback<DramaVideoModel> cb) {
         fetchModelForPlay(vid, contentType, cb, false);
@@ -526,6 +527,36 @@ public final class DramaClient {
             settlePlayModel(vid, cached, cb);
             return;
         }
+        if (contentType == 1001) {
+            // UGC 单条（A-01＋P-04）：播放 model 随详情下发
+            // （UgcVideoDetail 形）、单集取模型口对 UGC vid 回
+            // 101000——先拉 UGC 详情灌缓存定档；详情无 model、
+            // 解析无可播档或拉取失败，一律回落端点链，结局不变。
+            fetchUgcDetail(vid, new HgCallback<DramaDetail>() {
+                @Override
+                public void onSuccess(DramaDetail detail) {
+                    DramaVideoModel m = seedUgcModel(detail, vid);
+                    if (m != null) {
+                        cb.onSuccess(m);
+                        return;
+                    }
+                    fetchModelFromEndpoints(vid, contentType, cb, speculative);
+                }
+
+                @Override
+                public void onError(int code, String message) {
+                    fetchModelFromEndpoints(vid, contentType, cb, speculative);
+                }
+            });
+            return;
+        }
+        fetchModelFromEndpoints(vid, contentType, cb, speculative);
+    }
+
+    /** 端点链：multi 单发 →（回包无此条才）单集口 → settlePlayModel 的 fplay 兜底。 */
+    private static void fetchModelFromEndpoints(String vid, int contentType,
+                                                HgCallback<DramaVideoModel> cb,
+                                                boolean speculative) {
         List<ModelRequest> one = new ArrayList<>();
         one.add(new ModelRequest(vid, contentType));
         fetchModels(one, new HgCallback<Map<String, DramaVideoModel>>() {
@@ -698,6 +729,32 @@ public final class DramaClient {
                                     HgCallback<Map<String, DramaDetail>> cb) {
         postPlayer(HgDevice.PATH_SERIES_BATCH, seriesBatchBody(seriesIds),
                 sinkOf(cb, DramaParser::parseSeriesBatch));
+    }
+
+    /**
+     * UGC 随详情 model 灌缓存（A-01＋P-04 的消费端）：detail 自带
+     * video_model 时逐集解析落 DramaCache（与旧会话层 seedUgcModel
+     * 同口径——展开/起播前先灌，解链命中缓存直接起播），返回命中
+     * wantVid 的可播那份（wantVid 为 null 返回第一份可播的）；无
+     * model 或无可播档返回 null。流页 ensureDetail 展开详情时以
+     * wantVid＝null 同路回填。
+     */
+    public static DramaVideoModel seedUgcModel(DramaDetail detail, String wantVid) {
+        if (detail == null || detail.getUgcVideoModel() == null
+                || detail.getUgcVideoModel().isEmpty()) return null;
+        DramaVideoModel hit = null;
+        for (DramaDetail.Episode ep : detail.getEpisodes()) {
+            if (ep == null || ep.getVideoId() == null) continue;
+            DramaVideoModel m = DramaParser.parseUgcVideoModel(detail.getUgcVideoModel(),
+                    ep.getVideoId(), detail.getUgcVideoWidth(), detail.getUgcVideoHeight());
+            if (m == null) continue;
+            DramaCache.put(m);
+            if (m.firstPlayableEntry() != null && hit == null
+                    && (wantVid == null || wantVid.equals(ep.getVideoId()))) {
+                hit = m;
+            }
+        }
+        return hit;
     }
 
     /** UGC 单条详情（回包自带 video_model 时挂在 detail 上）。 */
