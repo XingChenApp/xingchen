@@ -344,7 +344,8 @@ public class HgAudioPlayActivity extends Activity implements ServiceConnection {
         nlp.topMargin = dp(10);
         body.addView(vnote, nlp);
 
-        // 底部：选集 / 回书架（毛玻璃底；听书历史走书架在看列表，稿的历史按钮无对应功能位，未加）
+        // 底部：选集 / 回书架（毛玻璃底；回书架落阅读书架小说签——
+        // 红果组在该签，「红果听书 · 在听」列表承接刚听的书）
         android.widget.LinearLayout sheet =
                 new android.widget.LinearLayout(this);
         sheet.setOrientation(android.widget.LinearLayout.HORIZONTAL);
@@ -363,7 +364,10 @@ public class HgAudioPlayActivity extends Activity implements ServiceConnection {
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         sheet.addView(sheetItem("☰", "选集", v -> showToc()));
         sheet.addView(sheetItem("↩", "回书架", v -> {
-            com.fongmi.android.tv.ui.activity.ReadingShelfActivity.start(this);
+            // 回阅读书架并钉小说签（红果组所在签）：栈里有书架回那
+            // 一个、没有才新建——与小说历史直达返回同口径（回阅读
+            // 板块，不落普通听书签的在听列表，那里找不着红果书）
+            com.fongmi.android.tv.ui.activity.ReadingShelfActivity.start(this, "NOVEL");
             finish();
         }));
 

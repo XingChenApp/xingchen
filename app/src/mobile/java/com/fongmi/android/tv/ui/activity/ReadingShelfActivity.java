@@ -58,6 +58,23 @@ public class ReadingShelfActivity extends AppCompatActivity {
         context.startActivity(new Intent(context, ReadingShelfActivity.class));
     }
 
+    /** 落签附加（start 带签位版专用）：新建实例时落到指定签。 */
+    private static final String EXTRA_TAB = "shelf_tab";
+
+    /**
+     * 带签位回书架（红果听书播放页「回书架」专用口）：栈里已有书架
+     * 就回那一个（CLEAR_TOP 保它原签与原位），没有才新建并落到指定
+     * 签——红果组在小说签，播放页回书架钉小说签才找得到刚听的书
+     * （红果组「红果听书 · 在听」列表）。既有 start(Context) 口径不变，
+     * 普通听书/HomeActivity 调用点一字未动。
+     */
+    public static void start(Context context, String tab) {
+        Intent i = new Intent(context, ReadingShelfActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        if (tab != null) i.putExtra(EXTRA_TAB, tab);
+        context.startActivity(i);
+    }
+
     /** 当前栏：小说/漫画/听书分开归栏，取值 NOVEL/COMIC/AUDIO。 */
     private static final String STATE_CURRENT_TAB = "currentTab";
     private String currentTab = "NOVEL";
@@ -95,6 +112,11 @@ public class ReadingShelfActivity extends AppCompatActivity {
         // 旋转重建：恢复旋转前的栏（buildUi/refresh 都按 currentTab 建页，须在建页前恢复）
         if (savedInstanceState != null) {
             String tab = savedInstanceState.getString(STATE_CURRENT_TAB);
+            if ("NOVEL".equals(tab) || "COMIC".equals(tab) || "AUDIO".equals(tab)) currentTab = tab;
+        }
+        // 带签位新建（回书架专用口）：无重建存档时按附加落签
+        if (savedInstanceState == null) {
+            String tab = getIntent().getStringExtra(EXTRA_TAB);
             if ("NOVEL".equals(tab) || "COMIC".equals(tab) || "AUDIO".equals(tab)) currentTab = tab;
         }
         ReadingSkin.enableEdgeToEdge(this, true);
@@ -372,6 +394,7 @@ public class ReadingShelfActivity extends AppCompatActivity {
             contentBox.addView(ReadingSkin.sectionHeader(this, "红果", null, null));
             contentBox.addView(hgNovelHistoryCard());
             contentBox.addView(hgAudioEntryCard());
+            contentBox.addView(hgAudioListeningCard());
         } else if (comic) {
             contentBox.addView(ReadingSkin.sectionHeader(this, "在看的漫画", "长按移除", null));
             if (comics.isEmpty()) contentBox.addView(emptyView(
@@ -972,6 +995,56 @@ public class ReadingShelfActivity extends AppCompatActivity {
             i.putExtra("hg_book_audio", true);
             startActivity(i);
         });
+        return card;
+    }
+
+    /**
+     * 红果组·听书在听入口卡（整块可剥）：与上方两卡同组并排，排在
+     * 听书（书城）卡之后（他 2026-10-31 亲裁「造一个呗、反正单独
+     * 的听书」——给红果听书造专属在听列表）。卡面构建与点击处理
+     * 全在本方法内自成一段，对红果本体的引用只此一处且用全限定
+     * 名、无 import；朋友版剥离时整段删本方法＋红果组内本行
+     * addView，与另两卡的剥离块互不交叉，阅读面照常编译运行。
+     * 卡面照本组两卡同款（glassCard 玻璃卡＋15sp 粗标题＋右侧
+     * 小字），点开直达红果听书在听列表面（深底列表＋编辑/长按
+     * 删除套，返回直退本面）。
+     */
+    private View hgAudioListeningCard() {
+        Context c = this;
+        LinearLayout card = new LinearLayout(c);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setPadding(dp(14), dp(12), dp(14), dp(12));
+        card.setBackground(ReadingSkin.glassCard(c, 16));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.leftMargin = dp(16);
+        lp.rightMargin = dp(16);
+        lp.bottomMargin = dp(12);
+        card.setLayoutParams(lp);
+
+        LinearLayout meta = new LinearLayout(c);
+        meta.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        meta.setLayoutParams(mlp);
+        TextView n = new TextView(c);
+        n.setText("红果听书 · 在听");
+        n.setTextSize(15);
+        n.getPaint().setFakeBoldText(true);
+        n.setTextColor(ReadingSkin.TEXT);
+        meta.addView(n);
+        card.addView(meta);
+
+        TextView go = new TextView(c);
+        go.setText("查看 ›");
+        go.setTextSize(20);
+        go.setTextColor(ReadingSkin.FAINT);
+        card.addView(go);
+
+        card.setOnClickListener(v ->
+                com.fongmi.android.tv.hongguo.ui.HongguoMineActivity
+                        .startAudioHistory(ReadingShelfActivity.this));
         return card;
     }
 
