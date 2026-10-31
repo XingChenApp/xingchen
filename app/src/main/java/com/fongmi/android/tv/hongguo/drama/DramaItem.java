@@ -57,8 +57,6 @@ public final class DramaItem {
      * 关注作者的 object_id 就靠它；没带为 null，点不开主页、不许拿名字认人。
      */
     private final String authorUid;
-    /** 作者简介（ugc base_info.description；存档样本里恒 null，有才有）。 */
-    private final String authorDesc;
     /**
      * 出品方品牌（cell video_list[].copyright 抬升，如「魔方短剧」）；
      * 没带为 null。唯一消费：流页作者名缺失时回落显示（正剧条目作者
@@ -183,13 +181,6 @@ public final class DramaItem {
      * AI剧条目都带，不许拿它分格（同账实证）。
      */
     public String contentCategoryType;
-    /**
-     * 条目自带分类（category_schema 的 category_id＋name 对，解析器
-     * 后置填充）：剧场 AI剧格的筹面数据源（AI 条目自带分类，不借
-     * 漫剧/真人类目）；没带为 null。
-     */
-    public List<DramaCategory> itemCategories;
-
     /** 是否 AI剧（服务端类型类＝1004_ai_video，分家口径见上）。 */
     public boolean isAiDrama() {
         return "1004_ai_video".equals(contentCategoryType);
@@ -229,7 +220,7 @@ public final class DramaItem {
                  boolean multiSeason, String albumId, int albumSerialCount,
                  List<DramaItem> siblings, long commentCount, long diggCount,
                  Integer seriesStatus, String statement, String authorName, String authorAvatar,
-                 String authorUid, String authorDesc, String publisher) {
+                 String authorUid, String publisher) {
         this.seriesId = seriesId;
         this.title = title;
         this.coverUrl = coverUrl;
@@ -254,7 +245,6 @@ public final class DramaItem {
         this.authorName = authorName;
         this.authorAvatar = authorAvatar;
         this.authorUid = authorUid;
-        this.authorDesc = authorDesc;
         this.publisher = publisher;
     }
 
@@ -279,7 +269,7 @@ public final class DramaItem {
         DramaItem item = new DramaItem(seriesId, title, coverUrl, desc, episodeCount,
                 false, false, null, firstVid, null, null, Collections.emptyList(), null,
                 false, null, -1, Collections.emptyList(), commentCount, diggCount, seriesStatus,
-                null, authorName, authorAvatar, authorUid, null, null);
+                null, authorName, authorAvatar, authorUid, null);
         item.contentType = contentType;
         item.followedCnt = followedCnt;
         return item;
@@ -291,7 +281,7 @@ public final class DramaItem {
                 hasAppointment, appointmentSubscribed, dueStartText,
                 vid, badge, recText, tags, vertical, multiSeason, albumId,
                 albumSerialCount, siblings, commentCount, diggCount, status, statement,
-                authorName, authorAvatar, authorUid, authorDesc, publisher);
+                authorName, authorAvatar, authorUid, publisher);
         copy.kind = kind;
         copy.contentType = contentType;
         copy.authorRelationType = authorRelationType;
@@ -303,7 +293,6 @@ public final class DramaItem {
     public String getAuthorName() { return authorName; }
     public String getAuthorAvatar() { return authorAvatar; }
     public String getAuthorUid() { return authorUid; }
-    public String getAuthorDesc() { return authorDesc; }
     /** 出品方品牌（cell copyright）；没带为 null。 */
     public String getPublisher() { return publisher; }
 

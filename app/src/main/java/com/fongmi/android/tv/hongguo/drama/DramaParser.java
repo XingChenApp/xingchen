@@ -1537,9 +1537,9 @@ public final class DramaParser {
             JsonArray recTags = arr(vd, "rec_tags");
             if (recTags != null) merged.add("rec_tags", recTags.deepCopy());
             // 分类架构同在 video_detail 里（category_schema 字符串化
-            // JSON）——不抬到顶层，asSeriesItem 的 tags 与 itemCategories
-            // 永远空（剧场 AI剧格的筹面就靠条目自带分类，无此抬升整格
-            // 无筹；条目自带同名键时下方覆盖循环以自带为准）
+            // JSON）——不抬到顶层，asSeriesItem 的 tags 永远空（剧场
+            // 筹面靠条目自带分类名，无此抬升整格无筹；条目自带同名键
+            // 时下方覆盖循环以自带为准）
             JsonElement schemaEl = vd.get("category_schema");
             if (schemaEl != null) merged.add("category_schema", schemaEl.deepCopy());
             // 专辑关系与 UGC 作者同在 video_detail 里（存档逐层实证：详情面
@@ -1864,20 +1864,12 @@ public final class DramaParser {
             }
         }
         List<String> tags = new ArrayList<>();
-        List<DramaCategory> itemCats = new ArrayList<>();
         JsonArray schema = asArray(o.get("category_schema"));
         if (schema != null) {
             for (JsonElement te : schema) {
                 if (te.isJsonObject()) {
                     String name = str(te.getAsJsonObject(), "name");
                     if (name != null && !name.isEmpty()) tags.add(name);
-                    String cid = firstStr(te.getAsJsonObject(), "category_id");
-                    if (cid != null && !cid.isEmpty() && name != null && !name.isEmpty()) {
-                        DramaCategory dc = new DramaCategory();
-                        dc.id = cid;
-                        dc.name = name;
-                        itemCats.add(dc);
-                    }
                 }
             }
         }
@@ -1926,7 +1918,6 @@ public final class DramaParser {
         String authorName = str(o, "author_name");
         String authorAvatar = str(o, "author_avatar");
         String authorUid = str(o, "author_uid");
-        String authorDesc = str(o, "author_desc");
         JsonObject authorUgc = albumInfo == null ? null : obj(albumInfo, "ugc_user_info");
         if (authorUgc == null) {
             JsonObject detailObj = obj(o, "video_detail");
@@ -1943,7 +1934,6 @@ public final class DramaParser {
             JsonObject base = obj(authorUgc, "base_info");
             if (authorName == null && base != null) authorName = str(base, "user_name");
             if (authorAvatar == null && base != null) authorAvatar = str(base, "user_avatar");
-            if (authorDesc == null && base != null) authorDesc = str(base, "description");
             if (authorUid == null) {
                 authorUid = str(authorUgc, "user_id");
                 if (authorUid == null && base != null) authorUid = str(base, "user_id");
@@ -1964,7 +1954,7 @@ public final class DramaParser {
                 longOf(o, "comment_count", -1), longOf(o, "digged_count", -1),
                 intOrNull(o, "series_status"), statementOf(intOrNull(o, "ai_usage_type")),
                 authorName, authorAvatar,
-                authorUid, authorDesc,
+                authorUid,
                 firstStr(o, "publisher", "copyright"));
         item.badgeColor = badgeColor;
         item.vidIndex = intOf(o, "vid_index", -1);
@@ -1983,7 +1973,6 @@ public final class DramaParser {
             item.highlightStartMs = intOf(hlObj, "start_time_in_millisecond", -1);
             item.highlightEndMs = intOf(hlObj, "end_time_in_millisecond", -1);
         }
-        item.itemCategories = itemCats.isEmpty() ? null : itemCats;
         item.bottomBarText = bottomBarTextOf(o);
         fillInfoStack(item, o, rrl);
         // 合集条的追更数挂 album_info（fillInfoStack 只读本体 followed_cnt）
