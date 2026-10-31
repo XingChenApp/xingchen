@@ -65,6 +65,8 @@ public class HgBookBrowseActivity extends AppCompatActivity {
     private HgContinuation cont;
     private boolean feedHasMore;
     private String categoryId = "";
+    /** 最近一次建筹的分类表（D-16）：切换分类/回推荐时按现行 mode＋categoryId 重建筹面刷选中态。 */
+    private List<HgBookClient.Category> lastCategories;
     /** 分类 landing 下一批的请求 offset：只由回包 offset 推进（A-22），不本地算步长。 */
     private int listOffset;
     private String keyword = "";
@@ -248,6 +250,7 @@ public class HgBookBrowseActivity extends AppCompatActivity {
                     appendEntries(page.entries);
                     cont = page.next;
                     feedHasMore = page.hasMore && cont != null;
+                    lastCategories = page.categories;
                     buildChips(page.categories);
                     adapter.notifyDataSetChanged();
                     setStatus(entries.isEmpty() ? "暂时没拉到书，再下拉试试" : "");
@@ -296,6 +299,7 @@ public class HgBookBrowseActivity extends AppCompatActivity {
     private void loadCategory(HgBookClient.Category c) {
         mode = MODE_CATEGORY;
         categoryId = c.id;
+        if (lastCategories != null) buildChips(lastCategories);
         listOffset = 0;
         listExhausted = false;
         entries.clear();
@@ -385,7 +389,8 @@ public class HgBookBrowseActivity extends AppCompatActivity {
         recommend.setOnClickListener(v -> loadFeedFirst());
         chipsBox.addView(recommend);
         for (HgBookClient.Category c : categories) {
-            TextView chip = chip(c.name, false);
+            TextView chip = chip(c.name,
+                    mode == MODE_CATEGORY && c.id != null && c.id.equals(categoryId));
             chip.setOnClickListener(v -> loadCategory(c));
             chipsBox.addView(chip);
         }
