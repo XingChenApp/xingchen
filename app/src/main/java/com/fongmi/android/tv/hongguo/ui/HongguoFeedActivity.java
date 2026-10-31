@@ -233,6 +233,8 @@ public class HongguoFeedActivity extends AppCompatActivity {
     private HgSwitch drawerDanmakuSwitch;
     /** 抽屉底部登录状态行（openDrawer 每次刷新，登录态可能在别处变）。 */
     private TextView drawerLoginText;
+    /** 「自动注册设备档案」在途旗：防连点把刚重置的档案再重置一遍。 */
+    private boolean resettingProfile;
     /** 抽屉宽＝屏宽 79%（定稿 .drawer），开合位移按此值走。 */
     private int drawerWidthPx;
 
@@ -1245,7 +1247,9 @@ public class HongguoFeedActivity extends AppCompatActivity {
         // 台面只许他定的几样（昨夜最终定版）：播放设置三项（启动
         // 直达短剧/弹幕两开关＋清红果缓存）＋底部登录状态行；片库
         // 两行（观看历史/我的收藏）已撤——与我的页五格重复（他亲口
-        // 点），无「我的」大卡、无小说历史行
+        // 点），无「我的」大卡、无小说历史行。「自动注册设备档案」
+        // 一行是 2026-10-31 T-01 他亲口加的（resetDeviceProfile 本体
+        // 的唯一入口），不在上面那批定版的摘除范围内
         panel.addView(drawerHead("播放设置", true));
         panel.addView(drawerSwitch(R.drawable.ic_drama_play, "启动直达短剧",
                 HgStore.isLaunchDirect(), on -> HgStore.setLaunchDirect(on),
@@ -1262,6 +1266,8 @@ public class HongguoFeedActivity extends AppCompatActivity {
             closeDrawer();
             Toast.makeText(this, "缓存已清", Toast.LENGTH_SHORT).show();
         }));
+        panel.addView(drawerAction(R.drawable.ic_setting_refresh, "自动注册设备档案",
+                v -> resetDeviceProfileFromDrawer()));
         View spacer = new View(this);
         panel.addView(spacer, new LinearLayout.LayoutParams(-1, 0, 1f));
         // 面板最底：登录状态行（字号/灰度照旧 foot 文案口径 12sp、
@@ -1374,6 +1380,58 @@ public class HongguoFeedActivity extends AppCompatActivity {
             drawerLoginText.setOnClickListener(null);
             drawerLoginText.setClickable(false);
         }
+    }
+
+    /**
+     * 抽屉「自动注册设备档案」（2026-10-31 T-01 他亲口要、放首页
+     * 抽屉）：重置自家设备档案，后续请求经 ensureDevice 以新档案
+     * 现场重新注册。{@link HgApiClient#resetDeviceProfile} 本体注定
+     * 的调用方收口在此兑现——关本页按旧档案解出的全部流与已解链
+     * 缓存（resolver.closeAll）、整页重拉（loadChannel(true) 连带
+     * 丢弃旧档案的续拉凭证）；落盘模型缓存带脸戳、旧脸条目读时自
+     * 淘汰，不在此重复清。成败不许静默：成功 Toast 明示；回调失败
+     * 落日志＋照样收口重拉（档案可能已被作废，重拉路上的
+     * ensureDevice 会把注册补完）＋失败文案 Toast；同步异常落日志
+     * ＋失败 Toast。在途旗防连点。
+     */
+    private void resetDeviceProfileFromDrawer() {
+        if (resettingProfile) return;
+        resettingProfile = true;
+        try {
+            HgApiClient.getInstance().resetDeviceProfile(new HgCallback<Boolean>() {
+                @Override
+                public void onSuccess(Boolean ok) {
+                    resettingProfile = false;
+                    if (destroyed) return;
+                    onProfileReset(true);
+                }
+
+                @Override
+                public void onError(int code, String msg) {
+                    resettingProfile = false;
+                    android.util.Log.w("HongguoFeed", "设备档案重置失败 code=" + code + " msg=" + msg);
+                    if (destroyed) return;
+                    onProfileReset(false);
+                }
+            });
+        } catch (Throwable t) {
+            resettingProfile = false;
+            android.util.Log.e("HongguoFeed", "设备档案重置异常", t);
+            Toast.makeText(this, "设备档案刷新失败", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /** 重置后统一收口：关旧档案的流、关抽屉、整页重拉，反馈按成败分文。 */
+    private void onProfileReset(boolean ok) {
+        resolver.closeAll();
+        closeDrawer();
+        // 重拉必须真发：若恰有旧档案的一页在途，loadingPage 会把
+        // loadChannel(true) 挡回去，先放下旗再重拉（在途旧回包与新
+        // 页的竞态是既有形状，与原手动入口同口径，不在此扩面处理）
+        loadingPage = false;
+        loadChannel(true);
+        Toast.makeText(this, ok ? "设备档案已刷新" : "设备档案刷新失败，已重新拉取",
+                Toast.LENGTH_SHORT).show();
     }
 
     /** 抽屉开合不许硬切：面板左滑入＋暗幕淡入，关时反向（HgTransition 同族口径）。 */
