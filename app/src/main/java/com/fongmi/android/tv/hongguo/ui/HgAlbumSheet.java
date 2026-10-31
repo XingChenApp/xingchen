@@ -171,17 +171,30 @@ public final class HgAlbumSheet {
             root.addView(meta);
         }
 
-        RecyclerView list = new RecyclerView(activity);
-        list.setLayoutManager(new LinearLayoutManager(activity));
-        list.setPadding(dp.applyAsInt(18), dp.applyAsInt(2),
-                dp.applyAsInt(18), dp.applyAsInt(10));
-        list.setClipToPadding(false);
-        list.setAdapter(new RowAdapter(activity, album, currentIndex, idx -> {
-            dialog.dismiss();
-            onPick.onPick(idx);
-        }, dp));
-        root.addView(list, new LinearLayout.LayoutParams(-1, -2));
-        if (currentIndex > 0) list.scrollToPosition(currentIndex);
+        if (album.rows.isEmpty()) {
+            // 空态（C-23）：合集行表为空时此前开出一张只有标题的
+            // 空白单——挂一行空态文案，与选集单 C-21 同口径。
+            TextView empty = new TextView(activity);
+            empty.setText("暂无内容");
+            empty.setTextColor(0xFF8A8A93);
+            empty.setTextSize(13.5f);
+            empty.setGravity(Gravity.CENTER);
+            empty.setPadding(dp.applyAsInt(18), dp.applyAsInt(26),
+                    dp.applyAsInt(18), dp.applyAsInt(26));
+            root.addView(empty, new LinearLayout.LayoutParams(-1, -2));
+        } else {
+            RecyclerView list = new RecyclerView(activity);
+            list.setLayoutManager(new LinearLayoutManager(activity));
+            list.setPadding(dp.applyAsInt(18), dp.applyAsInt(2),
+                    dp.applyAsInt(18), dp.applyAsInt(10));
+            list.setClipToPadding(false);
+            list.setAdapter(new RowAdapter(activity, album, currentIndex, idx -> {
+                dialog.dismiss();
+                onPick.onPick(idx);
+            }, dp));
+            root.addView(list, new LinearLayout.LayoutParams(-1, -2));
+            if (currentIndex > 0) list.scrollToPosition(currentIndex);
+        }
 
         // 脚（定稿 .s-foot）：合集条文案＝collBarText 口径
         LinearLayout foot = new LinearLayout(activity);
