@@ -35,9 +35,20 @@ public final class DramaPlayerPool {
     private DramaPlayerPool() {
     }
 
-    /** 泊入：槽里已有未领走的引擎（异常路径）先释放，不许泄漏。 */
+    /** 泊入：槽里已有未领走的引擎（异常路径）先释放，不许泄漏。
+     * 空引擎泊入（B-20）：交接单与引擎必须成对——只写新单、留旧
+     * 引擎，领走方会把旧引擎当新单的剧续播（错配）。空泊视同无
+     * 引擎可交：旧泊引擎先释放清槽，只留新单（消费端对单在引擎
+     * 空都有兜底：横屏页 finish、竖屏领回走 playVid 常路）。 */
     public static synchronized void park(Bag bag, ExoPlayerEngine engine) {
         if (engine == null) {
+            if (parkedEngine != null) {
+                try {
+                    parkedEngine.release();
+                } catch (Throwable ignored) {
+                }
+                parkedEngine = null;
+            }
             parkedBag = bag;
             return;
         }
