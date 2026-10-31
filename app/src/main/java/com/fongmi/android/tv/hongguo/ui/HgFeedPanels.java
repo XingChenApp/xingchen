@@ -228,28 +228,56 @@ public final class HgFeedPanels {
     /**
      * 更多面板卡一（横竖共用）：倍速 seg＋清晰度 seg＋弹幕开关行
      * ＋弹幕设置行。showMore（竖屏）与 showMoreLand（横屏）同件，
-     * 对应官方横竖同源的 ShortSeriesMorePanelDialog。
+     * 对应官方横竖同源的 ShortSeriesMorePanelDialog。唯一分叉在
+     * 倍速段的档表：官方横竖是两张表（竖屏实拍升序表、横屏
+     * xr3.f 定版倒序表 LAND_SPEEDS），横屏走 addMainCardLand。
      */
     private static void addMainCard(AppCompatActivity a, LinearLayout root,
                                     Host host, BottomSheetDialog dialog) {
+        addMainCardImpl(a, root, host, dialog, false);
+    }
+
+    private static void addMainCardLand(AppCompatActivity a, LinearLayout root,
+                                        Host host, BottomSheetDialog dialog) {
+        addMainCardImpl(a, root, host, dialog, true);
+    }
+
+    private static void addMainCardImpl(AppCompatActivity a, LinearLayout root,
+                                        Host host, BottomSheetDialog dialog,
+                                        boolean land) {
         LinearLayout card1 = card(a);
         LinearLayout.LayoutParams c1lp = new LinearLayout.LayoutParams(-1, -2);
         c1lp.topMargin = dp(a, 6);
         root.addView(card1, c1lp);
 
-        // 倍速（定稿行序在前，六段 0.75/1/1.25/1.5/2/3，默认 1x）
+        // 倍速（定稿行序在前）：竖屏六段升序（0.75/1/1.25/1.5/2/3，
+        // 默认 1x）；横屏走官方 LAND_SPEEDS（2/1.75/1.5/1.25/1/
+        // 0.75，C-04——此前横屏借竖屏表，1.75 无处可选、3x 冒充
+        // 官方档）。横屏当前速度不在表内（如竖屏存过的 3x）时高
+        // 亮就近档、不许静默回落 1x 误显（落值仍以点选为准）。
         TextView speedHead = rowLabel(a, "倍速", true);
         speedHead.setPadding(0, dp(a, 12), 0, dp(a, 11));
         card1.addView(speedHead);
+        final float[] speedTable = land ? HgPanelLogic.LAND_SPEEDS : HgPanelLogic.SPEEDS;
         float curSpeed = HgStore.getSpeed();
-        int curSpeedIdx = 1;
-        String[] speedLabels = new String[HgPanelLogic.SPEEDS.length];
+        int curSpeedIdx = land ? -1 : 1;
+        String[] speedLabels = new String[speedTable.length];
         for (int i = 0; i < speedLabels.length; i++) {
-            speedLabels[i] = speedLabel(HgPanelLogic.SPEEDS[i]);
-            if (HgPanelLogic.SPEEDS[i] == curSpeed) curSpeedIdx = i;
+            speedLabels[i] = speedLabel(speedTable[i]);
+            if (speedTable[i] == curSpeed) curSpeedIdx = i;
+        }
+        if (land && curSpeedIdx < 0) {
+            float best = Float.MAX_VALUE;
+            for (int i = 0; i < speedTable.length; i++) {
+                float d = Math.abs(speedTable[i] - curSpeed);
+                if (d < best) {
+                    best = d;
+                    curSpeedIdx = i;
+                }
+            }
         }
         card1.addView(segRow(a, speedLabels, curSpeedIdx, 13.5f, idx -> {
-            host.setSpeed(HgPanelLogic.SPEEDS[idx]);
+            host.setSpeed(speedTable[idx]);
             dialog.dismiss();
         }));
 
@@ -362,7 +390,7 @@ public final class HgFeedPanels {
         BottomSheetDialog dialog = new BottomSheetDialog(a);
         LinearLayout root = sheetRoot(a, 0xFFF4F4F6);
         root.setPadding(dp(a, 14), 0, dp(a, 14), dp(a, 14) + navBarHeight(a));
-        addMainCard(a, root, host, dialog);
+        addMainCardLand(a, root, host, dialog);
         dialog.setContentView(root);
         dialog.show();
         clearSheetBg(dialog);
