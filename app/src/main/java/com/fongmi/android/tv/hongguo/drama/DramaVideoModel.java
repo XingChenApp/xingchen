@@ -110,4 +110,13 @@ public final class DramaVideoModel {
         }
         return null;
     }
+
+    /** 全模型扫 v2 末位候选：正路 DEK 全推不出且 fplay 换形已试过后才许消费（证据未定案，见 SpadeKey）。 */
+    public String deriveDekHexV2Candidate() {
+        for (DramaEntry e : entries) {
+            String dek = e.deriveDekHexV2Candidate();
+            if (dek != null) return dek;
+        }
+        return null;
+    }
 }

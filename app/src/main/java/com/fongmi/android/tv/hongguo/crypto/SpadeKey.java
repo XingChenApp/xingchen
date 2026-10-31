@@ -37,12 +37,24 @@ public final class SpadeKey {
         public final String out2;
         public final boolean magic;
         public final String error;
+        /**
+         * v2 形态（out2=="2"）下按 openhongguo spade.go 同路解出的候选
+         * key（32 位 hex 才给）；证据冲突未定，见 {@link #derive} 注。
+         * 普通消费方不许用，只许「全部正路皆死」时的末位兜底用。
+         */
+        public final String v2Candidate;
 
         private Result(String key, String out2, boolean magic, String error) {
+            this(key, out2, magic, error, null);
+        }
+
+        private Result(String key, String out2, boolean magic, String error,
+                       String v2Candidate) {
             this.key = key;
             this.out2 = out2;
             this.magic = magic;
             this.error = error;
+            this.v2Candidate = v2Candidate;
         }
 
         public boolean isOk() {
@@ -222,9 +234,29 @@ public final class SpadeKey {
         }
         String o2 = bytesToAscii(r.out2);
         if ("2".equals(o2)) {
-            return new Result(null, o2, r.magic, "v2 形态 spade（out2==\"2\"）需 keystr，走 GCM 分支，当前未支持");
+            // 证据冲突（如实记）：JS 移植原注称 v2 需 keystr 走 GCM 分支
+            // （其自身亦未实现）；而 openhongguo 的 Go 版 Derive
+            // （internal/drm/spade.go，自述对真集验过）不分版本——同路
+            // 解出 out1 作 key、Version 只作标记返回。两说未有 v2 真样本
+            // 对拍定案：正路仍判失败（key=null），但把按 Go 口径校验
+            // 过的 out1（32 位 hex）挂 v2Candidate，只许末位兜底消费。
+            String cand = bytesToAscii(r.out1);
+            if (!isHex32(cand)) cand = null;
+            return new Result(null, o2, r.magic,
+                    "v2 形态 spade（out2==\"2\"）：GCM/keystr 说与 Go 版同路解说未定案", cand);
         }
         return new Result(bytesToAscii(r.out1), o2, r.magic, null);
+    }
+
+    /** 32 位十六进制串（16 字节 DEK 的文本形）校验，与 Go 版 Derive 的 hex/偶长校验同向、长度收严到 DEK 规格。 */
+    private static boolean isHex32(String s) {
+        if (s == null || s.length() != 32) return false;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            boolean hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+            if (!hex) return false;
+        }
+        return true;
     }
 
     /** 便捷口：只取 DEK，失败抛 IllegalStateException（带原因）。 */

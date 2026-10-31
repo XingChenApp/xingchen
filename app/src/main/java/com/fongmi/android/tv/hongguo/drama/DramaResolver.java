@@ -192,9 +192,29 @@ public final class DramaResolver {
         if (model.isProtected()) {
             dek = model.deriveDekHex();
             if (dek == null) {
-                if (!fplayRetried) retryViaFplay(videoId, model, "E4");
-                else finish(videoId, null, "E4");
-                return;
+                if (!fplayRetried) {
+                    // 换形请求本身失败时，原模型的 v2 候选仍是末位兜底，
+                    // 别让一次网络失败把候选路也堵死。
+                    retryViaFplay(videoId, model, "E4", () -> {
+                        String cand = model.deriveDekHexV2Candidate();
+                        if (cand == null) finish(videoId, null, "E4");
+                        else {
+                            android.util.Log.w("DramaResolver",
+                                    "fplay 换形失败，启用原模型 v2 候选 key vid=" + videoId);
+                            finishWithEntry(videoId, model, entry, plain, cand);
+                        }
+                    });
+                    return;
+                }
+                // 正路与换形都推不出时的末位兜底（A-24 补）：v2 候选 key
+                // ——openhongguo Go 版同路解说与 JS 的 GCM 说未定案，只在
+                // 无路可走时用它搏一把，并打日志留痕；候选也没有才 E4。
+                dek = model.deriveDekHexV2Candidate();
+                if (dek == null) {
+                    finish(videoId, null, "E4");
+                    return;
+                }
+                android.util.Log.w("DramaResolver", "DEK 正路全灭，启用 v2 候选 key vid=" + videoId);
             }
         }
         finishWithEntry(videoId, model, entry, plain, dek);
@@ -202,9 +222,16 @@ public final class DramaResolver {
 
     /** 经 fallback_api 换 fplay 形态重走定档；无 fallback_api 时按原失败码收口。 */
     private void retryViaFplay(String videoId, DramaVideoModel model, String failCode) {
+        retryViaFplay(videoId, model, failCode, null);
+    }
+
+    /** onFailHook：换形请求失败时的末位处置（E4 路给 v2 候选用）；为 null 时按 failCode 收口。 */
+    private void retryViaFplay(String videoId, DramaVideoModel model, String failCode,
+                               Runnable onFailHook) {
         String api = model.getFallbackApi();
         if (api == null || api.isEmpty()) {
-            finish(videoId, null, failCode);
+            if (onFailHook != null) onFailHook.run();
+            else finish(videoId, null, failCode);
             return;
         }
         DramaClient.fetchFplay(api, new HgCallback<DramaVideoModel>() {
@@ -216,7 +243,8 @@ public final class DramaResolver {
 
             @Override
             public void onError(int code, String message) {
-                finish(videoId, null, failCode);
+                if (onFailHook != null) onFailHook.run();
+                else finish(videoId, null, failCode);
             }
         });
     }

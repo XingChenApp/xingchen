@@ -105,4 +105,10 @@ public final class DramaEntry {
         SpadeKey.Result r = SpadeKey.derive(spadeA);
         return r.isOk() ? r.key : null;
     }
+
+    /** v2 形态的末位候选 key（证据未定案，见 SpadeKey.derive 注）；非 v2 或校验不过返回 null。 */
+    public String deriveDekHexV2Candidate() {
+        if (spadeA == null || spadeA.isEmpty()) return null;
+        return SpadeKey.derive(spadeA).v2Candidate;
+    }
 }
