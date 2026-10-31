@@ -301,6 +301,18 @@ public class HongguoFeedActivity extends AppCompatActivity {
     private int freezeSeq;
     private int freezeForIndex = -1;
     private boolean freezeArmed;
+    /**
+     * settle 等帧续程（件二时序定序）：settleTo 发起抓帧后不立即
+     * 搬面，等这发抓帧落定（回调/超时先到为准）才走 proceedSettle。
+     * awaitSeq＝在等的那发代次（0＝没在等）；settledSeq＝最近落定
+     * 的代次（TextureView 同步回调在等帧登记前就到，靠它识别）。
+     */
+    private int settleAwaitSeq;
+    private int settleAwaitIndex = -1;
+    private int freezeSettledSeq;
+    private Runnable settleAwaitTimeout;
+    /** 等帧上限：PixelCopy 正常一两帧内回，超此走无冻结常路。 */
+    private static final long FREEZE_WAIT_MS = 250;
     private boolean feedStartPending = true;
     /** 首页流起播失败记账（条目键＝seriesId/vid）：失败条只呈失败态，封面不许回潮当内容（账 hongguo-feed-noposter-20261030）。 */
     private final java.util.Set<String> feedFailedKeys = new java.util.HashSet<>();
@@ -1650,13 +1662,23 @@ public class HongguoFeedActivity extends AppCompatActivity {
         saveProgressNow();
         int prevIndex = currentIndex;
         currentIndex = index;
+        boolean freezeWait = false;
         if (mode == MODE_SERIES && prevIndex != index
                 && firstFrameForVid && player != null) {
             // 切集顺滑（末帧冻结）：趁播放面还挂在上一集的页上、
             // 还留着上一集的帧，先抓下来；mount 搬面之后由
             // playVid 把冻结图挂到新页（抓帧点必须在搬面之前）。
+            // 时序定序（件二，账 fix168-remedies-20261031）：旧写法
+            // 发起抓帧与 mountPlayerView 搬面同栈先后跑——PixelCopy
+            // 是异步拷贝，请求刚发出播放面就被摘下重挂、旧 Surface
+            // 随之销毁，拷贝执行时源面存亡全凭系统时序，真机成败
+            // 不可证。改确定性顺序：先发起抓帧、本方法的后半程
+            // （proceedSettle：搬面＋起播）等这发抓帧落定才走；
+            // 等待期间播放器与播放面一律不动、上一集照常播，不是
+            // 卡住切集；超时（FREEZE_WAIT_MS）走无冻结常路。
             initiateFreezeCapture(index);
             freezeArmed = true;
+            freezeWait = true;
         }
         if (mode == MODE_FEED) {
             // D7：流内线是本条的历史进度线，先清零，时长到手后按
@@ -1665,6 +1687,15 @@ public class HongguoFeedActivity extends AppCompatActivity {
             feedLineDone = false;
             applyFeedLine(0f);
         }
+        if (freezeWait) {
+            awaitFreezeThenSettle(index);
+            return;
+        }
+        proceedSettle(index);
+    }
+
+    /** settleTo 的后半程：搬面＋按模式起播（等帧时由续程接力）。 */
+    private void proceedSettle(int index) {
         DramaItem item = items.get(index);
         currentSeriesId = item.getSeriesId();
         ensureCommentCount(index, item);
@@ -2166,22 +2197,71 @@ public class HongguoFeedActivity extends AppCompatActivity {
     /**
      * 发起一次抓帧：把播放面当前这一帧（上一集的末帧）复制下来，
      * 到手后暂存并尝试挂到目标页。代次对位——连切只认最后一发；
-     * 新集首帧已先到（预取集快切）则弃图不挂。
+     * 新集首帧已先到（预取集快切）则弃图不挂。无论成败，落定都
+     * 过 onFreezeSettled 记一笔——settle 等帧续程靠它接力。
      */
     private void initiateFreezeCapture(int targetIndex) {
         if (playerView == null || player == null) return;
         freezeForIndex = targetIndex;
         final int seq = ++freezeSeq;
         HgFrameCapture.capture(playerView, main, bmp -> {
-            if (bmp == null) return;
-            if (seq != freezeSeq || firstFrameForVid) {
-                bmp.recycle();
-                return;
+            if (bmp != null) {
+                if (seq != freezeSeq || firstFrameForVid) {
+                    bmp.recycle();
+                } else {
+                    clearFreezeBitmap();
+                    freezeBitmap = bmp;
+                    attachFreeze();
+                }
             }
-            clearFreezeBitmap();
-            freezeBitmap = bmp;
-            attachFreeze();
+            onFreezeSettled(seq);
         });
+    }
+
+    /**
+     * settle 等帧登记：抓帧落定（onFreezeSettled）或超时先到为准，
+     * 到了才走 proceedSettle 搬面起播。TextureView 是同步回调、
+     * 登记前就已落定（settledSeq 已对上）——直接接力不空等。
+     * 连切时新一发 settle 会顶掉旧登记（撤旧超时、awaitSeq 换新），
+     * 旧续程永不执行；页面销毁由 hideFreeze 顶代次＋onDestroy
+     * 撤超时双保险，续程的代次/下标双守卫是最后一道。
+     */
+    private void awaitFreezeThenSettle(int index) {
+        if (settleAwaitTimeout != null) {
+            main.removeCallbacks(settleAwaitTimeout);
+            settleAwaitTimeout = null;
+        }
+        final int seq = freezeSeq;
+        settleAwaitSeq = seq;
+        settleAwaitIndex = index;
+        if (freezeSettledSeq == seq) {
+            onFreezeSettled(seq);
+            return;
+        }
+        settleAwaitTimeout = () -> {
+            if (settleAwaitSeq != seq || seq != freezeSeq) return;
+            settleAwaitSeq = 0;
+            settleAwaitTimeout = null;
+            // 超时：作废这发在途抓帧（迟到回调只回收不挂图），
+            // 按无冻结常路把切集走完，不许拖住。
+            freezeSeq++;
+            android.util.Log.i(HgFrameCapture.TAG,
+                    "capture fail: timeout seq=" + seq + " (proceed without freeze)");
+            if (settleAwaitIndex == currentIndex) proceedSettle(settleAwaitIndex);
+        };
+        main.postDelayed(settleAwaitTimeout, FREEZE_WAIT_MS);
+    }
+
+    /** 一发抓帧落定：若 settle 正等它，撤超时并接力后半程。 */
+    private void onFreezeSettled(int seq) {
+        freezeSettledSeq = seq;
+        if (settleAwaitSeq != seq) return;
+        settleAwaitSeq = 0;
+        if (settleAwaitTimeout != null) {
+            main.removeCallbacks(settleAwaitTimeout);
+            settleAwaitTimeout = null;
+        }
+        if (settleAwaitIndex == currentIndex) proceedSettle(settleAwaitIndex);
     }
 
     /** 把暂存的冻结图挂到目标页的画面层（playerView 之上）。 */
@@ -3072,6 +3152,11 @@ public class HongguoFeedActivity extends AppCompatActivity {
     protected void onDestroy() {
         main.removeCallbacks(ticker);
         cancelSpinDelay();
+        if (settleAwaitTimeout != null) {
+            main.removeCallbacks(settleAwaitTimeout);
+            settleAwaitTimeout = null;
+        }
+        settleAwaitSeq = 0;
         hideFreeze();
         main.removeCallbacks(savePosRunnable);
         main.removeCallbacks(prefetchRunnable);
