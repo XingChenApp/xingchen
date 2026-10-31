@@ -133,6 +133,17 @@ public class HongguoLandActivity extends AppCompatActivity {
     private int cutoutRight;
     /** 竖滑切集已触发时吞掉随之而来的点按（防 chrome 跟着翻）。 */
     private boolean suppressTap;
+    /** 亮度/音量手势（C-02/C-03）：-1 未定性、0 亮度、1 音量、
+     * 2 让位切集（中央带竖滑或非竖滑，抬手时按旧口径结算）。 */
+    private int gestureKind = -1;
+    private float gestureStartBrightness;
+    private int gestureStartVolume;
+    private int gestureMaxVolume;
+    private android.media.AudioManager audioManager;
+    private TextView gestureHud;
+    private final Runnable hudHide = () -> {
+        if (gestureHud != null) gestureHud.setVisibility(View.GONE);
+    };
     private TextView timeView;
     private TextView timeDurView;
     private FrameLayout progressWrap;
@@ -270,26 +281,79 @@ public class HongguoLandActivity extends AppCompatActivity {
         playerView.getDanmakuController().setConfig(danmakuConfig());
         playerView.setPlayer(player);
         playerView.setOnClickListener(v -> onSurfaceTap());
-        // 上下滑切集（#17，此前横屏手动切集从未接）：竖直位移过
-        // 64dp 且纵大于横判切集——上滑下一集、下滑上一集（与竖屏
-        // 流的上滑看下一条同向）；触发后随之而来的点按吞掉，防
-        // chrome 跟着翻。锁定态不理。不消费事件、点按链原样走。
+        // 触摸手势三分（#17 切集保留＋C-02/C-03 补亮度/音量）：
+        // 竖滑先定性——按下点不在中央带（官方长按面板的中间带
+        // 公式复用）且纵向主导时，左半屏＝亮度、右半屏＝音量
+        // （安卓播放器通例：实时跟随＋自绘提示，官方横屏手势形
+        // 态未抠到、依据只到通例，账 fix-remaining-cluster5 标
+        // 明）；中央带竖滑与横滑不抢，抬手仍按 #17 旧口径（过
+        // 64dp 且纵大于横）结算切集。监听不消费事件：点按链
+        // （翻 chrome）原样走，调节/切集成立时置 suppressTap
+        // 吞掉随之而来的那次点按；锁定态与两面板开着时不理
+        // （与 onSurfaceTap 的守卫同口径）。
         final float[] touchDown = new float[2];
         playerView.setOnTouchListener((v, ev) -> {
+            if (locked || commentPanelOpen || episodePanelOpen) return false;
+            float x = ev.getX();
+            float y = ev.getY();
             switch (ev.getActionMasked()) {
                 case android.view.MotionEvent.ACTION_DOWN:
-                    touchDown[0] = ev.getX();
-                    touchDown[1] = ev.getY();
-                    break;
-                case android.view.MotionEvent.ACTION_UP:
-                    if (locked || detail == null) break;
-                    float dx = ev.getX() - touchDown[0];
-                    float dy = ev.getY() - touchDown[1];
-                    if (Math.abs(dy) > dp(64) && Math.abs(dy) > Math.abs(dx)) {
-                        suppressTap = true;
-                        if (dy < 0) switchEpisode(curEp + 1, false);
-                        else switchEpisode(curEp - 1, false);
+                    touchDown[0] = x;
+                    touchDown[1] = y;
+                    gestureKind = -1;
+                    gestureStartBrightness = currentBrightness();
+                    if (audioManager == null) {
+                        audioManager = (android.media.AudioManager)
+                                getSystemService(AUDIO_SERVICE);
                     }
+                    if (audioManager != null) {
+                        gestureStartVolume = audioManager.getStreamVolume(
+                                android.media.AudioManager.STREAM_MUSIC);
+                        gestureMaxVolume = audioManager.getStreamMaxVolume(
+                                android.media.AudioManager.STREAM_MUSIC);
+                    }
+                    break;
+                case android.view.MotionEvent.ACTION_MOVE: {
+                    float dx = x - touchDown[0];
+                    float dy = y - touchDown[1];
+                    if (gestureKind == -1) {
+                        if (Math.abs(dy) <= dp(12) && Math.abs(dx) <= dp(12)) break;
+                        boolean vertical = Math.abs(dy) > Math.abs(dx) * 1.2f;
+                        if (!vertical || v.getWidth() <= 0
+                                || HgPanelLogic.inCenterBand(touchDown[0], v.getWidth())) {
+                            gestureKind = 2;
+                        } else {
+                            gestureKind = touchDown[0] < v.getWidth() / 2f ? 0 : 1;
+                        }
+                    }
+                    if (gestureKind == 0 || gestureKind == 1) {
+                        applySlideAdjust(gestureKind, dy, v.getHeight());
+                    }
+                    break;
+                }
+                case android.view.MotionEvent.ACTION_UP: {
+                    if (gestureKind == 0 || gestureKind == 1) {
+                        suppressTap = true;
+                        main.removeCallbacks(hudHide);
+                        main.postDelayed(hudHide, 600);
+                    } else if (detail != null) {
+                        float dx = x - touchDown[0];
+                        float dy = y - touchDown[1];
+                        if (Math.abs(dy) > dp(64) && Math.abs(dy) > Math.abs(dx)) {
+                            suppressTap = true;
+                            if (dy < 0) switchEpisode(curEp + 1, false);
+                            else switchEpisode(curEp - 1, false);
+                        }
+                    }
+                    gestureKind = -1;
+                    break;
+                }
+                case android.view.MotionEvent.ACTION_CANCEL:
+                    if (gestureKind == 0 || gestureKind == 1) {
+                        main.removeCallbacks(hudHide);
+                        main.postDelayed(hudHide, 600);
+                    }
+                    gestureKind = -1;
                     break;
                 default:
                     break;
@@ -325,6 +389,23 @@ public class HongguoLandActivity extends AppCompatActivity {
         });
         FrameLayout.LayoutParams failLp = new FrameLayout.LayoutParams(-1, -1);
         root.addView(failView, failLp);
+
+        // 亮度/音量手势提示（C-02/C-03）：调节中亮、停手 600ms 隐。
+        gestureHud = new TextView(this);
+        gestureHud.setTextColor(Color.WHITE);
+        gestureHud.setTextSize(13.5f);
+        gestureHud.setGravity(Gravity.CENTER);
+        android.graphics.drawable.GradientDrawable hudBg =
+                new android.graphics.drawable.GradientDrawable();
+        hudBg.setColor(0x8C000000);
+        hudBg.setCornerRadius(dp(16));
+        gestureHud.setBackground(hudBg);
+        gestureHud.setPadding(dp(16), dp(7), dp(16), dp(7));
+        gestureHud.setVisibility(View.GONE);
+        FrameLayout.LayoutParams hudLp = new FrameLayout.LayoutParams(-2, -2);
+        hudLp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.TOP;
+        hudLp.topMargin = dp(64);
+        root.addView(gestureHud, hudLp);
 
         // 锁钮（左侧中部）
         lockBtn = new ImageView(this);
@@ -667,6 +748,50 @@ public class HongguoLandActivity extends AppCompatActivity {
                 }
             }
         };
+    }
+
+    /** 当前亮度基准（C-02）：窗口属性为跟随系统（负值）时读系统
+     * 亮度折算，读不到回 0.5。 */
+    private float currentBrightness() {
+        float b = getWindow().getAttributes().screenBrightness;
+        if (b >= 0) return b;
+        try {
+            int sys = Settings.System.getInt(getContentResolver(),
+                    Settings.System.SCREEN_BRIGHTNESS);
+            return Math.max(0.01f, Math.min(1f, sys / 255f));
+        } catch (Exception e) {
+            return 0.5f;
+        }
+    }
+
+    /**
+     * 竖滑调节落值（C-02/C-03）：以按下点为零位、约六成屏高滑程
+     * 对应满量程，上滑增、下滑减。亮度走本窗口属性（无需权限、
+     * 不动系统全局、退出本页不留痕）；音量走音乐流，flags=0 不
+     * 弹系统音量条，量值由本页提示件回显。
+     */
+    private void applySlideAdjust(int kind, float dy, int height) {
+        if (height <= 0) return;
+        float frac = -dy / (height * 0.6f);
+        if (kind == 0) {
+            float b = Math.max(0.01f, Math.min(1f, gestureStartBrightness + frac));
+            android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
+            lp.screenBrightness = b;
+            getWindow().setAttributes(lp);
+            showGestureHud("亮度 " + Math.round(b * 100) + "%");
+        } else if (audioManager != null && gestureMaxVolume > 0) {
+            int vol = Math.round(gestureStartVolume + frac * gestureMaxVolume);
+            vol = Math.max(0, Math.min(gestureMaxVolume, vol));
+            audioManager.setStreamVolume(
+                    android.media.AudioManager.STREAM_MUSIC, vol, 0);
+            showGestureHud("音量 " + Math.round(vol * 100f / gestureMaxVolume) + "%");
+        }
+    }
+
+    private void showGestureHud(String text) {
+        if (gestureHud == null) return;
+        gestureHud.setText(text);
+        gestureHud.setVisibility(View.VISIBLE);
     }
 
     private final Player.Listener playerListener = new Player.Listener() {
