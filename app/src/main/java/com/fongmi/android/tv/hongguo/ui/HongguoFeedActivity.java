@@ -347,6 +347,9 @@ public class HongguoFeedActivity extends AppCompatActivity {
     private boolean tookHandoff;
     /** 离开本页前是否在播（回来续播守卫，见 onPause/onResume）。 */
     private boolean resumeOnReturn;
+    /** 本页是否在前台（onResume/onPause 落）：解链迟到回包落点判定
+     * 用——被盖住时回包只备媒体不起播，不许在后台出声。 */
+    private boolean activityResumed;
     private boolean pagerIdle = true;
     private int lastVideoW;
     private int lastVideoH;
@@ -587,6 +590,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        activityResumed = true;
         if (orientationListener != null) {
             if (systemAutoRotateOn()) orientationListener.enable();
             else orientationListener.disable();
@@ -2049,10 +2053,10 @@ public class HongguoFeedActivity extends AppCompatActivity {
     private void adoptHandoff(int index) {
         DramaPlayerPool.Bag bag = inboundBag;
         inboundBag = null;
-        entrySeekEp = -1;
-        entrySeekMs = -1;
         ExoPlayerEngine taken = bag == null ? null : DramaPlayerPool.takeEngine();
         if (taken == null || bag == null) {
+            entrySeekEp = -1;
+            entrySeekMs = -1;
             playEpisode(index + 1, false);
             return;
         }
@@ -2061,6 +2065,21 @@ public class HongguoFeedActivity extends AppCompatActivity {
         player.addListener(playerListener);
         playerView.setPlayer(player);
         tookHandoff = true;
+        if (player.getCurrentMediaItem() == null) {
+            // 泊出那一刻，流页这集的解链还没落（起播转圈中、甚至
+            // 已经失败）就点了进剧：泊来的引擎是空的、没装媒体。
+            // 照旧领法只会对着空引擎置真首帧旗——没人再给它装
+            // 媒体，转圈无人收（看门狗只管 MODE_FEED）、失败无人
+            // 报，播放页整页空转到用户退出。退回常路自解这一集：
+            // 进页钉位（高光续进毫秒）不摘、由 playEpisode 消费；
+            // 没钉位按断点存档续。泊出页那发迟到回包已在 playVid
+            // 监听里按 engineParked 断了手，不会再来抢这台引擎。
+            applyDanmakuVisibility();
+            playEpisode(index + 1, true);
+            return;
+        }
+        entrySeekEp = -1;
+        entrySeekMs = -1;
         currentVid = bag.vid;
         currentEpisodeIndex = index + 1;
         firstFrameForVid = true;
@@ -2457,6 +2476,10 @@ public class HongguoFeedActivity extends AppCompatActivity {
             @Override
             public void onReady(String videoId, String localUrl, int w, int h) {
                 if (!videoId.equals(currentVid) || player == null) return;
+                // 引擎已泊出（承接进剧/进横屏）：这台引擎归领走方，
+                // 本页迟到回包不许再碰它——媒体由领走方自解
+                // （adoptHandoff 的空引擎退路），成败也归领走方报。
+                if (engineParked) return;
                 lastVideoW = w;
                 lastVideoH = h;
                 refreshFullPillVisibility();
@@ -2466,7 +2489,15 @@ public class HongguoFeedActivity extends AppCompatActivity {
                 applyResizeModeFor(w, h);
                 player.prepare();
                 if (seekMs > 0) player.seekTo(seekMs);
-                player.setPlayWhenReady(true);
+                // 本页被别的页盖住时回包落点：媒体备好、起播等回
+                // 页（onResume 按 resumeOnReturn 续），不许在后台
+                // 出声——旧写法无条件 setPlayWhenReady(true)，解链
+                // 慢一拍就成了盖着详情/作者页照样响。
+                if (activityResumed) {
+                    player.setPlayWhenReady(true);
+                } else {
+                    resumeOnReturn = true;
+                }
                 startDanmaku(videoId);
                 maybePrefetchSeries(videoId);
             }
@@ -2474,6 +2505,9 @@ public class HongguoFeedActivity extends AppCompatActivity {
             @Override
             public void onFailed(String videoId, String code, String message) {
                 if (!videoId.equals(currentVid)) return;
+                // 引擎已泊出：失败归领走方自解时报，本页不许把已
+                // 让出的条目标成失败（回流后会顶着失败态）。
+                if (engineParked) return;
                 // 失败码留痕（E1 取模型/E2 无档/E3 链空/E4 DEK/E5 注册）：
                 // 失败态 UI 不分码，下次真机复现靠这行定段（账 triage2 二）。
                 android.util.Log.w("HongguoFeed", "resolve failed vid=" + videoId
@@ -3145,10 +3179,17 @@ public class HongguoFeedActivity extends AppCompatActivity {
                     @Override
                     public void onReady(String videoId, String url, int w, int h) {
                         if (!videoId.equals(currentVid) || player == null) return;
+                        // 与 playVid 监听同口径：引擎已泊出不许碰、
+                        // 被盖住只备媒体不起播（防后台出声）。
+                        if (engineParked) return;
                         player.setMediaItem(MediaItem.fromUri(url));
                         player.prepare();
                         if (pos > 0) player.seekTo(pos);
-                        player.setPlayWhenReady(true);
+                        if (activityResumed) {
+                            player.setPlayWhenReady(true);
+                        } else {
+                            resumeOnReturn = true;
+                        }
                     }
 
                     @Override
@@ -3259,6 +3300,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+        activityResumed = false;
         if (orientationListener != null) orientationListener.disable();
         saveProgressNow();
         saveFeedPos();
