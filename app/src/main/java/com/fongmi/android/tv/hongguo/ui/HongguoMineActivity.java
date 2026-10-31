@@ -253,8 +253,47 @@ public class HongguoMineActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // 登录页回来/退出登录后：账号行按落盘会话重画（墙格不在此重拉）
+        // 返回本页（登录页回来/播放页回来/编辑页回来）整面按落盘现态
+        // 重拉（D-06，此前只刷账号行、墙格与已开列表停在旧数据须重进页）
+        reloadCurrentView();
+    }
+
+    /**
+     * 当前面整表重拉（D-04/D-06 共用口）：账号行＋当前模式的数据面
+     * 一并按 HgStore 现态重读。登出清镜像后调它，五格/海报墙立即
+     * 不再摆上一账号的数据；纯本地读、无网络，onResume 每次调可承受。
+     */
+    private void reloadCurrentView() {
         refreshAccountRow();
+        if (mode == MODE_HOME) {
+            if (followTileDot != null) {
+                followTileDot.setVisibility(anyFollowUpdate() ? View.VISIBLE : View.GONE);
+            }
+            loadHomeWall();
+        } else if (mode == MODE_NOVEL) {
+            reloadNovelRows();
+        } else {
+            loadGridRows(mode);
+            applyFilter();
+        }
+    }
+
+    /** 小说历史行重建（openList 小说支与 reloadCurrentView 共用）。 */
+    private void reloadNovelRows() {
+        rows.clear();
+        for (String id : HgStore.novelHistoryIds()) {
+            String[] meta = HgStore.novelMetaOf(id);
+            Row row = new Row();
+            row.id = id;
+            row.title = meta == null ? "" : meta[0];
+            row.sub = meta == null ? "" : meta[1];
+            row.cover = meta == null ? null : meta[2];
+            rows.add(row);
+        }
+        adapter.notifyDataSetChanged();
+        list.setVisibility(rows.isEmpty() ? View.GONE : View.VISIBLE);
+        emptyText.setVisibility(rows.isEmpty() ? View.VISIBLE : View.GONE);
+        if (rows.isEmpty()) emptyText.setText("还没有小说记录");
     }
 
     // ---------- 定稿首页面：账号行 ----------
@@ -351,7 +390,9 @@ public class HongguoMineActivity extends AppCompatActivity {
                     //（收藏/点赞/关注/预约四套）一并清掉，防换号串号
                     // ——clearAccountMirrors 此前零调用、此处接上。
                     HgStore.clearAccountMirrors();
-                    refreshAccountRow();
+                    // 登出后整面重拉（D-04）：五格/海报墙/已开列表
+                    // 此前不重拉、仍摆上一账号拉回的数据直到重进页
+                    reloadCurrentView();
                     Toast.makeText(this, "已退出登录", Toast.LENGTH_SHORT).show();
                 })
                 .show();
@@ -546,23 +587,10 @@ public class HongguoMineActivity extends AppCompatActivity {
         if (target == MODE_NOVEL) {
             applyChrome(false);
             chipsBar.setVisibility(View.GONE);
-            rows.clear();
-            for (String id : HgStore.novelHistoryIds()) {
-                String[] meta = HgStore.novelMetaOf(id);
-                Row row = new Row();
-                row.id = id;
-                row.title = meta == null ? "" : meta[0];
-                row.sub = meta == null ? "" : meta[1];
-                row.cover = meta == null ? null : meta[2];
-                rows.add(row);
-            }
             list.setPadding(0, 0, 0, 0);
             list.setLayoutManager(new LinearLayoutManager(this));
             list.setAdapter(adapter);
-            adapter.notifyDataSetChanged();
-            list.setVisibility(rows.isEmpty() ? View.GONE : View.VISIBLE);
-            emptyText.setVisibility(rows.isEmpty() ? View.VISIBLE : View.GONE);
-            if (rows.isEmpty()) emptyText.setText("还没有小说记录");
+            reloadNovelRows();
             return;
         }
         // 历史/收藏：白底海报格＋筹行
