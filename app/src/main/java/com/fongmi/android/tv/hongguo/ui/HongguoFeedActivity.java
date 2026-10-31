@@ -246,6 +246,23 @@ public class HongguoFeedActivity extends AppCompatActivity {
         t.setDaemon(true);
         return t;
     });
+    private volatile boolean destroyed;
+
+    /**
+     * 池投递唯一收口（P0 崩溃定根，账 fix168-remedies-20261031 P0）：
+     * 1.4.68 真机崩 RejectedExecutionException——onDestroy 已
+     * shutdownNow 后，主队列里残留的 settleTo 投递才触发，经
+     * ensureCommentCount 往死池 execute、无守卫无 catch 当场崩。
+     * 销毁后/池已关的迟到投递一律静默丢弃；check 与 execute 之间
+     * 的竞态由 catch 兜底。
+     */
+    private void safeExecute(Runnable task) {
+        if (destroyed || worker.isShutdown()) return;
+        try {
+            worker.execute(task);
+        } catch (java.util.concurrent.RejectedExecutionException ignored) {
+        }
+    }
 
     // ---------- 会话 ----------
     private int mode = MODE_FEED;
@@ -1817,7 +1834,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
         synchronized (countInFlight) {
             if (!countInFlight.add(key)) return;
         }
-        worker.execute(() -> {
+        safeExecute(() -> {
             com.fongmi.android.tv.api.HongguoCommentApi.Page page =
                     com.fongmi.android.tv.api.HongguoCommentApi.episodeComments(sid, vid, "");
             runOnUiThread(() -> {
@@ -2982,7 +2999,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
         if (playerView != null) playerView.getDanmakuController().clearItems();
         if (!HgStore.isDanmakuOn() || currentSeriesId == null) return;
         final String sid = currentSeriesId;
-        worker.execute(() -> {
+        safeExecute(() -> {
             HongguoDanmakuApi.fetchToFile(sid, vid, 0, item -> {
                 if (!vid.equals(danmakuVid)) return;
                 loadDanmakuFile(vid, item);
@@ -2992,7 +3009,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
 
     private void loadDanmakuFile(String vid, Danmaku item) {
         if (item == null || item.getUrl() == null) return;
-        worker.execute(() -> {
+        safeExecute(() -> {
             List<androidx.media3.ui.danmaku.Danmaku> parsed = parseDanmakuXml(item.getRealUrl());
             if (parsed == null) return;
             runOnUiThread(() -> {
@@ -3215,6 +3232,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        destroyed = true;
         main.removeCallbacks(ticker);
         cancelSpinDelay();
         if (settleAwaitTimeout != null) {
@@ -3238,6 +3256,11 @@ public class HongguoFeedActivity extends AppCompatActivity {
         if (mode == MODE_SERIES && !engineParked) DramaSeriesPrefetch.stopFor(seriesIdArg);
         // 泊出中（横屏页在前台）：本实例的解链流正被横屏页用着，不许关。
         if (!engineParked) resolver.closeAll();
+        // 关池前先把本页主队列未触发的回调整表摘除（P0 对齐）：
+        // settleTo 的六处 main.post 是匿名 lambda、逐个 removeCallbacks
+        // 摘不掉，残留触发即是 1.4.68 崩溃的 jb.run 本人。关池顺序
+        // 必须是「先摘回调、后关池」，迟到的跨线程投递由 safeExecute 兜。
+        main.removeCallbacksAndMessages(null);
         worker.shutdownNow();
         super.onDestroy();
     }

@@ -202,7 +202,7 @@ public final class HgCommentsSheet {
         // 高度按 0 落定，数据回来 notify 也救不回布局——真机评论面
         // 只剩计数、列表全白的定根候选（账 hongguo-comments-blank）。
         // 状态行（加载中…）自首帧就在项数里，测量口径与选集单一致。
-        CommentsAdapter adapter = new CommentsAdapter(activity, dp, worker, seriesId, vid, headInfo, onTotal);
+        CommentsAdapter adapter = new CommentsAdapter(activity, dp, worker, seriesId, vid, headInfo, onTotal, dismissed);
         list.setAdapter(adapter);
         wireComposer(activity, input, sendBtn, adapter, list, seriesId, vid, dismissed);
         list.addItemDecoration(new RecyclerView.ItemDecoration() {
@@ -351,6 +351,7 @@ public final class HgCommentsSheet {
         private final String vid;
         private final TextView headInfo;
         private final OnTotal onTotal;
+        private final boolean[] dismissed;
         private final List<Row> rows = new ArrayList<>();
         private String cursor;
         private boolean hasMore = true;
@@ -360,7 +361,7 @@ public final class HgCommentsSheet {
 
         CommentsAdapter(AppCompatActivity a, java.util.function.IntUnaryOperator dp,
                         ExecutorService worker, String seriesId, String vid, TextView headInfo,
-                        OnTotal onTotal) {
+                        OnTotal onTotal, boolean[] dismissed) {
             activity = a;
             this.dp = dp;
             this.worker = worker;
@@ -368,6 +369,20 @@ public final class HgCommentsSheet {
             this.vid = vid;
             this.headInfo = headInfo;
             this.onTotal = onTotal;
+            this.dismissed = dismissed;
+        }
+
+        /**
+         * 池投递收口（P0 同型）：单关 dismiss 即 shutdownNow，滚动/回包
+         * 迟到的 loadMore、展开回复再投递必撞 RejectedExecutionException；
+         * 单已关＝投递无意义，静默丢弃。
+         */
+        private void exec(Runnable task) {
+            if (dismissed[0]) return;
+            try {
+                worker.execute(task);
+            } catch (java.util.concurrent.RejectedExecutionException ignored) {
+            }
         }
 
         int rowsSize() {
@@ -392,7 +407,7 @@ public final class HgCommentsSheet {
             if (loading || !hasMore) return;
             loading = true;
             final String cur = cursor;
-            worker.execute(() -> {
+            exec(() -> {
                 HongguoCommentApi.Page page = HongguoCommentApi.episodeComments(seriesId, vid, cur);
                 activity.runOnUiThread(() -> {
                     loading = false;
@@ -429,7 +444,7 @@ public final class HgCommentsSheet {
             int at = rows.indexOf(row);
             notifyItemChanged(at);
             final String cid = row.comment.id;
-            worker.execute(() -> {
+            exec(() -> {
                 HongguoCommentApi.Page page = HongguoCommentApi.episodeReplies(seriesId, vid, cid, "");
                 activity.runOnUiThread(() -> {
                     if (page == null) return;

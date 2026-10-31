@@ -409,6 +409,10 @@ public final class HgLandCommentsPanel {
         }
 
         private void expandReplies(Row row) {
+            // P0 同型收口：面板 destroy 已 shutdownNow，迟到的展开投递
+            // 撞死池即崩——与 loadMore 同口径先查 destroyed（同在主线程、
+            // destroy 亦在主线程，查与投之间无竞态窗）。
+            if (destroyed) return;
             row.expanded = true;
             int at = rows.indexOf(row);
             if (at >= 0) notifyItemChanged(at);

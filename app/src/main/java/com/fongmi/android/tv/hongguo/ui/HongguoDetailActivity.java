@@ -118,6 +118,16 @@ public class HongguoDetailActivity extends AppCompatActivity {
         t.setDaemon(true);
         return t;
     });
+    private volatile boolean destroyed;
+
+    /** 池投递唯一收口（与竖屏页同型，P0 定根见 HongguoFeedActivity.safeExecute）。 */
+    private void safeExecute(Runnable task) {
+        if (destroyed || worker.isShutdown()) return;
+        try {
+            worker.execute(task);
+        } catch (java.util.concurrent.RejectedExecutionException ignored) {
+        }
+    }
 
     private int dp(float v) {
         return (int) (v * getResources().getDisplayMetrics().density + 0.5f);
@@ -587,6 +597,7 @@ public class HongguoDetailActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        destroyed = true;
         worker.shutdownNow();
         super.onDestroy();
     }
@@ -1010,7 +1021,7 @@ public class HongguoDetailActivity extends AppCompatActivity {
 
     private void loadComments() {
         final String sid = seriesId;
-        worker.execute(() -> {
+        safeExecute(() -> {
             HongguoCommentApi.Page page;
             try {
                 page = HongguoCommentApi.seriesComments(sid, null);

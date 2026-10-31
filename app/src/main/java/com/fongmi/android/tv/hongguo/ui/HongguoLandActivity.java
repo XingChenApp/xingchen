@@ -63,6 +63,16 @@ public class HongguoLandActivity extends AppCompatActivity {
         t.setDaemon(true);
         return t;
     });
+    private volatile boolean destroyed;
+
+    /** 池投递唯一收口（与竖屏页同型，P0 定根见 HongguoFeedActivity.safeExecute）。 */
+    private void safeExecute(Runnable task) {
+        if (destroyed || worker.isShutdown()) return;
+        try {
+            worker.execute(task);
+        } catch (java.util.concurrent.RejectedExecutionException ignored) {
+        }
+    }
 
     private String seriesId;
     private String seriesTitle;
@@ -1048,7 +1058,7 @@ public class HongguoLandActivity extends AppCompatActivity {
         }
         if (!HgStore.isDanmakuOn() || seriesId == null || vid == null) return;
         final String sid = seriesId;
-        worker.execute(() -> HongguoDanmakuApi.fetchToFile(sid, vid, 0, item -> {
+        safeExecute(() -> HongguoDanmakuApi.fetchToFile(sid, vid, 0, item -> {
             if (!vid.equals(danmakuVid)) return;
             loadDanmakuFile(vid, item);
         }));
@@ -1056,7 +1066,7 @@ public class HongguoLandActivity extends AppCompatActivity {
 
     private void loadDanmakuFile(String vid, Danmaku item) {
         if (item == null || item.getUrl() == null) return;
-        worker.execute(() -> {
+        safeExecute(() -> {
             List<androidx.media3.ui.danmaku.Danmaku> parsed =
                     HongguoFeedActivity.parseDanmakuXml(item.getRealUrl());
             if (parsed == null) return;
@@ -1364,7 +1374,7 @@ public class HongguoLandActivity extends AppCompatActivity {
         final String sid = seriesId;
         final String vid = curVid;
         commentCount.setText("评论");
-        worker.execute(() -> {
+        safeExecute(() -> {
             com.fongmi.android.tv.api.HongguoCommentApi.Page page =
                     com.fongmi.android.tv.api.HongguoCommentApi.episodeComments(sid, vid, "");
             runOnUiThread(() -> {
@@ -1460,6 +1470,7 @@ public class HongguoLandActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        destroyed = true;
         main.removeCallbacks(ticker);
         main.removeCallbacks(hideChrome);
         cancelSpinDelay();
@@ -1469,6 +1480,8 @@ public class HongguoLandActivity extends AppCompatActivity {
         clearFreezeBitmap();
         if (!exited) parkBack(); // 异常退出兜底：把播放器泊回，不许泄漏
         resolver.closeAll();
+        // 先摘本页主队列残留回调、后关池（P0 对齐，同竖屏页）
+        main.removeCallbacksAndMessages(null);
         worker.shutdownNow();
         super.onDestroy();
     }
