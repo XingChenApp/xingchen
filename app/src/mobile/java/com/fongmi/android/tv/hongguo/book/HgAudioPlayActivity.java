@@ -46,8 +46,10 @@ import com.fongmi.android.tv.R;
  * 红果听书单独的播放页（2026-10-30 分家令）：
  * 红果听书是内置的独立一套，只许在本页播；进度/续播只存它自己的一份
  * （HgAudioStore），不写普通听书的 ReadingStore、不注册普通听书的迷你条
- * 会话、不读普通听书的任何状态。底层只借 PlaybackService（后台播放＋
- * 锁屏控制，播放键前缀 hgaudio: 与普通听书隔离）＋PlayerManager。
+ * 会话、不读普通听书的任何状态。服务层自 2026-10-31 W-15 拆套起走自家
+ * HgAudioPlaybackService（与主 PlaybackService 同机制、独立实例：自有
+ * PlayerManager/会话/通知/导航槽，播放键前缀 hgaudio:），与普通听书、
+ * 视频、TTS 互不顶播、互不连坐回收。
  * 本页是播放的唯一主人：页销毁即停播＋落盘，不留 detached 孤儿声；
  * 续播从红果书城/目录再进时按 bookId 回 HgAudioStore 取位置。
  * 由 AudioBookActivity 同链 fork 后按分家口径裁剪（章节解析仍走
@@ -602,12 +604,12 @@ public class HgAudioPlayActivity extends Activity implements ServiceConnection {
         return ReadingSkin.dp(this, v);
     }
 
-    // ================= 服务绑定（复用 PlaybackService） =================
+    // ================= 服务绑定（W-15 拆套：绑自家 HgAudioPlaybackService） =================
 
     private void bindPlaybackService() {
         if (bound) return;
-        startService(new Intent(this, PlaybackService.class));
-        bindService(new Intent(this, PlaybackService.class)
+        startService(new Intent(this, HgAudioPlaybackService.class));
+        bindService(new Intent(this, HgAudioPlaybackService.class)
                 .setAction(PlaybackService.LOCAL_BIND_ACTION), this, BIND_AUTO_CREATE);
         bound = true;
     }
