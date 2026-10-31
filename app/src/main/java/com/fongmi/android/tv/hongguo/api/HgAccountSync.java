@@ -87,6 +87,38 @@ public final class HgAccountSync {
     /** 本进程是否已完成过一轮全量拉取（D-12 进程级闸：进面补拉只跑一次）。 */
     private static volatile boolean syncedThisProcess;
 
+    // 拉取结局三档（D-13）：OK＝跑通；FAIL＝普通失败；AUTH＝服务端以
+    // HTTP 401/403 拒认会话。业务码层面的失效码未验、不猜，只认 HTTP 档。
+    private static final int OUT_OK = 0;
+    private static final int OUT_FAIL = 1;
+    private static final int OUT_AUTH = 2;
+
+    /** 会话过期一次性提示旗：置真处在 runPulls 判过期时，页面消费一次即清。 */
+    private static volatile boolean sessionExpiredNotice;
+
+    /** 取走过期提示（消费一次）：页面在同步回调后调，true 时提示重新登录。 */
+    public static boolean consumeSessionExpiredNotice() {
+        boolean v = sessionExpiredNotice;
+        sessionExpiredNotice = false;
+        return v;
+    }
+
+    /** HTTP 状态异常（只由 enqueue 的非 2xx 回包产生，携状态码供失效判定）。 */
+    private static final class HttpStatusException extends Exception {
+        final int status;
+
+        HttpStatusException(int status) {
+            super("HTTP " + status);
+            this.status = status;
+        }
+    }
+
+    private static boolean isAuthFailure(Throwable e) {
+        return e instanceof HttpStatusException
+                && (((HttpStatusException) e).status == 401
+                || ((HttpStatusException) e).status == 403);
+    }
+
     /** 登录成功后全量拉取合并（收藏/历史/点赞/预约四面，逐面独立、互不连坐）。 */
     public static void syncAfterLogin() {
         if (!HgAccountStore.isLoggedIn()) return;
@@ -114,12 +146,23 @@ public final class HgAccountSync {
         });
     }
 
-    /** 四面拉取合并一轮（调用方须在 WORKER 线程）。 */
+    /**
+     * 四面拉取合并一轮（调用方须在 WORKER 线程）。会话失效判定（D-13）：
+     * 四面全部被 401/403 拒认才算过期——单面拒认可能是该口风控/异常，
+     * 不拿它清会话。判过期即清会话＋账号镜像并置一次性提示旗，此前
+     * 过期后恒显已登录、四面恒失败且无任何提示。
+     */
     private static void runPulls() {
-        pullReservations();
-        pullShelf();
-        pullHistory();
-        pullLikes();
+        int r = pullReservations();
+        int s = pullShelf();
+        int h = pullHistory();
+        int l = pullLikes();
+        if (r == OUT_AUTH && s == OUT_AUTH && h == OUT_AUTH && l == OUT_AUTH) {
+            android.util.Log.w(TAG, "四面拉取全被 401/403 拒认，判会话过期并清会话");
+            HgAccountStore.clear();
+            HgStore.clearAccountMirrors();
+            sessionExpiredNotice = true;
+        }
     }
 
     /** 收藏/追更动作上报（追剧架 AddShelf/DelShelf）；未登录空转、失败静默。 */
@@ -159,7 +202,8 @@ public final class HgAccountSync {
     // ---------- 拉取合并 ----------
 
     /** 预约两档（已上线/待上线）各自分页拉全：置 reserved 镜像＋元信息；已上线档落 online 分档集。 */
-    private static void pullReservations() {
+    private static int pullReservations() {
+        boolean failed = false;
         for (boolean online : new boolean[]{true, false}) {
             try {
                 Set<String> tierIds = new LinkedHashSet<>();
@@ -179,18 +223,21 @@ public final class HgAccountSync {
                 }
                 if (online && !tierIds.isEmpty()) HgStore.setReservedOnlineIds(tierIds);
             } catch (Exception e) {
+                if (isAuthFailure(e)) return OUT_AUTH;
+                failed = true;
                 android.util.Log.w(TAG, "预约拉取失败 online=" + online + " " + e.getMessage());
             }
         }
+        return failed ? OUT_FAIL : OUT_OK;
     }
 
     /** 追剧架本人列表：回包走频道同族 cell 信封（旧实现同解析路），条目置 followed 正源。 */
-    private static void pullShelf() {
+    private static int pullShelf() {
         try {
             String text = accountGetSync(
                     "/reading/bookapi/bookshelf/video/list" + BV, new ArrayList<>());
             DramaCellPage page = DramaParser.parseCellPage(text);
-            if (page == null || page.getItems() == null) return;
+            if (page == null || page.getItems() == null) return OUT_FAIL;
             java.util.Set<String> cloud = new java.util.HashSet<>();
             for (DramaItem item : page.getItems()) {
                 if (item == null || item.getSeriesId() == null) continue;
@@ -206,13 +253,17 @@ public final class HgAccountSync {
             for (String id : HgStore.followedIds()) {
                 if (!cloud.contains(id)) reportShelf(id, true);
             }
+            return OUT_OK;
         } catch (Exception e) {
+            if (isAuthFailure(e)) return OUT_AUTH;
             android.util.Log.w(TAG, "收藏拉取失败 " + e.getMessage());
+            return OUT_FAIL;
         }
     }
 
     /** 服务端历史：book_type 2（短剧）/3（合集）两路分页拉全，本地没有的剧才导入。 */
-    private static void pullHistory() {
+    private static int pullHistory() {
+        boolean failed = false;
         for (int bookType : new int[]{2, 3}) {
             try {
                 int offset = 0;
@@ -236,13 +287,16 @@ public final class HgAccountSync {
                     } else break;
                 }
             } catch (Exception e) {
+                if (isAuthFailure(e)) return OUT_AUTH;
+                failed = true;
                 android.util.Log.w(TAG, "历史拉取失败 type=" + bookType + " " + e.getMessage());
             }
         }
+        return failed ? OUT_FAIL : OUT_OK;
     }
 
     /** 本人点赞列表（ugc/action/mget，action_type=3）：分页拉全，置 liked 镜像。 */
-    private static void pullLikes() {
+    private static int pullLikes() {
         try {
             int offset = 0;
             int depth = 0;
@@ -264,8 +318,11 @@ public final class HgAccountSync {
                     depth++;
                 } else break;
             }
+            return OUT_OK;
         } catch (Exception e) {
+            if (isAuthFailure(e)) return OUT_AUTH;
             android.util.Log.w(TAG, "点赞拉取失败 " + e.getMessage());
+            return OUT_FAIL;
         }
     }
 
@@ -496,6 +553,7 @@ public final class HgAccountSync {
         final CountDownLatch latch = new CountDownLatch(1);
         final String[] body = new String[1];
         final String[] error = new String[1];
+        final int[] errorCode = new int[1];
         starter.start(new HgCallback<String>() {
             @Override
             public void onSuccess(String text) {
@@ -505,12 +563,18 @@ public final class HgAccountSync {
 
             @Override
             public void onError(int code, String msg) {
+                errorCode[0] = code;
                 error[0] = msg == null ? ("请求失败(" + code + ")") : msg;
                 latch.countDown();
             }
         });
         if (!latch.await(30, TimeUnit.SECONDS)) throw new Exception("请求超时");
-        if (error[0] != null) throw new Exception(error[0]);
+        if (error[0] != null) {
+            // HTTP 状态码原样上抛成 HttpStatusException 供 D-13 失效判定；
+            // 自家负码（未登录/空体/网络）仍走普通异常
+            if (errorCode[0] > 0) throw new HttpStatusException(errorCode[0]);
+            throw new Exception(error[0]);
+        }
         return body[0] == null ? "" : body[0];
     }
 
@@ -546,7 +610,9 @@ public final class HgAccountSync {
 
             @Override
             public void onError(int code, String msg) {
-                cb.onError(code, msg);
+                // 设备注册闸的失败与账号会话无关：码改自家负码透传，
+                // 防 sync() 把注册口的 HTTP 码误读成会话失效（D-13）
+                cb.onError(-4, msg);
             }
         });
     }
@@ -577,7 +643,8 @@ public final class HgAccountSync {
 
             @Override
             public void onError(int code, String msg) {
-                cb.onError(code, msg);
+                // 同 accountGet：注册闸失败改自家负码，不入会话失效判定
+                cb.onError(-4, msg);
             }
         });
     }

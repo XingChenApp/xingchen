@@ -261,7 +261,13 @@ public class HongguoMineActivity extends AppCompatActivity {
         // 同步从不触发——进程内只补一轮，落盘后同口再重拉一次本面，
         // 他端新增的收藏/历史这次进得来、也看得见
         HgAccountSync.syncOnEnter(() -> runOnUiThread(() -> {
-            if (!isFinishing() && !isDestroyed()) reloadCurrentView();
+            if (isFinishing() || isDestroyed()) return;
+            reloadCurrentView();
+            // 会话过期感知（D-13）：同步判过期已清会话，账号行随重拉
+            // 变回未登录态，这里补一句人话提示，不再静默装作已登录
+            if (HgAccountSync.consumeSessionExpiredNotice()) {
+                Toast.makeText(this, "登录已过期，请重新登录", Toast.LENGTH_SHORT).show();
+            }
         }));
     }
 
