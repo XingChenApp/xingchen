@@ -94,6 +94,11 @@ public class HongguoDetailActivity extends AppCompatActivity {
     private LinearLayout reserveBtn;
     private TextView reserveText;
     private LinearLayout statsRow;
+    /** W-12：累计收藏格的值视图（bind 建格时留引用，无格时 null）。 */
+    private TextView favCountText;
+    /** W-12：收藏格最近一次回包基数（-1＝无格）与本地增量（见 bumpFavCount）。 */
+    private long favCntBase = -1;
+    private int favCntDelta;
     private TextView descText;
     private String descFull;
     private boolean descExpanded;
@@ -636,8 +641,23 @@ public class HongguoDetailActivity extends AppCompatActivity {
         // 其余不写、留给流条目在手的写点补（putType 判不出不冲已有值）。
         HgStore.putType(seriesId, detail.hasAppointment() ? HgStore.TYPE_PREVIEW : null);
         styleFav(now);
+        bumpFavCount(now);
         // 账号动作上报追剧架（#22：未登录已在入口跳登录页）
         com.fongmi.android.tv.hongguo.api.HgAccountSync.reportShelf(seriesId, now);
+    }
+
+    /**
+     * W-12（他亲裁「跟着变」）：累计收藏格随本地收藏动作即时增减——
+     * 方向取 toggleFaved 的落定态（收藏 +1、取消 −1），每次点击必翻
+     * 一位，同向重复加减无从发生；显示值＝回包基数＋本地增量、下限 0。
+     * 回包无此格（基数未下发）时不动，不凭空造数；基数在 bind 处的
+     * 处理见 bind 统计格段（基数变则增量清零、以回包为准）。
+     */
+    private void bumpFavCount(boolean nowFaved) {
+        if (favCountText == null || favCntBase < 0) return;
+        favCntDelta += nowFaved ? 1 : -1;
+        favCountText.setText(HgTimeTextCount.format(
+                Math.max(0, favCntBase + favCntDelta)));
     }
 
     /** 预约钮点击：翻转 reserved 集＋落元信息/预告类型码＋登录态上报。 */
@@ -875,8 +895,20 @@ public class HongguoDetailActivity extends AppCompatActivity {
             anyStat = true;
         }
         if (d.getFollowedCnt() >= 0) {
-            addStat(HgTimeTextCount.format(d.getFollowedCnt()), "累计收藏");
+            // W-12：回包基数与上次不同才清本地增量（新回包为准）；同值
+            // 重绑保留增量，防本地刚增减完又被旧值打回。显示＝基数＋增量。
+            long serverCnt = d.getFollowedCnt();
+            if (serverCnt != favCntBase) {
+                favCntBase = serverCnt;
+                favCntDelta = 0;
+            }
+            favCountText = addStat(HgTimeTextCount.format(
+                    Math.max(0, favCntBase + favCntDelta)), "累计收藏");
             anyStat = true;
+        } else {
+            favCountText = null;
+            favCntBase = -1;
+            favCntDelta = 0;
         }
         statsRow.setVisibility(anyStat ? View.VISIBLE : View.GONE);
 
@@ -956,7 +988,7 @@ public class HongguoDetailActivity extends AppCompatActivity {
         // 停留仍塌），随定根一并摘除，不留假保险。
     }
 
-    private void addStat(String value, String label) {
+    private TextView addStat(String value, String label) {
         // 定稿 .d-stats：值 17.5sp 900、签 12sp rgba(.52) 上距 5；
         // 非首格带左线 rgba(255,255,255,.14)、格左距 12（首格 2）。
         // 值前 15px 图标草稿有、热度焰图标无现成 drawable，不画字形
@@ -984,6 +1016,7 @@ public class HongguoDetailActivity extends AppCompatActivity {
         llp.topMargin = dp(5);
         cell.addView(l, llp);
         statsRow.addView(cell, new LinearLayout.LayoutParams(0, -2, 1f));
+        return v;
     }
 
     /**
