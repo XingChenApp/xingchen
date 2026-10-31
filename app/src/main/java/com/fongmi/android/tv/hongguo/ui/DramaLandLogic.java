@@ -32,6 +32,45 @@ public final class DramaLandLogic {
     }
 
     /**
+     * 进横屏专用窄带（自家定值，官方度数带未抠到、不冒充官方）：
+     * 75–105／255–285，离全横置 ≤15° 才算「接近横置」。退横屏仍用
+     * orientationBand 的竖带，不收窄。件六（fix168 回炉）落。
+     */
+    public static boolean isEnterLandBand(int deg) {
+        if (deg < 0) return false;
+        return (deg >= 75 && deg <= 105) || (deg >= 255 && deg <= 285);
+    }
+
+    // ---------- 传感器触发互锁（件六，自家定值） ----------
+    // 两页（竖屏页进、横屏页退）共用同一台设备的朝向事件流，互锁
+    // 状态放静态共享：任一方向传感器触发后——①1000ms 内反方向不
+    // 受理；②必须先经过一次中间带才重新武装任何方向（防带边横
+    // 跳）。带内停留 ≥400ms 的计时在两页监听各自记（landBandSince
+    // ／portraitBandSince），本组函数只管触发后互锁。
+
+    private static long sLastTriggerMs = -1;
+    private static int sLastTriggerDir = 0;
+    private static boolean sNeedMiddleBand = false;
+
+    /** 方向 dir（+1 进横屏／-1 退横屏）当前是否武装。 */
+    public static boolean sensorDirectionArmed(int dir, long nowMs) {
+        if (sNeedMiddleBand) return false;
+        return sLastTriggerDir != -dir || nowMs - sLastTriggerMs >= 1000;
+    }
+
+    /** 记一次传感器触发：落互锁（反向 1000ms＋须过中间带重武装）。 */
+    public static void sensorNoteTrigger(int dir, long nowMs) {
+        sLastTriggerDir = dir;
+        sLastTriggerMs = nowMs;
+        sNeedMiddleBand = true;
+    }
+
+    /** 朝向经过中间带：解除「须过中间带」锁，方向重新武装。 */
+    public static void sensorNoteMiddleBand() {
+        sNeedMiddleBand = false;
+    }
+
+    /**
      * 进横屏总闸：滚动未 idle／播放器没起播／倍速长按中任一成立即拒；
      * 弹窗在场只对传感器路（fromButton=false）算拒，按钮路豁免。
      * 横版门不在本函数内，由调用方先把关。

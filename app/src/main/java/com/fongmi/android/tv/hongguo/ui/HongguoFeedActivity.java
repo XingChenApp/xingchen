@@ -7,6 +7,7 @@ import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
+import android.provider.Settings;
 import android.os.Looper;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -334,6 +335,8 @@ public class HongguoFeedActivity extends AppCompatActivity {
     private int lastVideoH;
     private long panelGuardUntil;
     private OrientationEventListener orientationListener;
+    /** 件六：进横屏窄带内停留计时（首帧入带记时刻，≥400ms 才触发）。 */
+    private long landBandSince;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -368,13 +371,37 @@ public class HongguoFeedActivity extends AppCompatActivity {
             else loadUgc();
         }
         main.post(ticker);
-        // 传感器横转直进横屏（他 2026-10-31 拍板加回，恢复 UI同步C
-        // 摘除前的原接法）：朝向落横向带即走 enterLand(false)，
-        // 横版门＋总闸在 enterLand 内与钮路同口径把关。
+        // 传感器横转直进横屏（他 2026-10-31 拍板加回的接法）＋件六
+        // 防误触（自家定值，官方度数带未抠到）：进带收窄到离全横置
+        // ≤15° 的窄带（DramaLandLogic.isEnterLandBand）、带内停留
+        // ≥400ms 才走 enterLand(false)；触发后互锁（反向 1000ms＋
+        // 过中间带才重武装）在 DramaLandLogic 共享。监听只在系统
+        // 自动旋转开着时武装（onResume 现读开关），关＝整条不武装、
+        // 只剩全屏钮手动路。横版门＋总闸在 enterLand 内与钮路同口径。
         orientationListener = new OrientationEventListener(this) {
             @Override
             public void onOrientationChanged(int orientation) {
-                if (DramaLandLogic.orientationBand(orientation) == 1) enterLand(false);
+                long now = System.currentTimeMillis();
+                if (DramaLandLogic.isEnterLandBand(orientation)) {
+                    if (!DramaLandLogic.sensorDirectionArmed(1, now)) {
+                        landBandSince = 0;
+                        return;
+                    }
+                    if (landBandSince == 0) {
+                        landBandSince = now;
+                        return;
+                    }
+                    if (now - landBandSince >= 400) {
+                        landBandSince = 0;
+                        DramaLandLogic.sensorNoteTrigger(1, now);
+                        enterLand(false);
+                    }
+                } else {
+                    landBandSince = 0;
+                    if (DramaLandLogic.orientationBand(orientation) == -1) {
+                        DramaLandLogic.sensorNoteMiddleBand();
+                    }
+                }
             }
         };
     }
@@ -492,10 +519,29 @@ public class HongguoFeedActivity extends AppCompatActivity {
         mountPlayerView(currentIndex);
     }
 
+    /**
+     * 件六主修：系统自动旋转开关现读（每次 onResume 现判、不缓存，
+     * 他中途改开关回页即生效）。官方整套旋转策略建立在系统开关之
+     * 上、咱家此前全树不读——他关着开关也被歪一下送进横屏的头号
+     * 症即此。读失败（异常/未设置）按关处理（保守侧、与他设备现
+     * 状一致）。关＝传感器链整条不武装，手动全屏钮路不受影响。
+     */
+    private boolean systemAutoRotateOn() {
+        try {
+            return Settings.System.getInt(getContentResolver(),
+                    Settings.System.ACCELEROMETER_ROTATION) == 1;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
-        if (orientationListener != null) orientationListener.enable();
+        if (orientationListener != null) {
+            if (systemAutoRotateOn()) orientationListener.enable();
+            else orientationListener.disable();
+        }
         if (engineParked) {
             reclaimFromLand();
             remountSurfaceAfterReturn();
