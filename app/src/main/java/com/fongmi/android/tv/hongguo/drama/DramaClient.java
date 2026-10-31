@@ -6,7 +6,6 @@ import com.fongmi.android.tv.hongguo.api.HgDevice;
 import com.fongmi.android.tv.hongguo.api.HgRequests;
 import com.fongmi.android.tv.hongguo.model.HgContinuation;
 import com.github.catvod.net.OkHttp;
-import com.github.catvod.utils.Prefers;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
@@ -15,11 +14,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -31,12 +28,11 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 /**
- * 短剧取数客户端（2026-10-30 从零重建）：浏览/详情等读面共享呈现
- * 优先（DramaSign，drpys/hongguoTV 形态），身份被拒/空体/传输失败时
- * 按 DramaFetchPolicy 冷却降级到自家档案（HgApiClient 已验同步签名
- * 口）；永久锁存整件废除，冷却到期自动回共享。播放取模型面同日晚
- * 按他亲令反转：自家档案先行＋自家冷却期内/失败时切共享兜底
- * （DramaPlayFetchPolicy，账 hongguo-fetch-order-20261030）。
+ * 短剧取数客户端（2026-10-30 从零重建）：全线只走自家注册脸——
+ * 浏览/详情等读面与播放取模型面统一经 HgApiClient 已验同步签名口，
+ * 失败原样收口、不切任何脸。共享呈现（DramaSign，drpys/hongguoTV
+ * 写死共享身份）与两套身份策略（冷却切换/兜底）已于 2026-10-31
+ * 按 W-03 裁决整套摘除（账 w03-dramasign-removal-20261031）。
  *
  * <p>端点与回包口径维持已验链路：频道 bookmall tab/cell change、详情
  * video_detail/multi_video_detail/album_detail、搜索 search/tab、
@@ -47,43 +43,12 @@ public final class DramaClient {
 
     private static final MediaType JSON = MediaType.parse("application/json; charset=UTF-8");
     private static final int MULTI_CHUNK = 20;
-    private static final String KEY_COOLDOWN = "drama_fetch_cooldown_until";
-    private static final String KEY_PLAY_COOLDOWN = "drama_play_cooldown_until";
 
     private static final ExecutorService WORKER = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "drama-fetch");
         t.setDaemon(true);
         return t;
     });
-
-    private static final DramaFetchPolicy POLICY = new DramaFetchPolicy(
-            System::currentTimeMillis,
-            new DramaFetchPolicy.Store() {
-                @Override
-                public long readCooldownUntil() {
-                    return Prefers.getLong(KEY_COOLDOWN, 0L);
-                }
-
-                @Override
-                public void writeCooldownUntil(long untilMillis) {
-                    Prefers.put(KEY_COOLDOWN, untilMillis);
-                }
-            });
-
-    /** 播放取模型专用策略（自家先行，与浏览面 POLICY 分家、冷却键独立）。 */
-    private static final DramaPlayFetchPolicy PLAY_POLICY = new DramaPlayFetchPolicy(
-            System::currentTimeMillis,
-            new DramaPlayFetchPolicy.Store() {
-                @Override
-                public long readCooldownUntil() {
-                    return Prefers.getLong(KEY_PLAY_COOLDOWN, 0L);
-                }
-
-                @Override
-                public void writeCooldownUntil(long untilMillis) {
-                    Prefers.put(KEY_PLAY_COOLDOWN, untilMillis);
-                }
-            });
 
     private DramaClient() {
     }
@@ -110,7 +75,7 @@ public final class DramaClient {
     /** 回包预检：空体→-2；业务码非 0→以业务码失败；否则放行原文。 */
     private static void deliver(String text, Sink sink) {
         if (text == null || text.isEmpty()) {
-            sink.fail(DramaFetchPolicy.CODE_EMPTY, "回包空体");
+            sink.fail(-2, "回包空体");
             return;
         }
         int code = DramaParser.businessCodeOf(text);
@@ -151,31 +116,6 @@ public final class DramaClient {
         return HgDevice.PATH_PLAYBACK_MULTI.equals(path) ? HgDevice.API_HOST_B : HgDevice.API_HOST;
     }
 
-    private static void sharedPost(String path, JsonObject bodyObj, Sink sink) {
-        try {
-            String host = hostFor(path);
-            byte[] body = bodyObj.toString().getBytes(StandardCharsets.UTF_8);
-            DramaSign.Signed s = DramaSign.sign(host + path, DramaSign.devicePairs(false), body,
-                    System.currentTimeMillis());
-            Map<String, String> h = new LinkedHashMap<>(s.headers);
-            enqueue(OkHttp.newCall(s.url, h, RequestBody.create(body, JSON)), sink);
-        } catch (Exception e) {
-            sink.fail(-1, e.getMessage());
-        }
-    }
-
-    private static void sharedGet(String host, String path, List<String[]> pairs,
-                                  boolean searchFace, Sink sink) {
-        try {
-            List<String[]> all = new ArrayList<>(DramaSign.devicePairs(searchFace));
-            all.addAll(businessOnly(pairs));
-            DramaSign.Signed s = DramaSign.sign(host + path, all, null, System.currentTimeMillis());
-            enqueue(OkHttp.newCall(s.url, new LinkedHashMap<>(s.headers)), sink);
-        } catch (Exception e) {
-            sink.fail(-1, e.getMessage());
-        }
-    }
-
     private static void ownPost(String path, JsonObject bodyObj, Sink sink) {
         WORKER.execute(() -> {
             try {
@@ -188,10 +128,10 @@ public final class DramaClient {
 
     /**
      * 自家面 POST 的播放专用版：走 HgApiClient 带码同步口，失败码
-     * 原样到达（200 空体＝-2、HTTP 码、网络＝-1），策略层才能把
-     * 「空体/身份拒绝」与「传输失败」分开处置（ownPost 的消息口径
-     * 会把码压丢，只够浏览兜底用）。回包同样过 deliver 预检，体内
-     * 业务码（110001 等）与共享面同路归类。
+     * 原样到达（200 空体＝-2、HTTP 码、网络＝-1），调用方才能把
+     * 「空体/身份拒绝」与「传输失败」分开记录（ownPost 的消息口径
+     * 会把码压丢，只够浏览面用）。回包同样过 deliver 预检，体内
+     * 业务码（110001 等）原样以码失败。
      */
     private static void ownModelPost(String path, JsonObject bodyObj, Sink sink) {
         WORKER.execute(() -> {
@@ -216,110 +156,37 @@ public final class DramaClient {
     }
 
     /**
-     * 播放取模型专用包覆（自家先行，DramaPlayFetchPolicy）：只许
-     * multi/单集取 video_model 两口用。自家面经 HgApiClient 带码同步
-     * 签名口发（其内先过 ensureDevice 注册闸——未注册先补注册、注册
-     * 失败归一 -1 走传输失败处置，不存在拿空档案硬撞）；自家被拒/空体进
-     * 自家冷却、传输失败不进冷却，两者本发都改走共享兜底；冷却期内
-     * 直接共享。共享在本链恒可直发（不读浏览面 POLICY 的冷却门），
-     * 其成败原样收口、不回写任一策略，故两面永不同时锁死。
+     * 播放取模型发送口：只许 multi/单集取 video_model 两口用。自家面
+     * 经 HgApiClient 带码同步签名口发（其内先过 ensureDevice 注册
+     * 闸——未注册先补注册、注册失败归一 -1，不存在拿空档案硬撞），
+     * 成败原样收口。共享兜底与播放冷却已随 W-03 整套摘除，本口与
+     * 推测口现行同路。
      */
     private static void postModel(String path, JsonObject bodyObj, Sink sink) {
         postModel(path, bodyObj, sink, false);
     }
 
     /**
-     * 推测发（邻条/全集预取）专用：本发的成败只决定本发要不要改走
-     * 共享兜底，绝不许碰 PLAY_POLICY 的冷却状态——预取是替正片探路
-     * 的，它在计量窗里撞到的空体若把自家面打进 15 分钟冷却，随后
-     * 每条正片都会被赶去走经常回空的共享面、连环失败（1.4.63 真机
-     * 「第一条能播、后面全灭」定根，账 hongguo-1463-triage2-20261030）。
-     * 正片取链（speculative=false）口径不变：结局照常推进冷却。
+     * 推测发（邻条/全集预取）标记：此旗原为「预取成败不许写播放
+     * 冷却」而设——预取在计量窗里撞到的空体若把自家面打进 15 分钟
+     * 冷却，正片会被赶去走共享面连环失败（1.4.63 真机「第一条能播、
+     * 后面全灭」定根，账 hongguo-1463-triage2-20261030）。冷却状态
+     * 已随共享面整套摘除（W-03），推测口与正片口不再有状态差异，
+     * 旗保留作调用口径标记，两路成败都原样收口。
      */
     private static void postModel(String path, JsonObject bodyObj, Sink sink,
                                   boolean speculative) {
-        if (PLAY_POLICY.route() == DramaPlayFetchPolicy.Route.SHARED) {
-            sharedPost(path, bodyObj, sink);
-            return;
-        }
-        ownModelPost(path, bodyObj, new Sink() {
-            @Override
-            public void body(String text) {
-                if (!speculative) {
-                    PLAY_POLICY.onOwnOutcome(DramaPlayFetchPolicy.OwnOutcome.SUCCESS);
-                }
-                sink.body(text);
-            }
-
-            @Override
-            public void fail(int code, String msg) {
-                // 单脸口径（2026-10-31）：推测发失败同样原样收口，不许再切共享脸。
-                DramaPlayFetchPolicy.Action a = speculative
-                        ? DramaPlayFetchPolicy.Action.FAIL_AS_IS
-                        : PLAY_POLICY.onOwnOutcome(DramaPlayFetchPolicy.classify(code));
-                if (a == DramaPlayFetchPolicy.Action.FALLBACK_SHARED) sharedPost(path, bodyObj, sink);
-                else sink.fail(code, msg);
-            }
-        });
+        ownModelPost(path, bodyObj, sink);
     }
 
-    /** 共享先行＋策略兜底的统一包覆（POST 详情/筛选面，浏览口径不动）。 */
+    /** POST 发送口（详情/筛选面）：自家面同步签名口，成败原样收口。 */
     private static void postPlayer(String path, JsonObject bodyObj, Sink sink) {
-        if (POLICY.route() == DramaFetchPolicy.Route.OWN) {
-            ownPost(path, bodyObj, sink);
-            return;
-        }
-        sharedPost(path, bodyObj, new Sink() {
-            @Override
-            public void body(String text) {
-                POLICY.onSharedOutcome(DramaFetchPolicy.SharedOutcome.SUCCESS);
-                sink.body(text);
-            }
-
-            @Override
-            public void fail(int code, String msg) {
-                DramaFetchPolicy.Action a = POLICY.onSharedOutcome(DramaFetchPolicy.classify(code));
-                if (a == DramaFetchPolicy.Action.FALLBACK_OWN) ownPost(path, bodyObj, sink);
-                else sink.fail(code, msg);
-            }
-        });
+        ownPost(path, bodyObj, sink);
     }
 
-    /** 共享先行＋策略兜底的统一包覆（GET 浏览面）。 */
-    private static void getBrowse(String path, List<String[]> fullPairs, boolean searchFace, Sink sink) {
-        if (POLICY.route() == DramaFetchPolicy.Route.OWN) {
-            ownGet(path, fullPairs, sink);
-            return;
-        }
-        sharedGet(HgApiClient.HOST, path, fullPairs, searchFace, new Sink() {
-            @Override
-            public void body(String text) {
-                POLICY.onSharedOutcome(DramaFetchPolicy.SharedOutcome.SUCCESS);
-                sink.body(text);
-            }
-
-            @Override
-            public void fail(int code, String msg) {
-                DramaFetchPolicy.Action a = POLICY.onSharedOutcome(DramaFetchPolicy.classify(code));
-                if (a == DramaFetchPolicy.Action.FALLBACK_OWN) ownGet(path, fullPairs, sink);
-                else sink.fail(code, msg);
-            }
-        });
-    }
-
-    private static final Set<String> DEVICE_KEYS = new HashSet<>(java.util.Arrays.asList(
-            "iid", "device_id", "ac", "channel", "aid", "app_name", "version_code",
-            "version_name", "device_platform", "os", "ssmix", "device_type",
-            "device_brand", "language", "os_api", "os_version", "manifest_version_code",
-            "resolution", "dpi", "update_version_code", "host_abi", "dragon_device_type",
-            "pv_player", "compliance_status", "need_personal_recommend",
-            "player_so_load", "is_android_pad_screen", "cdid", "openudid", "ts", "_rticket"));
-
-    /** 从 HgRequests 的整表（含设备段）里摘出业务参（共享签名时设备段由 DramaSign 提供）。 */
-    private static List<String[]> businessOnly(List<String[]> pairs) {
-        List<String[]> out = new ArrayList<>();
-        for (String[] p : pairs) if (!DEVICE_KEYS.contains(p[0])) out.add(p);
-        return out;
+    /** GET 发送口（浏览面）：自家面同步签名口，成败原样收口。 */
+    private static void getBrowse(String path, List<String[]> fullPairs, Sink sink) {
+        ownGet(path, fullPairs, sink);
     }
 
     private static <T> Sink sinkOf(HgCallback<T> cb, java.util.function.Function<String, T> parse) {
@@ -392,20 +259,21 @@ public final class DramaClient {
 
     /**
      * 窗口批专用口（当前集起一窗、替后续集探路的那一发）：恒走推测口
-     * （speculative=true），成败绝不写 PLAY_POLICY 播放冷却——窗口里
-     * 十九集是预取性质、只有当前集是正片，把整窗按正片口径发等于让
-     * 预取替正片写冷却状态，口径恢复多脸/冷却被读的那天就是 1.4.63
-     * 「第一条能播后面全灭」同型雷（审计 A-14）。Feed/Land 两处窗口
-     * 批调用点已翻转到本口（收官批 bfae12b8e/fe967b34e，账
-     * hongguo-round-close-20261031）；Land warmModelCache 的单集暖机
-     * 不是窗口批，维持显式 fetchModels(...,false) 原样。
+     * （speculative=true）。此口与正片口分家原为「预取成败不许写
+     * 播放冷却」（审计 A-14：把整窗按正片口径发等于让预取替正片写
+     * 冷却状态，是 1.4.63「第一条能播后面全灭」同型雷）；冷却已随
+     * W-03 整套摘除、两口现行同路，分口保留作调用口径标记。Feed/
+     * Land 两处窗口批调用点已翻转到本口（收官批 bfae12b8e/
+     * fe967b34e，账 hongguo-round-close-20261031）；Land
+     * warmModelCache 的单集暖机不是窗口批，维持显式
+     * fetchModels(...,false) 原样。
      */
     public static void fetchWindowModels(List<ModelRequest> requests,
                                          HgCallback<Map<String, DramaVideoModel>> cb) {
         fetchModels(requests, cb, true);
     }
 
-    /** speculative=true＝预取发：走 postModel 推测口，不动播放冷却。 */
+    /** speculative=true＝预取发：走 postModel 推测口（与正片口同路，见 fetchWindowModels 注）。 */
     public static void fetchModels(List<ModelRequest> requests,
                                    HgCallback<Map<String, DramaVideoModel>> cb,
                                    boolean speculative) {
@@ -505,10 +373,11 @@ public final class DramaClient {
     }
 
     /**
-     * speculative=true＝预热发（尾段预取下一集专用口）：全链走推测口，
-     * 撞空不写不清播放冷却。2026-10-31 自查定根：尾段预取原先借正片
-     * 口 resolve()，一发空就把自家脸打进 15 分钟冷却、窗内正片全被
-     * 赶去共享面——与刷流预取/全集预取的推测口纪律对齐。
+     * speculative=true＝预热发（尾段预取下一集专用口）：全链走推测口。
+     * 此旗原为「预热撞空不许写播放冷却」而设（2026-10-31 自查定根：
+     * 尾段预取原先借正片口 resolve()，一发空就把自家脸打进 15 分钟
+     * 冷却、窗内正片全被赶去共享面）；冷却与共享面已随 W-03 整套
+     * 摘除，现与正片口同路，旗作调用口径标记保留。
      */
     public static void fetchModelForPlay(String vid, int contentType,
                                          HgCallback<DramaVideoModel> cb, boolean speculative) {
@@ -795,7 +664,7 @@ public final class DramaClient {
         pairs.add(new String[]{"scene", "10"});
         pairs.add(new String[]{"session_uuid", java.util.UUID.randomUUID().toString()});
         pairs.add(new String[]{"device_level", "3"});
-        getBrowse(HgDevice.PATH_PLAN, pairs, false, new Sink() {
+        getBrowse(HgDevice.PATH_PLAN, pairs, new Sink() {
             @Override
             public void body(String text) {
                 List<DramaDetail.RelatedWork> works;
@@ -862,7 +731,7 @@ public final class DramaClient {
     /** skipLive=true 时解析层跳过直播型条目（仅刷流口传此旗，剧场不传）。 */
     public static void fetchChannel(int requestTabType, int responseTabType,
                                     HgCallback<DramaCellPage> cb, boolean skipLive) {
-        getBrowse(HgDevice.PATH_BOOKMALL_TAB, HgRequests.discoverPairs(requestTabType), false,
+        getBrowse(HgDevice.PATH_BOOKMALL_TAB, HgRequests.discoverPairs(requestTabType),
                 sinkOf(cb, text -> DramaParser.parseDiscoverTab(text, responseTabType, skipLive)));
     }
 
@@ -874,7 +743,7 @@ public final class DramaClient {
     /** skipLive=true 时解析层跳过直播型条目（仅刷流口传此旗，剧场不传）。 */
     public static void fetchChannelMore(HgContinuation cont, HgCallback<DramaCellPage> cb,
                                         boolean skipLive) {
-        getBrowse(HgDevice.PATH_BOOKMALL_CELL_CHANGE, HgRequests.cellChangePairs(cont), false,
+        getBrowse(HgDevice.PATH_BOOKMALL_CELL_CHANGE, HgRequests.cellChangePairs(cont),
                 sinkOf(cb, text -> DramaParser.parseCellChange(text, skipLive)));
     }
 
@@ -930,7 +799,7 @@ public final class DramaClient {
     }
 
     /**
-     * 筛选面统一包覆：走 postPlayer 两面策略；服务端偶发静默节流会回
+     * 筛选面统一包覆：走 postPlayer 自家面发送口；服务端偶发静默节流会回
      * code=0 的空结果（探针实证同序重发即有数，账 hongguo-chip-fix
      * -20261030 §四），首发解析为空时经自家面补发一发再判空。
      */
@@ -987,7 +856,7 @@ public final class DramaClient {
     /** 搜索结果页签（tabType：11 综合/29 剧集/30 视频/1 小说/27 用户）。 */
     public static void searchTab(String keyword, int offset, int tabType,
                                  HgCallback<DramaCellPage> cb) {
-        getBrowse("/reading/bookapi/search/tab/v", HgRequests.searchPairs(keyword, offset, tabType), true,
+        getBrowse("/reading/bookapi/search/tab/v", HgRequests.searchPairs(keyword, offset, tabType),
                 sinkOf(cb, text -> DramaParser.parseCellPage(text, tabType)));
     }
 
@@ -1050,7 +919,7 @@ public final class DramaClient {
         pairs.add(new String[]{"target_user_id", userId});
         pairs.add(new String[]{"count", "18"});
         pairs.add(new String[]{"offset", String.valueOf(Math.max(0, offset))});
-        getBrowse("/reading/bookapi/bookshelf/video/info/v1/", pairs, false,
+        getBrowse("/reading/bookapi/bookshelf/video/info/v1/", pairs,
                 sinkOf(cb, DramaParser::parseAuthorShelf));
     }
 
@@ -1058,7 +927,7 @@ public final class DramaClient {
     public static void fetchUserProfile(String userId, HgCallback<DramaUserProfile> cb) {
         List<String[]> pairs = new ArrayList<>();
         pairs.add(new String[]{"user_id", userId});
-        getBrowse("/reading/user/profile/get/", pairs, false,
+        getBrowse("/reading/user/profile/get/", pairs,
                 sinkOf(cb, DramaParser::parseUserProfile));
     }
 
