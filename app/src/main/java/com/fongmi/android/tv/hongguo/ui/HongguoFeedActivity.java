@@ -3037,7 +3037,6 @@ public class HongguoFeedActivity extends AppCompatActivity {
                 progressFill.setBackgroundColor(want);
             }
         }
-        if (player.isPlaying()) watchAccumMs += 500;
         // 定时关闭到点：停播并清档（只报一次）
         long deadline = HgStore.getTimerDeadline();
         if (deadline > 0 && System.currentTimeMillis() >= deadline) {
@@ -3144,13 +3143,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
         // 就此取消：全内容走带历史索引的 saveProgress，看过的都进得去
         // 历史页。此前全走 Quiet 时索引恒空、历史页永远空白。
         HgStore.saveProgress(currentSeriesId, epForSave, pos);
-        if (watchAccumMs > 0) {
-            HgStore.addWatchMs(currentSeriesId, watchAccumMs);
-            watchAccumMs = 0;
-        }
     }
-
-    private long watchAccumMs;
 
     // ---------- 手势/清屏 ----------
 

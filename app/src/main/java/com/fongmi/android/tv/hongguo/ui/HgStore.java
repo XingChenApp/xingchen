@@ -27,9 +27,6 @@ public final class HgStore {
     private static final String K_DM_SHOW_IN_CLEAN = "hongguo_dm_show_in_clean";
     private static final String K_DM_LINE_SPACE = "hongguo_dm_line_space";
     private static final String K_SPEED = "hongguo_speed";
-    /** 追更药丸入场动画一次性旗（官方 follow_update_info_panel_entrance_anim_shown_v721
-     * 同义：播过或已追过任一剧即置位、永不再播，见 HgPillEntrance）。 */
-    private static final String K_PILL_ENTRANCE_SHOWN = "hongguo_pill_entrance_anim_shown";
     private static final String K_LAUNCH_DIRECT = "hongguo_launch_direct";
     private static final String K_LIKED = "hongguo_liked_series";
     /** 旧收藏集键：批二归一后只作一次性并集迁移的来源，迁移完清空、不再读写。 */
@@ -45,15 +42,7 @@ public final class HgStore {
     private static final String K_FOLLOWED_AUTHORS = "hongguo_followed_authors";
     private static final String K_RESERVED = "hongguo_reserved_series";
     private static final String K_RESERVED_ONLINE = "hongguo_reserved_online_series";
-    private static final String K_PROFILE_NAME = "hongguo_profile_name";
-    private static final String K_PROFILE_AVATAR = "hongguo_profile_avatar";
-    private static final String K_PROFILE_UID = "hongguo_profile_uid";
     private static final String K_HIST_PREFIX = "hongguo_hist_";
-    /** 按剧累计观看毫秒（评分门槛的 watch_duration 数据源，官方同口径按剧累计）。 */
-    private static final String K_WATCH_PREFIX = "hongguo_watch_ms_";
-    private static final String K_LAST_SERIES = "hongguo_last_series";
-    private static final String K_LAST_EP = "hongguo_last_ep";
-    private static final String K_LAST_POS = "hongguo_last_pos";
 
     private HgStore() {
     }
@@ -70,16 +59,6 @@ public final class HgStore {
 
     public static void setDanmakuOn(boolean on) {
         Prefers.put(K_DANMAKU_ON, on);
-    }
-
-    // ---------- 追更药丸入场动画（一次性） ----------
-
-    public static boolean pillEntranceAnimShown() {
-        return Prefers.getBoolean(K_PILL_ENTRANCE_SHOWN, false);
-    }
-
-    public static void markPillEntranceAnimShown() {
-        Prefers.put(K_PILL_ENTRANCE_SHOWN, true);
     }
 
     // ---------- 弹幕设置（红果自有口：面板「弹幕设置」单的四项落点） ----------
@@ -170,11 +149,6 @@ public final class HgStore {
         return HgPanelLogic.clampDanmakuIndex(
                 Prefers.getInt(K_DM_LINE_SPACE, HgPanelLogic.DM_AREA_DEFAULT_INDEX),
                 HgPanelLogic.DM_AREA_LABELS.length);
-    }
-
-    public static void setDanmakuLineSpaceIndex(int index) {
-        Prefers.put(K_DM_LINE_SPACE, HgPanelLogic.clampDanmakuIndex(
-                index, HgPanelLogic.DM_AREA_LABELS.length));
     }
 
     /** 恢复默认（官方同名动作：清全部七键回缺省，官方即清七键一条路）。 */
@@ -515,33 +489,6 @@ public final class HgStore {
         Prefers.put(K_FOLLOWED_AUTHORS, "");
         Prefers.put(K_RESERVED, "");
         Prefers.put(K_RESERVED_ONLINE, "");
-        Prefers.put(K_PROFILE_NAME, "");
-        Prefers.put(K_PROFILE_AVATAR, "");
-        Prefers.put(K_PROFILE_UID, "");
-    }
-
-    /** 账号资料镜像（passport 资料口回填；登出随 clearAccountMirrors 一并清）。 */
-    public static void saveProfile(String name, String avatar, String uid) {
-        if (name != null) Prefers.put(K_PROFILE_NAME, name);
-        if (avatar != null) Prefers.put(K_PROFILE_AVATAR, avatar);
-        if (uid != null) Prefers.put(K_PROFILE_UID, uid);
-    }
-
-    public static String profileName() {
-        String v = Prefers.getString(K_PROFILE_NAME, "");
-        return v == null || v.isEmpty() ? null : v;
-    }
-
-    public static String profileAvatar() {
-        String v = Prefers.getString(K_PROFILE_AVATAR, "");
-        return v == null || v.isEmpty() ? null : v;
-    }
-
-    /** 本人 uid（作者主页门禁用：官方 enableClickAvatarOpenSeriesProfilePage
-     * ＝非本人才能点头像进主页）；资料口没回填过为 null。 */
-    public static String profileUid() {
-        String v = Prefers.getString(K_PROFILE_UID, "");
-        return v == null || v.isEmpty() ? null : v;
     }
 
     // ---------- 剧目元信息（列表页用：标题/封面/集数，随详情与流条目顺手落） ----------
@@ -748,9 +695,6 @@ public final class HgStore {
         if (seriesId == null || seriesId.isEmpty()) return;
         Prefers.put(K_HIST_PREFIX + seriesId,
                 episodeIndex + "|" + Math.max(0, positionMs) + "|" + System.currentTimeMillis());
-        Prefers.put(K_LAST_SERIES, seriesId);
-        Prefers.put(K_LAST_EP, episodeIndex);
-        Prefers.put(K_LAST_POS, Math.max(0, positionMs));
         touchHistIndex(seriesId);
     }
 
@@ -801,23 +745,6 @@ public final class HgStore {
         return out;
     }
 
-    /** 某剧累计观看毫秒（播放页按播放位置增量累加，详情页评分门槛判定用）。 */
-    public static long watchMsOf(String seriesId) {
-        if (seriesId == null || seriesId.isEmpty()) return 0;
-        try {
-            return Long.parseLong(Prefers.getString(K_WATCH_PREFIX + seriesId, "0"));
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-    /** 累加某剧的观看毫秒（增量为播放位置推进量，拖动/跳转不计入）。 */
-    public static void addWatchMs(String seriesId, long deltaMs) {
-        if (seriesId == null || seriesId.isEmpty() || deltaMs <= 0) return;
-        long total = watchMsOf(seriesId) + deltaMs;
-        Prefers.put(K_WATCH_PREFIX + seriesId, String.valueOf(total));
-    }
-
     /** 取某剧断点；没有返回 null。历史只留最近位置，不做列表（列表面在后续阶段）。 */
     public static Progress progressOf(String seriesId) {
         if (seriesId == null || seriesId.isEmpty()) return null;
@@ -832,11 +759,6 @@ public final class HgStore {
         } catch (Exception e) {
             return null;
         }
-    }
-
-    public static String lastSeriesId() {
-        String s = Prefers.getString(K_LAST_SERIES, "");
-        return s == null || s.isEmpty() ? null : s;
     }
 
     // ---------- 小说阅读断点（与短剧历史分家：独立命名空间 hongguo_novel_*，
