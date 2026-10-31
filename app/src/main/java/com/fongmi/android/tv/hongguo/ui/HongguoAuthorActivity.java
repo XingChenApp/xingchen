@@ -58,11 +58,19 @@ public class HongguoAuthorActivity extends AppCompatActivity {
         HgTransition.applyPushExit(this);
     }
 
+    @Override
+    protected void onDestroy() {
+        destroyed = true;
+        super.onDestroy();
+    }
+
     /** 定稿名字字体：Noto Serif SC 900 的系统近似（serif 粗体）。 */
     private static final android.graphics.Typeface SERIF_BLACK =
             android.graphics.Typeface.create("serif", android.graphics.Typeface.BOLD);
 
     private String uid;
+    /** 销毁旗（与 Feed/Detail/Theater 同口径）：异步回包落地先查此旗，销毁后不许再动视图/Glide。 */
+    private volatile boolean destroyed;
     private LinearLayout rootView;
     private ImageView avatarView;
     private ImageView vipView;
@@ -403,6 +411,7 @@ public class HongguoAuthorActivity extends AppCompatActivity {
             @Override
             public void onSuccess(DramaUserProfile p) {
                 runOnUiThread(() -> {
+                    if (destroyed) return;
                     if (p.name != null && !p.name.isEmpty()) nameView.setText(p.name);
                     if (p.avatar != null && !p.avatar.isEmpty()) {
                         Glide.with(HongguoAuthorActivity.this).load(p.avatar)
@@ -501,6 +510,7 @@ public class HongguoAuthorActivity extends AppCompatActivity {
             @Override
             public void onSuccess(DramaWork.Page page) {
                 runOnUiThread(() -> {
+                    if (destroyed) return;
                     loading = false;
                     // 问错顶签的合法空包（剧作签对 UGC 作者就是空）：
                     // 条目与子档表全空时自动换动态签重试一次
@@ -526,6 +536,7 @@ public class HongguoAuthorActivity extends AppCompatActivity {
             @Override
             public void onError(int code, String msg) {
                 runOnUiThread(() -> {
+                    if (destroyed) return;
                     loading = false;
                     if (works.isEmpty()) {
                         stateText.setText("取数据失败，点按重试");
