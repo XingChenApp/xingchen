@@ -123,6 +123,16 @@ public final class HgPassportClient {
             if (session != null) cb.onSuccess(session);
             else {
                 String err = passportError(text);
+                if (err == null) {
+                    // 失败分类留痕（件三追加）：回包是成功形状（业务
+                    // 码 0）却组不出会话——缺 Cookie/session_key、
+                    // user_id、x-tt-token 之一，与业务码拒是两类错，
+                    // 单独记一行，下次真机一发即可分段。
+                    android.util.Log.w("HgPassport", "path=/passport/mobile/sms_login/"
+                            + " shape=success-but-session-incomplete cookie="
+                            + (cookie != null) + " ttToken="
+                            + (ttToken != null && !ttToken.isEmpty()));
+                }
                 cb.onError(-2, err != null ? err : "登录没成功，请稍后再试");
             }
         }, cb::onError);
@@ -317,6 +327,10 @@ public final class HgPassportClient {
                 call.enqueue(new Callback() {
                     @Override
                     public void onFailure(Call c, IOException e) {
+                        // 失败分类留痕（件三追加）：传输层失败与业务
+                        // 码拒/HTTP 拒分开记，下次真机一发即可分段。
+                        android.util.Log.w("HgPassport", "path=" + path
+                                + " kind=transport error=" + e.getClass().getSimpleName());
                         fail.fail(-1, "网络不太顺，请检查网络后再试");
                     }
 
@@ -335,8 +349,20 @@ public final class HgPassportClient {
                             } else {
                                 int ec = passportErrorCode(text);
                                 if (ec != 0) {
+                                    // 失败分类留痕（件三追加）：业务码＋
+                                    // message/description 原文一并记——
+                                    // 上屏文案对未映射码是兜底句、反推
+                                    // 不出码值，真机定段靠这一行。
+                                    JsonObject root = parseRoot(text);
+                                    JsonObject data = root != null && root.has("data")
+                                            && root.get("data").isJsonObject()
+                                            ? root.getAsJsonObject("data") : null;
+                                    String dsc = str(data, "description");
+                                    if (dsc == null) dsc = str(root, "description");
                                     android.util.Log.w("HgPassport", "path=" + path
-                                            + " error_code=" + ec);
+                                            + " error_code=" + ec
+                                            + " message=" + str(root, "message")
+                                            + " description=" + dsc);
                                 }
                                 ok.handle(text, cookiePairs(r),
                                         r.header("x-tt-token"), r.header("x-tt-passport-csrf-token"));
