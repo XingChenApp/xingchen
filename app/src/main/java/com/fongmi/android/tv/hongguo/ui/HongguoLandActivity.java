@@ -1043,23 +1043,23 @@ public class HongguoLandActivity extends AppCompatActivity {
 
     private void switchEpisode(int episodeIndex, boolean retry) {
         if (detail == null) return;
-        DramaDetail.Episode target = null;
-        for (DramaDetail.Episode e : detail.getEpisodes()) {
-            if (e.getIndex() == episodeIndex) {
-                target = e;
-                break;
-            }
-        }
+        // 集号口径统一（C-20）：episodeIndex 恒为集表位序（1 起）——
+        // 两张选集面回传的都是位序（position+1）、竖屏
+        // playEpisodeFromSheet 按位序用、curEp 的存档/交接单/面板
+        // 高亮也全是位序；此前本方法独按 Episode.getIndex() 值查
+        // 找，回包 index 稀疏/0 基时横屏会选错集或误报「没有这一
+        // 集」、竖屏却正常。自此按位序直取，getIndex 只作回包
+        // 原始字段、不再参与选集。
+        List<DramaDetail.Episode> eps = detail.getEpisodes();
+        DramaDetail.Episode target = episodeIndex >= 1 && episodeIndex <= eps.size()
+                ? eps.get(episodeIndex - 1) : null;
         if (target == null || target.getVideoId() == null) {
             if (!retry) {
                 // 末集完播的连播探头（集号越过集表尾）不是「这一集
                 // 不存在」：与竖屏同口径按完结态分文案（官方
                 // P8/Q8，C-17）；其余越界（集表未齐、首集再往前）
-                // 维持原报错文案。
-                int last = 0;
-                for (DramaDetail.Episode e : detail.getEpisodes()) {
-                    if (e.getIndex() > last) last = e.getIndex();
-                }
+                // 维持原报错文案。集表尾同样按位序＝eps.size()。
+                int last = eps.size();
                 if (last > 0 && episodeIndex > last) {
                     Toast.makeText(this, detail.isFinished()
                                     ? "当前已是最后一集" : "当前已是最新一集",
