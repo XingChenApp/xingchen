@@ -152,12 +152,18 @@ public final class HgBookOpsImpl implements HgBookOps {
     /**
      * 听书正文段＝取本章播放信息 → 推出内容密钥 → 登记本地解密代理 → 回代理地址。
      * 钥匙随章变，每章现取现推；未加密的章（无钥匙材料）代理直喂。
+     * 音色（T-02）：本书存过所选音色（HgTonePref）时走单条口按 tone_id
+     * 取流（batch_play 不认音色字段，探针定版）；没选过走原批量口，
+     * 服务端给推荐音色，行为与接音色前一致。
      */
     private LegadoPipeline.Content audioContent(String chapterUrl) {
         try {
             String bookId = HgBookBridge.bookIdOf(chapterUrl);
             String itemId = HgBookBridge.itemIdOf(chapterUrl);
-            JsonObject info = client.audioPlayInfo(bookId, itemId);
+            long toneId = HgTonePref.toneOf(bookId);
+            JsonObject info = toneId > 0
+                    ? tonePlayInfo(bookId, itemId, toneId)
+                    : client.audioPlayInfo(bookId, itemId);
             String url = strOf(info, "main_url");
             if (url.isEmpty()) url = strOf(info, "backup_url");
             if (url.isEmpty()) throw new LegadoException("红果听书这一章没给播放地址");
@@ -179,6 +185,24 @@ public final class HgBookOpsImpl implements HgBookOps {
             throw e;
         } catch (Exception e) {
             throw new LegadoException("红果听书取播放地址失败：" + msg(e));
+        }
+    }
+
+    /**
+     * 按所选音色取播放信息：单条口先行，失败重试一次（该口偶发
+     * HTTP 200 空体，探针 15 发中 1 发、重试即通），仍失败回落批量口
+     * 默认音色保播放不断——回落只发生在服务端取不到数时，属降级
+     * 兜底，与簇一取链「末位候选兜底」同口径，待真机观察。
+     */
+    private JsonObject tonePlayInfo(String bookId, String itemId, long toneId) throws Exception {
+        try {
+            return client.audioPlayInfoTone(bookId, itemId, toneId);
+        } catch (Exception first) {
+            try {
+                return client.audioPlayInfoTone(bookId, itemId, toneId);
+            } catch (Exception second) {
+                return client.audioPlayInfo(bookId, itemId);
+            }
         }
     }
 
