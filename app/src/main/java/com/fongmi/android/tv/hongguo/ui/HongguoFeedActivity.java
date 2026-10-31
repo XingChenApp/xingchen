@@ -1512,12 +1512,16 @@ public class HongguoFeedActivity extends AppCompatActivity {
             DramaClient.fetchChannel(HOME_CHANNEL[0], HOME_CHANNEL[1], new HgCallback<com.fongmi.android.tv.hongguo.drama.DramaCellPage>() {
                 @Override
                 public void onSuccess(com.fongmi.android.tv.hongguo.drama.DramaCellPage page) {
-                    runOnUiThread(() -> onChannelPage(page, first));
+                    runOnUiThread(() -> {
+                        if (destroyed) return;
+                        onChannelPage(page, first);
+                    });
                 }
 
                 @Override
                 public void onError(int code, String msg) {
                     runOnUiThread(() -> {
+                        if (destroyed) return;
                         loadingPage = false;
                         if (items.isEmpty()) showState("取数据失败，点按重试", false);
                     });
@@ -1537,7 +1541,10 @@ public class HongguoFeedActivity extends AppCompatActivity {
         DramaClient.fetchChannelMore(continuation, new HgCallback<com.fongmi.android.tv.hongguo.drama.DramaCellPage>() {
             @Override
             public void onSuccess(com.fongmi.android.tv.hongguo.drama.DramaCellPage page) {
-                runOnUiThread(() -> onChannelPage(page, false));
+                runOnUiThread(() -> {
+                    if (destroyed) return;
+                    onChannelPage(page, false);
+                });
             }
 
             @Override
@@ -1545,6 +1552,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
                 android.util.Log.w("HongguoFeed", "频道续拉失败 code=" + code
                         + " msg=" + msg + " isRetry=" + isRetry);
                 runOnUiThread(() -> {
+                    if (destroyed) return;
                     if (!isRetry) fetchMorePage(true);
                     else loadingPage = false;
                 });
@@ -1670,6 +1678,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
             @Override
             public void onSuccess(DramaAlbumDetail d) {
                 runOnUiThread(() -> {
+                    if (destroyed) return;
                     videoAlbum = d;
                     videoAuthorUid = d.authorUid;
                     videoAuthorName = d.authorName;
@@ -1713,7 +1722,10 @@ public class HongguoFeedActivity extends AppCompatActivity {
 
             @Override
             public void onError(int code, String msg) {
-                runOnUiThread(() -> showState("取数据失败，点按重试", false));
+                runOnUiThread(() -> {
+                    if (destroyed) return;
+                    showState("取数据失败，点按重试", false);
+                });
             }
         });
     }
@@ -1794,6 +1806,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
             @Override
             public void onSuccess(DramaDetail detail) {
                 runOnUiThread(() -> {
+                    if (destroyed) return;
                     detailCache.put(seriesIdArg, detail);
                     episodes = detail.getEpisodes();
                     items.clear();
@@ -1838,7 +1851,10 @@ public class HongguoFeedActivity extends AppCompatActivity {
 
             @Override
             public void onError(int code, String msg) {
-                runOnUiThread(() -> showState("取数据失败，点按重试", false));
+                runOnUiThread(() -> {
+                    if (destroyed) return;
+                    showState("取数据失败，点按重试", false);
+                });
             }
         });
     }
@@ -3308,6 +3324,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
                             @Override
                             public void onSuccess(Void r) {
                                 runOnUiThread(() -> {
+                                    if (destroyed) return;
                                     dialog.dismiss();
                                     if (vid.equals(currentVid) && playerView != null) {
                                         danmakuItems.add(new androidx.media3.ui.danmaku.Danmaku(
@@ -3325,6 +3342,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
                             @Override
                             public void onError(int c, String m) {
                                 runOnUiThread(() -> {
+                                    if (destroyed) return;
                                     ok.setEnabled(true);
                                     Toast.makeText(HongguoFeedActivity.this,
                                             "没发出去，再试试", Toast.LENGTH_SHORT).show();
@@ -3358,7 +3376,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
             List<androidx.media3.ui.danmaku.Danmaku> parsed = parseDanmakuXml(item.getRealUrl());
             if (parsed == null) return;
             runOnUiThread(() -> {
-                if (!vid.equals(danmakuVid) || playerView == null) return;
+                if (destroyed || !vid.equals(danmakuVid) || playerView == null) return;
                 danmakuItems.clear();
                 danmakuItems.addAll(parsed);
                 playerView.getDanmakuController().setItems(new ArrayList<>(danmakuItems));
