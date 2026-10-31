@@ -3837,12 +3837,14 @@ public class HongguoFeedActivity extends AppCompatActivity {
             title.setEllipsize(android.text.TextUtils.TruncateAt.END);
             title.setShadowLayer(dp(2), 0, dp(1), 0xB3000000);
             if (mode == MODE_FEED) {
-                // 定稿 .feed-name：Serif 27/900；行数他 2026-10-31 定：
-                // 官方剧名再长也只一行、超出隐藏，不开第二行（全模式同）
-                title.setTypeface(android.graphics.Typeface.create(
-                        android.graphics.Typeface.SERIF, android.graphics.Typeface.BOLD));
-                title.setTextSize(27);
-                title.setLineSpacing(0, 1.02f);
+                // 官值 X-07（账 hongguo-official-values-20261031 §一）：
+                // 信息摞剧名 @id/d4＝@dimen/a1u 16.0sp、textStyle bold、
+                // 无 fontFamily（系统默认体加粗）、单行省略；官方全链
+                // 无行距设置。旧自家定稿 Serif 27sp＋lineSpacing 1.02f
+                // 无官出处，已撤。行数他 2026-10-31 定：官方剧名再长
+                // 也只一行、超出隐藏，不开第二行（全模式同）
+                title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+                title.setTextSize(16);
                 title.setMaxLines(1);
             } else if (mode == MODE_SERIES) {
                 // 定稿 .p-title-link：Serif 19/900
