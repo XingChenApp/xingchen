@@ -182,7 +182,13 @@ public final class HgFeedPanels {
 
     // ---------- 更多面板 ----------
 
+    /** 面板入口守卫（C-25，与三张 Sheet 及簇十一守卫口径对齐）：宿主正在销毁/已销毁不开新窗，防窗口泄漏与已死语境回调。 */
+    private static boolean hostGone(AppCompatActivity a) {
+        return a == null || a.isFinishing() || a.isDestroyed();
+    }
+
     public static void showMore(AppCompatActivity a, Host host) {
+        if (hostGone(a)) return;
         // 定稿 .more-sheet：#F4F4F6 底＋白卡两张。卡一＝倍速 seg＋
         // 清晰度 seg＋弹幕开关行＋弹幕设置行；卡二＝定时关闭行。
         // （投屏行已按他亲口决定整件摘除，见 hongguo-cast 账。）
@@ -399,6 +405,7 @@ public final class HgFeedPanels {
      * 待裁（账 hongguo-ep-switch-smooth-20261031）。
      */
     public static void showMoreLand(AppCompatActivity a, Host host) {
+        if (hostGone(a)) return;
         BottomSheetDialog dialog = new BottomSheetDialog(a);
         LinearLayout root = sheetRoot(a, 0xFFF4F4F6);
         root.setPadding(dp(a, 14), 0, dp(a, 14), dp(a, 14) + navBarHeight(a));
@@ -411,6 +418,7 @@ public final class HgFeedPanels {
     // ---------- 定时关闭选项 ----------
 
     public static void showTimerOptions(AppCompatActivity a, Host host) {
+        if (hostGone(a)) return;
         BottomSheetDialog dialog = new BottomSheetDialog(a);
         LinearLayout root = sheetRoot(a, Color.WHITE);
         root.addView(sheetHead(a, "定时关闭"));
@@ -441,6 +449,7 @@ public final class HgFeedPanels {
     }
 
     private static void showTimerCustom(AppCompatActivity a, Host host) {
+        if (hostGone(a)) return;
         EditText input = new EditText(a);
         input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
         input.setHint("分钟数");
@@ -478,6 +487,7 @@ public final class HgFeedPanels {
     // ---------- 弹幕设置 ----------
 
     public static void showDanmakuSettings(AppCompatActivity a, Host host) {
+        if (hostGone(a)) return;
         BottomSheetDialog dialog = new BottomSheetDialog(a);
         LinearLayout root = sheetRoot(a, Color.WHITE);
         root.addView(sheetHead(a, "弹幕设置"));
