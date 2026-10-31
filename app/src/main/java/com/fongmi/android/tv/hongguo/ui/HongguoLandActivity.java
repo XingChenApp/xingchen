@@ -95,6 +95,9 @@ public class HongguoLandActivity extends AppCompatActivity {
     private FrameLayout stageRoot;
     private HgLandCommentsPanel commentPanel;
     private boolean commentPanelOpen;
+    /** 横屏选集页内层（右侧停靠，官方页内集数层形态）与开合态。 */
+    private HgLandEpisodesPanel episodePanel;
+    private boolean episodePanelOpen;
     private android.animation.ValueAnimator stageAnimator;
     /** 当前挤占进度 0..1（0＝全宽、1＝面板全开），动画与落位共用。 */
     private float stageSqueeze01;
@@ -555,6 +558,27 @@ public class HongguoLandActivity extends AppCompatActivity {
         panelLp.gravity = Gravity.END;
         root.addView(commentPanel.view(), panelLp);
 
+        // 横屏选集页内层（官方形态是页内集数层，他横屏里不再弹
+        // 竖屏同款底部单——HgEpisodeSheet 自此只供竖屏）：常驻
+        // root 上层、缺省藏起，选集钮改开它；数据链与竖屏单同
+        // 源（集表＋本地断点），点格回宿主走既有 switchEpisode。
+        episodePanel = new HgLandEpisodesPanel(this, new HgLandEpisodesPanel.Host() {
+            @Override
+            public void onPick(int episodeIndex) {
+                closeEpisodePanel();
+                switchEpisode(episodeIndex, false);
+            }
+
+            @Override
+            public void onClose() {
+                closeEpisodePanel();
+            }
+        });
+        episodePanel.view().setVisibility(View.GONE);
+        FrameLayout.LayoutParams epPanelLp = new FrameLayout.LayoutParams(0, -1);
+        epPanelLp.gravity = Gravity.END;
+        root.addView(episodePanel.view(), epPanelLp);
+
         setContentView(root);
         androidx.core.view.ViewCompat.requestApplyInsets(root);
         main.postDelayed(ticker, 300);
@@ -679,7 +703,54 @@ public class HongguoLandActivity extends AppCompatActivity {
             fetchDetail();
             return;
         }
-        HgEpisodeSheet.show(this, detail, curEp, idx -> switchEpisode(idx, false));
+        // 评论面板与选集层同为右侧停靠，二者互斥：先收评论面板
+        if (commentPanelOpen) closeCommentPanel();
+        episodePanel.bind(detail, curEp);
+        openEpisodePanel();
+    }
+
+    /** 选集层开合：自右滑入/滑出 200ms（与评论面板同速同曲线）。 */
+    private void openEpisodePanel() {
+        if (episodePanel == null || episodePanelOpen) return;
+        episodePanelOpen = true;
+        View pv = episodePanel.view();
+        pv.animate().cancel();
+        int rootW = stageRoot != null && stageRoot.getWidth() > 0
+                ? stageRoot.getWidth()
+                : getResources().getDisplayMetrics().widthPixels;
+        int panelW = Math.round(rootW * HgLandEpisodesPanel.WIDTH_RATIO);
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) pv.getLayoutParams();
+        if (lp.width != panelW) {
+            lp.width = panelW;
+            pv.setLayoutParams(lp);
+        }
+        pv.setVisibility(View.VISIBLE);
+        pv.setTranslationX(panelW);
+        pv.animate().translationX(0f).setDuration(200)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                .start();
+        setChrome(false);
+    }
+
+    private void closeEpisodePanel() {
+        if (!episodePanelOpen) return;
+        episodePanelOpen = false;
+        View pv = episodePanel.view();
+        pv.animate().cancel();
+        int panelW = pv.getWidth();
+        if (panelW <= 0) {
+            pv.setVisibility(View.GONE);
+            pokeChrome();
+            return;
+        }
+        pv.animate().translationX(panelW).setDuration(200)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                .withEndAction(() -> {
+                    // 动画途中又重开则不藏（开合态以旗为准）
+                    if (!episodePanelOpen) pv.setVisibility(View.GONE);
+                })
+                .start();
+        pokeChrome();
     }
 
     /** 横屏更多面板宿主（#22）：与竖屏 host 同一回调面。 */
@@ -798,6 +869,10 @@ public class HongguoLandActivity extends AppCompatActivity {
         // 评论面板跟随切集：绑过才跟（没开过的面板开时自会绑当前集）
         if (commentPanel != null && commentPanel.isBound()) {
             commentPanel.bind(seriesId, vid);
+        }
+        // 选集层开着切集（层外竖滑）：当前格高亮跟随新集
+        if (episodePanel != null && episodePanelOpen) {
+            episodePanel.bind(detail, curEp);
         }
         gateSpinForSwitch(vid);
         failView.setVisibility(View.GONE);
@@ -1076,6 +1151,7 @@ public class HongguoLandActivity extends AppCompatActivity {
 
     private void onSurfaceTap() {
         if (commentPanelOpen) return; // 面板开着时画面点按不翻 chrome（面板自有关闭口）
+        if (episodePanelOpen) return; // 选集层同理（层自有关闭口）
         if (suppressTap) {
             suppressTap = false;
             return;
@@ -1091,8 +1167,8 @@ public class HongguoLandActivity extends AppCompatActivity {
     }
 
     private void setChrome(boolean show) {
-        // 评论面板开着时 chrome 恒隐（官方同形态：画面区只留视频）
-        if (commentPanelOpen) show = false;
+        // 评论面板/选集层开着时 chrome 恒隐（官方同形态：画面区只留视频）
+        if (commentPanelOpen || episodePanelOpen) show = false;
         int vis = show ? View.VISIBLE : View.GONE;
         topBar.setVisibility(vis);
         bottomBar.setVisibility(vis);
@@ -1340,6 +1416,10 @@ public class HongguoLandActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+        if (episodePanelOpen) {
+            closeEpisodePanel();
+            return;
+        }
         if (commentPanelOpen) {
             closeCommentPanel();
             return;
@@ -1384,6 +1464,7 @@ public class HongguoLandActivity extends AppCompatActivity {
         main.removeCallbacks(hideChrome);
         cancelSpinDelay();
         if (stageAnimator != null) stageAnimator.cancel();
+        if (episodePanel != null) episodePanel.view().animate().cancel();
         if (commentPanel != null) commentPanel.destroy();
         clearFreezeBitmap();
         if (!exited) parkBack(); // 异常退出兜底：把播放器泊回，不许泄漏
