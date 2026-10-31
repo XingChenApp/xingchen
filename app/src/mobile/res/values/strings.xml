@@ -65,16 +65,6 @@
     <!-- Detail -->
     <string name="detail_flag">Flag</string>
     <string name="detail_episode">Episode</string>
-    <string name="hongguo_comment">Comments</string>
-    <string name="hongguo_comment_series_tab">Reviews</string>
-    <string name="hongguo_comment_episode_tab">Episode comments</string>
-    <string name="hongguo_comment_empty">No comments yet</string>
-    <string name="hongguo_comment_failed">Failed to load comments. Tap to retry</string>
-    <string name="hongguo_comment_loading">Loading…</string>
-    <string name="hongguo_comment_replies">Replies</string>
-    <string name="hongguo_comment_more_replies">More replies</string>
-    <string name="hongguo_comment_reply_to">Reply to %s</string>
-    <string name="hongguo_comment_likes">%d likes</string>
     <string name="detail_quality">Quality</string>
     <string name="detail_content">Summary: <xliff:g name="name">%s</xliff:g></string>
     <string name="detail_search">Searching <xliff:g name="name">%s</xliff:g></string>

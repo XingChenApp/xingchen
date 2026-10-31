@@ -54,16 +54,6 @@
     <!-- Detail -->
     <string name="detail_flag">線路</string>
     <string name="detail_episode">選集</string>
-    <string name="hongguo_comment">評論</string>
-    <string name="hongguo_comment_series_tab">劇評</string>
-    <string name="hongguo_comment_episode_tab">本集評論</string>
-    <string name="hongguo_comment_empty">還沒有評論</string>
-    <string name="hongguo_comment_failed">評論沒拉出來，點此重試</string>
-    <string name="hongguo_comment_loading">載入中…</string>
-    <string name="hongguo_comment_replies">回覆</string>
-    <string name="hongguo_comment_more_replies">展開更多回覆</string>
-    <string name="hongguo_comment_reply_to">回覆 %s</string>
-    <string name="hongguo_comment_likes">讚 %d</string>
     <string name="detail_quality">畫質</string>
     <string name="detail_content">簡介：<xliff:g name="name">%s</xliff:g></string>
     <string name="detail_search">快搜「<xliff:g name="name">%s</xliff:g>」</string>

@@ -495,21 +495,6 @@
                         android:textStyle="bold"
                         tools:text="長安夜行" />
 
-                    <!-- 评论入口：占原一起看按钮（watchDetail）的位置，预抓到评论才显示 -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/commentDetail"
-                        style="@style/Widget.MaterialComponents.Button.TextButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="8dp"
-                        android:minWidth="0dp"
-                        android:paddingStart="10dp"
-                        android:paddingEnd="10dp"
-                        android:text="@string/hongguo_comment"
-                        android:textColor="@color/white"
-                        android:textSize="15sp"
-                        android:visibility="gone" />
-
                     </androidx.appcompat.widget.LinearLayoutCompat>
 
                     <com.google.android.material.textview.MaterialTextView

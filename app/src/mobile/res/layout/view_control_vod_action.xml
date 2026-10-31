@@ -193,24 +193,6 @@
         android:textSize="11sp"
         tools:text="选集" />
 
-    <!-- 评论入口（横屏底排，紧挨选集）：预抓到评论才显示；竖屏全屏时走右侧栏，此项藏起 -->
-    <com.google.android.material.textview.MaterialTextView
-        android:id="@+id/commentAction"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:drawableTop="@drawable/ic_player_comment"
-        android:drawablePadding="4dp"
-        android:gravity="center"
-        android:paddingTop="6dp"
-        android:paddingBottom="6dp"
-        android:text="@string/hongguo_comment"
-        android:textColor="@color/white"
-        android:textSize="11sp"
-        android:visibility="gone"
-        tools:text="评论" />
-
     <com.google.android.material.textview.MaterialTextView
         android:id="@+id/moreText"
         android:layout_width="0dp"
