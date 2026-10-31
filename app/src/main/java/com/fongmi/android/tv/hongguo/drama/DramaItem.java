@@ -275,20 +275,6 @@ public final class DramaItem {
         return item;
     }
 
-    /** 补完结态的副本（字段后补场景：如半屏单里当前行由页面条目拼装）。 */
-    public DramaItem withSeriesStatus(Integer status) {
-        DramaItem copy = new DramaItem(seriesId, title, coverUrl, desc, episodeCount,
-                hasAppointment, appointmentSubscribed, dueStartText,
-                vid, badge, recText, tags, vertical, multiSeason, albumId,
-                albumSerialCount, siblings, commentCount, diggCount, status, statement,
-                authorName, authorAvatar, authorUid, publisher);
-        copy.kind = kind;
-        copy.contentType = contentType;
-        copy.authorRelationType = authorRelationType;
-        copy.authorCanFollow = authorCanFollow;
-        return copy;
-    }
-
     public String getStatement() { return statement; }
     public String getAuthorName() { return authorName; }
     public String getAuthorAvatar() { return authorAvatar; }
