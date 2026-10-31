@@ -428,7 +428,7 @@
         <activity
             android:name="com.fongmi.android.tv.hongguo.ui.HongguoNovelDetailActivity"
             android:theme="@style/Theme.XingChen.HkPage"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:configChanges="fontScale|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:screenOrientation="fullUser" />
 
         <!-- 实验室：独立包 ui.lab -->
@@ -661,32 +661,32 @@
         <activity
             android:name="com.fongmi.android.tv.hongguo.ui.HongguoTheaterActivity"
             android:theme="@style/Theme.XingChen.HkPage"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:configChanges="fontScale|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:screenOrientation="fullUser" />
         <activity
             android:name="com.fongmi.android.tv.hongguo.ui.HongguoSearchActivity"
             android:theme="@style/Theme.XingChen.HkPage"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:configChanges="fontScale|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:screenOrientation="fullUser" />
         <activity
             android:name="com.fongmi.android.tv.hongguo.ui.HongguoAuthorActivity"
             android:theme="@style/Theme.XingChen.HkPage"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:configChanges="fontScale|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:screenOrientation="fullUser" />
         <activity
             android:name="com.fongmi.android.tv.hongguo.ui.HongguoMineActivity"
             android:theme="@style/Theme.XingChen.HkPage"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:configChanges="fontScale|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:screenOrientation="fullUser" />
         <activity
             android:name="com.fongmi.android.tv.hongguo.ui.HongguoMineEditActivity"
             android:theme="@style/Theme.XingChen.HkPage"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:configChanges="fontScale|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:screenOrientation="fullUser" />
         <activity
             android:name="com.fongmi.android.tv.hongguo.ui.HongguoLoginActivity"
             android:theme="@style/Theme.XingChen.HkPage"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:configChanges="fontScale|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:screenOrientation="fullUser" />
 
         <!-- 红果横屏页（2026-10-30 重建阶段8）：真独立页，照官方清单
