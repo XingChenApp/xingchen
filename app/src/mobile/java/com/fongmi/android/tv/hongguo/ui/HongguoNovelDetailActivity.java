@@ -418,8 +418,9 @@ public class HongguoNovelDetailActivity extends AppCompatActivity {
                     setStatus(null);
                     LegadoSearchFlow.openChapter(
                             HongguoNovelDetailActivity.this, source, info, toc, at);
-                    // 从阅读器返回时断点行可能已变（页内自记），重绑一次头面
-                    bindDetail();
+                    // 返回本页时的头面重绑在 onResume（先回写断点再 bindDetail）；
+                    // 此前这里也调一次 bindDetail、注称「返回时重绑」实为
+                    // 启动瞬间执行——是假刷新，已摘（D-15）
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
