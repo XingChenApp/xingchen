@@ -135,7 +135,12 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         // 外部导入的本地脚本动态源不在配置 sites 里（只活在 VodConfig 的动态映射中），
         // 但它就是当前 home：导入落地新建 Fragment 时事件已在未注册窗口期丢光，
         // 这一发自拉就是它唯一的开跑路（定根账 py-import-open-diag-20261031 三·2）。
-        if (!VodConfig.get().getSites().isEmpty() || getCurrentScriptFile() != null) loadHome();
+        boolean pulled = !VodConfig.get().getSites().isEmpty() || getCurrentScriptFile() != null;
+        if (pulled) loadHome();
+        // 自拉没命中时再看导入待开标记（fix168-pyimport2）：命中说明刚有导入把
+        // 这个 home 设进来而刷新事件没送到——由消费方（本 Fragment）在露面时
+        // 点补开，不再单靠事件或单条生命周期兜底。
+        openPendingImportIfAny(pulled);
     }
 
     @Override
@@ -729,6 +734,9 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     public void onResume() {
         super.onResume();
         if (mWeb != null) mWeb.onResume();
+        // 导入待开标记先于签名兜底消费（fix168-pyimport2）：标记是导入方留下的
+        // 确定性凭据，指向的正是当前 home 就清标记＋补开；签名兜底管其余情形。
+        openPendingImportIfAny(false);
         // 兜底（深挖 L-14）：首页刷新只有 RefreshEvent 单通路，事件在未注册窗口期
         // 丢了就永远陈旧。回前台时比对首页签名（cid＋主页 key＋主页脚本戳，与
         // refreshHome 入口闸同一份口径），变了才按 HOME 口径补刷一次；没变不动作。
@@ -747,10 +755,30 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     public void onHiddenChanged(boolean hidden) {
         super.onHiddenChanged(hidden);
         if (!hidden) {
+            // hide/show 切回可见时既不重走 initView、onResume 也不重发——待开标记
+            // 在这里也要消费，不然停在别的签上导入、切回首页仍不开（fix168-pyimport2）
+            openPendingImportIfAny(false);
             try {
                 FolderFragment f = getFragment();
                 if (f != null) f.checkCoverChanged();
             } catch (Exception e) { e.printStackTrace(); }
+        }
+    }
+
+    /**
+     * 消费导入待开标记：导入方（ImportActivity）在 setHome 落实后登记了目标 key；
+     * 标记指向当前 home 时清标记，首页尚未在为它加载就按 HOME 口径补刷一发。
+     * 标记不指向当前 home（用户已切去别的源）时不消费、留待它再次成为 home。
+     * homeAlreadyLoading＝调用点本次已为当前 home 发起加载（如 initView 自拉命中），
+     * 此时只销标记不重复补刷（双发加载 SiteApi 会掐上一批，避开无谓 churn）。
+     */
+    private void openPendingImportIfAny(boolean homeAlreadyLoading) {
+        try {
+            String key = VodConfig.get().pendingImportedHome();
+            if (key == null || !key.equals(getHome().getKey())) return;
+            VodConfig.get().clearImportedHome();
+            if (!homeAlreadyLoading) refreshHome();
+        } catch (Throwable ignored) {
         }
     }
 
