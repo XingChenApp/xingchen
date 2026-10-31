@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
+import android.provider.Settings;
 import android.os.Looper;
 import android.view.Gravity;
 import android.view.OrientationEventListener;
@@ -104,6 +105,7 @@ public class HongguoLandActivity extends AppCompatActivity {
     private int barsTop;
     private int barsBottom;
     private int cutoutLeft;
+    private int cutoutRight;
     /** 竖滑切集已触发时吞掉随之而来的点按（防 chrome 跟着翻）。 */
     private boolean suppressTap;
     private TextView timeView;
@@ -115,6 +117,8 @@ public class HongguoLandActivity extends AppCompatActivity {
     private ProgressBar spin;
     private TextView failView;
     private OrientationEventListener orientationListener;
+    /** 件六：退横屏竖带内停留计时（首帧入带记时刻，≥400ms 才触发）。 */
+    private long portraitBandSince;
     /** 切集顺滑（与竖屏同口径）：末帧冻结层/帧图/代次＋转圈延迟闸。 */
     private ImageView freezeView;
     private Bitmap freezeBitmap;
@@ -214,6 +218,7 @@ public class HongguoLandActivity extends AppCompatActivity {
             barsTop = bars.top;
             barsBottom = bars.bottom;
             cutoutLeft = cut.left;
+            cutoutRight = cut.right;
             layoutChromeToFrame();
             if (commentPanel != null) commentPanel.setBottomInset(barsBottom);
             if (stageSqueeze01 > 0f) applyStage(stageSqueeze01);
@@ -267,7 +272,9 @@ public class HongguoLandActivity extends AppCompatActivity {
 
         spin = new ProgressBar(this);
         FrameLayout.LayoutParams spinLp = new FrameLayout.LayoutParams(dp(40), dp(40));
-        spinLp.gravity = Gravity.CENTER;
+        // 落位不走屏中心 gravity：由 layoutChromeToFrame 按画面框
+        // 中心给边距（锚系统一，见该法注），gravity 只作左上锚点
+        spinLp.gravity = Gravity.TOP | Gravity.START;
         root.addView(spin, spinLp);
         failView = new TextView(this);
         failView.setText("播放失败，点按重试");
@@ -558,9 +565,36 @@ public class HongguoLandActivity extends AppCompatActivity {
         orientationListener = new OrientationEventListener(this) {
             @Override
             public void onOrientationChanged(int orientation) {
-                if (System.currentTimeMillis() - createdAtMs < 600) return; // 去抖（自家值）
+                long now = System.currentTimeMillis();
+                if (now - createdAtMs < 600) return; // 出生去抖（保留，自家值）
+                // 件六（自家定值）：退横屏加带内停留 ≥400ms 才受理，
+                // 与竖屏页进横屏共用 DramaLandLogic 互锁（触发后反向
+                // 1000ms 不受理＋过中间带才重武装）；竖带口径不变。
+                // 监听只在系统自动旋转开着时武装（onResume 现读），
+                // 关＝不自动退、走返回键手动路。
                 boolean portrait = DramaLandLogic.orientationBand(orientation) == 0;
-                if (DramaLandLogic.shouldSensorExitLand(portrait, locked)) exitLand();
+                if (portrait) {
+                    if (!DramaLandLogic.sensorDirectionArmed(-1, now)) {
+                        portraitBandSince = 0;
+                        return;
+                    }
+                    if (portraitBandSince == 0) {
+                        portraitBandSince = now;
+                        return;
+                    }
+                    if (now - portraitBandSince >= 400) {
+                        portraitBandSince = 0;
+                        if (DramaLandLogic.shouldSensorExitLand(true, locked)) {
+                            DramaLandLogic.sensorNoteTrigger(-1, now);
+                            exitLand();
+                        }
+                    }
+                } else {
+                    portraitBandSince = 0;
+                    if (DramaLandLogic.orientationBand(orientation) == -1) {
+                        DramaLandLogic.sensorNoteMiddleBand();
+                    }
+                }
             }
         };
     }
@@ -1002,11 +1036,14 @@ public class HongguoLandActivity extends AppCompatActivity {
     }
 
     /**
-     * 画面框联动落位：播放面（与切集冻结层）宽＝全宽−面板挤占，
-     * 面板自右滑入同速跟随，转圈中心同步左移。只改布局宽——不
-     * 重挂播放器、不动 Surface 归属，播放面在新框内按既有 FIT
-     * 自行重排（官方截图挤小后上下留黑即此形态）；顶/底行经
-     * playerView 布局监听走 layoutChromeToFrame 按新框重算。
+     * 画面框联动落位：播放面宽＝全宽−面板挤占，面板自右滑入同
+     * 速跟随。只改播放面布局宽——不重挂播放器、不动 Surface
+     * 归属，播放面在新框内按既有 FIT 自行重排（官方截图挤小后
+     * 上下留黑即此形态）；其余全部 chrome（顶/底行、锁钮、评论
+     * 钮、转圈、失败提示、冻结层）经 playerView 布局监听走
+     * layoutChromeToFrame 按新框统一重算——锚系统一后本法不再
+     * 单独挪任何一颗（旧写法在此给转圈 leftMargin＝−squeeze，
+     * 整幅偏出挤小后框中心 0.5×面板宽，已摘）。
      */
     private void applyStage(float frac) {
         stageSqueeze01 = frac;
@@ -1016,14 +1053,6 @@ public class HongguoLandActivity extends AppCompatActivity {
         int panelW = Math.round(rootW * HgLandCommentsPanel.WIDTH_RATIO);
         int squeeze = Math.round(panelW * frac);
         setStageWidth(playerView, rootW - squeeze);
-        setStageWidth(freezeView, rootW - squeeze);
-        if (spin != null) {
-            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) spin.getLayoutParams();
-            if (lp.leftMargin != -squeeze) {
-                lp.leftMargin = -squeeze;
-                spin.setLayoutParams(lp);
-            }
-        }
         if (commentPanel != null) {
             View pv = commentPanel.view();
             FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) pv.getLayoutParams();
@@ -1145,10 +1174,29 @@ public class HongguoLandActivity extends AppCompatActivity {
     }
 
     /**
-     * 控件按画面框落位（#17）：视频显示矩形是单一坐标源——实流
-     * 尺寸（onVideoSizeChanged）与播放面尺寸算出 FIT 后的画面框，
-     * 顶/底行宽度与左右边距收进框内，锁钮贴框左缘并避开摄像头
-     * 挖孔（cutout 让位取大），发弹幕标贴框左、坐在底行上方。
+     * 控件按画面框落位（#17 立框锚，2026-10-31 锚系统一收口）：
+     * 横屏全部 chrome 只认一个坐标源——实流尺寸
+     * （onVideoSizeChanged）与播放面尺寸算出的 FIT 画面框
+     * （left/top/W/H 四值），水平＋垂直都按框算。此前三套锚
+     * 并存是「所有按钮都错位」的总差源（账
+     * hongguo-land-layout-audit-20261031）：顶/底行与锁钮框锚、
+     * 评论钮/转圈/失败提示屏锚挂 root 没人管、弹层屏级。本法
+     * 收口为一套：
+     * - 顶/底行：宽与左右边距收进框内（左右端再并入挖孔让位，
+     *   取框缘与挖孔缘的内侧交界）；纵向贴框上下缘，系统栏让
+     *   位与框边距取大不叠加（框已让开的黑带里不再重复让）。
+     * - 锁钮/评论钮：左右成对同规则——锁贴框左缘内 10dp、评论
+     *   贴框右缘内 10dp，挖孔让位同法；此前评论钮屏锚，黑边内
+     *   容时悬在画面外与底行选集上下错开约 6.9% 屏宽。
+     * - 转圈：按框中心落位（边距＝框中心−半钮）；评论面板挤压
+     *   时框随播放面宽重算，转圈自动跟到挤小后的框中心（旧
+     *   applyStage 的整幅 −squeeze 偏移已摘）。
+     * - 失败提示：盒收进框内，文字在框内居中（旧为全屏居中）。
+     * - 切集冻结层：盒与框逐字同位——抓帧位图就是视频面本身
+     *   （HgFrameCapture 只取 Surface/Texture 面），旧写法全
+     *   stage 尺寸 FIT_XY 把帧横向拉满、冻结瞬间画面胀一下。
+     * - 发弹幕输入条在底行内（件五），随底行框重排走。
+     * 播放面尺寸为 0/实流未到时框＝播放面全幅，不除零、不负宽。
      */
     private void layoutChromeToFrame() {
         if (playerView == null) return;
@@ -1156,24 +1204,32 @@ public class HongguoLandActivity extends AppCompatActivity {
         int vh = playerView.getHeight();
         if (vw <= 0 || vh <= 0) return;
         int frameLeft = 0;
+        int frameTop = 0;
         int frameW = vw;
+        int frameH = vh;
         if (videoW > 0 && videoH > 0) {
             float scale = Math.min((float) vw / videoW, (float) vh / videoH);
             frameW = Math.round(videoW * scale);
+            frameH = Math.round(videoH * scale);
             frameLeft = (vw - frameW) / 2;
+            frameTop = (vh - frameH) / 2;
         }
+        // 顶/底行的有效横向区间：框区间与挖孔让位取交集
+        int effLeft = Math.max(frameLeft, cutoutLeft);
+        int effRight = Math.min(frameLeft + frameW, vw - cutoutRight);
+        int effW = Math.max(0, effRight - effLeft);
         if (topBar != null) {
             FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) topBar.getLayoutParams();
-            lp.width = frameW;
-            lp.leftMargin = frameLeft;
-            lp.topMargin = barsTop;
+            lp.width = effW;
+            lp.leftMargin = effLeft;
+            lp.topMargin = Math.max(frameTop, barsTop);
             topBar.setLayoutParams(lp);
         }
         if (bottomBar != null) {
             FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) bottomBar.getLayoutParams();
-            lp.width = frameW;
-            lp.leftMargin = frameLeft;
-            lp.bottomMargin = barsBottom;
+            lp.width = effW;
+            lp.leftMargin = effLeft;
+            lp.bottomMargin = Math.max(vh - frameTop - frameH, barsBottom);
             bottomBar.setLayoutParams(lp);
         }
         if (lockBtn != null) {
@@ -1181,8 +1237,46 @@ public class HongguoLandActivity extends AppCompatActivity {
             lp.leftMargin = Math.max(frameLeft, cutoutLeft) + dp(10);
             lockBtn.setLayoutParams(lp);
         }
-        // 发弹幕输入条已入底行（件五），随 bottomBar 的框重排走，
-        // 此处不再单独摆位（旧浮标重排段已摘）。
+        if (commentBox != null) {
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) commentBox.getLayoutParams();
+            int want = (vw - effRight) + dp(10);
+            if (lp.rightMargin != want) {
+                lp.rightMargin = want;
+                commentBox.setLayoutParams(lp);
+            }
+        }
+        if (spin != null) {
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) spin.getLayoutParams();
+            int wantL = Math.max(0, frameLeft + frameW / 2 - dp(20));
+            int wantT = Math.max(0, frameTop + frameH / 2 - dp(20));
+            if (lp.leftMargin != wantL || lp.topMargin != wantT) {
+                lp.leftMargin = wantL;
+                lp.topMargin = wantT;
+                spin.setLayoutParams(lp);
+            }
+        }
+        if (failView != null) {
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) failView.getLayoutParams();
+            if (lp.width != frameW || lp.height != frameH
+                    || lp.leftMargin != frameLeft || lp.topMargin != frameTop) {
+                lp.width = frameW;
+                lp.height = frameH;
+                lp.leftMargin = frameLeft;
+                lp.topMargin = frameTop;
+                failView.setLayoutParams(lp);
+            }
+        }
+        if (freezeView != null) {
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) freezeView.getLayoutParams();
+            if (lp.width != frameW || lp.height != frameH
+                    || lp.leftMargin != frameLeft || lp.topMargin != frameTop) {
+                lp.width = frameW;
+                lp.height = frameH;
+                lp.leftMargin = frameLeft;
+                lp.topMargin = frameTop;
+                freezeView.setLayoutParams(lp);
+            }
+        }
     }
 
     /**
@@ -1253,6 +1347,16 @@ public class HongguoLandActivity extends AppCompatActivity {
         exitLand();
     }
 
+    /** 件六：系统自动旋转开关现读，读失败按关（与竖屏页同口径）。 */
+    private boolean systemAutoRotateOn() {
+        try {
+            return Settings.System.getInt(getContentResolver(),
+                    Settings.System.ACCELEROMETER_ROTATION) == 1;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -1260,7 +1364,12 @@ public class HongguoLandActivity extends AppCompatActivity {
         // 切后台再回来时把强制横屏重新申明一遍，不许被竖屏页带回去。
         setRequestedOrientation(
                 android.content.pm.ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE);
-        if (orientationListener != null) orientationListener.enable();
+        // 件六：页内强制横屏不动（上一段口径）；传感器退横屏则随
+        // 系统开关——关＝不武装，退出走返回键手动路。
+        if (orientationListener != null) {
+            if (systemAutoRotateOn()) orientationListener.enable();
+            else orientationListener.disable();
+        }
     }
 
     @Override
