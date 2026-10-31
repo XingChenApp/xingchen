@@ -2444,14 +2444,22 @@ public class HongguoFeedActivity extends AppCompatActivity {
             @Override
             public void onSuccess(DramaDetail detail) {
                 runOnUiThread(() -> {
+                    if (destroyed) return;
                     detailCache.put(seriesId, detail);
+                    // UGC 随详情模型回填（簇二后置闭环）：详情自带
+                    // video_model 时逐集灌 DramaCache，起播直命中；
+                    // 非 UGC 详情 seedUgcModel 内部自判空、零副作用。
+                    DramaClient.seedUgcModel(detail, null);
                     cb.onDetail(detail);
                 });
             }
 
             @Override
             public void onError(int code, String msg) {
-                runOnUiThread(() -> cb.onDetail(null));
+                runOnUiThread(() -> {
+                    if (destroyed) return;
+                    cb.onDetail(null);
+                });
             }
         });
     }
