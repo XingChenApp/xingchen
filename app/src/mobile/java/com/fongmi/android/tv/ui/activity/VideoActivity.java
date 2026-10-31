@@ -77,6 +77,7 @@ import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.DanmakuApi;
 import com.fongmi.android.tv.api.HongguoCommentApi;
 import com.fongmi.android.tv.api.HongguoDanmakuApi;
+import com.fongmi.android.tv.hongguo.drama.DramaCache;
 import com.fongmi.android.tv.api.SiteApi;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.api.hk.HkDetail;
@@ -2869,7 +2870,9 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         List<Danmaku> siteDanmakus = result.getDanmaku();
         SpiderDebug.log("hongguo-danmaku", "prepare submit vid=%s series=%s", vid, seriesId);
         mHongguoExecutor.execute(() -> {
-            Danmaku item = HongguoDanmakuApi.fetchToFile(seriesId, vid, 0,
+            // 时长传缓存模型的 video_duration 真值（A-20）；本面走通用
+            // 播放链、模型多半不在 DramaCache，在手才有真值、否则 0=未知。
+            Danmaku item = HongguoDanmakuApi.fetchToFile(seriesId, vid, DramaCache.durationMs(vid),
                     partial -> App.post(() -> onHongguoDanmakuReady(key, vid, siteDanmakus, partial)));
             App.post(() -> {
                 if (vid.equals(mHongguoDanmakuPending)) mHongguoDanmakuPending = "";
@@ -2902,7 +2905,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mHongguoDanmakuPrefetchVid = nextVid;
         String seriesId = mHongguoSeriesId;
         SpiderDebug.log("hongguo-danmaku", "prefetch submit vid=%s series=%s", nextVid, seriesId);
-        mHongguoExecutor.execute(() -> HongguoDanmakuApi.fetchToFile(seriesId, nextVid, 0));
+        mHongguoExecutor.execute(() -> HongguoDanmakuApi.fetchToFile(seriesId, nextVid, DramaCache.durationMs(nextVid)));
     }
 
     /** 制备产出到达（首份/增量新版/最终版走同一处理）：已挂的正是这份就重读文件；还没挂按源弹幕优先口径裁决。 */
