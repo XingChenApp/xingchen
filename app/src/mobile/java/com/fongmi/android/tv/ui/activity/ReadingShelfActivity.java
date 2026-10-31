@@ -371,6 +371,7 @@ public class ReadingShelfActivity extends AppCompatActivity {
             // 方法为一整块，朋友版剥离时整块删净、阅读面照常运行。
             contentBox.addView(ReadingSkin.sectionHeader(this, "红果", null, null));
             contentBox.addView(hgNovelHistoryCard());
+            contentBox.addView(hgAudioEntryCard());
         } else if (comic) {
             contentBox.addView(ReadingSkin.sectionHeader(this, "在看的漫画", "长按移除", null));
             if (comics.isEmpty()) contentBox.addView(emptyView(
@@ -918,6 +919,59 @@ public class ReadingShelfActivity extends AppCompatActivity {
         card.setOnClickListener(v ->
                 com.fongmi.android.tv.hongguo.ui.HongguoMineActivity
                         .startNovelHistory(ReadingShelfActivity.this));
+        return card;
+    }
+
+    /**
+     * 红果组·听书入口卡（整块可剥）：与上方小说历史卡同组并排（他
+     * 2026-10-31 亲裁：红果小说、红果听书都在阅读那边、自成一组）。
+     * 卡面构建与点击处理全在本方法内自成一段；点开落点是红果书城
+     * 听书面（现行唯一的红果听书挑书主面，此前只挂在书源管理页的
+     * 红果听书源行上）。对红果本体的引用只此一处且用类名字符串
+     * （照 LegadoActivity 既有先例）、零 import——朋友版剥离时整段
+     * 删本方法＋红果组内本行 addView，阅读面照常编译运行。卡面照
+     * 本组小说历史卡同款（glassCard 玻璃卡＋15sp 粗标题＋右侧小字）。
+     */
+    private View hgAudioEntryCard() {
+        Context c = this;
+        LinearLayout card = new LinearLayout(c);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setPadding(dp(14), dp(12), dp(14), dp(12));
+        card.setBackground(ReadingSkin.glassCard(c, 16));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.leftMargin = dp(16);
+        lp.rightMargin = dp(16);
+        lp.bottomMargin = dp(12);
+        card.setLayoutParams(lp);
+
+        LinearLayout meta = new LinearLayout(c);
+        meta.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        meta.setLayoutParams(mlp);
+        TextView n = new TextView(c);
+        n.setText("红果听书");
+        n.setTextSize(15);
+        n.getPaint().setFakeBoldText(true);
+        n.setTextColor(ReadingSkin.TEXT);
+        meta.addView(n);
+        card.addView(meta);
+
+        TextView go = new TextView(c);
+        go.setText("查看 ›");
+        go.setTextSize(20);
+        go.setTextColor(ReadingSkin.FAINT);
+        card.addView(go);
+
+        card.setOnClickListener(v -> {
+            Intent i = new Intent();
+            i.setClassName(ReadingShelfActivity.this,
+                    "com.fongmi.android.tv." + "hongguo.book.HgBookBrowseActivity");
+            i.putExtra("hg_book_audio", true);
+            startActivity(i);
+        });
         return card;
     }
 
