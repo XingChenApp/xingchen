@@ -126,6 +126,15 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
 
         @Override
         protected void observeInstructionCount(Context cx, int instructionCount) {
+            Object m = cx.getThreadLocal(LIST_MARK_KEY);
+            if (m instanceof ListEvalMark) {
+                // 列表求值（parseList）对齐 8.83：原版无墙钟看门狗，慢而正当的串行
+                // 取数（多站超时叠加）不许误杀；只受「顶替」打断——见 ListEvalMark。
+                if (((ListEvalMark) m).superseded) {
+                    throw new Error("hk js list eval superseded");
+                }
+                return;
+            }
             Object d = cx.getThreadLocal(DEADLINE_KEY);
             if (d instanceof Long && System.currentTimeMillis() > (Long) d) {
                 throw new Error("hk js eval timeout (" + EVAL_BUDGET_MS + "ms)");
@@ -161,6 +170,42 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             else cx.putThreadLocal(DEADLINE_KEY, old);
         } catch (Throwable ignored) {
         }
+    }
+
+    // ---- 列表求值顶替（新链加载段，2026-10-31 橘汁案对照 8.83 定根）----
+    // 8.83 的列表求值在调用线程（Dispatchers.IO）各起一份 Context+scope 并发跑：
+    // 后到的加载不等先到的，先到的结果被 ArticleListModel 的 ticket 作废即可，
+    // 页面最终由最新一发加载出结果。星辰是串行单线程引擎（一运行时一 JS 线程
+    // ＋结果收集是实例字段），做不到真并发，此前的落法是后到者排队等先到者整段
+    // 跑完（含其全部网络超时，最长 120 秒看门狗/150 秒等待）：先到者结果注定被
+    // ticket 作废，却把当前加载堵死；重入几发就永远轮不到当前加载，真机形态
+    // ＝load start 反复出现、零完成、零报错（橘汁 page=1 11 秒 5 发全灭）。
+    // 串行引擎的等价落法：新列表求值进来先顶掉在跑的旧列表求值（观察者在下个
+    // 指令 tick 打断它，残余仅限它正堵在 Java 桥调用里的时间，各桥调用自带超时）；
+    // 已排队未起跑的旧列表求值按代次直接跳过。顶替只作用于 parseList 两入口的
+    // 列表求值；init/懒规则/详情/搜索与缓存代码重建（parseListUnmarked）不进此机制。
+    private static final String LIST_MARK_KEY = "hk.eval.listMark";
+
+    private static final class ListEvalMark {
+        final long gen;
+        volatile boolean superseded;
+
+        ListEvalMark(long gen) {
+            this.gen = gen;
+        }
+    }
+
+    private final java.util.concurrent.atomic.AtomicLong listGenSeq =
+            new java.util.concurrent.atomic.AtomicLong();
+    private volatile ListEvalMark activeListMark;
+
+    /**
+     * 顶掉在跑的旧列表求值：只顶代次比 gen 老的——代次守卫防并发迟到者误杀
+     * 比它更新的求值（先发代次、后抢到锁的迟到者不许反杀已在跑的新求值）。
+     */
+    private void supersedeListEvalBefore(long gen) {
+        ListEvalMark m = activeListMark;
+        if (m != null && m.gen < gen) m.superseded = true;
     }
 
     private final ExecutorService executor;
@@ -5420,39 +5465,75 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
      * 执行首页/分类的 js: 规则，返回条目列表（带页码，注入 MY_PAGE）。
      */
     public List<HkItem> parseList(String jsCode, String myUrl, int page) throws Exception {
+        ListEvalMark mark = new ListEvalMark(listGenSeq.incrementAndGet());
+        // 先顶掉在跑的旧列表求值再排队：它的结果必被 ticket 作废（见 ListEvalMark 注释）
+        supersedeListEvalBefore(mark.gen);
+        return parseListInternal(jsCode, myUrl, page, mark);
+    }
+
+    /**
+     * 缓存代码重建专用入口（HkEngineBridge.evalCacheCode）：跑的是 setResult(...)
+     * 合成脚本、不是列表加载——不顶替在跑的列表求值，也不被顶替，与改前串行语义一致。
+     */
+    public List<HkItem> parseListUnmarked(HkRule rule, String jsCode, String myUrl, int page) throws Exception {
+        synchronized (ruleEvalLock) {
+            bindRule(rule);
+            return parseListInternal(jsCode, myUrl, page, null);
+        }
+    }
+
+    private List<HkItem> parseListInternal(String jsCode, String myUrl, int page, ListEvalMark mark) throws Exception {
         // 提交时捕获当前绑定，任务在引擎线程开头重申：防提交与执行之间
         // 别的页 bindRule 换掉 this.rule 造成串页（与带规则入口的锁互补）
         final HkRule boundRule = this.rule;
+        if (mark != null) supersedeListEvalBefore(mark.gen);
         return submit(() -> {
             if (boundRule != null) this.rule = boundRule;
-            results.clear();
-            error = null;
-            preResultActive = false;
-            // R6: 求值前清掉 refreshPage 标记，避免上次残留被误判为本次的新请求
-            refreshRequested = false;
-            refreshToTop = false;
-            this.page = Math.max(1, page);
-            setContext(myUrl);
-            try {
-                // 8.83 parseHome 同款：每次求值注入 fresh CALLBACK_KEY 并登记正文表
-                //（正文=预抓正文，HkEngine.home() 经 setEvalResCodeBody 传入）
-                String cbKey = armCallbackKey(evalResCodeBody);
-                evalJs(getMyCallbackKey(cbKey) + stripJsPrefix(jsCode));
-            } catch (Throwable e) {
-                // 之前异常直接上抛到 HkEngine.home() 被吞掉只剩 debug 日志，
-                // UI 永远只显示"加载失败"。先把根因记下来，供 getError()/空态展示。
-                error = jsErrorMsg(e);
-                throw e;
+            if (mark != null) {
+                // 排队期间已被更新的列表求值顶替：跳过整段求值（结果必被 ticket 作废）
+                if (mark.gen < listGenSeq.get()) return new java.util.ArrayList<HkItem>();
+                activeListMark = mark;
+                rhinoCx.putThreadLocal(LIST_MARK_KEY, mark);
             }
-            return drainResults();
+            try {
+                results.clear();
+                error = null;
+                preResultActive = false;
+                // R6: 求值前清掉 refreshPage 标记，避免上次残留被误判为本次的新请求
+                refreshRequested = false;
+                refreshToTop = false;
+                this.page = Math.max(1, page);
+                setContext(myUrl);
+                try {
+                    // 8.83 parseHome 同款：每次求值注入 fresh CALLBACK_KEY 并登记正文表
+                    //（正文=预抓正文，HkEngine.home() 经 setEvalResCodeBody 传入）
+                    String cbKey = armCallbackKey(evalResCodeBody);
+                    evalJs(getMyCallbackKey(cbKey) + stripJsPrefix(jsCode));
+                } catch (Throwable e) {
+                    // 之前异常直接上抛到 HkEngine.home() 被吞掉只剩 debug 日志，
+                    // UI 永远只显示"加载失败"。先把根因记下来，供 getError()/空态展示。
+                    error = jsErrorMsg(e);
+                    throw e;
+                }
+                return drainResults();
+            } finally {
+                if (mark != null) {
+                    rhinoCx.removeThreadLocal(LIST_MARK_KEY);
+                    if (activeListMark == mark) activeListMark = null;
+                }
+            }
         }).get(EVAL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
     /** 带当前页规则的入口（8.83 parseHome 形态：规则随求值带入）：先重绑再走原路。 */
     public List<HkItem> parseList(HkRule rule, String jsCode, String myUrl, int page) throws Exception {
+        // 先发代次、先顶替再抢锁：旧列表求值的调用方正持锁在 Future.get 上长等，
+        // 先在锁外把在跑的旧求值打断，锁才放得出来、当前求值才不必等它整段跑完。
+        ListEvalMark mark = new ListEvalMark(listGenSeq.incrementAndGet());
+        supersedeListEvalBefore(mark.gen);
         synchronized (ruleEvalLock) {
             bindRule(rule);
-            return parseList(jsCode, myUrl, page);
+            return parseListInternal(jsCode, myUrl, page, mark);
         }
     }
 

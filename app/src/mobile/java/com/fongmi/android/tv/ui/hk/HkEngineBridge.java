@@ -256,7 +256,9 @@ public final class HkEngineBridge implements HkArticleListModel.EngineBridge {
             if (!result.startsWith("[") || !result.endsWith("]")) return null;
             HkJsRuntime rt = HkEngineManager.runtimeFor(rule);
             HkEngineManager.ensureInit(rt);
-            List<HkItem> items = rt.parseList(rule, "setResult(" + result + ")", url, 1);
+            // 走 Unmarked 入口：这是缓存代码重建、不是列表加载，不许顶掉在跑的列表
+            // 求值（列表求值的顶替机制只认 parseList 两入口，见 HkJsRuntime.ListEvalMark）
+            List<HkItem> items = rt.parseListUnmarked(rule, "setResult(" + result + ")", url, 1);
             return items == null || items.isEmpty() ? null : items;
         } catch (Exception e) {
             Log.e(TAG, "hk evalCacheCode", e);
