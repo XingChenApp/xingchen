@@ -43,6 +43,11 @@ import java.util.concurrent.Executors;
  * 跳登录页（与收藏/点赞/关注/发弹幕同门）；成功本地插顶回显、
  * 计数 +1，失败留文案给明确失败态、不装成功。
  * 竖屏评论单与本件各自成件，只共享数据层与发送链。
+ * 日期行（T-06，他亲裁「加」）：脚行首段按官方同位格式渲染日
+ * 期（HgCommentMeta，create_timestamp 秒级已验）；属地段无已
+ * 验字段、不渲染不留空位。表情钮（T-06）：真功能，HgEmojiPanel
+ * 点格插光标处；@ 钮查明无可用功能路，按「不摆占位」不落（账
+ * t06-comment-date-region-mentions-20261031）。
  */
 public final class HgLandCommentsPanel {
 
@@ -611,7 +616,13 @@ public final class HgLandCommentsPanel {
             }
             h.text.setText(body);
             StringBuilder meta = new StringBuilder();
-            if (c.likes > 0) meta.append("赞 ").append(c.likes);
+            // 日期段（T-06）：官方同位首段；缺失时不拼、不留空位
+            String date = HgCommentMeta.dateText(c.created);
+            if (!date.isEmpty()) meta.append(date);
+            if (c.likes > 0) {
+                if (meta.length() > 0) meta.append("  ·  ");
+                meta.append("赞 ").append(c.likes);
+            }
             if (!row.reply && c.replyCount > 0) {
                 if (meta.length() > 0) meta.append("  ·  ");
                 if (!row.expanded) meta.append("展开 ").append(c.replyCount).append(" 条回复");

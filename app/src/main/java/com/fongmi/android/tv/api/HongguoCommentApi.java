@@ -67,8 +67,9 @@ public class HongguoCommentApi {
 
     /**
      * 本地回显条目（发评论成功后即时插顶上屏用）：id 为服务端评论
-     * id（摘不到传空串占位，下次回拉校准）；created 全树无渲染先例
-     * 故置 0、不编造；点赞/回复数从 0 起。
+     * id（摘不到传空串占位，下次回拉校准）；created 置 0——评论行
+     * 日期段对 0 不渲染（HgCommentMeta），不拿本地时间编造日期；
+     * 点赞/回复数从 0 起。
      */
     public static Comment localEcho(String id, String author, String avatar, String content) {
         return new Comment(id == null ? "" : id,

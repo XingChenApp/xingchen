@@ -40,9 +40,14 @@ import java.util.concurrent.Executors;
  * （带账号会话头），未登录点输入行/发送先跳登录页（与收藏/点
  * 赞/关注/发弹幕同门），成功本地插顶回显＋计数 +1、失败给明确
  * 失败态。读数据走 HongguoCommentApi（匿名读口），真实 total
- * 经 OnTotal 回写宿主（D6）。草稿 .who 的时间 span 未落：
- * Comment.created（create_timestamp）全树无渲染先例、单位未验，
- * 不编造显示。
+ * 经 OnTotal 回写宿主（D6）。
+ * 日期行（T-06，他亲裁「加」）：Comment.created 已验为秒级
+ * create_timestamp，脚行首段按官方同位格式渲染日期（HgCommentMeta）；
+ * 属地段无已验字段（咱家读口回包全键普查无此字段），不渲染、
+ * 不留空位（账 t06-comment-date-region-mentions-20261031）。
+ * 表情钮（T-06）：真功能，HgEmojiPanel 点格插光标处；@ 钮查明
+ * 无可用功能路（发送链无提及字段、读侧 text_exts 无真人提及
+ * 样本、选人目录无已验接口），按「不摆占位」不落（同账）。
  */
 public final class HgCommentsSheet {
 
@@ -631,7 +636,14 @@ public final class HgCommentsSheet {
             }
             h.text.setText(body);
             StringBuilder meta = new StringBuilder();
-            if (c.likes > 0) meta.append("赞 ").append(c.likes);
+            // 日期段（T-06）：官方同位首段；created 未验/缺失（本
+            // 地回显置 0）时不拼、不留空位（HgCommentMeta 回空串）
+            String date = HgCommentMeta.dateText(c.created);
+            if (!date.isEmpty()) meta.append(date);
+            if (c.likes > 0) {
+                if (meta.length() > 0) meta.append("  ·  ");
+                meta.append("赞 ").append(c.likes);
+            }
             if (!row.reply && c.replyCount > 0) {
                 if (meta.length() > 0) meta.append("  ·  ");
                 if (!row.expanded) meta.append("展开 ").append(c.replyCount).append(" 条回复");
