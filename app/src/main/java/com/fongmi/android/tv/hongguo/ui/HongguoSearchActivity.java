@@ -409,6 +409,11 @@ public class HongguoSearchActivity extends AppCompatActivity {
         });
         head.addView(clear);
         historyBox.addView(head);
+        // 单筹宽上限（B-26）：筹 width=-2 无 maxWidth、父行横排不约束，
+        // 超长词（或三词皆长）能把一行撑出屏宽。按一行三筹封顶——
+        // 行宽＝屏宽减 historyBox 左右内距 16dp×2，再扣两道筹间距。
+        int chipMaxW = Math.max(dp(80), (getResources().getDisplayMetrics().widthPixels
+                - dp(32) - dp(16)) / 3);
         LinearLayout row = null;
         for (int i = 0; i < history.size(); i++) {
             if (i % 3 == 0) {
@@ -424,6 +429,7 @@ public class HongguoSearchActivity extends AppCompatActivity {
             chip.setTextColor(0xFF33333A);
             chip.setTextSize(13);
             chip.setMaxLines(1);
+            chip.setMaxWidth(chipMaxW);
             chip.setEllipsize(TextUtils.TruncateAt.END);
             chip.setBackground(roundBg(0xFFF2F2F4, dp(14)));
             chip.setPadding(dp(12), dp(6), dp(12), dp(6));
