@@ -1,6 +1,8 @@
 package com.fongmi.android.tv.hongguo.ui;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
@@ -24,6 +26,7 @@ import com.fongmi.android.tv.legado.LegadoSource;
 import com.fongmi.android.tv.legado.LegadoStore;
 import com.fongmi.android.tv.read.HgBookSeeder;
 import com.fongmi.android.tv.read.LegadoSearchFlow;
+import com.fongmi.android.tv.read.ReadingStore;
 import com.fongmi.android.tv.ui.activity.ReadingSkin;
 import com.fongmi.android.tv.utils.ImgUtil;
 
@@ -69,6 +72,13 @@ public class HongguoNovelDetailActivity extends AppCompatActivity {
     private TextView tocCountView;
     private TextView statusView;
     private ChapterAdapter adapter;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    /** 回写补刷：阅读器存进度是异步落盘，返回瞬间可能还没落——延一拍再读一次。 */
+    private final Runnable markResync = () -> {
+        if (destroyed) return;
+        syncMarkFromReader();
+        if (detail != null) bindDetail();
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,7 +106,69 @@ public class HongguoNovelDetailActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         destroyed = true;
+        mainHandler.removeCallbacks(markResync);
         super.onDestroy();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 从阅读器返回：先把阅读器侧的最新章位回写进 HgStore 断点
+        //（D-01），再重绑头面（D-15 的返回刷新落点）；阅读器异步落盘
+        // 可能迟到，延一拍再补刷一次
+        syncMarkFromReader();
+        if (detail != null) bindDetail();
+        mainHandler.removeCallbacks(markResync);
+        mainHandler.postDelayed(markResync, 900);
+    }
+
+    /**
+     * 续读位回写口（D-01）：阅读器内翻章只写它自己的 ReadingStore
+     * （键＝NOVEL|源名|书名，NovelReaderActivity.saveProgressAt），
+     * HgStore 小说断点此前没有任何回写——在阅读器里读得越远、回来
+     * 「上次读到」错得越多。现按同键读回：章名对位优先（阅读器存了
+     * chapterName）、下标兜底，对不上就不动，不许把断点写歪。
+     * 只读阅读器的公开存储，不改阅读器本体（组件分家：只调用不混）。
+     */
+    private void syncMarkFromReader() {
+        if (bookId.isEmpty() || chapters.isEmpty()) return;
+        String title = detail != null && !detail.title.isEmpty()
+                ? detail.title : getIntent().getStringExtra(EXTRA_TITLE);
+        if (title == null || title.isEmpty()) return;
+        ReadingStore.Record rec;
+        try {
+            rec = ReadingStore.find("NOVEL", readerSourceName(), title);
+        } catch (Throwable t) {
+            return;
+        }
+        if (rec == null) return;
+        int target = -1;
+        if (rec.chapterName != null && !rec.chapterName.isEmpty()) {
+            for (int i = 0; i < chapters.size(); i++) {
+                if (rec.chapterName.equals(chapters.get(i).title)) {
+                    target = i;
+                    break;
+                }
+            }
+        }
+        if (target < 0 && rec.chapterIndex >= 0 && rec.chapterIndex < chapters.size()) {
+            target = rec.chapterIndex;
+        }
+        if (target < 0) return;
+        HgStore.NovelMark mark = HgStore.novelMarkOf(bookId);
+        if (mark == null || mark.chapterIndex != target) {
+            HgStore.saveNovelMark(bookId, target, chapters.get(target).itemId);
+        }
+    }
+
+    /** 建会话用的哨兵源名（与 LegadoReading.buildSession 的 source.tag() 同源）；取不到回落种子定名。 */
+    private String readerSourceName() {
+        String json = findNovelSourceJson();
+        if (json != null) {
+            LegadoSource s = LegadoStore.parse(json);
+            if (s != null) return s.tag();
+        }
+        return HgBookBridge.NAME_NOVEL;
     }
 
     private int dp(int v) {
