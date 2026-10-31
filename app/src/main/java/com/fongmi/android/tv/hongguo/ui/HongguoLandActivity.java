@@ -859,6 +859,7 @@ public class HongguoLandActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     detail = d;
                     refreshCommentCount();
+                    warmModelCache();
                 });
             }
 
@@ -866,6 +867,29 @@ public class HongguoLandActivity extends AppCompatActivity {
             public void onError(int code, String msg) {
             }
         });
+    }
+
+    /**
+     * 清晰度段的模型暖机（C-05）：横屏领引擎直续播、不走
+     * resolve，当前集模型只靠竖屏侧先前落过缓存；缺时更多面板
+     * 的清晰度段无档可建、整段不显（入口在、段缺席）。详情一
+     * 到就静默补一发单集 fetchModels（其内部先查缓存、命中零
+     * 发网、未命中回包落 DramaCache），不碰播放器与 resolver
+     * 流账；面板打开时仍缺，下次开单自齐。
+     */
+    private void warmModelCache() {
+        if (curVid == null || DramaCache.get(curVid) != null) return;
+        List<DramaClient.ModelRequest> reqs = new ArrayList<>();
+        reqs.add(new DramaClient.ModelRequest(curVid, contentType));
+        DramaClient.fetchModels(reqs, new HgCallback<Map<String, DramaVideoModel>>() {
+            @Override
+            public void onSuccess(Map<String, DramaVideoModel> r) {
+            }
+
+            @Override
+            public void onError(int c, String m) {
+            }
+        }, false);
     }
 
     private void showEpisodes() {
