@@ -224,6 +224,12 @@ public final class HgLandCommentsPanel {
             return false;
         });
         footRow.addView(input, new LinearLayout.LayoutParams(0, -2, 1f));
+        // 表情面板先行构建（create 本体初始 GONE，T-06）：final 字段
+        // 被下方表情钮点击 lambda 捕获，赋值必须早于 lambda 创建
+        // （晚于即明确赋值报错——1.4.69 正式版 run 41208815518 的
+        // 唯一编译错误）；此处只赋值，挂载仍留在脚行之后原位置
+        // （root 子序不变），见构造尾。
+        emojiPanel = HgEmojiPanel.create(activity, dp, true, input, 0);
         TextView emojiBtn = new TextView(activity);
         emojiBtn.setText(HgEmojiPanel.BUTTON_FACE);
         emojiBtn.setTextSize(20);
@@ -251,9 +257,9 @@ public final class HgLandCommentsPanel {
         footRow.addView(sendBtn, new LinearLayout.LayoutParams(-2, -2));
         root.addView(footRow);
 
-        // 表情面板（T-06）：脚行之下、初始 GONE；底部让位由
-        // applyFootInset 按展开态在脚行/面板间分配（见下）。
-        emojiPanel = HgEmojiPanel.create(activity, dp, true, input, 0);
+        // 表情面板挂载（T-06）：面板已在输入行建成后先行构建（见
+        // 上），此处只按原序挂到脚行之下、初始 GONE 不变；底部让位
+        // 由 applyFootInset 按展开态在脚行/面板间分配（见下）。
         root.addView(emojiPanel);
     }
 
