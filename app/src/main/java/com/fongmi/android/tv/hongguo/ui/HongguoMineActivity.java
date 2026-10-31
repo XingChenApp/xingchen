@@ -524,9 +524,9 @@ public class HongguoMineActivity extends AppCompatActivity {
         else super.onBackPressed();
     }
 
-    /** 页面明暗切换：历史/收藏＝官方白底黑字＋深色系统栏图标；其余维持深底。 */
+    /** 页面明暗切换：浅底＝定稿画布底 #F7F7F8（D-05，此前落纯白 #FFFFFF 差一档）＋深字＋深色系统栏图标；其余维持深底。 */
     private void applyChrome(boolean light) {
-        root.setBackgroundColor(light ? 0xFFFFFFFF : 0xFF111114);
+        root.setBackgroundColor(light ? 0xFFF7F7F8 : 0xFF111114);
         int fg = light ? 0xFF1B1B1E : Color.WHITE;
         backBtn.setTextColor(fg);
         titleText.setTextColor(fg);
