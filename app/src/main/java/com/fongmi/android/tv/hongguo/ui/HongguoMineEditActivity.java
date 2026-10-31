@@ -21,6 +21,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.legado.HgAudioStore;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -28,11 +29,12 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 六模式（历史/收藏/点赞/预约/追更/小说）的独立编辑页（2026-10-30 海报格批
+ * 七模式（历史/收藏/点赞/预约/追更/小说/听书）的独立编辑页（2026-10-30 海报格批
  * 立页，2026-10-31 他亲定扩到五模式全量；小说支同日晚 W-05 裁定补入，
- * 与五模式同一套交互）：点「编辑」与长按任意一格
+ * 与五模式同一套交互；听书支同日晚随「红果听书 · 在听」列表补入，
+ * 数据走红果听书自家 HgAudioStore、删走其 remove，同为纯本地无上报）：点「编辑」与长按任意一格
  * 海报都进本页（长按的那格预勾），不是在原页原地切换状态。顶栏三段——
- * 左「全选」、中标题（全部历史/全部收藏/全部点赞/全部预约/全部追更/全部小说）
+ * 左「全选」、中标题（全部历史/全部收藏/全部点赞/全部预约/全部追更/全部小说/全部红果听书）
  * ＋副行「已选择 N 个」、右「完成」返回上一页；每格海报右下角圆形
  * 勾选圈（未选＝深色半透底白勾，选中＝橙色实心白勾）；底部固定删除
  * 条（垃圾桶＋「删除」红橙字，选中 0 个置灰禁点、不隐藏）。删除落
@@ -239,6 +241,25 @@ public class HongguoMineEditActivity extends AppCompatActivity {
                 row.cover = meta == null ? null : meta[2];
                 rows.add(row);
             }
+        } else if (editMode == HongguoMineActivity.MODE_AUDIO) {
+            // 听书支：id 与元信息走红果听书自家 HgAudioStore（枚举已按
+            // 最近收听倒序），子行口径与在听列表面同（章名/序号＋位置）
+            for (HgAudioStore.Entry e : HgAudioStore.listAll(this)) {
+                EditRow row = new EditRow();
+                row.id = e.bookId;
+                row.title = e.title == null ? "" : e.title;
+                String sub = e.chapterName == null ? "" : e.chapterName;
+                if (sub.isEmpty()) {
+                    sub = "第" + (Math.max(0, e.chapterIndex) + 1) + "集";
+                }
+                if (e.position > 0) {
+                    int sec = e.position / 1000;
+                    sub += " · " + (sec / 60) + ":" + String.format("%02d", sec % 60);
+                }
+                row.sub = sub;
+                row.cover = e.coverUrl;
+                rows.add(row);
+            }
         } else {
             for (String id : idsFor(editMode)) {
                 String[] meta = HgStore.metaOf(id);
@@ -280,6 +301,7 @@ public class HongguoMineEditActivity extends AppCompatActivity {
         if (mode == HongguoMineActivity.MODE_RESERVE) return "全部预约";
         if (mode == HongguoMineActivity.MODE_FOLLOW) return "全部追更";
         if (mode == HongguoMineActivity.MODE_NOVEL) return "全部小说";
+        if (mode == HongguoMineActivity.MODE_AUDIO) return "全部红果听书";
         return "全部收藏";
     }
 
@@ -289,6 +311,7 @@ public class HongguoMineEditActivity extends AppCompatActivity {
         if (mode == HongguoMineActivity.MODE_RESERVE) return "暂无预约";
         if (mode == HongguoMineActivity.MODE_FOLLOW) return "暂无追更";
         if (mode == HongguoMineActivity.MODE_NOVEL) return "还没有小说记录";
+        if (mode == HongguoMineActivity.MODE_AUDIO) return "还没有在听的红果书";
         return "暂无收藏";
     }
 
@@ -309,6 +332,10 @@ public class HongguoMineEditActivity extends AppCompatActivity {
             // 与历史同型：纯本地记录，删后无法恢复（无服务端可取消的动作）
             return "删除所选 " + n + " 条小说记录？删除后无法恢复。";
         }
+        if (editMode == HongguoMineActivity.MODE_AUDIO) {
+            // 同小说支：纯本地在听记录（HgAudioStore），无服务端上报
+            return "删除所选 " + n + " 条听书记录？删除后无法恢复。";
+        }
         return "删除所选 " + n + " 条收藏？将取消收藏。";
     }
 
@@ -319,13 +346,16 @@ public class HongguoMineEditActivity extends AppCompatActivity {
      * HgAccountSync.reportLike；本面只持剧 id、无集 vid，取消上报
      * 缺粒度未接，云端残留待 liked 集补存 vid 后收口）；
      * 预约摘 reserved 集并上报取消预约；小说走 removeNovelHistory
-     * 整组摘除（断点＋元信息＋索引，纯本地无上报）。
+     * 整组摘除（断点＋元信息＋索引，纯本地无上报）；听书走
+     * HgAudioStore.remove 摘该 bookId 的在听存档（纯本地无上报）。
      */
     private void deleteOne(String id) {
         if (editMode == HongguoMineActivity.MODE_HISTORY) {
             HgStore.removeHistory(id);
         } else if (editMode == HongguoMineActivity.MODE_NOVEL) {
             HgStore.removeNovelHistory(id);
+        } else if (editMode == HongguoMineActivity.MODE_AUDIO) {
+            HgAudioStore.remove(this, id);
         } else if (editMode == HongguoMineActivity.MODE_LIKE) {
             HgStore.setLiked(id, false);
         } else if (editMode == HongguoMineActivity.MODE_RESERVE) {

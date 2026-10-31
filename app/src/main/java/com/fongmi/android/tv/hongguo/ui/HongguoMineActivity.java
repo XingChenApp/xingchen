@@ -25,6 +25,12 @@ import com.bumptech.glide.Glide;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.hongguo.api.HgAccountStore;
 import com.fongmi.android.tv.hongguo.api.HgAccountSync;
+import com.fongmi.android.tv.legado.HgAudioStore;
+import com.fongmi.android.tv.legado.HgBookBridge;
+import com.fongmi.android.tv.legado.LegadoAudio;
+import com.fongmi.android.tv.legado.LegadoPipeline;
+import com.fongmi.android.tv.legado.LegadoSource;
+import com.fongmi.android.tv.legado.LegadoStore;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +51,14 @@ import java.util.List;
  * 同删法），长按任意一格同落点且该格预勾。
  * 小说历史维持原列表行与深底，删除口同套对齐（W-05，他裁要给）：
  * 顶栏右端「编辑」钮＋长按一行预勾，同进编辑页小说支删。</p>
+ *
+ * <p>听书历史（MODE_AUDIO，2026-10-31 他亲裁「造一个呗、反正单独的
+ * 听书」）：与小说历史并列的在听列表面——行数据走红果听书自家
+ * HgAudioStore（枚举口 listAll 按最近收听倒序），删除同套（编辑页
+ * 听书支、删走 HgAudioStore.remove）；红果侧不设入口，只从阅读
+ * 书架「红果」组直达（startAudioHistory），返回直退阅读书架；
+ * 行点按走现行续播路：按 bookId 重拉详情/目录组专辑进自家播放页
+ * HgAudioPlayActivity，章位与位置由播放页按 HgAudioStore 落盘回位。</p>
  */
 public class HongguoMineActivity extends AppCompatActivity {
 
@@ -55,6 +69,7 @@ public class HongguoMineActivity extends AppCompatActivity {
     static final int MODE_LIKE = 4;
     static final int MODE_RESERVE = 5;
     static final int MODE_FOLLOW = 6;
+    static final int MODE_AUDIO = 7;
 
     /** 底栏第三签入口标记：带此附加打开落定稿首页面并显白色三签底栏。 */
     public static final String EXTRA_TAB = "hg_mine_tab";
@@ -81,6 +96,17 @@ public class HongguoMineActivity extends AppCompatActivity {
     public static void startNovelHistory(android.content.Context context) {
         android.content.Intent intent = new android.content.Intent(context, HongguoMineActivity.class);
         intent.putExtra(EXTRA_MODE, MODE_NOVEL);
+        HgTransition.push(context, intent);
+    }
+
+    /**
+     * 阅读板块直达红果听书「在听」列表（他 2026-10-31 亲裁：红果
+     * 小说、红果听书都在阅读那边、自成一组；听书单独成套，造专属
+     * 在听列表）。与 startNovelHistory 同口径：只加不改既有入口。
+     */
+    public static void startAudioHistory(android.content.Context context) {
+        android.content.Intent intent = new android.content.Intent(context, HongguoMineActivity.class);
+        intent.putExtra(EXTRA_MODE, MODE_AUDIO);
         HgTransition.push(context, intent);
     }
 
@@ -116,6 +142,10 @@ public class HongguoMineActivity extends AppCompatActivity {
     private boolean tabEntry;
     /** 阅读板块直达小说历史进来：返回直退回阅读板块，不落本页首页面。 */
     private boolean novelDirectEntry;
+    /** 阅读板块直达听书在听列表进来：返回口径与小说直达相同。 */
+    private boolean audioDirectEntry;
+    /** 在听行续播重拉目录在途旗：防连点重复拉取/重复起播。 */
+    private boolean audioOpening;
     private int mode = MODE_HOME;
     private final List<Row> rows = new ArrayList<>();
     /** 海报格全量行（未过滤）与当前过滤下标（历史/收藏共用一套筹机制）。 */
@@ -179,6 +209,7 @@ public class HongguoMineActivity extends AppCompatActivity {
         HgWindowStyle.apply(this, false, false);
         tabEntry = getIntent().getBooleanExtra(EXTRA_TAB, false);
         novelDirectEntry = getIntent().getIntExtra(EXTRA_MODE, MODE_HOME) == MODE_NOVEL;
+        audioDirectEntry = getIntent().getIntExtra(EXTRA_MODE, MODE_HOME) == MODE_AUDIO;
 
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -255,6 +286,7 @@ public class HongguoMineActivity extends AppCompatActivity {
 
         setContentView(root);
         if (novelDirectEntry) openList(MODE_NOVEL, "小说历史");
+        else if (audioDirectEntry) openList(MODE_AUDIO, "红果听书");
         else showHome();
     }
 
@@ -292,6 +324,8 @@ public class HongguoMineActivity extends AppCompatActivity {
             loadHomeWall();
         } else if (mode == MODE_NOVEL) {
             reloadNovelRows();
+        } else if (mode == MODE_AUDIO) {
+            reloadAudioRows();
         } else {
             loadGridRows(mode);
             applyFilter();
@@ -319,6 +353,131 @@ public class HongguoMineActivity extends AppCompatActivity {
             novelEditBtn.setVisibility(mode == MODE_NOVEL && !rows.isEmpty()
                     ? View.VISIBLE : View.GONE);
         }
+    }
+
+    /** 听书在听行重建（openList 听书支与 reloadCurrentView 共用）：数据只读红果听书自家 HgAudioStore，枚举已按最近收听倒序。 */
+    private void reloadAudioRows() {
+        rows.clear();
+        for (HgAudioStore.Entry e : HgAudioStore.listAll(this)) {
+            Row row = new Row();
+            row.id = e.bookId;
+            row.title = e.title == null ? "" : e.title;
+            row.sub = audioSubOf(e);
+            row.cover = e.coverUrl;
+            rows.add(row);
+        }
+        adapter.notifyDataSetChanged();
+        list.setVisibility(rows.isEmpty() ? View.GONE : View.VISIBLE);
+        emptyText.setVisibility(rows.isEmpty() ? View.VISIBLE : View.GONE);
+        if (rows.isEmpty()) emptyText.setText("还没有在听的红果书");
+        // 删除入口与小说面共用顶栏「编辑」钮（显隐口径同小说支）
+        if (novelEditBtn != null) {
+            novelEditBtn.setVisibility(mode == MODE_AUDIO && !rows.isEmpty()
+                    ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    /** 在听行子行：存档章名优先，无章名按序号兜「第 N 集」；有进度带已听位置。 */
+    private static String audioSubOf(HgAudioStore.Entry e) {
+        String base = e.chapterName == null ? "" : e.chapterName;
+        if (base.isEmpty()) base = "第" + (Math.max(0, e.chapterIndex) + 1) + "集";
+        if (e.position > 0) {
+            int sec = e.position / 1000;
+            base += " · " + (sec / 60) + ":" + String.format("%02d", sec % 60);
+        }
+        return base;
+    }
+
+    /** 红果听书哨兵源 JSON（与书城 HgBookBrowseActivity.findSourceJson 同法：按源址在 LegadoStore 里找已入库的那份）。 */
+    private String findAudioSourceJson() {
+        for (LegadoStore.Entry en : LegadoStore.all()) {
+            try {
+                LegadoSource s = LegadoStore.parse(en.json);
+                if (s != null && HgBookBridge.URL_AUDIO.equals(s.bookSourceUrl)) {
+                    return en.json;
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 在听行点按＝现行续播路（与书城进播放页同一条链的后半段）：
+     * 按 bookId 取哨兵源 → LegadoPipeline 拉详情/目录（同目录页
+     * fetchToc 口径）→ LegadoAudio.buildAlbum 组专辑（起始章按存档
+     * itemId 定位、无则序号兜底）→ HgBookBridge.startAudioPlayer 进
+     * 自家播放页；章位与位置由播放页按 HgAudioStore 落盘再回位
+     * （播放页 onCreate 既有口径）。拉取在后台线程，页面已销毁时
+     * 回调整段丢弃；失败给人话、不留半成品专辑。
+     */
+    private void openAudioRow(Row row) {
+        if (audioOpening) return;
+        HgAudioStore.Entry st = HgAudioStore.get(this, row.id);
+        if (st == null) {
+            // 存档已被删（编辑页回来前的竞态）：整表按现态重拉，不进播放
+            reloadAudioRows();
+            return;
+        }
+        String sourceJson = findAudioSourceJson();
+        LegadoSource source = sourceJson == null ? null : LegadoStore.parse(sourceJson);
+        if (source == null) {
+            // 与书城 openBook 同文案：源不在位就不装作能播
+            Toast.makeText(this, "书源还没准备好，稍后再试", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        audioOpening = true;
+        final String bookId = row.id;
+        new Thread(() -> {
+            LegadoAudio.AudioAlbum album = null;
+            String sid = null;
+            try {
+                LegadoPipeline p = new LegadoPipeline(source);
+                String bookUrl = HgBookBridge.bookUrl(bookId);
+                LegadoPipeline.BookInfo info = p.bookInfo(bookUrl);
+                if (info.name.isEmpty()) info.name = st.title == null ? "" : st.title;
+                if (info.coverUrl.isEmpty()) {
+                    info.coverUrl = st.coverUrl == null ? "" : st.coverUrl;
+                }
+                String tocUrl = info.tocUrl.isEmpty() ? bookUrl : info.tocUrl;
+                List<LegadoPipeline.TocChapter> chapters = p.toc(tocUrl);
+                if (chapters.isEmpty()) throw new IllegalStateException("目录为空");
+                int which = -1;
+                if (st.itemId != null && !st.itemId.isEmpty()) {
+                    for (int i = 0; i < chapters.size(); i++) {
+                        if (st.itemId.equals(HgBookBridge.itemIdOf(chapters.get(i).url))) {
+                            which = i;
+                            break;
+                        }
+                    }
+                }
+                if (which < 0) {
+                    which = Math.max(0, Math.min(st.chapterIndex, chapters.size() - 1));
+                }
+                album = LegadoAudio.buildAlbum(source, info, chapters, which);
+                sid = LegadoAudio.put(album);
+            } catch (Throwable t) {
+                android.util.Log.e("HongguoMine", "在听续播拉取失败 bookId=" + bookId, t);
+            }
+            final String fsid = sid;
+            runOnUiThread(() -> {
+                audioOpening = false;
+                if (isFinishing() || isDestroyed()) {
+                    if (fsid != null) LegadoAudio.remove(fsid);
+                    return;
+                }
+                if (fsid == null) {
+                    Toast.makeText(this, "这本书的目录拉不下来，稍后再试",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (!HgBookBridge.startAudioPlayer(this, fsid)) {
+                    LegadoAudio.remove(fsid);
+                    Toast.makeText(this, "红果听书在这个版本里不可用",
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+        }, "HgAudioResume").start();
     }
 
     // ---------- 定稿首页面：账号行 ----------
@@ -577,9 +736,10 @@ public class HongguoMineActivity extends AppCompatActivity {
     }
 
     private void onBackRow() {
-        if (mode == MODE_NOVEL && novelDirectEntry) {
+        if ((mode == MODE_NOVEL && novelDirectEntry)
+                || (mode == MODE_AUDIO && audioDirectEntry)) {
             // 阅读板块直达进来的：返回直退出回阅读板块，不落本页
-            // 首页面（短剧与小说分家，他 2026-10-31 亲裁）
+            // 首页面（短剧与小说/听书分家，他 2026-10-31 亲裁）
             finish();
         } else if (mode != MODE_HOME) {
             HgTransition.fadeSwap(this::showHome, homeBox, list, emptyText);
@@ -614,13 +774,15 @@ public class HongguoMineActivity extends AppCompatActivity {
         topBar.setPadding(dp(6), statusBarHeight() + dp(6), dp(16), dp(8));
         homeBox.setVisibility(View.GONE);
         tabBar.setVisibility(View.GONE);
-        if (target == MODE_NOVEL) {
+        if (target == MODE_NOVEL || target == MODE_AUDIO) {
+            // 小说/听书历史面：深底列表行（RowAdapter），无筹行，删除钮挂顶栏
             applyChrome(false);
             chipsBar.setVisibility(View.GONE);
             list.setPadding(0, 0, 0, 0);
             list.setLayoutManager(new LinearLayoutManager(this));
             list.setAdapter(adapter);
-            reloadNovelRows();
+            if (target == MODE_NOVEL) reloadNovelRows();
+            else reloadAudioRows();
             return;
         }
         // 历史/收藏：白底海报格＋筹行
@@ -861,6 +1023,8 @@ public class HongguoMineActivity extends AppCompatActivity {
             loadHomeWall();
         } else if (requestCode == REQ_EDIT && mode == MODE_NOVEL) {
             reloadNovelRows();
+        } else if (requestCode == REQ_EDIT && mode == MODE_AUDIO) {
+            reloadAudioRows();
         } else if (requestCode == REQ_EDIT
                 && (mode == MODE_HISTORY || mode == MODE_FAV || mode == MODE_FOLLOW
                 || mode == MODE_LIKE || mode == MODE_RESERVE)) {
@@ -1103,7 +1267,11 @@ public class HongguoMineActivity extends AppCompatActivity {
             }
             h.title.setText(row.title);
             h.sub.setText(row.sub == null ? "" : row.sub);
-            h.itemView.setOnClickListener(v -> openRow(row));
+            h.itemView.setOnClickListener(v -> {
+                // 听书面行走续播路进自家播放页，小说面行走小说详情（面本体链）
+                if (mode == MODE_AUDIO) openAudioRow(row);
+                else openRow(row);
+            });
             h.itemView.setOnLongClickListener(v -> {
                 // 与海报格同口径：长按一行进编辑页且该行预勾（W-05）
                 openEditPage(row.id);
