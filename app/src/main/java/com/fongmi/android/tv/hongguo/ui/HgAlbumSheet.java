@@ -203,9 +203,9 @@ public final class HgAlbumSheet {
         foot.addView(footText);
         root.addView(foot);
 
-        // 几何收口（#2，与选集单同口径）：列表按内容实量定高、
-        // 根按内容 wrap，摘 weight 直挂与根高度回写。
-        HgEpisodeSheet.fitListHeight(activity, root, list, false);
+        // 几何（回炉定根，账 fix168-episodesheet-diag）：列表入
+        // 根即 (-1,-2) wrap 自然高，行高由行内容构造决定，整单
+        // 零实量零回写（旧 fitListHeight 已整步摘除）。
         dialog.setContentView(root);
         View sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
         if (sheet != null) {

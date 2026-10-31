@@ -236,11 +236,18 @@ public final class HgCommentsSheet {
             }
         });
 
-        // 几何收口（#2，与选集单同口径）：列表定高、根 wrap，摘
-        // weight 直挂与根高度回写。评论是异步增量到的、实量只有
-        // 状态行，故列表直接拿满可用高（fillCap），行在定高内滚
-        // 动加载。
-        HgEpisodeSheet.fitListHeight(activity, root, list, true);
+        // 几何（回炉定根，账 fix168-episodesheet-diag）：摘除
+        // fitListHeight 脱窗实量——列表高改写死常数：0.72 屏高
+        // 减头脚构造常数（头 56dp＋脚 64dp），不取任何 measure
+        // 返回值（照老版评论单能用口径）。评论异步增量到，行
+        // 在常数高内滚动加载。
+        android.util.DisplayMetrics cdm = activity.getResources().getDisplayMetrics();
+        int listH = Math.max(0, (int) (cdm.heightPixels * 0.72f) - dp.applyAsInt(56 + 64));
+        ViewGroup.LayoutParams listLp = list.getLayoutParams();
+        if (listLp != null) {
+            listLp.height = listH;
+            list.setLayoutParams(listLp);
+        }
         dialog.setContentView(root);
         View sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
         if (sheet != null) {
