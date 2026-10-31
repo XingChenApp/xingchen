@@ -975,12 +975,11 @@ public final class HgSign {
      * 的整数语义未证，仍冻结抓样值，残余风险记在根治账。</p>
      */
     public static byte[] deviceProto(String deviceId, long nowMillis) {
-        // 共享呈现作用域（2026-10-30，hongguo-shared-profile-impl-
-        // 20261030.md）：字段 25–28 经 HgDevice.medusaTsBase 换 drpys
-        // 冻结时间戳、字段 34 经 HgDevice.deviceManufacturer 换 Xiaomi，
-        // 指纹族各字段经 HgDevice 的 fp* 访问口在作用域内自动回冻结值；
-        // 自家作用域下 medusaTsBase 恒等、deviceManufacturer＝品牌，
-        // 与此前逐字一致（HgSignTest 的档案对齐断言即按自家口径验）。
+        // 旧「共享呈现作用域」（2026-10-30，hongguo-shared-profile-
+        // impl-20261030.md）已整套摘除（共享面随 W-03 于 2026-10-31
+        // 摘净）：HgDevice.medusaTsBase 现恒等、deviceManufacturer
+        // ＝品牌、fp* 指纹族按自家档案种子派生，下文即自家口径本身
+        // （HgSignTest 的档案对齐断言按此口径验）。
         long tsBase = HgDevice.medusaTsBase(nowMillis);
         return concat(
                 protoSInt(1, 1),

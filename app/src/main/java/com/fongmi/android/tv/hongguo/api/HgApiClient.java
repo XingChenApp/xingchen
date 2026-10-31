@@ -42,17 +42,12 @@ import okhttp3.ResponseBody;
  * multi 不是同一件；取模型改批量优先、单集口降为兜底，消耗面从
  * 1 份/集降到 1 份/批。</p>
  *
- * <p>共享档案＋自动兜底（2026-10-30，他点定，账
- * hongguo-shared-profile-impl-20261030.md）：取模型面（批量＋单集）
- * 与搜索面默认改走红果果同款公开共享档案呈现（HgDevice 的共享
- * 模式：整套呈现原子切换、不发注册请求）；自家注册档案降为兜底——
- * 共享回身份层拒绝（110001）立即以自家重发同批并锁存自家优先，
- * 共享回空体而自家同批能出货同样锁存，双空不锁存（配额问题不是
- * 身份问题）。锁存落盘在 HgDevice、只由抽屉「刷新设备档案」清。
- * 本机海外出口探针里共享身份全灭（110001/空体），但出口类别能翻
- * 结论有前科、他录屏里红果果在国内真机全链能播——终判在国内真机，
- * 兜底保证最差不差于现状。feed 频道/详情/专辑等面与登录链不切
- * 共享，维持自家呈现。</p>
+ * <p>【已作废】共享档案＋自动兜底（2026-10-30 旧口径，账
+ * hongguo-shared-profile-impl-20261030.md）：取模型面与搜索面曾
+ * 默认走公开共享档案呈现、自家降为兜底并带 110001 锁存。此口径
+ * 先于短剧新层在 HgDevice 内摘除，新层的 DramaSign 共享面亦于
+ * 2026-10-31 按 W-03 裁决整套摘除（账 w03-dramasign-removal-
+ * 20261031）；现行全线只有自家注册脸，本段只作历史存档。</p>
  *
  * <p>feed 面重建（2026-10-28，tab-fail-dig-20261028.md 两案定罪）：漫剧/
  * 真人剧页签原接的 new_category/front 是小说分类页壳接口（结构上永远不带
@@ -380,8 +375,8 @@ public final class HgApiClient {
      * 再用注册身份对有序参数逐请求签名（HgSign.signGet 传真实路径），
      * 发往 fqnovel 宿主；头组装照 openhongguo anonymousHeaders 口径
      * （UA 换设备面 UA、x-ss-dp / lc / x-reading-request、游客 Cookie 兜底）。
-     * feed 频道面与搜索面（自家口径）走此口；短剧新层的共享呈现
-     * 在 drama/DramaClient，不经本类。
+     * feed 频道面与搜索面（自家口径）走此口；短剧新层
+     * （drama/DramaClient）同样经本类自家口发送。
      */
     private void getSigned(String path, List<String[]> pairs, BodyCallback cb) {
         ensureDevice(new HgCallback<Boolean>() {

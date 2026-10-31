@@ -94,8 +94,10 @@ public final class DramaResolver {
 
     /**
      * 预热一条流（解链注册后 warm 代理层）。无 token 时走推测口解链
-     * （speculative=true，2026-10-31 补）：预热撞空不许写播放冷却——
-     * 原先直借正片 resolve()，一发空就把正片全赶去共享面 15 分钟。
+     * （speculative=true，2026-10-31 补）：此旗原为「预热撞空不许写
+     * 播放冷却」而设（原先直借正片 resolve()，一发空就把正片全赶去
+     * 共享面 15 分钟）；冷却与共享面已随 W-03 整套摘除，推测口与
+     * 正片口现行同路，旗作调用口径标记保留。
      */
     public void warm(String videoId, int contentType) {
         if (videoId == null) return;

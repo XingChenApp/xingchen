@@ -33,9 +33,11 @@ import java.util.zip.Deflater;
  *
  * <p>身份持久化走 Prefers（键 hongguo_device_profile_v1），注册一次全局复用。</p>
  *
- * <p>共享档案呈现与永久锁存已于 2026-10-30 短剧重建时整件摘除：
- * 共享身份改由短剧新层 drama/DramaSign 呈现、兜底改冷却降级
- * （drama/DramaFetchPolicy），本类只剩自家注册档案一职（小说共用）。</p>
+ * <p>共享档案呈现与永久锁存已于 2026-10-30 短剧重建时整件摘除；
+ * 其后短剧新层另建的 DramaSign 共享呈现＋策略冷却切换，亦已于
+ * 2026-10-31 按 W-03 裁决整套摘除（账 w03-dramasign-removal-
+ * 20261031）。现行全 App 只有自家注册档案一张脸，本类只剩自家
+ * 注册档案一职（小说共用）。</p>
  */
 public final class HgDevice {
 

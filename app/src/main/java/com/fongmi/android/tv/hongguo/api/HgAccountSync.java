@@ -65,7 +65,7 @@ import okhttp3.ResponseBody;
  * ensureDevice 注册闸→HgSign 逐请求签名（设备段用注册档案）→会话头
  * （Cookie＋x-tt-token，出自 {@link HgAccountStore}）→HgNativeSign 原生
  * 优先重签，与 HgPassportClient 的 passport 链同路。账号 Cookie 只挂
- * 自家面，绝不挂共享呈现（HgApiClient.headers 注的禁令同理）。</p>
+ * 自家面（共享呈现已随 W-03 整套摘除，无第二张脸可挂）。</p>
  *
  * <p>合并口径（旧 HgMineView 定版）：拉取只<b>增</b>不删——服务端回空
  * 不冲本地镜像（防冲空），元信息本地已有字段优先、只补缺；历史走
