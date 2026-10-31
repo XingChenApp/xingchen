@@ -1119,9 +1119,27 @@ public class HongguoFeedActivity extends AppCompatActivity {
         // 带作者的条目剧名已下沉本条：文案走服务端底条分段
         // （bottomBarText 原序以「·」相接，内含剧名段，存档回包
         // 实证）；没带分段或无作者时仍走原生成文案
+        boolean hasAuthor = item.getAuthorUid() != null && !item.getAuthorUid().isEmpty()
+                && item.getAuthorName() != null && !item.getAuthorName().isEmpty();
         if (item.getAuthorUid() != null && !item.getAuthorUid().isEmpty()
                 && item.bottomBarText != null && !item.bottomBarText.isEmpty()) {
             watchText.setText(android.text.TextUtils.join("·", item.bottomBarText));
+        } else if (hasAuthor) {
+            // B-07 兜底：带作者但服务端没给底条分段时，生成文案不带
+            // 剧名、信息摞大行又是 @作者名——剧名全页无处可认（全域
+            // 账 B 片定格）。生成文案前冠剧名段（与分段同「·」接法），
+            // 剧名至少在本条认得出；分段一到仍走上面的服务端原文。
+            int total = item.getEpisodeCount();
+            if (total <= 0 && item.isMultiSeason()) {
+                int seasonTotal = seasonCountFor(item);
+                if (seasonTotal > 0) total = seasonTotal;
+            }
+            String gen = HgPanelLogic.watchBarText(
+                    item.kind == DramaItemKind.ALBUM, item.contentType,
+                    item.isFinished(), total);
+            String title = item.getTitle();
+            watchText.setText(title != null && !title.isEmpty()
+                    ? title + " · " + gen : gen);
         } else {
             // 集数：条目直读优先；多季条目直读缺失时回查专辑季表
             // （S-03，series_list[].episode_cnt 是集数正位）
