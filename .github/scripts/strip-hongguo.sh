@@ -18,17 +18,25 @@
 #   - 底栏短剧格：HomeActivity 的 import／注册行／点击分发支／启动直达块、
 #     isHongguoTabEnabled 改回 false（格子不注册）、ic_nav_duanju 双态图标、nav_duanju 字符串；
 #   - Manifest（mobile）里红果十个 Activity＋书城浏览页＋红果听书播放页
-#     （2026-10-30 听书分家新增 HgAudioPlayActivity）的登记；
+#     （2026-10-30 听书分家新增 HgAudioPlayActivity）＋红果听书播放服务
+#     （2026-10-31 W-15 拆套新增 HgAudioPlaybackService，1.4.69 补剥）；
 #   - 2026-10-31 签名/登录批新增：短信登录页 HongguoLoginActivity 的 Manifest
 #     登记、我的页五格字形 ic_mine_* 四份、原版签名三件（jniLibs 的
 #     libmetasec_ml.so、assets/hg-metasec/metasec.dex、Covode 桩）。
+#   - 2026-10-31 阅读分家批（1.4.69）：阅读书架 ReadingShelfActivity 里新挂的
+#     红果组三卡（hgNovelHistoryCard／hgAudioEntryCard／hgAudioListeningCard
+#     三个方法块＋组标题与三行 addView 调用块），连同只供红果听书播放页
+#     「回书架」用的带签位 start 与 EXTRA_TAB／onCreate 读签段（全树唯一
+#     调用方就是被剥的 HgAudioPlayActivity，普通 start 与其调用点不动）；
+#     剥后该文件须与三卡落码前逐字节全等（出包账 build-169 本地实跑验证）。
 #
 # 不许误伤的共用件（海阔规则年代就有的壳子件，只是名字里带 Hongguo，与本功能无关，留）：
 #   - com.fongmi.android.tv.api.HongguoCommentApi / HongguoDanmakuApi / FqCommentSigner
-#     （点播播放链的红果评论/弹幕抓取）；
-#   - mobile 的 HongguoCommentDialog / HongguoCommentAdapter 与 adapter_hongguo_* /
-#     dialog_hongguo_comment 布局、shape_hongguo_* 图形、hongguo_panel_* 动画、
-#     hongguo_comment* 字符串、VideoActivity 的红果评论/弹幕链、Danmaku 的 hongguo 平台名；
+#     （点播播放链的红果评论/弹幕抓取，新评论面也在用）；
+#   - hongguo_panel_* 动画、VideoActivity 的红果评论/弹幕链、Danmaku 的 hongguo 平台名；
+#   - 注：mobile 的 HongguoCommentDialog / HongguoCommentAdapter 与 dialog/adapter
+#     布局、shape_hongguo_*、hongguo_comment* 字符串已于 2026-10-31 W-07 随旧轨
+#     整套从正式版源码删除（不在剥离范围、复查二不再断言）。
 #   - 登录框架本体（LoginManager 注册表与通用口、各提供方）、
 #     底栏组件本体（XcBottomBar/BottomTabs 与 ids.xml 的 hongguo 预声明 id——无害占位）、
 #     Nano 其余 process。
@@ -45,10 +53,11 @@ STREAM=app/src/main/java/com/fongmi/android/tv/server/process/HongguoStream.java
 NANO=app/src/main/java/com/fongmi/android/tv/server/Nano.java
 HOME=app/src/mobile/java/com/fongmi/android/tv/ui/activity/HomeActivity.java
 MANIFEST=app/src/mobile/AndroidManifest.xml
+SHELF=app/src/mobile/java/com/fongmi/android/tv/ui/activity/ReadingShelfActivity.java
 MSTRINGS=app/src/mobile/res/values/strings.xml
 LM=app/src/main/java/com/fongmi/android/tv/login/LoginManager.java
 
-for f in "$STREAM" "$NANO" "$HOME" "$MANIFEST" "$MSTRINGS" "$LM"; do
+for f in "$STREAM" "$NANO" "$HOME" "$MANIFEST" "$SHELF" "$MSTRINGS" "$LM"; do
   [ -f "$f" ] || fail "红果剥离目标文件找不到：$f"
 done
 [ -d "$HGPKG" ] || fail "红果本体包找不到：$HGPKG"
@@ -73,10 +82,22 @@ for a in HongguoFeedActivity HongguoDetailActivity HongguoTheaterActivity Honggu
 done
 grep -qF "android:name=\"com.fongmi.android.tv.hongguo.book.HgBookBrowseActivity\"" "$MANIFEST" || fail "Manifest 的红果书城浏览页登记对不上"
 grep -qF "android:name=\"com.fongmi.android.tv.hongguo.book.HgAudioPlayActivity\"" "$MANIFEST" || fail "Manifest 的红果听书播放页登记对不上"
+grep -qF "android:name=\"com.fongmi.android.tv.hongguo.book.HgAudioPlaybackService\"" "$MANIFEST" || fail "Manifest 的红果听书播放服务登记对不上"
 # 原版签名三件预检（2026-10-31 签名/登录批入树，朋友版随红果整包剥）
 [ -f app/src/main/jniLibs/arm64-v8a/libmetasec_ml.so ] || fail "原版签名 .so 找不到"
 [ -f app/src/main/assets/hg-metasec/metasec.dex ] || fail "原版签名运行时 dex 找不到"
 [ -f app/src/main/java/com/bytedance/covode/number/Covode.java ] || fail "Covode 桩找不到"
+# 阅读书架红果组三卡＋带签位 start 锚点预检（2026-10-31 阅读分家批，锚点串定位、不按行号）
+grep -qF 'contentBox.addView(ReadingSkin.sectionHeader(this, "红果", null, null));' "$SHELF" || fail "ReadingShelfActivity 的红果组标题行对不上"
+grep -qF "contentBox.addView(hgNovelHistoryCard());" "$SHELF" || fail "ReadingShelfActivity 的小说历史卡调用行对不上"
+grep -qF "contentBox.addView(hgAudioEntryCard());" "$SHELF" || fail "ReadingShelfActivity 的听书卡调用行对不上"
+grep -qF "contentBox.addView(hgAudioListeningCard());" "$SHELF" || fail "ReadingShelfActivity 的在听卡调用行对不上"
+grep -qF "private View hgNovelHistoryCard() {" "$SHELF" || fail "ReadingShelfActivity 的小说历史卡方法对不上"
+grep -qF "private View hgAudioEntryCard() {" "$SHELF" || fail "ReadingShelfActivity 的听书卡方法对不上"
+grep -qF "private View hgAudioListeningCard() {" "$SHELF" || fail "ReadingShelfActivity 的在听卡方法对不上"
+grep -qF "public static void start(Context context, String tab) {" "$SHELF" || fail "ReadingShelfActivity 的带签位 start 对不上"
+grep -qF 'private static final String EXTRA_TAB = "shelf_tab";' "$SHELF" || fail "ReadingShelfActivity 的 EXTRA_TAB 对不上"
+grep -qF "getIntent().getStringExtra(EXTRA_TAB)" "$SHELF" || fail "ReadingShelfActivity 的 onCreate 读签段对不上"
 
 # ---- 本体资源清单（main/mobile 源集，逐份核在再删） ----
 RES_FILES="
@@ -124,8 +145,8 @@ for f in $RES_FILES; do
   [ -f "$f" ] || fail "红果本体资源找不到：$f"
 done
 
-# ---- 接线文件手术（HomeActivity / Manifest） ----
-python3 - "$HOME" "$MANIFEST" <<'PYEOF'
+# ---- 接线文件手术（HomeActivity / Manifest / ReadingShelfActivity） ----
+python3 - "$HOME" "$MANIFEST" "$SHELF" <<'PYEOF'
 import re, sys
 
 def load(path):
@@ -152,7 +173,7 @@ def find_line(lines, needle, what):
         sys.exit("python: 红果剥离定位对不上（%s，命中 %d 处）" % (what, len(hits)))
     return hits[0]
 
-home_path, manifest_path = sys.argv[1], sys.argv[2]
+home_path, manifest_path, shelf_path = sys.argv[1], sys.argv[2], sys.argv[3]
 
 # ---- HomeActivity：import／短剧格注册行／点击分发支整删，条件位改回 false ----
 # 注释里带本功能标识（图标名/类名）的两处一并收口成中性文案，免得终检 grep 命中注释残留。
@@ -208,6 +229,17 @@ manifest = cut_exact(manifest, """        <!-- 红果书城浏览（内置小说
 """, "书城浏览页登记注释")
 manifest = cut_exact(manifest, """        <!-- 红果听书单独的播放页（分家令：不与普通听书共用播放页） -->
 """, "红果听书播放页登记注释")
+manifest = cut_exact(manifest, """        <!-- 红果听书专属播放服务（W-15 拆套：与主 PlaybackService 同机制、独立实例） -->
+        <service
+            android:name="com.fongmi.android.tv.hongguo.book.HgAudioPlaybackService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaLibraryService" />
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+""", "红果听书播放服务登记")
 for name in ("HongguoFeedActivity", "HongguoDetailActivity", "HongguoTheaterActivity", "HongguoSearchActivity", "HongguoAuthorActivity", "HongguoPostActivity", "HongguoMineActivity", "HongguoMineEditActivity", "HongguoNovelDetailActivity", "HongguoLandActivity", "HongguoLoginActivity"):
     pattern = r"<activity\s+android:name=\"com\.fongmi\.android\.tv\.hongguo\.ui\." + name + r"\"[^>]*/>"
     manifest, n = re.subn(pattern, "", manifest)
@@ -222,6 +254,108 @@ manifest, n = re.subn(pattern, "", manifest)
 if n != 1:
     sys.exit("python: Manifest 红果登记对不上（HgAudioPlayActivity，命中 %d 处）" % n)
 save(manifest_path, manifest)
+
+# ---- ReadingShelfActivity：红果组三卡＋带签位 start 整块删（锚点串定位） ----
+# 删五块：①带签位 start 方法连同 EXTRA_TAB 字段与两段 javadoc（全树唯一调用方
+# 是被剥的 HgAudioPlayActivity）；②onCreate 的读签段；③红果组调用块（组注释＋
+# 组标题＋三行 addView）；④⑤⑥三个卡方法块连同各自 javadoc（方法体内含对
+# tv.hongguo 包的全部引用：两处全限定名＋一处拆拼字符串，随块删净）。
+shelf = load(shelf_path)
+slines = shelf.split("\n")
+
+def find_lines(lines, needle, what):
+    hits = [i for i, ln in enumerate(lines) if needle in ln]
+    if len(hits) != 1:
+        sys.exit("python: 红果剥离定位对不上（%s，命中 %d 处）" % (what, len(hits)))
+    return hits[0]
+
+def cut_span(lines, start, end, what):
+    # 删 lines[start..end]（含两端），返回新表
+    if start < 0 or end < start or end >= len(lines):
+        sys.exit("python: 红果剥离切除范围对不上（%s）" % what)
+    return lines[:start] + lines[end + 1:]
+
+def method_block(lines, sig_needle, what):
+    # 由方法签名行定位整块：上溯 javadoc（*/ → *… → /**，再含其前空行），
+    # 下溯方法结束行（签名后第一行恰为四空格右括号）
+    k = find_lines(lines, sig_needle, what)
+    if k == 0 or lines[k - 1].strip() != "*/":
+        sys.exit("python: 红果剥离方法块形状对不上（%s：签名行上方不是 javadoc 尾）" % what)
+    j = k - 1
+    while j >= 0 and lines[j].strip() != "/**":
+        if not lines[j].lstrip().startswith("*"):
+            sys.exit("python: 红果剥离方法块形状对不上（%s：javadoc 体含异物行）" % what)
+        j -= 1
+    if j < 0:
+        sys.exit("python: 红果剥离方法块形状对不上（%s：找不到 javadoc 头）" % what)
+    start = j - 1 if j > 0 and lines[j - 1].strip() == "" else j
+    end = None
+    for m in range(k + 1, len(lines)):
+        if lines[m] == "    }":
+            end = m
+            break
+    if end is None:
+        sys.exit("python: 红果剥离方法块形状对不上（%s：找不到方法结束行）" % what)
+    return start, end
+
+# ③ 红果组调用块：自组注释首行至在听卡 addView 行，四个锚须按序在块内
+c0 = find_lines(slines, "// 红果组（他 2026-10-31 亲裁", "红果组调用块注释")
+c1 = find_lines(slines, "contentBox.addView(hgAudioListeningCard());", "红果组调用块尾行")
+seq = ['sectionHeader(this, "红果", null, null)', "hgNovelHistoryCard()",
+       "hgAudioEntryCard()", "hgAudioListeningCard()"]
+pos = []
+for s in seq:
+    hits = [i for i in range(c0, c1 + 1) if s in slines[i]]
+    if len(hits) != 1:
+        sys.exit("python: 红果组调用块锚点对不上（%s，块内命中 %d 处）" % (s, len(hits)))
+    pos.append(hits[0])
+if pos != sorted(pos):
+    sys.exit("python: 红果组调用块锚点顺序对不上")
+slines = cut_span(slines, c0, c1, "红果组调用块")
+
+# ④⑤⑥ 三个卡方法块
+for sig, what in (("private View hgNovelHistoryCard() {", "小说历史卡方法块"),
+                  ("private View hgAudioEntryCard() {", "听书卡方法块"),
+                  ("private View hgAudioListeningCard() {", "在听卡方法块")):
+    s0, s1 = method_block(slines, sig, what)
+    slines = cut_span(slines, s0, s1, what)
+
+# ① 带签位 start 块：自「落签附加」javadoc（含其前空行）至 start 方法结束行
+k = find_lines(slines, "public static void start(Context context, String tab) {", "带签位 start")
+f = find_lines(slines, 'private static final String EXTRA_TAB = "shelf_tab";', "EXTRA_TAB 字段")
+if f > k:
+    sys.exit("python: 带签位 start 块形状对不上（EXTRA_TAB 不在 start 之前）")
+if slines[f - 1].strip() != "/** 落签附加（start 带签位版专用）：新建实例时落到指定签。 */":
+    sys.exit("python: 带签位 start 块形状对不上（EXTRA_TAB 的 javadoc 对不上）")
+start = f - 2 if f >= 2 and slines[f - 2].strip() == "" else f - 1
+end = None
+for m in range(k + 1, len(slines)):
+    if slines[m] == "    }":
+        end = m
+        break
+if end is None:
+    sys.exit("python: 带签位 start 块形状对不上（找不到方法结束行）")
+slines = cut_span(slines, start, end, "带签位 start 块")
+shelf = "\n".join(slines)
+
+# ② onCreate 读签段整删
+shelf = cut_exact(shelf, """        // 带签位新建（回书架专用口）：无重建存档时按附加落签
+        if (savedInstanceState == null) {
+            String tab = getIntent().getStringExtra(EXTRA_TAB);
+            if ("NOVEL".equals(tab) || "COMIC".equals(tab) || "AUDIO".equals(tab)) currentTab = tab;
+        }
+""", "onCreate 读签段")
+
+# 剥后自检：红果包引用与三卡痕迹零残留、通用口完好
+for bad in ("hongguo", "hgNovelHistoryCard", "hgAudioEntryCard",
+            "hgAudioListeningCard", "EXTRA_TAB", "\"红果\""):
+    if bad in shelf:
+        sys.exit("python: ReadingShelfActivity 剥后仍有残留：%s" % bad)
+if shelf.count("public static void start(Context context) {") != 1:
+    sys.exit("python: ReadingShelfActivity 剥后通用 start 不完好")
+if "private View sourceCard(boolean novelTab) {" not in shelf:
+    sys.exit("python: ReadingShelfActivity 剥后 sourceCard 不见了")
+save(shelf_path, shelf)
 PYEOF
 
 # ---- Nano：红果 process 的 import 与注册行删 ----
@@ -255,9 +389,7 @@ fi
 # ---- 复查二：共用件与框架必须完好 ----
 for f in app/src/main/java/com/fongmi/android/tv/api/FqCommentSigner.java \
          app/src/main/java/com/fongmi/android/tv/api/HongguoCommentApi.java \
-         app/src/main/java/com/fongmi/android/tv/api/HongguoDanmakuApi.java \
-         app/src/mobile/java/com/fongmi/android/tv/ui/dialog/HongguoCommentDialog.java \
-         app/src/mobile/java/com/fongmi/android/tv/ui/adapter/HongguoCommentAdapter.java; do
+         app/src/main/java/com/fongmi/android/tv/api/HongguoDanmakuApi.java; do
   [ -f "$f" ] || fail "剥完后共用件不见了：$f"
 done
 grep -qF "register(new Qr115Provider());" "$LM" || fail "剥完后 115 提供方注册不见了"
@@ -272,4 +404,9 @@ grep -qF "process.add(new Local());" "$NANO" || fail "剥完后 Nano 的 Local p
 grep -qF "BottomTabs.Spec(R.id.vod" "$HOME" || fail "剥完后底栏点播格注册不见了"
 grep -qF "BottomTabs.Spec(R.id.setting" "$HOME" || fail "剥完后底栏设置格注册不见了"
 grep -qF ".ui.activity.VideoActivity" "$MANIFEST" || fail "剥完后 Manifest 的 VideoActivity 登记不见了"
-echo "朋友版：第三方红果已删除（本体包＋mobile 两目录＋代理解密 process＋底栏短剧格＋Manifest 登记＋本体资源，规则年代共用件保留）"
+grep -qF "public static void start(Context context) {" "$SHELF" || fail "剥完后 ReadingShelfActivity 的通用 start 不见了"
+grep -qF "private View sourceCard(boolean novelTab) {" "$SHELF" || fail "剥完后 ReadingShelfActivity 的 sourceCard 不见了"
+if grep -q "hongguo" "$SHELF"; then
+  fail "剥完后 ReadingShelfActivity 仍有红果包引用残留"
+fi
+echo "朋友版：第三方红果已删除（本体包＋mobile 两目录＋代理解密 process＋底栏短剧格＋Manifest 登记＋本体资源＋阅读书架红果组三卡，规则年代共用件保留）"
