@@ -7,7 +7,6 @@ import com.fongmi.android.tv.api.hk.HkHttpParser;
 import com.fongmi.android.tv.clash.ReadingProxyGate;
 import com.fongmi.android.tv.api.hk.HkItem;
 import com.fongmi.android.tv.api.hk.HkRule;
-import com.fongmi.android.tv.utils.Task;
 
 import java.util.HashMap;
 import java.util.List;
@@ -96,6 +95,21 @@ public class HkArticleListModel {
 
     private static EngineBridge bridge;
 
+    /**
+     * 对齐 8.83 的派发面：原版 process 与 $2.onSuccess 都走 HeavyTaskUtil.executeNewTask，
+     * 其本体是 ThreadTool.executeNewTask＝GlobalScope.launch(Dispatchers.IO)——弹性 IO 池，
+     * 堵一发不占坑。此前借 Task.execute（全 App 共享的固定 5 线程池）：列表求值的调用方
+     * 要在 Future.get 上长等（最长 150 秒），几发加载就把共享池占满，连 process 本身
+     * 都排不进来（2026-10-31 橘汁真机案放大器之一）。此处用等价的缓存弹性池（守护线程），
+     * 只服务本模型的加载链。
+     */
+    private static final java.util.concurrent.ExecutorService IO_EXECUTOR =
+            java.util.concurrent.Executors.newCachedThreadPool(r -> {
+                Thread t = new Thread(r, "hk-list-io");
+                t.setDaemon(true);
+                return t;
+            });
+
     public static void setEngineBridge(EngineBridge engineBridge) {
         bridge = engineBridge;
     }
@@ -141,7 +155,7 @@ public class HkArticleListModel {
             validTicket = System.currentTimeMillis();
         }
         WrapBaseCallback wrap = new WrapBaseCallback(callback, validTicket);
-        Task.execute(() -> processInBackground(wrap, key));
+        IO_EXECUTOR.execute(() -> processInBackground(wrap, key));
     }
 
     /** 照抄原版 lambda$process$0。 */
@@ -238,7 +252,7 @@ public class HkArticleListModel {
                     if (urlParseCallBack != null) {
                         urlParseCallBack.storeUrl(url == null ? "" : url);
                     }
-                    Task.execute(() -> {
+                    IO_EXECUTOR.execute(() -> {
                         try {
                             if (bridge != null) {
                                 bridge.findList(url, key, rule, finalFindRule, html, finalPage,
