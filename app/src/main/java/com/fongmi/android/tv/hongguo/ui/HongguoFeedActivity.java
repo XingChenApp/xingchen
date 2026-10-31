@@ -4330,6 +4330,14 @@ public class HongguoFeedActivity extends AppCompatActivity {
                 HgStore.putType(key, HgStore.typeCodeOf(item));
             }
             bindLikeState(h, item);
+            // 账号动作上报点赞口（簇四，与收藏的 reportShelf 同路）：
+            // 粒度＝当前集 vid（官方 caller 同构），currentVid 缺时
+            // 回落条目 vid；都缺只落本地镜像、不发。本地镜像先行、
+            // 上报失败静默，登录同步拉取收口。
+            String likeVid = currentVid != null && !currentVid.isEmpty()
+                    ? currentVid : item.getVid();
+            com.fongmi.android.tv.hongguo.api.HgAccountSync.reportLike(
+                    likeVid, HgStore.isLiked(key));
         }
 
         private void styleFavPill(Holder h, boolean faved) {

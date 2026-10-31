@@ -296,7 +296,9 @@ public class HongguoMineEditActivity extends AppCompatActivity {
     /**
      * 删一条（按模式落对应 id 集）：历史摘断点＋索引；收藏/追更同源——
      * 都从 followed 正源移除并上报 DelShelf（删一边另一边同消，同体
-     * 定案）；点赞摘 liked 集（上报通道未接，见 HgAccountSync 类注）；
+     * 定案）；点赞摘 liked 集（上报口已通、粒度是集 vid，见
+     * HgAccountSync.reportLike；本面只持剧 id、无集 vid，取消上报
+     * 缺粒度未接，云端残留待 liked 集补存 vid 后收口）；
      * 预约摘 reserved 集并上报取消预约。
      */
     private void deleteOne(String id) {

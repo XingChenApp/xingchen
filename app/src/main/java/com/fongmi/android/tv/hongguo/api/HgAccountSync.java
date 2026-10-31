@@ -45,14 +45,20 @@ import okhttp3.ResponseBody;
  *   <li>收藏上报 POST /reading/bookapi/bookshelf/video/update（AddShelf/DelShelf）；</li>
  *   <li>历史拉取 GET /reading/bookapi/read_history/list（book_type 2/3 两路分页）；</li>
  *   <li>点赞拉取 GET /reading/ugc/action/mget（action_type=3 本人维度）；</li>
+ *   <li>点赞上报 POST /reading/ugc/action/set（DoActionRequest，簇四补接）；</li>
+ *   <li>关注提交 POST /reading/ugc/general/follow（FollowRequest，簇四补接）；</li>
  *   <li>预约拉取 GET /reading/user/subscribe/list（tab_type=1、is_online 两档）；</li>
  *   <li>预约上报 POST /reading/bookapi/search/uncover_subscribe（op_type 1/2）。</li>
  * </ul>
  *
- * <p>未接两项（证据不齐，不猜）：①历史<b>上报</b>（read_history/update）——
- * 旧实现全树零调用、无已验请求体；②点赞<b>上报</b>（articleapi/do_action）——
- * 其传输件 HgCommentClient 已随重建删除，本批不复活。两项本地镜像照常
- * 工作，只是登录后不与云端互通该方向。</p>
+ * <p>未接一项（证据不齐，不猜）：历史<b>上报</b>（read_history/update）——
+ * 端点与 ReadHistoryData 字段集出自官方通用阅读 RPC 层，但红果短剧
+ * 播放器侧的实际 caller 未找到实证（探针账 hongguo-probes-20261031
+ * 簇四节），caller 实证到手前不拼请求体；接入位见
+ * {@link #reportReadHistory}。本地历史照常工作，登录后靠
+ * {@link #pullHistory} 单向对齐。旧注的点赞上报口 articleapi/do_action
+ * 已作废：现行点赞/关注两口逐字出自官方 UgcApiService 与其 caller
+ * 实证（见 {@link #likeBody}/{@link #followBody} 注）。</p>
  *
  * <p>传输口径（与旧实现的一处自觉差异）：旧实现走 freshQuery 随机编造
  * iid/device_id——与现行「一张脸」纪律冲突，不复活。本类改走现行自家面：
@@ -182,6 +188,56 @@ public final class HgAccountSync {
         });
     }
 
+    /**
+     * 点赞/取消点赞上报（ugc/action/set，簇四）：粒度＝集 vid（官方
+     * caller 同构，见 {@link #likeBody}）；未登录空转、失败静默
+     * （本地镜像先行是现行口径，登录同步拉取收口）。
+     */
+    public static void reportLike(String vid, boolean like) {
+        if (vid == null || vid.isEmpty() || !HgAccountStore.isLoggedIn()) return;
+        WORKER.execute(() -> {
+            try {
+                String text = accountPostSync(
+                        "/reading/ugc/action/set" + BV, likeBody(vid, like));
+                if (!HgApiClient.isOkCode(text)) {
+                    android.util.Log.w(TAG, "点赞上报被拒 vid=" + vid + " like=" + like);
+                }
+            } catch (Exception e) {
+                android.util.Log.w(TAG, "点赞上报失败 vid=" + vid + " " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * 关注/取关提交（ugc/general/follow，簇四）：对象＝作者页作者
+     * （relative_type=Author，见 {@link #followBody}）；未登录空转、
+     * 失败静默（本地镜像先行，作者页资料回包 relation 态校准收口）。
+     */
+    public static void reportFollow(String authorUid, boolean follow) {
+        if (authorUid == null || authorUid.isEmpty() || !HgAccountStore.isLoggedIn()) return;
+        WORKER.execute(() -> {
+            try {
+                String text = accountPostSync(
+                        "/reading/ugc/general/follow" + BV, followBody(authorUid, follow));
+                if (!HgApiClient.isOkCode(text)) {
+                    android.util.Log.w(TAG, "关注提交被拒 uid=" + authorUid + " follow=" + follow);
+                }
+            } catch (Exception e) {
+                android.util.Log.w(TAG, "关注提交失败 uid=" + authorUid + " " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * 历史上报接入位（未接，刻意不发请求）：端点与字段集只验到官方
+     * 通用阅读 RPC 层，红果播放器侧 caller 实证缺位（类头注），
+     * 实证到手前不许在此拼请求体、不许接调用方。
+     */
+    public static void reportReadHistory(String seriesId, int episodeIndex, long positionMs) {
+        // 未接：见类头「未接一项」。占位签名先钉住（剧 id/集序/断点毫秒），
+        // 待红果侧 caller 实证后在本方法内落体发送。
+    }
+
     /** 预约/取消预约上报（uncover_subscribe）；未登录空转、失败静默。 */
     public static void reportReserve(String seriesId, boolean subscribe) {
         if (seriesId == null || seriesId.isEmpty() || !HgAccountStore.isLoggedIn()) return;
@@ -248,8 +304,9 @@ public final class HgAccountSync {
             }
             // 存量上行迁移（#22）：本地优先时代攒下、云端还没有的
             // 收藏逐个 AddShelf 上行——上行后归账号，此后以云端态
-            // 为准（下次拉取即收口）。点赞无已验上行口，存量暂留
-            // 镜像待端点验到再迁，不删用户数据。
+            // 为准（下次拉取即收口）。点赞上行口已验通并接在动作点
+            // （reportLike），存量点赞的批量迁移不在现行口径内、暂留
+            // 镜像，不删用户数据。
             for (String id : HgStore.followedIds()) {
                 if (!cloud.contains(id)) reportShelf(id, true);
             }
@@ -364,6 +421,39 @@ public final class HgAccountSync {
             shark.addProperty("inactive_type", "0");
             body.add("shark_extra", shark);
         }
+        return body;
+    }
+
+    /**
+     * 点赞体（DoActionRequest 官方 caller 实证最小构造，social/u.b0：
+     * object_id＝集 vid、action_type Like=3/CancelLike=4、object_type
+     * Item=6、action_category Default=1；枚举数值逐字出官方 rpc 模型
+     * UgcActionType/UgcActionObjectType/UgcActionCategory 原值，端点
+     * POST /reading/ugc/action/set/v1/ 出 UgcApiService.o2）。
+     */
+    private static JsonObject likeBody(String vid, boolean like) {
+        JsonObject body = new JsonObject();
+        body.addProperty("object_id", vid);
+        body.addProperty("action_type", like ? 3 : 4);
+        body.addProperty("object_type", 6);
+        body.addProperty("action_category", 1);
+        return body;
+    }
+
+    /**
+     * 关注体（FollowRequest 官方 caller 实证构造，social/follow/b0.b：
+     * action_type Follow=1/UnFollow=0、relative_id＝对方 uid、
+     * relative_type 本页是作者取 Author=3（枚举原值出 rpc 模型
+     * FollowActionType/FollowRelativeType），端点 POST
+     * /reading/ugc/general/follow/v1/ 出 UgcApiService.A；user_id 官方
+     * caller 不填、服务端按会话判；follow_source 是场景遥测串、值
+     * 未定版，不带）。
+     */
+    private static JsonObject followBody(String authorUid, boolean follow) {
+        JsonObject body = new JsonObject();
+        body.addProperty("action_type", follow ? 1 : 0);
+        body.addProperty("relative_id", authorUid);
+        body.addProperty("relative_type", 3);
         return body;
     }
 
