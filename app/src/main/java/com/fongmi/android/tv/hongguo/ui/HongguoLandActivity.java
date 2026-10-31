@@ -1085,6 +1085,11 @@ public class HongguoLandActivity extends AppCompatActivity {
 
     private void openCommentPanel() {
         if (seriesId == null || curVid == null || commentPanel == null) return;
+        // 与选集层互斥的反向补齐（showEpisodes 开选集前先收评论
+        // 面板，此前开评论面板不收选集层——选集层开着时 chrome 恒
+        // 隐、评论钮点不到，UI 上不可达，此为防御对齐：两层同为右
+        // 侧停靠，任一开前先收另一层，账 fix168-comment-surfaces）
+        if (episodePanelOpen) closeEpisodePanel();
         commentPanel.bind(seriesId, curVid);
         if (commentPanelOpen) return;
         commentPanelOpen = true;
