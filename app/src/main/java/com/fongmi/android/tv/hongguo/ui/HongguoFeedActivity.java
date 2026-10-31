@@ -759,9 +759,9 @@ public class HongguoFeedActivity extends AppCompatActivity {
             case MODE_FEED:
                 return dp(42) + dp(3) + dp(56) + nav;
             case MODE_SERIES:
-                return dp(25) + dp(50) + nav;
+                return dp(8) + dp(50) + nav;
             case MODE_VIDEO:
-                return dp(25) + (videoAlbumId != null ? dp(50) : 0) + nav;
+                return dp(8) + (videoAlbumId != null ? dp(50) : 0) + nav;
             default:
                 return nav;
         }
@@ -799,7 +799,13 @@ public class HongguoFeedActivity extends AppCompatActivity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(14), dp(10), dp(14), dp(12));
+        // 件九底行量值对齐：官方帧 113561 进度线几乎贴着选集条
+        // （线底 y≈94.5%、条顶 y≈94.6%，间隙≈1dp）；旧落码行高
+        // 25dp＋上下垫 10/12 把线悬在条上方约 10dp（咱家帧 113848
+        // 实测线底 93.5% 对条顶 94.5%）。行高改 8dp、无上下垫，
+        // 线（3dp）居中后线底距条顶约 2.5dp。行高改动须与
+        // bottomBlockH 的 dp(25)→dp(8) 同步（信息摞/清屏钮基线）。
+        row.setPadding(dp(14), 0, dp(14), 0);
         LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(0, dp(3), 1f);
         row.addView(buildProgressLine(), llp);
         progressRow = row;
@@ -877,7 +883,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
         } else if (mode == MODE_SERIES) {
             LinearLayout stack = new LinearLayout(this);
             stack.setOrientation(LinearLayout.VERTICAL);
-            stack.addView(buildProgressRow(), new LinearLayout.LayoutParams(-1, dp(25)));
+            stack.addView(buildProgressRow(), new LinearLayout.LayoutParams(-1, dp(8)));
             // 选集条（他 2026-10-31 发官方图定形）：左右留边 14 的圆角悬浮
             // 条（圆 12、深灰 .94），不是满宽直角贴底；chevron 朝上在条内
             // 右端；清屏钮是条外右侧一个独立圆角方钮（浮层落位见
@@ -921,7 +927,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
         } else if (mode == MODE_VIDEO) {
             LinearLayout stack = new LinearLayout(this);
             stack.setOrientation(LinearLayout.VERTICAL);
-            stack.addView(buildProgressRow(), new LinearLayout.LayoutParams(-1, dp(25)));
+            stack.addView(buildProgressRow(), new LinearLayout.LayoutParams(-1, dp(8)));
             if (videoAlbumId != null) {
                 // 合集条（他 2026-10-31 点名与选集条同改）：左右留边 14 的
                 // 圆角悬浮条、chevron 朝上（原 -90 朝下是反的）、清屏钮条外
@@ -1889,8 +1895,15 @@ public class HongguoFeedActivity extends AppCompatActivity {
 
     /**
      * 全屏观看钮跟着视频走（他 2026-10-31 连点四遍）：读画面视图
-     * 在当前页里的真实下缘，钮摆在下缘下方 10dp；画面尺寸一变
-     * 布局监听就重摆，量不到就不动。
+     * 在当前页里的真实下缘，钮悬在下缘**之下** 15dp、水平居中
+     * （官方帧 113476 量值：画面下沿 y≈59.8%、药丸顶 y≈61.8%，
+     * 间隙≈屏高 2.0%，与 feed-aspect-bar 旧账定版 15dp 同值；
+     * 件九，他 17:35 点名落位不对）。
+     * 旧落码 want＝离页底距＋10dp：bottomMargin 是钮底到页底的距、
+     * 越大越往上——那把钮推进了画面内侧（底沿还高出画面下沿
+     * 10dp、整颗压在画面上），与「下缘下方」正相反，符号反了。
+     * 正解：want＝离页底距－15dp－钮高（钮顶落在下缘下 15dp 处）。
+     * 画面尺寸一变布局监听就重摆，量不到就不动。
      */
     private void anchorFullPill() {
         FeedAdapter.Holder h = currentHolder();
@@ -1907,8 +1920,17 @@ public class HongguoFeedActivity extends AppCompatActivity {
         ViewGroup.LayoutParams lp = h.fullPill.getLayoutParams();
         if (lp instanceof FrameLayout.LayoutParams) {
             FrameLayout.LayoutParams flp = (FrameLayout.LayoutParams) lp;
-            int want = pageH - videoBottomInPage + dp(10);
-            if (want >= 0 && flp.bottomMargin != want) {
+            int pillH = h.fullPill.getHeight();
+            if (pillH <= 0) {
+                h.fullPill.measure(
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+                pillH = h.fullPill.getMeasuredHeight();
+            }
+            if (pillH <= 0) pillH = dp(37);
+            int want = pageH - videoBottomInPage - dp(15) - pillH;
+            if (want < 0) want = 0;
+            if (flp.bottomMargin != want) {
                 flp.bottomMargin = want;
                 h.fullPill.setLayoutParams(flp);
             }
