@@ -1204,7 +1204,7 @@ public class HongguoLandActivity extends AppCompatActivity {
             resolver.resolve(vid, contentType, listener);
             return;
         }
-        DramaClient.fetchModels(reqs, new HgCallback<Map<String, DramaVideoModel>>() {
+        DramaClient.fetchWindowModels(reqs, new HgCallback<Map<String, DramaVideoModel>>() {
             @Override
             public void onSuccess(Map<String, DramaVideoModel> r) {
                 resolver.resolve(vid, contentType, listener);
@@ -1214,7 +1214,7 @@ public class HongguoLandActivity extends AppCompatActivity {
             public void onError(int c, String m) {
                 resolver.resolve(vid, contentType, listener);
             }
-        }, false);
+        });
     }
 
     /**
