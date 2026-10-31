@@ -390,6 +390,21 @@ public final class DramaClient {
         fetchModels(requests, cb, false);
     }
 
+    /**
+     * 窗口批专用口（当前集起一窗、替后续集探路的那一发）：恒走推测口
+     * （speculative=true），成败绝不写 PLAY_POLICY 播放冷却——窗口里
+     * 十九集是预取性质、只有当前集是正片，把整窗按正片口径发等于让
+     * 预取替正片写冷却状态，口径恢复多脸/冷却被读的那天就是 1.4.63
+     * 「第一条能播后面全灭」同型雷（审计 A-14）。Feed/Land 两处窗口
+     * 批调用点当前仍直调 fetchModels(...,false)，翻转到本口等交接
+     * 缝合线落码（其文件域），账 fix-remaining-cluster1-resolve
+     * -20261031 留痕。
+     */
+    public static void fetchWindowModels(List<ModelRequest> requests,
+                                         HgCallback<Map<String, DramaVideoModel>> cb) {
+        fetchModels(requests, cb, true);
+    }
+
     /** speculative=true＝预取发：走 postModel 推测口，不动播放冷却。 */
     public static void fetchModels(List<ModelRequest> requests,
                                    HgCallback<Map<String, DramaVideoModel>> cb,
