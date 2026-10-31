@@ -48,6 +48,9 @@ public final class DramaWork {
     public final String authorAvatar;
     /** 剧评评分（十分制，expand.score）；非剧评为 -1。 */
     public final int score;
+    /** 发布时间（秒；仅帖行装入——搜索 post_data.create_time／作品口
+     * common.create_timestamp，其余条目为 0）。 */
+    public final long createTime;
     /** 帖子正文包（仅 KIND_POST 且回包带 content 时非空；其余条目为 null）。 */
     public final PostBody postBody;
     /** 合集包（仅 KIND_ALBUM 非空；其余条目为 null）。 */
@@ -94,16 +97,34 @@ public final class DramaWork {
     }
 
     /**
-     * 帖子正文包：只承载正文全文（common.content.pure_text，搜索帖行
-     * 在用）。图集/关联剧/评论数/收藏数曾一并抽取装入，全树零消费
-     * （帖子详情页不存在），已随簇十五 P-05 摘除。
+     * 帖子正文包（实拉回包逐字：common.content.pure_text 全文、
+     * content.text 的 materials 图集 img-list 与关联剧 series_card_id、
+     * stat.reply_count 评论数／collect_count 收藏数）——帖子详情页
+     * （HongguoPostActivity）的全部料都在列表回包里自带，进页不再
+     * 另拉正文。图集/关联剧/计数曾随簇十五 P-05 以「零消费」摘除，
+     * W-08 他亲裁帖子卡接落点后随消费方（帖子页）一并恢复。
      */
     public static final class PostBody {
         /** 正文全文（pure_text，含 #话题 原文）。 */
         public final String text;
+        /** 图集地址（materials img-list 的 datas[].web_url，按序）。 */
+        public final List<String> imageUrls;
+        /** 关联剧 id（materials series_card_id，按序去重）。 */
+        public final List<String> seriesIds;
+        /** 评论数（stat.reply_count／搜索面 reply_cnt）。 */
+        public final long commentCount;
+        /** 收藏数（stat.collect_count／搜索面 favorite_cnt）。 */
+        public final long collectCount;
 
-        public PostBody(String text) {
+        public PostBody(String text, List<String> imageUrls, List<String> seriesIds,
+                        long commentCount, long collectCount) {
             this.text = text == null ? "" : text;
+            this.imageUrls = imageUrls == null ? Collections.emptyList()
+                    : Collections.unmodifiableList(imageUrls);
+            this.seriesIds = seriesIds == null ? Collections.emptyList()
+                    : Collections.unmodifiableList(seriesIds);
+            this.commentCount = commentCount;
+            this.collectCount = collectCount;
         }
     }
 
@@ -112,7 +133,7 @@ public final class DramaWork {
                         List<String> subTitles, String authorName, String authorAvatar,
                         int score) {
         this(kind, id, seriesId, cover, title, intro, episodeCount, diggCount, playCount,
-                subTitles, authorName, authorAvatar, score, null, null);
+                subTitles, authorName, authorAvatar, score, 0, null, null);
     }
 
     public DramaWork(int kind, String id, String seriesId, String cover, String title,
@@ -120,13 +141,13 @@ public final class DramaWork {
                         List<String> subTitles, String authorName, String authorAvatar,
                         int score, PostBody postBody) {
         this(kind, id, seriesId, cover, title, intro, episodeCount, diggCount, playCount,
-                subTitles, authorName, authorAvatar, score, postBody, null);
+                subTitles, authorName, authorAvatar, score, 0, postBody, null);
     }
 
     public DramaWork(int kind, String id, String seriesId, String cover, String title,
                         String intro, int episodeCount, long diggCount, long playCount,
                         List<String> subTitles, String authorName, String authorAvatar,
-                        int score, PostBody postBody, AlbumInfo album) {
+                        int score, long createTime, PostBody postBody, AlbumInfo album) {
         this.kind = kind;
         this.id = id == null ? "" : id;
         this.seriesId = seriesId == null ? "" : seriesId;
@@ -141,6 +162,7 @@ public final class DramaWork {
         this.authorName = authorName == null ? "" : authorName;
         this.authorAvatar = authorAvatar == null ? "" : authorAvatar;
         this.score = score;
+        this.createTime = createTime;
         this.postBody = postBody;
         this.album = album;
     }

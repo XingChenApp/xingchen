@@ -1022,9 +1022,11 @@ public final class DramaParser {
 
     /**
      * post_data 一员 → 帖行（存档 tab11 真回包逐字：post_id/title/
-     * pure_content 正文/user_info 平铺作者/digg_cnt/cover_url）。
-     * 正文装入 DramaWork.PostBody（只承载正文，搜索帖行在用）；
-     * materials 图集/关联剧与计数曾一并抽取，全树零消费已摘（P-05）。
+     * pure_content 正文/content 字符串化 materials 图集与关联剧/
+     * user_info 平铺作者/digg_cnt/reply_cnt/favorite_cnt/create_time/
+     * cover_url）。料组装成帖子页的入参形态（DramaWork.PostBody），
+     * 落点 HongguoPostActivity（W-08 他亲裁接上；图集/关联剧/计数
+     * 曾随 P-05 以零消费摘除，随帖子页恢复一并复原）。
      */
     private static DramaSearchRow searchPostRow(JsonElement el) {
         if (el == null || !el.isJsonObject()) return null;
@@ -1041,11 +1043,16 @@ public final class DramaParser {
                 : ui == null ? null : str(ui, "user_name");
         String authorAvatar = base != null ? str(base, "user_avatar")
                 : ui == null ? null : str(ui, "user_avatar");
-        DramaWork.PostBody body = new DramaWork.PostBody(str(p, "pure_content"));
+        List<String> images = new ArrayList<>();
+        List<String> seriesIds = new ArrayList<>();
+        materialsOf(str(p, "content"), images, seriesIds);
+        DramaWork.PostBody body = new DramaWork.PostBody(
+                str(p, "pure_content"), images, seriesIds,
+                longOf(p, "reply_cnt", 0), longOf(p, "favorite_cnt", 0));
         return DramaSearchRow.ofPost(new DramaWork(DramaWork.KIND_POST,
                 postId, null, firstStr(p, "cover_url", "cover"), title, null, 0,
                 longOf(p, "digg_cnt", 0), 0, null,
-                authorName, authorAvatar, -1, body),
+                authorName, authorAvatar, -1, longOf(p, "create_time", 0), body, null),
                 authorUid);
     }
 
@@ -2497,7 +2504,8 @@ public final class DramaParser {
                     base == null ? null : str(base, "user_name"),
                     base == null ? null : str(base, "user_avatar"),
                     -1,
-                    postBodyOf(content));
+                    common == null ? 0 : longOf(common, "create_timestamp", 0),
+                    postBodyOf(content, stat), null);
         }
         if (type == DramaWork.KIND_COMMENT) {
             JsonObject c = obj(row, "comment");
@@ -2562,19 +2570,65 @@ public final class DramaParser {
                     str(a, "album_name"),
                     str(a, "desc"),
                     intOf(a, "video_count", 0),
-                    0, 0, null, null, null, -1, null, info);
+                    0, 0, null, null, null, -1, 0, null, info);
         }
         return null;
     }
 
     /**
-     * 帖子正文包抽取：正文＝content.pure_text。content 缺失返回 null
-     * （卡面照旧）。materials 图集/关联剧与 stat 计数曾一并抽取装入，
-     * 全树零消费已随簇十五 P-05 摘除，stat 参数随之撤下。
+     * 帖子正文包抽取（实拉回包逐字）：正文＝content.pure_text；图集与
+     * 关联剧在 content.text（字符串化 JSON）的 materials 里（见
+     * materialsOf）；计数走 stat.reply_count/collect_count。content
+     * 缺失返回 null（卡面照旧）。本法与搜索面 searchPostRow 同料异形，
+     * materials 抽取共用一处（W-08 随帖子页恢复复原）。
      */
-    private static DramaWork.PostBody postBodyOf(JsonObject content) {
+    private static DramaWork.PostBody postBodyOf(JsonObject content, JsonObject stat) {
         if (content == null) return null;
-        return new DramaWork.PostBody(str(content, "pure_text"));
+        List<String> images = new ArrayList<>();
+        List<String> seriesIds = new ArrayList<>();
+        materialsOf(str(content, "text"), images, seriesIds);
+        return new DramaWork.PostBody(str(content, "pure_text"), images, seriesIds,
+                stat == null ? 0 : longOf(stat, "reply_count", 0),
+                stat == null ? 0 : longOf(stat, "collect_count", 0));
+    }
+
+    /**
+     * materials 串解析（搜索 post_data.content 与作品口 content.text
+     * 同形，均为字符串化 JSON）：type=img-list 的 data.datas[].web_url
+     * 是图集，type=series_card_id 的 data.series_card_id 是关联剧 id
+     * （按序去重）。串坏只丢图集/关联剧，正文与卡面不受影响。
+     */
+    private static void materialsOf(String raw, List<String> images, List<String> seriesIds) {
+        if (raw == null || raw.isEmpty()) return;
+        try {
+            JsonObject textObj = JsonParser.parseString(raw).getAsJsonObject();
+            JsonArray mats = arr(textObj, "materials");
+            if (mats == null) return;
+            for (JsonElement el : mats) {
+                if (!el.isJsonObject()) continue;
+                JsonObject m = el.getAsJsonObject();
+                JsonObject data = obj(m, "data");
+                if (data == null) continue;
+                String mt = str(m, "type");
+                if ("img-list".equals(mt)) {
+                    JsonArray datas = arr(data, "datas");
+                    if (datas != null) {
+                        for (JsonElement dEl : datas) {
+                            if (!dEl.isJsonObject()) continue;
+                            String u = str(dEl.getAsJsonObject(), "web_url");
+                            if (u != null && !u.isEmpty()) images.add(u);
+                        }
+                    }
+                } else if ("series_card_id".equals(mt)) {
+                    String sid = str(data, "series_card_id");
+                    if (sid != null && !sid.isEmpty() && !seriesIds.contains(sid)) {
+                        seriesIds.add(sid);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // materials 串坏只丢图集/关联剧，正文与卡面不受影响
+        }
     }
 
     /** 剧评分（expand.score 真回包是字符串型 "10"，数字型也容忍）；没带为 -1。 */
