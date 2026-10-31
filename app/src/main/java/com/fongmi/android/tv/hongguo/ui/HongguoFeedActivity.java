@@ -3291,6 +3291,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
      * 走 DramaDanmakuSender 定版载荷，成功把自己这条并入当前弹幕
      * 列表回显，失败留层重试（A25 旧行为同口径）。 */
     private void showDanmakuSendDialog() {
+        if (isFinishing() || isDestroyed()) return;
         if (currentVid == null || currentSeriesId == null || player == null) return;
         final String vid = currentVid;
         final String sid = currentSeriesId;
