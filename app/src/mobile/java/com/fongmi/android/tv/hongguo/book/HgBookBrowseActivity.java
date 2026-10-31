@@ -434,6 +434,13 @@ public class HgBookBrowseActivity extends AppCompatActivity {
                 sourceJson, new Gson().toJson(b));
     }
 
+    /** 评分显法与小说详情页 trimScore 同口径：整数不带小数点。 */
+    private static String formatScore(double score) {
+        return score == Math.rint(score)
+                ? String.valueOf((int) score)
+                : String.valueOf(score);
+    }
+
     private void setStatus(String text) {
         status.setText(text == null ? "" : text);
         status.setVisibility(text == null || text.isEmpty() ? View.GONE : View.VISIBLE);
@@ -510,9 +517,19 @@ public class HgBookBrowseActivity extends AppCompatActivity {
             title.setText(e.title);
             StringBuilder sb = new StringBuilder();
             if (!TextUtils.isEmpty(e.author)) sb.append(e.author);
+            // 分类/评分消费（A-23）：Entry 早已从回包解析 category/score、
+            // 列表层一直没用、拉回即弃——副行补上（序同详情页 meta 口径）
+            if (!TextUtils.isEmpty(e.category)) {
+                if (sb.length() > 0) sb.append(" · ");
+                sb.append(e.category);
+            }
             if (e.episodeCount > 0) {
                 if (sb.length() > 0) sb.append(" · ");
                 sb.append("共").append(e.episodeCount).append(audio ? "集" : "章");
+            }
+            if (e.score > 0) {
+                if (sb.length() > 0) sb.append(" · ");
+                sb.append("评分 ").append(formatScore(e.score));
             }
             sub.setText(sb.toString());
             if (!TextUtils.isEmpty(e.coverUrl)) {
