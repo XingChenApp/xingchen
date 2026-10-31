@@ -107,6 +107,8 @@ public class HongguoDetailActivity extends AppCompatActivity {
     private LinearLayout scoreBox;
     private RecyclerView commentList;
     private CommentCardAdapter commentAdapter;
+    /** 主详情加载失败态（簇六 C-08）：整面居中「取数据失败，点按重试」。 */
+    private TextView loadStateText;
     private LinearLayout relatedBox;
     private RecyclerView relatedList;
     private RelatedAdapter relatedAdapter;
@@ -486,6 +488,22 @@ public class HongguoDetailActivity extends AppCompatActivity {
         scroll.addView(col);
         rootFrame.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
 
+        // 页内失败态（簇六 C-08，账 D28）：主详情加载失败时整面
+        // 居中提示＋点按重试，与作者页 stateText 同型口径（失败不
+        // 许装空、要有重试出口）；此前只 Toast 一闪、页面停在
+        // Intent 标题＋全空骨架，只能退出重进。成功 bind 时收起。
+        loadStateText = new TextView(this);
+        loadStateText.setTextColor(0xCCFFFFFF);
+        loadStateText.setTextSize(14);
+        loadStateText.setGravity(Gravity.CENTER);
+        loadStateText.setPadding(dp(32), 0, dp(32), 0);
+        loadStateText.setVisibility(View.GONE);
+        loadStateText.setOnClickListener(v -> {
+            loadStateText.setVisibility(View.GONE);
+            load();
+        });
+        rootFrame.addView(loadStateText, new FrameLayout.LayoutParams(-1, -1));
+
         // 底部固定条已摘（他 2026-10-31 亲令：最底下的开始播放跟收藏
         // 拿掉——收藏用头部金钮、播放入口另定）。页面滚到底即可，
         // 底部留白只剩手势区让位＋收尾间距（见 col 底部 padding）。
@@ -738,8 +756,10 @@ public class HongguoDetailActivity extends AppCompatActivity {
             public void onError(int code, String msg) {
                 runOnUiThread(() -> {
                     if (destroyed || isFinishing()) return;
-                    Toast.makeText(HongguoDetailActivity.this,
-                            "取数据失败，请重试", Toast.LENGTH_SHORT).show();
+                    // 簇六 C-08：失败落页内态（点按重试），不再只
+                    // Toast 一闪把用户留在空骨架上（账 D28）。
+                    loadStateText.setText("取数据失败，点按重试");
+                    loadStateText.setVisibility(View.VISIBLE);
                 });
             }
         });
@@ -795,6 +815,8 @@ public class HongguoDetailActivity extends AppCompatActivity {
 
     private void bind(DramaDetail d) {
         detail = d;
+        // 簇六 C-08：重试成功落定即收失败态（首开成功时本就 GONE）。
+        if (loadStateText != null) loadStateText.setVisibility(View.GONE);
         renderRelated();
         applyGradient(d.getColorHex());
         if (d.getTitle() != null) titleText.setText(d.getTitle());
