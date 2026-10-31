@@ -3,11 +3,9 @@ package com.fongmi.android.tv.hongguo.api;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-import java.security.SecureRandom;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * 红果请求构造（请求体部分）：取址链三体照 openhongguo internal/protocol/request.go
@@ -17,8 +15,10 @@ import java.util.UUID;
  * <p>旧 multi 口径（mixed_video_id_map＋platform=1024＋content_type=1004）已在
  * openhongguo-dig-20261028.md 定罪废弃：无签名＋随机假指纹恒回 200 空体；
  * 取址链改走 HgDevice 注册身份＋HgSign 签名（见 HgApiClient.postSigned）。
- * freshQuery 供小说书城等已验链路在用；短剧短信登录链已复活
- * （passport 段见下，登录走 HgDevice 注册档案＋HgSign 签名，见 HgPassportClient）。</p>
+ * 短剧短信登录链已复活（passport 段见下，登录走 HgDevice 注册档案＋
+ * HgSign 签名，见 HgPassportClient）。旧 freshQuery（每次请求现编
+ * 随机指纹查询串）随其唯一消费方 HgApiClient.postJson/get 一并摘除
+ * （簇十五 A-08：全树零活调用；类注旧称「书城在用」经全树复核不成立）。</p>
  */
 public final class HgRequests {
 
@@ -27,32 +27,7 @@ public final class HgRequests {
     public static final String UA =
             "com.phoenix.read/73932 (Linux; U; Android 14; zh_CN; 2509FPN0BC; Build/UQ1A.240205.09211156;tt-ok/3.12.13.20)";
 
-    private static final String QS_TAIL =
-            "&ac=wifi&channel=update_64&aid=8662&app_name=novelread&version_code=73932" +
-            "&version_name=7.3.9.32&device_platform=android&os=android&ssmix=a" +
-            "&device_type=2509FPN0BC&device_brand=XIAOMI&language=zh&os_api=34&os_version=14" +
-            "&manifest_version_code=73932&resolution=1080*1920&dpi=480&update_version_code=73932" +
-            "&host_abi=arm64-v8a&dragon_device_type=phone&pv_player=73932&compliance_status=0" +
-            "&need_personal_recommend=1&player_so_load=1&is_android_pad_screen=0" +
-            "&rom_version=UQ1A.240205.09211156+release-keys";
-
-    private static final SecureRandom RANDOM = new SecureRandom();
-
     private HgRequests() {
-    }
-
-    /** 每次请求一套全新指纹查询串（iid / device_id / _rticket / cdid + 固定尾）。 */
-    public static String freshQuery() {
-        return "iid=" + rndDigits(15) + "&device_id=" + rndDigits(15)
-                + "&_rticket=" + System.currentTimeMillis() + QS_TAIL
-                + "&cdid=" + UUID.randomUUID();
-    }
-
-    private static String rndDigits(int n) {
-        StringBuilder sb = new StringBuilder(n);
-        sb.append(1 + RANDOM.nextInt(9));
-        for (int i = 1; i < n; i++) sb.append(RANDOM.nextInt(10));
-        return sb.toString();
     }
 
     // ---------- passport 短信登录（样本实证，挖掘账 passport-login-dig.md） ----------

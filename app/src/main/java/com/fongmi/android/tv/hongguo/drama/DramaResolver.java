@@ -42,10 +42,6 @@ public final class DramaResolver {
     private final Object pendingLock = new Object();
     private final Map<String, List<Listener>> pendingListeners = new HashMap<>();
 
-    public String readyUrl(String videoId) {
-        return videoId == null ? null : urlByVideo.get(videoId);
-    }
-
     /** 当前实际解出的档（definition 原串）；未解出返回 null。 */
     public String currentDefinition(String videoId) {
         return videoId == null ? null : chosenDefByVideo.get(videoId);

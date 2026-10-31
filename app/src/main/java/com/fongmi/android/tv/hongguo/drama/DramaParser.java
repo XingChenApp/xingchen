@@ -614,30 +614,6 @@ public final class DramaParser {
         return out;
     }
 
-    /**
-     * 搜索框提示词回包（openhongguo ParseCue 线上形状）：data_v1[].text，
-     * 去空去重保序。code 非 0 回空表。
-     */
-    public static java.util.List<String> parseCue(String json) {
-        java.util.List<String> out = new java.util.ArrayList<>();
-        JsonObject root;
-        try {
-            root = JsonParser.parseString(json).getAsJsonObject();
-        } catch (Exception e) {
-            return out;
-        }
-        String code = str(root, "code");
-        if (code != null && !"0".equals(code)) return out;
-        JsonArray rows = arr(root, "data_v1");
-        if (rows == null) return out;
-        for (JsonElement el : rows) {
-            if (!el.isJsonObject()) continue;
-            String t = str(el.getAsJsonObject(), "text");
-            if (t != null && !t.isEmpty() && !out.contains(t)) out.add(t);
-        }
-        return out;
-    }
-
     // ---------- 热搜面（plan/v1 search_input_page，openhongguo ParseHotSearch 逐步译） ----------
 
     /**

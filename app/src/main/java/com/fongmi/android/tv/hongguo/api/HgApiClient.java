@@ -6,8 +6,6 @@ import com.github.catvod.net.OkHttp;
 import com.google.gson.JsonObject;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -358,7 +356,7 @@ public final class HgApiClient {
         HgSign.Signed signed = HgSign.signPost(path, HgDevice.deviceQueryPairs(), ticket,
                 HgDevice.signDeviceId(), HgDevice.VERSION_NAME, bodyBytes, null);
         String url = host + path + "?" + signed.query;
-        Map<String, String> h = headers(true);
+        Map<String, String> h = headers();
         h.put("user-agent", HgDevice.userAgent());
         h.putAll(signed.headers);
         // Content-Type 由 RequestBody 承载（值同为 application/json; charset=UTF-8）
@@ -404,7 +402,7 @@ public final class HgApiClient {
         HgSign.Signed signed = HgSign.signGet(path, pairs, ticket,
                 HgDevice.signDeviceId(), HgDevice.VERSION_NAME, null);
         String url = HgDevice.API_HOST + path + "?" + signed.query;
-        Map<String, String> h = headers(true);
+        Map<String, String> h = headers();
         h.put("user-agent", HgDevice.userAgent());
         h.putAll(signed.headers);
         if (!h.containsKey("Cookie")) {
@@ -533,41 +531,15 @@ public final class HgApiClient {
         }
     }
 
-    private Map<String, String> headers() {
-        return headers(true);
-    }
-
     /**
-     * @param withAuth false＝不带登录态：共享呈现专用——drpys 全程
-     * 游客、无任何 Cookie；且把他的账号 Cookie 挂到全网共用的共享
-     * 身份上等于在服务端把账号与这份公共身份绑在一起，不许。
-     * 自家呈现恒 true、与旧口径逐字一致。
+     * 基础头（仅 UA）：登录全套已随短剧重建删除（2026-10-30），此口不
+     * 注入任何登录态；旧 withAuth 空壳参数（A-15）与无签名旧传输
+     * postJson/get（A-08，全树零调用）已随簇十五清理摘除。
      */
-    private Map<String, String> headers(boolean withAuth) {
-        // 登录全套已随短剧重建删除（2026-10-30）：此口不再注入任何登录态，
-        // withAuth 仅为旧调用点签名保留，无实际作用。
+    private Map<String, String> headers() {
         Map<String, String> h = new HashMap<>();
         h.put("user-agent", HgRequests.UA);
         return h;
-    }
-
-    private void postJson(String path, JsonObject body, BodyCallback cb) {
-        String url = path + (path.contains("?") ? "&" : "?") + HgRequests.freshQuery();
-        RequestBody rb = RequestBody.create(JSON, body.toString());
-        Call call = OkHttp.newCall(url, headers(), rb);
-        enqueue(call, cb, path);
-    }
-
-    private void get(String path, Map<String, String> params, BodyCallback cb) {
-        StringBuilder url = new StringBuilder(path);
-        url.append(path.contains("?") ? "&" : "?").append(HgRequests.freshQuery());
-        if (params != null) {
-            for (Map.Entry<String, String> e : params.entrySet()) {
-                url.append("&").append(enc(e.getKey())).append("=").append(enc(e.getValue()));
-            }
-        }
-        Call call = OkHttp.newCall(url.toString(), headers());
-        enqueue(call, cb, path);
     }
 
     /**
@@ -634,14 +606,5 @@ public final class HgApiClient {
 
     private static String abbrev(String text) {
         return text.length() <= 120 ? text : text.substring(0, 120);
-    }
-
-    private static String enc(String s) {
-        if (s == null) return "";
-        try {
-            return URLEncoder.encode(s, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            return s;
-        }
     }
 }
