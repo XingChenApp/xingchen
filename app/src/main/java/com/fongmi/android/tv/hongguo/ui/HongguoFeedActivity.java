@@ -3252,7 +3252,11 @@ public class HongguoFeedActivity extends AppCompatActivity {
 
             @Override
             public void changeDefinition(String definition) {
-                if (currentVid == null || player == null) return;
+                // B-14 守卫：档名空/当前位越界（列表在面板存续期被
+                // 刷新收窄）直接返回，不许 items.get 裸奔抛越界。
+                if (currentVid == null || player == null
+                        || definition == null || definition.isEmpty()) return;
+                if (currentIndex < 0 || currentIndex >= items.size()) return;
                 long pos = player.getCurrentPosition();
                 DramaItem item = items.get(currentIndex);
                 resolver.resolveAs(currentVid, item.contentType, definition, new DramaResolver.Listener() {

@@ -284,50 +284,59 @@ public final class HgFeedPanels {
             dialog.dismiss();
         }));
 
-        // 清晰度（当前模型实有档，官方序高→低；缺省取最高档≈1080P 优先）
+        // 清晰度（当前模型实有档，官方序高→低；缺省取最高档≈1080P 优先）。
+        // B-14：模型未落缓存/无可播档时整段此前静默不建，用户无从
+        // 知道为何没有清晰度行——段头照建、无档时挂一行提示文案。
         DramaVideoModel model = host.currentModel();
-        if (model != null && !model.getEntries().isEmpty()) {
-            Set<String> defs = new LinkedHashSet<>();
+        Set<String> defs = new LinkedHashSet<>();
+        if (model != null) {
             for (DramaEntry e : model.getEntries()) {
                 if (e.getDefinition() != null && e.isPlayableCodec()) defs.add(e.getDefinition());
             }
-            List<String> ordered = HgPanelLogic.orderedDefinitions(defs);
-            if (!ordered.isEmpty()) {
-                card1.addView(divider(a));
-                LinearLayout defHead = new LinearLayout(a);
-                defHead.setOrientation(LinearLayout.HORIZONTAL);
-                defHead.setGravity(Gravity.CENTER_VERTICAL);
-                defHead.setPadding(0, dp(a, 12), 0, dp(a, 11));
-                TextView hd = new TextView(a);
-                hd.setText("HD");
-                hd.setTextColor(0xFF1B1B1F);
-                hd.setTextSize(11);
-                hd.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-                hd.setGravity(Gravity.CENTER);
-                GradientDrawable hdBg = new GradientDrawable();
-                hdBg.setColor(Color.TRANSPARENT);
-                hdBg.setStroke(dp(a, 1.6f), 0xFF1B1B1F);
-                hdBg.setCornerRadius(dp(a, 6));
-                hd.setBackground(hdBg);
-                hd.setPadding(dp(a, 5), dp(a, 2), dp(a, 5), dp(a, 2));
-                defHead.addView(hd);
-                TextView defLabel = rowLabel(a, "清晰度", true);
-                LinearLayout.LayoutParams dllp = new LinearLayout.LayoutParams(-2, -2);
-                dllp.leftMargin = dp(a, 8);
-                defHead.addView(defLabel, dllp);
-                card1.addView(defHead);
-                String cur = host.currentDefinition();
-                String[] defLabels = new String[ordered.size()];
-                int curDefIdx = -1;
-                for (int i = 0; i < ordered.size(); i++) {
-                    defLabels[i] = defLabel(ordered.get(i));
-                    if (ordered.get(i).equals(cur)) curDefIdx = i;
-                }
-                card1.addView(segRow(a, defLabels, curDefIdx, 12f, idx -> {
-                    dialog.dismiss();
-                    host.changeDefinition(ordered.get(idx));
-                }));
+        }
+        List<String> ordered = HgPanelLogic.orderedDefinitions(defs);
+        card1.addView(divider(a));
+        LinearLayout defHead = new LinearLayout(a);
+        defHead.setOrientation(LinearLayout.HORIZONTAL);
+        defHead.setGravity(Gravity.CENTER_VERTICAL);
+        defHead.setPadding(0, dp(a, 12), 0, dp(a, 11));
+        TextView hd = new TextView(a);
+        hd.setText("HD");
+        hd.setTextColor(0xFF1B1B1F);
+        hd.setTextSize(11);
+        hd.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        hd.setGravity(Gravity.CENTER);
+        GradientDrawable hdBg = new GradientDrawable();
+        hdBg.setColor(Color.TRANSPARENT);
+        hdBg.setStroke(dp(a, 1.6f), 0xFF1B1B1F);
+        hdBg.setCornerRadius(dp(a, 6));
+        hd.setBackground(hdBg);
+        hd.setPadding(dp(a, 5), dp(a, 2), dp(a, 5), dp(a, 2));
+        defHead.addView(hd);
+        TextView defLabel = rowLabel(a, "清晰度", true);
+        LinearLayout.LayoutParams dllp = new LinearLayout.LayoutParams(-2, -2);
+        dllp.leftMargin = dp(a, 8);
+        defHead.addView(defLabel, dllp);
+        card1.addView(defHead);
+        if (!ordered.isEmpty()) {
+            String cur = host.currentDefinition();
+            String[] defLabels = new String[ordered.size()];
+            int curDefIdx = -1;
+            for (int i = 0; i < ordered.size(); i++) {
+                defLabels[i] = defLabel(ordered.get(i));
+                if (ordered.get(i).equals(cur)) curDefIdx = i;
             }
+            card1.addView(segRow(a, defLabels, curDefIdx, 12f, idx -> {
+                dialog.dismiss();
+                host.changeDefinition(ordered.get(idx));
+            }));
+        } else {
+            TextView noDef = new TextView(a);
+            noDef.setText("暂无可选清晰度");
+            noDef.setTextColor(0xFF8A8A93);
+            noDef.setTextSize(13);
+            noDef.setPadding(0, dp(a, 1), 0, dp(a, 5));
+            card1.addView(noDef);
         }
 
         // 弹幕开关行（定稿 .mrow：弹徽＋签＋自绘开关）

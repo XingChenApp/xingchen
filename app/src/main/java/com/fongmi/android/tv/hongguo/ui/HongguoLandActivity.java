@@ -978,7 +978,9 @@ public class HongguoLandActivity extends AppCompatActivity {
 
             @Override
             public void changeDefinition(String definition) {
-                if (curVid == null || player == null) return;
+                // B-14 守卫与竖屏同口径：档名空直接返回。
+                if (curVid == null || player == null
+                        || definition == null || definition.isEmpty()) return;
                 final long pos = player.getCurrentPosition();
                 resolver.resolveAs(curVid, contentType, definition,
                         new DramaResolver.Listener() {
