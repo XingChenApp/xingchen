@@ -415,6 +415,12 @@ public final class HgCommentsSheet {
             exec(() -> {
                 HongguoCommentApi.Page page = HongguoCommentApi.episodeComments(seriesId, vid, cur);
                 activity.runOnUiThread(() -> {
+                    // 销毁复核（C-24/F3）：exec 只管投递不撞死池，UI 回
+                    // 调此前无复核——宿主销毁/单已关时仍写 headInfo 并
+                    // 经 OnTotal 摸宿主页 adapter。与 wireComposer 两
+                    // 回调同口径：dismissed＋isFinishing＋isDestroyed。
+                    if (dismissed[0] || activity.isFinishing()
+                            || activity.isDestroyed()) return;
                     loading = false;
                     if (page == null) {
                         // 拉取失败（数据层失败一律回 null）须与真空态
@@ -473,6 +479,9 @@ public final class HgCommentsSheet {
             exec(() -> {
                 HongguoCommentApi.Page page = HongguoCommentApi.episodeReplies(seriesId, vid, cid, cur);
                 activity.runOnUiThread(() -> {
+                    // 销毁复核（C-24/F3）：与 loadMore 同口径。
+                    if (dismissed[0] || activity.isFinishing()
+                            || activity.isDestroyed()) return;
                     repliesLoading = false;
                     int pos = rows.indexOf(row);
                     // 拉取途中被收起：迟到回包整页丢弃，不往已收起的行下塞
