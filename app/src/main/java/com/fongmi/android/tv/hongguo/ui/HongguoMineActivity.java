@@ -368,6 +368,7 @@ public class HongguoMineActivity extends AppCompatActivity {
             HongguoLoginActivity.start(this);
             return;
         }
+        if (isFinishing() || isDestroyed()) return;
         new AlertDialog.Builder(this)
                 .setMessage("退出登录？")
                 .setNegativeButton("取消", null)
