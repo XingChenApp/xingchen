@@ -14,6 +14,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.fongmi.android.tv.R;
@@ -27,8 +28,18 @@ import com.google.android.material.bottomsheet.BottomSheetDialog;
  * faint 点），脚＝剧名居中（#FBFAF8 底＋顶线）。看过界取本地
  * 断点（HgStore.progressOf 的集序号，1 起）。旧深色面整件弃用
  * （账 hongguo-page-redo 打回销账①）。竖屏与横屏共用同一事件链。
+ * 分组 C-18（官证，账 hongguo-official-values-20261031 §三，与
+ * 横屏 HgLandEpisodesPanel 同一套官值）：官方选集件是「区间页
+ * 签＋分页」形态——序号模式页长 30、页签文案＝1 起区间串（起-
+ * 止）。本单头行下加横向页签栏：总集数 >30 才出栏、单页不占
+ * 位；格只渲染当前页、集号按页偏移回绝对序（onPick 契约不
+ * 变）；初始页＝当前集所在页。C-19 倒序：官方短剧选集全树无
+ * 此件（正/倒序只在小说章节目录），不做。
  */
 public final class HgEpisodeSheet {
+
+    /** 分组页长（官值：序号模式手机恒 30/页，C-18）。 */
+    private static final int PAGE_SIZE = 30;
 
     public interface OnPick {
         void onPick(int episodeIndex);
@@ -109,6 +120,17 @@ public final class HgEpisodeSheet {
                 dp.applyAsInt(38), dp.applyAsInt(38)));
         root.addView(head);
 
+        // 分组页签栏（C-18）：横向滚动、文案「起-止」；只在页数
+        // >1 时显（下方装配内定），单页不占位。
+        RecyclerView tabBar = new RecyclerView(activity);
+        tabBar.setLayoutManager(new LinearLayoutManager(
+                activity, LinearLayoutManager.HORIZONTAL, false));
+        tabBar.setPadding(dp.applyAsInt(18), dp.applyAsInt(4),
+                dp.applyAsInt(18), 0);
+        tabBar.setClipToPadding(false);
+        tabBar.setVisibility(View.GONE);
+        root.addView(tabBar, new LinearLayout.LayoutParams(-1, -2));
+
         // 体（定稿 .s-body＋.epgrid）：6 列、格距 8
         RecyclerView grid = new RecyclerView(activity);
         grid.setLayoutManager(new GridLayoutManager(activity, 6));
@@ -130,13 +152,46 @@ public final class HgEpisodeSheet {
             }
         });
         if (total > 0) {
-            grid.setAdapter(new EpAdapter(activity, total, currentEpisode, seen, idx -> {
+            OnPick pick = idx -> {
                 dialog.dismiss();
                 onPick.onPick(idx);
-            }, dp));
-            root.addView(grid, new LinearLayout.LayoutParams(-1, -2));
-            if (currentEpisode > 1) {
-                grid.scrollToPosition(currentEpisode - 1);
+            };
+            // 分组装配（C-18）：当前集所在页为初始页，页签只在多页时出。
+            final int pages = (total + PAGE_SIZE - 1) / PAGE_SIZE;
+            final int[] curPage = {Math.min(Math.max(
+                    (currentEpisode - 1) / PAGE_SIZE, 0), pages - 1)};
+            java.util.function.IntFunction<EpAdapter> pageAdapter = p -> {
+                int start = p * PAGE_SIZE;
+                int count = Math.max(0, Math.min(PAGE_SIZE, total - start));
+                return new EpAdapter(activity, start, count, currentEpisode,
+                        seen, pick, dp);
+            };
+            if (pages > 1) {
+                final TabAdapter[] tabRef = new TabAdapter[1];
+                TabAdapter tabs = new TabAdapter(activity, total, pages,
+                        curPage[0], dp, p -> {
+                    if (p == curPage[0]) return;
+                    curPage[0] = p;
+                    grid.setAdapter(pageAdapter.apply(p));
+                    tabRef[0].setPage(p);
+                    grid.scrollToPosition(0);
+                });
+                tabRef[0] = tabs;
+                tabBar.setAdapter(tabs);
+                tabBar.setVisibility(View.VISIBLE);
+                grid.setAdapter(pageAdapter.apply(curPage[0]));
+                root.addView(grid, new LinearLayout.LayoutParams(-1, -2));
+                int within = currentEpisode - 1 - curPage[0] * PAGE_SIZE;
+                if (within > 0) {
+                    grid.scrollToPosition(within);
+                }
+                tabBar.scrollToPosition(curPage[0]);
+            } else {
+                grid.setAdapter(pageAdapter.apply(0));
+                root.addView(grid, new LinearLayout.LayoutParams(-1, -2));
+                if (currentEpisode > 1) {
+                    grid.scrollToPosition(currentEpisode - 1);
+                }
             }
         } else {
             // 空态（C-21）：detail 在手但集表为空时此前照开一张
@@ -185,18 +240,96 @@ public final class HgEpisodeSheet {
         dialog.show();
     }
 
-    private static final class EpAdapter extends RecyclerView.Adapter<EpAdapter.H> {
+    /** 分组页签（C-18）：文案＝该页 1 起区间「起-止」，点签切页。 */
+    private static final class TabAdapter extends RecyclerView.Adapter<TabAdapter.H> {
         private final AppCompatActivity activity;
         private final int total;
+        private final int pages;
+        private final java.util.function.IntUnaryOperator dp;
+        private final java.util.function.IntConsumer onSelect;
+        private int page;
+
+        TabAdapter(AppCompatActivity activity, int total, int pages, int page,
+                   java.util.function.IntUnaryOperator dp,
+                   java.util.function.IntConsumer onSelect) {
+            this.activity = activity;
+            this.total = total;
+            this.pages = pages;
+            this.page = page;
+            this.dp = dp;
+            this.onSelect = onSelect;
+        }
+
+        void setPage(int p) {
+            page = p;
+            notifyDataSetChanged();
+        }
+
+        final class H extends RecyclerView.ViewHolder {
+            final TextView text;
+
+            H(TextView t) {
+                super(t);
+                text = t;
+            }
+        }
+
+        @NonNull
+        @Override
+        public H onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            TextView t = new TextView(activity);
+            t.setTextSize(13);
+            t.setGravity(Gravity.CENTER);
+            t.setPadding(dp.applyAsInt(12), dp.applyAsInt(6),
+                    dp.applyAsInt(12), dp.applyAsInt(6));
+            RecyclerView.LayoutParams lp = new RecyclerView.LayoutParams(-2, -2);
+            lp.rightMargin = dp.applyAsInt(8);
+            t.setLayoutParams(lp);
+            return new H(t);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull H h, int position) {
+            int start = position * PAGE_SIZE + 1;
+            int end = Math.min(total, (position + 1) * PAGE_SIZE);
+            h.text.setText(start + "-" + end);
+            boolean on = position == page;
+            GradientDrawable bg = new GradientDrawable();
+            bg.setCornerRadius(dp.applyAsInt(8));
+            if (on) {
+                bg.setColor(0xFFE63A2E);
+                h.text.setTextColor(Color.WHITE);
+                h.text.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+            } else {
+                bg.setColor(0x0D1B1B1F);
+                h.text.setTextColor(0xFF1B1B1F);
+                h.text.setTypeface(android.graphics.Typeface.DEFAULT);
+            }
+            h.text.setBackground(bg);
+            final int p = position;
+            h.itemView.setOnClickListener(v -> onSelect.accept(p));
+        }
+
+        @Override
+        public int getItemCount() {
+            return pages;
+        }
+    }
+
+    private static final class EpAdapter extends RecyclerView.Adapter<EpAdapter.H> {
+        private final AppCompatActivity activity;
+        private final int pageStart;
+        private final int count;
         private final int current;
         private final int seen;
         private final OnPick onPick;
         private final java.util.function.IntUnaryOperator dp;
 
-        EpAdapter(AppCompatActivity activity, int total, int current, int seen,
-                  OnPick onPick, java.util.function.IntUnaryOperator dp) {
+        EpAdapter(AppCompatActivity activity, int pageStart, int count, int current,
+                  int seen, OnPick onPick, java.util.function.IntUnaryOperator dp) {
             this.activity = activity;
-            this.total = total;
+            this.pageStart = pageStart;
+            this.count = count;
             this.current = current;
             this.seen = seen;
             this.onPick = onPick;
@@ -244,7 +377,7 @@ public final class HgEpisodeSheet {
 
         @Override
         public void onBindViewHolder(@NonNull H h, int position) {
-            int ep = position + 1;
+            int ep = pageStart + position + 1;
             boolean on = ep == current;
             boolean watched = !on && ep <= seen;
             h.text.setText(String.valueOf(ep));
@@ -268,7 +401,7 @@ public final class HgEpisodeSheet {
 
         @Override
         public int getItemCount() {
-            return total;
+            return count;
         }
     }
 }
