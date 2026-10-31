@@ -133,8 +133,11 @@ public class HongguoLandActivity extends AppCompatActivity {
     private int cutoutRight;
     /** 竖滑切集已触发时吞掉随之而来的点按（防 chrome 跟着翻）。 */
     private boolean suppressTap;
+    /** 亮度/音量手势分区每侧占比（他 2026-10-31 亲令定版）：
+     * 落点在左/右各 1/4 屏宽内竖滑调亮度/音量，中间 1/2 归切集。 */
+    private static final float EDGE_ZONE_RATIO = 0.25f;
     /** 亮度/音量手势（C-02/C-03）：-1 未定性、0 亮度、1 音量、
-     * 2 让位切集（中央带竖滑或非竖滑，抬手时按旧口径结算）。 */
+     * 2 让位切集（中间 1/2 竖滑或非竖滑，抬手时按旧口径结算）。 */
     private int gestureKind = -1;
     private float gestureStartBrightness;
     private int gestureStartVolume;
@@ -281,16 +284,17 @@ public class HongguoLandActivity extends AppCompatActivity {
         playerView.getDanmakuController().setConfig(danmakuConfig());
         playerView.setPlayer(player);
         playerView.setOnClickListener(v -> onSurfaceTap());
-        // 触摸手势三分（#17 切集保留＋C-02/C-03 补亮度/音量）：
-        // 竖滑先定性——按下点不在中央带（官方长按面板的中间带
-        // 公式复用）且纵向主导时，左半屏＝亮度、右半屏＝音量
-        // （安卓播放器通例：实时跟随＋自绘提示，官方横屏手势形
-        // 态未抠到、依据只到通例，账 fix-remaining-cluster5 标
-        // 明）；中央带竖滑与横滑不抢，抬手仍按 #17 旧口径（过
-        // 64dp 且纵大于横）结算切集。监听不消费事件：点按链
-        // （翻 chrome）原样走，调节/切集成立时置 suppressTap
-        // 吞掉随之而来的那次点按；锁定态与两面板开着时不理
-        // （与 onSurfaceTap 的守卫同口径）。
+        // 触摸手势分区（#17 切集保留＋C-02/C-03 补亮度/音量）：
+        // 竖滑先定性——落点在左/右各 1/4 屏宽内且纵向主导时定
+        // 亮度/音量（左＝亮度、右＝音量，实时跟随＋自绘提示）；
+        // 中间 1/2 竖滑与横滑不抢，抬手仍按 #17 旧口径（过
+        // 64dp 且纵大于横）结算切集。分区宽度是他 2026-10-31
+        // 亲令（「亮度跟音量两边一点就够了」「也不能太小啦」）
+        // 定版的每侧 1/4——不再按中央带判（那是长按更多面板的
+        // 触发区 HgPanelLogic.inCenterBand，与滑动分区无关）。
+        // 监听不消费事件：点按链（翻 chrome）原样走，调节/切
+        // 集成立时置 suppressTap 吞掉随之而来的那次点按；锁
+        // 定态与两面板开着时不理（与 onSurfaceTap 的守卫同口径）。
         final float[] touchDown = new float[2];
         playerView.setOnTouchListener((v, ev) -> {
             if (locked || commentPanelOpen || episodePanelOpen) return false;
@@ -319,11 +323,15 @@ public class HongguoLandActivity extends AppCompatActivity {
                     if (gestureKind == -1) {
                         if (Math.abs(dy) <= dp(12) && Math.abs(dx) <= dp(12)) break;
                         boolean vertical = Math.abs(dy) > Math.abs(dx) * 1.2f;
-                        if (!vertical || v.getWidth() <= 0
-                                || HgPanelLogic.inCenterBand(touchDown[0], v.getWidth())) {
+                        float w = v.getWidth();
+                        if (!vertical || w <= 0) {
                             gestureKind = 2;
+                        } else if (touchDown[0] < w * EDGE_ZONE_RATIO) {
+                            gestureKind = 0;
+                        } else if (touchDown[0] > w * (1f - EDGE_ZONE_RATIO)) {
+                            gestureKind = 1;
                         } else {
-                            gestureKind = touchDown[0] < v.getWidth() / 2f ? 0 : 1;
+                            gestureKind = 2;
                         }
                     }
                     if (gestureKind == 0 || gestureKind == 1) {
