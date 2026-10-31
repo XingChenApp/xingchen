@@ -413,17 +413,35 @@ public final class DramaClient {
         }
         // 按 ≤20 切发，串行累积（预取/首屏批量都在这个量级）
         List<Map.Entry<String, List<String>>> groups = new ArrayList<>(grouped.entrySet());
-        fetchChunk(groups, 0, out, cb, speculative);
+        fetchChunk(groups, 0, out, cb, speculative, new ChunkState());
+    }
+
+    /** 批量分块的失败记账：块失败不连坐其余块，但不许静默吞——全军覆没时把首因交给 onError，部分成功也留日志。 */
+    private static final class ChunkState {
+        int failCount;
+        int firstCode;
+        String firstMsg;
     }
 
     private static void fetchChunk(List<Map.Entry<String, List<String>>> groups, int index,
                                    Map<String, DramaVideoModel> out,
                                    HgCallback<Map<String, DramaVideoModel>> cb,
-                                   boolean speculative) {
+                                   boolean speculative, ChunkState state) {
         // 找到下一块未发完的分组切片
         while (index < groups.size() && groups.get(index).getValue().isEmpty()) index++;
         if (index >= groups.size()) {
-            cb.onSuccess(out);
+            if (out.isEmpty() && state.failCount > 0) {
+                android.util.Log.e("DramaClient", "fetchModels 批量全灭 块数=" + state.failCount
+                        + " 首因 code=" + state.firstCode + " msg=" + state.firstMsg);
+                cb.onError(state.firstCode, state.firstMsg);
+            } else {
+                if (state.failCount > 0) {
+                    android.util.Log.w("DramaClient", "fetchModels 部分块失败 块数=" + state.failCount
+                            + " 首因 code=" + state.firstCode + " msg=" + state.firstMsg
+                            + "（缺失 vid 由上层单集兜底）");
+                }
+                cb.onSuccess(out);
+            }
             return;
         }
         Map.Entry<String, List<String>> g = groups.get(index);
@@ -443,13 +461,21 @@ public final class DramaClient {
                     String vid = m.getRequestedId() != null ? m.getRequestedId() : m.getVideoId();
                     if (vid != null) out.put(vid, m);
                 }
-                fetchChunk(groups, idx, out, cb, speculative);
+                fetchChunk(groups, idx, out, cb, speculative, state);
             }
 
             @Override
             public void fail(int code, String msg) {
-                // 本块失败不连坐其余块：跳过本块继续（缺失 vid 由上层单集兜底）
-                fetchChunk(groups, idx, out, cb, speculative);
+                // 本块失败不连坐其余块：跳过本块继续（缺失 vid 由上层单集兜底），
+                // 但失败要记账——终局全空时经 onError 把首因交出去，不再恒 onSuccess 吞掉。
+                if (state.failCount == 0) {
+                    state.firstCode = code;
+                    state.firstMsg = msg;
+                }
+                state.failCount++;
+                android.util.Log.w("DramaClient", "fetchModels 块失败 code=" + code
+                        + " msg=" + msg + " vids=" + slice);
+                fetchChunk(groups, idx, out, cb, speculative, state);
             }
         }, speculative);
     }
