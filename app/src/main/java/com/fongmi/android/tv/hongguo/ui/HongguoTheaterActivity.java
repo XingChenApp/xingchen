@@ -1259,23 +1259,22 @@ public class HongguoTheaterActivity extends AppCompatActivity {
                     ? View.VISIBLE : View.GONE);
             if (score != null) h.score.setText(score);
             h.title.setText(item.getTitle() == null ? "" : item.getTitle());
-            // 副行（定稿形态「类 · 热度值 播放」）：合集以「合集」
-            // 领起、单条以首个分类签领起；热度值取 recText 剥尾
-            // 「热度」二字后接「 播放」（recText 原文形如
-            // 「208万热度」）；皆无则空。
+            // 副行（「类 · 热度文案」）：合集以「合集」领起、单条
+            // 以首个分类签领起；后段是 recText 热度文案原文（形如
+            // 「208万热度」），照原文显。W-10/B-16 语义纠正（他
+            // 亲裁「改」）：此前剥尾「热度」二字再拼「 播放」，把
+            // 热度值冒充播放量；recText 本义就是热度，首页流热度
+            // 筹、搜索卡、正剧卡皆原文直显，此处对齐同一口径。
             boolean album = item.kind == DramaItemKind.ALBUM;
             String lead = album ? "合集"
                     : (item.getTags() != null && !item.getTags().isEmpty()
                             ? item.getTags().get(0) : null);
             String heat = item.getRecText();
-            if (heat != null && heat.endsWith("热度")) {
-                heat = heat.substring(0, heat.length() - 2);
-            }
             StringBuilder sb = new StringBuilder();
             if (lead != null && !lead.isEmpty()) sb.append(lead);
             if (heat != null && !heat.isEmpty()) {
                 if (sb.length() > 0) sb.append(" · ");
-                sb.append(heat).append(" 播放");
+                sb.append(heat);
             }
             h.sub.setText(sb.toString());
             h.itemView.setOnClickListener(v -> openClip(item));
