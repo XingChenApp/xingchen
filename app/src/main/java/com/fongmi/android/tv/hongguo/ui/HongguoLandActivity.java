@@ -79,7 +79,7 @@ public class HongguoLandActivity extends AppCompatActivity {
 
     private View topBar;
     private View bottomBar;
-    /** 发弹幕入口「弹」标（#21 乙）。 */
+    /** 发弹幕入口：底行左侧输入条（#21 乙加、件五改形入底行）。 */
     private TextView dmSend;
     /** 当前弹幕列表留存（自己发的回显并入用）。 */
     private final java.util.List<androidx.media3.ui.danmaku.Danmaku> dmItems =
@@ -495,26 +495,34 @@ public class HongguoLandActivity extends AppCompatActivity {
         bottomLp.gravity = Gravity.BOTTOM;
         root.addView(bottom, bottomLp);
 
-        // 发弹幕入口（#21 乙，横屏同加）：左下「弹」标，座位在 #17
-        // 控件按画面框重排时随底行一并收进框内；显隐跟弹幕开关＋
-        // chrome 同步，点击先过登录门（与竖屏同口径）。
+        // 发弹幕入口（#21 乙横屏同加；件五落位纠正）：官方横屏发
+        // 弹幕入口是底行左侧的输入条（他发的官方图口径），不是悬
+        // 在底行上方的一颗「弹」标——#21 乙旧落位把它做成 root 级
+        // 浮标（底行上方 64dp），他 17:2x 点名放错。本件改形入
+        // 座：作底行第一件、左侧输入条，文案照官方入口资源
+        // 「发条友善的弹幕吧」（普查卡 21：cn4/f_0），点条开编辑
+        // 层；入底行后随 layoutChromeToFrame 的底行框重排自动跟
+        // 框，原浮标的重排段已摘。显隐跟弹幕开关＋chrome 同步、
+        // 点击先过登录门、发送链一字未动（与竖屏同口径）。条宽
+        // 160dp 为自家定值（官方横屏条宽未抠到、待裁）。
         dmSend = new TextView(this);
-        dmSend.setText("弹");
-        dmSend.setTextColor(0xF2FFFFFF);
+        dmSend.setText("发条友善的弹幕吧");
+        dmSend.setTextColor(0xBFFFFFFF);
         dmSend.setTextSize(12.5f);
+        dmSend.setSingleLine(true);
+        dmSend.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        dmSend.setGravity(Gravity.CENTER_VERTICAL);
         android.graphics.drawable.GradientDrawable dmBg =
                 new android.graphics.drawable.GradientDrawable();
         dmBg.setColor(0x59000000);
-        dmBg.setCornerRadius(dp(13));
+        dmBg.setCornerRadius(dp(16));
         dmSend.setBackground(dmBg);
-        dmSend.setPadding(dp(11), dp(5), dp(11), dp(5));
+        dmSend.setPadding(dp(12), dp(7), dp(12), dp(7));
         dmSend.setOnClickListener(v -> onDanmakuSendTap());
         dmSend.setVisibility(HgStore.isDanmakuOn() ? View.VISIBLE : View.GONE);
-        FrameLayout.LayoutParams dmlp = new FrameLayout.LayoutParams(-2, -2);
-        dmlp.gravity = Gravity.START | Gravity.BOTTOM;
-        dmlp.leftMargin = dp(16);
-        dmlp.bottomMargin = dp(64);
-        root.addView(dmSend, dmlp);
+        LinearLayout.LayoutParams dmlp = new LinearLayout.LayoutParams(dp(160), -2);
+        dmlp.rightMargin = dp(10);
+        bottom.addView(dmSend, 0, dmlp);
 
         // 横屏评论面板（官方形态：右侧框出、画面挤小，他 15:49
         // 亲定）：常驻 root 最上层、缺省藏起；开合经 applyStage
@@ -1173,14 +1181,8 @@ public class HongguoLandActivity extends AppCompatActivity {
             lp.leftMargin = Math.max(frameLeft, cutoutLeft) + dp(10);
             lockBtn.setLayoutParams(lp);
         }
-        if (dmSend != null) {
-            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) dmSend.getLayoutParams();
-            lp.leftMargin = frameLeft + dp(16);
-            int barH = bottomBar != null && bottomBar.getHeight() > 0
-                    ? bottomBar.getHeight() : dp(58);
-            lp.bottomMargin = barsBottom + barH + dp(8);
-            dmSend.setLayoutParams(lp);
-        }
+        // 发弹幕输入条已入底行（件五），随 bottomBar 的框重排走，
+        // 此处不再单独摆位（旧浮标重排段已摘）。
     }
 
     /**

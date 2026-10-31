@@ -3557,11 +3557,16 @@ public class HongguoFeedActivity extends AppCompatActivity {
             pillRow.addView(strip, stlp);
             info.addView(pillRow, prlp);
 
-            // 发弹幕入口（#21 乙按官方加回）：信息摞最下行左端「弹」
-            // 标——官方 PublishDanmakuEntranceView 同位（信息区左下、
-            // 横排内，普查卡 21/台账 S-03）；显隐跟弹幕开关走（官方
-            // 门：关弹幕即不显），点击先过登录门再开编辑层（见
-            // onDanmakuSendTap）。字形精确度量官方未抠到、形态待裁。
+            // 发弹幕入口（#21 乙按官方加回；件五落位纠正）：官方
+            // PublishDanmakuEntranceView 是信息层 cuc 里 @id/cpp 横排
+            // 的第一件——位于信息摞最上方（dig-feed-drawer §2.5.1、
+            // 普查卡 21、官方帧 113561 实拍「弹」在剧名行正上方）。
+            // #21 乙旧落位把它加在信息摞最下行（pillRow 之下），与
+            // 官方上下正相反，他 17:2x 点名放错——本件挪到信息摞
+            // 首位（index 0，cuc 序），左端起排；显隐跟弹幕开关走
+            // （官方门：关弹幕即不显），点击先过登录门再开编辑层
+            // （见 onDanmakuSendTap），发送链与门一字未动。字形精
+            // 确度量官方未抠到、形态待裁（沿旧标）。
             TextView dmSend = new TextView(HongguoFeedActivity.this);
             dmSend.setTag("dmsend");
             dmSend.setText("弹");
@@ -3571,8 +3576,8 @@ public class HongguoFeedActivity extends AppCompatActivity {
             dmSend.setPadding(dp(11), dp(5), dp(11), dp(5));
             dmSend.setVisibility(View.GONE);
             LinearLayout.LayoutParams dmlp = new LinearLayout.LayoutParams(-2, -2);
-            dmlp.topMargin = dp(10);
-            info.addView(dmSend, dmlp);
+            dmlp.bottomMargin = dp(8);
+            info.addView(dmSend, 0, dmlp);
 
             FrameLayout.LayoutParams ilp = new FrameLayout.LayoutParams(-1, -2);
             ilp.gravity = Gravity.START | Gravity.BOTTOM;
