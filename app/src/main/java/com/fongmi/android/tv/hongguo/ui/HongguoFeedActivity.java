@@ -483,6 +483,13 @@ public class HongguoFeedActivity extends AppCompatActivity {
         HgTransition.fade(this, new Intent(this, HongguoLandActivity.class));
     }
 
+    /** 领回重开本条的起播点：与 playFeedItem 同口径——高光片段从
+     * 片段头起、其余从头（D3：流内从头播被推集）。 */
+    private long feedRestartMs(DramaItem item) {
+        return item != null && item.isHighlightFragment()
+                && item.highlightStartMs > 0 ? item.highlightStartMs : 0;
+    }
+
     /** 横屏页退回后领回播放器：按 DramaLandLogic.reclaimDecision 对位。 */
     private void reclaimFromLand() {
         engineParked = false;
@@ -500,7 +507,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
             engine = null;
             player = null;
             if (currentVid != null && item != null) {
-                playVid(currentVid, item.contentType, 0);
+                playVid(currentVid, item.contentType, feedRestartMs(item));
             }
             return;
         }
@@ -508,7 +515,7 @@ public class HongguoFeedActivity extends AppCompatActivity {
         player = engine == null ? null : engine.getPlayer();
         if (player == null) {
             if (currentVid != null && item != null) {
-                playVid(currentVid, item.contentType, 0);
+                playVid(currentVid, item.contentType, feedRestartMs(item));
             }
             return;
         }
@@ -517,9 +524,18 @@ public class HongguoFeedActivity extends AppCompatActivity {
         applyDanmakuVisibility();
         adoptCurrentStream(bag.vid);
         if (decision == DramaLandLogic.RECLAIM_SERIES_JUMP) {
+            // 横屏里换集看的位置只活在交接单里（bag.positionMs 此
+            // 前只写不读）：不钉住，跳集落位走的是选集口径从头播
+            // ——横屏看到一半的集回竖屏整集重播、断点存档随后还被
+            // 新位置覆盖。钉进进页钉位：settle 落位时 playEpisode
+            // 优先消费（盖过从头与断点存档两口径）。
+            if (bag.positionMs > 0) {
+                entrySeekEp = bag.episodeIndex;
+                entrySeekMs = bag.positionMs;
+            }
             playEpisodeFromSheet(bag.episodeIndex);
         } else if (decision == DramaLandLogic.RECLAIM_FEED_DIFF) {
-            if (item != null) playVid(currentVid, item.contentType, 0);
+            if (item != null) playVid(currentVid, item.contentType, feedRestartMs(item));
         } else {
             player.setPlayWhenReady(bag.playWhenReady);
         }

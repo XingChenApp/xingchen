@@ -1419,6 +1419,13 @@ public class HongguoLandActivity extends AppCompatActivity {
         bag.speed = player.getPlaybackParameters().speed;
         bag.seriesTitle = seriesTitle;
         bag.contentType = contentType;
+        // 断点落盘：横屏是全应用唯一不写存档的播放面——在横屏看
+        // 的进度此前只活在交接单里，领回没发生（进程被杀/异常退
+        // 出）就整段丢失、历史断点停在进横屏那一刻。泊回时按竖屏
+        // saveProgressNow 同键同义落一次（seriesId 键、集序＋位置）。
+        if (seriesId != null && bag.positionMs > 0) {
+            HgStore.saveProgress(seriesId, curEp, bag.positionMs);
+        }
         player.removeListener(playerListener);
         if (playerView != null) playerView.setPlayer(null);
         DramaPlayerPool.park(bag, engine);
