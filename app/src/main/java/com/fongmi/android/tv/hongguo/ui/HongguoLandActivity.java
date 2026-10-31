@@ -106,6 +106,8 @@ public class HongguoLandActivity extends AppCompatActivity {
     private final java.util.List<androidx.media3.ui.danmaku.Danmaku> dmItems =
             new java.util.ArrayList<>();
     private ImageView lockBtn;
+    /** 锁屏拦截层（C-11）：锁定后盖住全部控件的唯一触摸面。 */
+    private View lockScrim;
     private ImageView playBtn;
     private TextView epView;
     /** 评论入口（他 14:54 亲定落点赞原位）：图标＋计数竖排件。 */
@@ -330,7 +332,7 @@ public class HongguoLandActivity extends AppCompatActivity {
         lockBtn.setColorFilter(0xFFBDBDBD);
         lockBtn.setPadding(dp(10), dp(10), dp(10), dp(10));
         lockBtn.setOnClickListener(v -> {
-            locked = !locked;
+            setLocked(!locked);
             lockBtn.setColorFilter(locked ? 0xFFE63A2E : 0xFFBDBDBD);
             Toast.makeText(this, locked ? "已锁定" : "已解锁", Toast.LENGTH_SHORT).show();
             pokeChrome();
@@ -610,6 +612,18 @@ public class HongguoLandActivity extends AppCompatActivity {
         FrameLayout.LayoutParams epPanelLp = new FrameLayout.LayoutParams(0, -1);
         epPanelLp.gravity = Gravity.END;
         root.addView(episodePanel.view(), epPanelLp);
+
+        // 锁屏拦截层（C-11 真锁）：装配在全部 chrome 与两面板之
+        // 上、缺省不存在；锁定后它就是唯一触摸面——进度轨、播停
+        // 钮、评论/选集、发弹幕在锁定期一律够不着，不再逐钮自查
+        // locked；单击只翻锁钮显隐（与点画面同口径），解锁仍走
+        // 锁钮本体，锁钮在本层装配完后提到最上层保证点得到。
+        lockScrim = new View(this);
+        lockScrim.setVisibility(View.GONE);
+        lockScrim.setOnClickListener(v -> lockBtn.setVisibility(
+                lockBtn.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE));
+        root.addView(lockScrim, new FrameLayout.LayoutParams(-1, -1));
+        lockBtn.bringToFront();
 
         setContentView(root);
         androidx.core.view.ViewCompat.requestApplyInsets(root);
@@ -1199,6 +1213,14 @@ public class HongguoLandActivity extends AppCompatActivity {
         if (lp != null && lp.width != w) {
             lp.width = w;
             v.setLayoutParams(lp);
+        }
+    }
+
+    /** 锁态落效唯一写口（C-11）：旗与拦截层存亡同步走。 */
+    private void setLocked(boolean on) {
+        locked = on;
+        if (lockScrim != null) {
+            lockScrim.setVisibility(on ? View.VISIBLE : View.GONE);
         }
     }
 
