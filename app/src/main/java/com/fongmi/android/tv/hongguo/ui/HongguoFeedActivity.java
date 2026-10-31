@@ -1123,9 +1123,16 @@ public class HongguoFeedActivity extends AppCompatActivity {
                 && item.bottomBarText != null && !item.bottomBarText.isEmpty()) {
             watchText.setText(android.text.TextUtils.join("·", item.bottomBarText));
         } else {
+            // 集数：条目直读优先；多季条目直读缺失时回查专辑季表
+            // （S-03，series_list[].episode_cnt 是集数正位）
+            int total = item.getEpisodeCount();
+            if (total <= 0 && item.isMultiSeason()) {
+                int seasonTotal = seasonCountFor(item);
+                if (seasonTotal > 0) total = seasonTotal;
+            }
             watchText.setText(HgPanelLogic.watchBarText(
                     item.kind == DramaItemKind.ALBUM, item.contentType,
-                    item.isFinished(), item.getEpisodeCount()));
+                    item.isFinished(), total));
         }
     }
 
@@ -1872,6 +1879,19 @@ public class HongguoFeedActivity extends AppCompatActivity {
         mountPlayerView(index);
         bindRailState(index);
         updateWatchBar();
+        if (mode == MODE_FEED && item.isMultiSeason() && item.getEpisodeCount() <= 0
+                && seasonCountFor(item) <= 0) {
+            // S-03 集数回查：多季条目直读集数缺失时，观看完整条只剩
+            // 剧种头没集数——集数正位在专辑 series_list[].episode_cnt，
+            // 名单到手后若眼前仍是本条，重算一次条文案（名单同时是
+            // S-01 季单的货源，一发两用）。
+            ensureSeasonRows(item, () -> {
+                if (currentIndex >= 0 && currentIndex < items.size()
+                        && items.get(currentIndex) == item) {
+                    updateWatchBar();
+                }
+            });
+        }
         if (mode == MODE_SERIES) {
             // 逐集分页（D4）：页序号即集序；选集跳集/播完连播滑来的
             // 页从头播，手动滑来/初入的页按断点续播
@@ -1965,6 +1985,139 @@ public class HongguoFeedActivity extends AppCompatActivity {
                 }
             });
         });
+    }
+
+    /** 季名单缓存（albumId → 季行表）与在途/等待者（簇七 S-01/S-03 共用一本账）。 */
+    private final java.util.Map<String, java.util.List<DramaItem>> seasonRowsByAlbum =
+            new java.util.HashMap<>();
+    private final java.util.Set<String> seasonInFlight = new java.util.HashSet<>();
+    private final java.util.Map<String, java.util.List<Runnable>> seasonWaiters =
+            new java.util.HashMap<>();
+
+    /**
+     * 季名单现成路（S-01）：条目自带 siblings（回包 album_data_list
+     * 解析）优先、其次本页缓存的专辑详情名单；两路都只认 ≥2 行
+     * （单行就是它自己、不成其为名单）。没有返回 null。
+     */
+    private java.util.List<DramaItem> seasonRowsOf(DramaItem item) {
+        if (item == null) return null;
+        if (item.getSiblings() != null && item.getSiblings().size() > 1) {
+            return item.getSiblings();
+        }
+        String albumId = item.getAlbumId();
+        if (albumId == null || albumId.isEmpty()) return null;
+        java.util.List<DramaItem> rows = seasonRowsByAlbum.get(albumId);
+        return rows != null && rows.size() > 1 ? rows : null;
+    }
+
+    /**
+     * 季名单备齐（S-01/S-03 共用）：现成有就同步回调；没有且有
+     * albumId 就拉一发专辑详情（同 album 只在途一发，后来者排队
+     * 等同一发），落缓存后逐个通知等待者。拉败不缓存、下次再试。
+     */
+    private void ensureSeasonRows(DramaItem item, Runnable onReady) {
+        if (item == null) return;
+        if (seasonRowsOf(item) != null) {
+            if (onReady != null) onReady.run();
+            return;
+        }
+        final String albumId = item.getAlbumId();
+        if (albumId == null || albumId.isEmpty()) return;
+        synchronized (seasonInFlight) {
+            if (!seasonInFlight.add(albumId)) {
+                if (onReady != null) {
+                    seasonWaiters.computeIfAbsent(albumId,
+                            k -> new java.util.ArrayList<>()).add(onReady);
+                }
+                return;
+            }
+        }
+        DramaClient.fetchAlbumDetail(albumId, new HgCallback<DramaAlbumDetail>() {
+            @Override
+            public void onSuccess(DramaAlbumDetail d) {
+                runOnUiThread(() -> {
+                    java.util.List<Runnable> waiters;
+                    synchronized (seasonInFlight) {
+                        seasonInFlight.remove(albumId);
+                        waiters = seasonWaiters.remove(albumId);
+                    }
+                    if (destroyed) return;
+                    if (d != null && d.rows != null && d.rows.size() > 1) {
+                        seasonRowsByAlbum.put(albumId, d.rows);
+                    }
+                    if (onReady != null) onReady.run();
+                    if (waiters != null) {
+                        for (Runnable r : waiters) r.run();
+                    }
+                });
+            }
+
+            @Override
+            public void onError(int code, String msg) {
+                runOnUiThread(() -> {
+                    synchronized (seasonInFlight) {
+                        seasonInFlight.remove(albumId);
+                        seasonWaiters.remove(albumId);
+                    }
+                });
+            }
+        });
+    }
+
+    /** 当季集数回查（S-03）：季行表里与本条同 seriesId 行的 episode_cnt；查不到 -1。 */
+    private int seasonCountFor(DramaItem item) {
+        java.util.List<DramaItem> rows = seasonRowsOf(item);
+        if (rows == null || item.getSeriesId() == null) return -1;
+        for (DramaItem row : rows) {
+            if (item.getSeriesId().equals(row.getSeriesId())) {
+                return row.getEpisodeCount();
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * 系列剧药丸点击分发（S-01；B-01 落点留账）：多季剧先弹季名单
+     * 选季进剧——名单是现成机器（siblings/专辑详情 series_list）；
+     * 单季/无专辑身份维持原进剧路。官方药丸点开形态未抠到
+     * （hongguo-official-values 在抠），抠值回后若形态不同，
+     * 只校本分发一处。
+     */
+    private void onSeriesPillClick(DramaItem item) {
+        if (item == null || item.getSeriesId() == null) return;
+        if (!item.isMultiSeason() || item.getAlbumSerialCount() == 1) {
+            openSeries(item, 0);
+            return;
+        }
+        java.util.List<DramaItem> rows = seasonRowsOf(item);
+        if (rows != null) {
+            showSeasonSheet(item, rows);
+            return;
+        }
+        if (item.getAlbumId() == null || item.getAlbumId().isEmpty()) {
+            openSeries(item, 0);
+            return;
+        }
+        ensureSeasonRows(item, () -> {
+            java.util.List<DramaItem> r = seasonRowsOf(item);
+            if (r != null) {
+                showSeasonSheet(item, r);
+            } else {
+                // 名单拉不到/只有一季：点击不许落空，退回直接进剧
+                openSeries(item, 0);
+            }
+        });
+    }
+
+    private void showSeasonSheet(DramaItem item, java.util.List<DramaItem> rows) {
+        panelGuardUntil = System.currentTimeMillis() + 1500;
+        HgSeasonSheet.show(this, item.getTitle(), rows, item.getSeriesId(),
+                item.getAlbumSerialCount(),
+                picked -> {
+                    if (picked != null && picked.getSeriesId() != null) {
+                        openSeries(picked, 0);
+                    }
+                });
     }
 
     private void saveFeedPosDelayed() {
@@ -4176,9 +4329,9 @@ public class HongguoFeedActivity extends AppCompatActivity {
         /**
          * 推荐药丸（标题上方一行，数据带才显）：系列剧（rec_type=15）
          * 优先、其次榜单——回包里两型同条共存零例，同位二选一。
-         * 系列剧＝两段文案＋尾箭，点击进剧（#20 甲接通，季/集数据由
-         * 播放页详情路自取）；榜单＝渐变底＋奖杯图标＋两段文案（解析
-         * 侧已合成），仍只渲染不挂点击。
+         * 系列剧＝两段文案＋尾箭，点击走 onSeriesPillClick 分发
+         * （多季弹季名单 S-01、其余进剧；B-01 落点留账）；榜单＝
+         * 渐变底＋奖杯图标＋两段文案（解析侧已合成），仍只渲染不挂点击。
          */
         private void bindRecPill(Holder h, DramaItem item) {
             boolean series = item.seriesReason != null && !item.seriesReason.isEmpty();
@@ -4195,10 +4348,12 @@ public class HongguoFeedActivity extends AppCompatActivity {
                     text += "｜" + item.seriesContent;
                 }
                 pill.addView(recPillText(text));
-                // 系列药丸带 › 形、本就是进剧入口（#20 甲：此前不挂
-                // 点击点了没反应）——接与观看完整条同路的进剧口。
+                // 系列药丸带 › 形、本就是可点入口（#20 甲：此前不挂
+                // 点击点了没反应）——点击走 onSeriesPillClick 分发：
+                // 多季先弹季名单（S-01）、其余进剧（B-01 落点留账，
+                // 官方形态抠值回后只校分发一处）。
                 if (item.getSeriesId() != null) {
-                    pill.setOnClickListener(v -> openSeries(item, 0));
+                    pill.setOnClickListener(v -> onSeriesPillClick(item));
                 }
                 ImageView chev = new ImageView(HongguoFeedActivity.this);
                 chev.setImageResource(R.drawable.ic_drama_chev);
