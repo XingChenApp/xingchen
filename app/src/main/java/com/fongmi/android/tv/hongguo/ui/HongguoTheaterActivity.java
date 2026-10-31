@@ -81,6 +81,10 @@ public class HongguoTheaterActivity extends AppCompatActivity {
     private static final int TAB_MANJU = 1;
     private static final int TAB_AI = 2;
     private static final int TAB_CLIPS = 3;
+    /** AI 格自动连拉（B-15）：攒够首屏的目标条数（两列网格首屏
+     * 约 3–4 行）与单轮连拉页数预算（防密度极低时无休止拉）。 */
+    private static final int AI_FILL_TARGET = 8;
+    private static final int AI_CHAIN_MAX = 10;
 
     private RecyclerView grid;
     private GridAdapter gridAdapter;
@@ -281,7 +285,15 @@ public class HongguoTheaterActivity extends AppCompatActivity {
         stateText.setPadding(0, dp(10), 0, dp(10));
         stateText.setVisibility(View.GONE);
         stateText.setOnClickListener(v -> {
-            if ((channel == TAB_CLIPS ? clips : items).isEmpty()) load(true);
+            if (!(channel == TAB_CLIPS ? clips : items).isEmpty()) return;
+            // AI 格连拉预算耗尽但服务端还有下页（B-15）：接着往后拉，
+            // 不从头重拉——重拉只会再撞同一批低密度页。
+            if (channel == TAB_AI && !reqFilter && hasMore && continuation != null) {
+                aiChain = 0;
+                load(false);
+            } else {
+                load(true);
+            }
         });
         stage.addView(stateText, new android.widget.FrameLayout.LayoutParams(-1, -1));
 
@@ -855,16 +867,26 @@ public class HongguoTheaterActivity extends AppCompatActivity {
         gridAdapter.notifyDataSetChanged();
         consumeRestoreScroll();
         arriveFadeIn(added > 0);
-        stateText.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
-        if (items.isEmpty()) stateText.setText("暂时没有内容，点按重试");
+        // AI 格续拉策略（B-15）：数据源是发现流、靠客户端过滤成格，
+        // 密度低时整页只出一两条——旧法只在整页滤空（added==0）才
+        // 连拉且封顶 4 页，低密度页一出货就停链，首屏攒不满；且空
+        // 表期每页都先挂「暂时没有内容」＝假空。改按目标攒：未满
+        // AI_FILL_TARGET 且有下页就继续连拉，单轮预算 AI_CHAIN_MAX
+        // 页封顶；攒够即清预算，此后走滚动续拉常路。
+        boolean aiChaining = false;
         if (channel == TAB_AI && !reqFilter) {
-            if (added > 0) aiChain = 0;
-            // 整页被过滤光但还有下页：自动续拉（最多连 4 页），免得
-            // AI 格假空（与短片格 clipChain 同法）。
-            if (added == 0 && hasMore && aiChain < 4) {
+            if (items.size() >= AI_FILL_TARGET) {
+                aiChain = 0;
+            } else if (hasMore && aiChain < AI_CHAIN_MAX) {
                 aiChain++;
+                aiChaining = true;
                 load(false);
             }
+        }
+        stateText.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
+        if (items.isEmpty()) {
+            // 连拉途中只挂「加载中…」，不许先报假空（B-15）
+            stateText.setText(aiChaining ? "加载中…" : "暂时没有内容，点按重试");
         }
         fillChain = added > 0 ? 0 : fillChain + 1;
         maybeFill();
