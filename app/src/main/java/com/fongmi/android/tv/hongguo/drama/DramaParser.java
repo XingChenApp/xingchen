@@ -821,8 +821,6 @@ public final class DramaParser {
      */
     public static DramaCellPage parseCellPage(String json, int tabType) {
         JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-        int code = intOf(root, "code", 0);
-        String msg = str(root, "message");
         List<DramaItem> items = new ArrayList<>();
         List<DramaSearchRow> rows = new ArrayList<>();
         JsonObject data = obj(root, "data");
@@ -871,7 +869,7 @@ public final class DramaParser {
             collectSeries(data != null ? data : root, items, 0);
             for (DramaItem it : items) rows.add(DramaSearchRow.ofSeries(it));
         }
-        return new DramaCellPage(code, msg, items, root, hasMore, nextOffset, null, null, tabs, rows);
+        return new DramaCellPage(items, root, hasMore, nextOffset, null, null, tabs, rows);
     }
 
     /** search_tabs 里 tab_type 命中的签段；没有返回 null。 */
@@ -1068,8 +1066,6 @@ public final class DramaParser {
     /** skipLive=true 时直播型 cell 在组表层整条跳过（仅刷流口传此旗）。 */
     public static DramaCellPage parseDiscoverTab(String json, int tabType, boolean skipLive) {
         JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-        int code = intOf(root, "code", 0);
-        String msg = str(root, "message");
         List<DramaItem> items = new ArrayList<>();
         JsonObject data = obj(root, "data");
         JsonObject tab = data == null ? null : findTab(data, tabType);
@@ -1100,11 +1096,10 @@ public final class DramaParser {
         // 小分类筹的正源是官方筛选面（distribution 面板），不在频道回包
         // 里抽——旧 collectCategories 对字符串形 category_schema 抽 0、
         // 唯一命中的是长按举报项，整条已废（账 hongguo-chip-fix-20261030）。
-        return new DramaCellPage(code, msg, items, root, hasMore,
+        return new DramaCellPage(items, root, hasMore,
                 cont == null ? null : cont.getOffset(),
                 cont == null ? null : cont.getSessionId(), cont,
-                Collections.emptyList(), Collections.emptyList(),
-                Collections.emptyList());
+                Collections.emptyList(), Collections.emptyList());
     }
 
     /**
@@ -1152,8 +1147,6 @@ public final class DramaParser {
      */
     public static DramaCellPage parseFilterList(String json) {
         JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-        int code = intOf(root, "code", 0);
-        String msg = str(root, "message");
         List<DramaItem> items = new ArrayList<>();
         JsonObject data = obj(root, "data");
         boolean hasMore = false;
@@ -1171,7 +1164,7 @@ public final class DramaParser {
             sessionId = str(data, "session_id");
             collectDiscoverCells(data, items, 0);
         }
-        return new DramaCellPage(code, msg, items, root, hasMore, nextOffset, sessionId, null);
+        return new DramaCellPage(items, root, hasMore, nextOffset, sessionId, null);
     }
 
     /**
@@ -1185,8 +1178,6 @@ public final class DramaParser {
     /** skipLive=true 时直播型 cell 在组表层整条跳过（仅刷流口传此旗）。 */
     public static DramaCellPage parseCellChange(String json, boolean skipLive) {
         JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-        int code = intOf(root, "code", 0);
-        String msg = str(root, "message");
         List<DramaItem> items = new ArrayList<>();
         JsonObject data = obj(root, "data");
         boolean hasMore = false;
@@ -1205,7 +1196,7 @@ public final class DramaParser {
             JsonElement view = data.get("cell_view");
             if (view != null) collectDiscoverCells(view, items, 0, skipLive);
         }
-        return new DramaCellPage(code, msg, items, root, hasMore, nextOffset, sessionId, null);
+        return new DramaCellPage(items, root, hasMore, nextOffset, sessionId, null);
     }
 
     private static JsonObject findTab(JsonObject data, int tabType) {

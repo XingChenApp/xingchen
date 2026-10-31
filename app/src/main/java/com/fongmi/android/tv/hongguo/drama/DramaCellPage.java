@@ -15,8 +15,6 @@ import java.util.List;
  */
 public final class DramaCellPage {
 
-    private final int code;
-    private final String message;
     private final List<DramaItem> items;
     private final JsonObject raw;
     /** 频道面续页态（bookmall/tab 与 cell/change 回包才有；其余面为 false/null）。 */
@@ -31,43 +29,29 @@ public final class DramaCellPage {
      * hasMore/nextOffset 即签段服务端下发的续拉口径（has_more/next_offset），
      * 搜索续拉以此为准、不按条数自算。其余面为空表）。 */
     private final List<DramaSearchRow> searchRows;
-    /** 小分类面（已退役恒空表：旧版从频道回包递归抽 category_id 的
-     * 路实证抽 0，筹面正源改官方筛选面 DramaFilterRow，账
-     * hongguo-chip-fix-20261030；字段保留仅为构造器形状稳定）。 */
-    private final List<DramaCategory> categories;
 
-    DramaCellPage(int code, String message, List<DramaItem> items, JsonObject raw) {
-        this(code, message, items, raw, false, null, null, null);
+    DramaCellPage(List<DramaItem> items, JsonObject raw) {
+        this(items, raw, false, null, null, null);
     }
 
-    DramaCellPage(int code, String message, List<DramaItem> items, JsonObject raw,
+    DramaCellPage(List<DramaItem> items, JsonObject raw,
                boolean hasMore, String nextOffset, String sessionId,
                HgContinuation continuation) {
-        this(code, message, items, raw, hasMore, nextOffset, sessionId, continuation,
+        this(items, raw, hasMore, nextOffset, sessionId, continuation,
                 Collections.emptyList());
     }
 
-    DramaCellPage(int code, String message, List<DramaItem> items, JsonObject raw,
+    DramaCellPage(List<DramaItem> items, JsonObject raw,
                boolean hasMore, String nextOffset, String sessionId,
                HgContinuation continuation, List<DramaSearchTab> tabs) {
-        this(code, message, items, raw, hasMore, nextOffset, sessionId, continuation,
+        this(items, raw, hasMore, nextOffset, sessionId, continuation,
                 tabs, Collections.emptyList());
     }
 
-    DramaCellPage(int code, String message, List<DramaItem> items, JsonObject raw,
+    DramaCellPage(List<DramaItem> items, JsonObject raw,
                boolean hasMore, String nextOffset, String sessionId,
                HgContinuation continuation, List<DramaSearchTab> tabs,
                List<DramaSearchRow> searchRows) {
-        this(code, message, items, raw, hasMore, nextOffset, sessionId, continuation,
-                tabs, searchRows, Collections.emptyList());
-    }
-
-    DramaCellPage(int code, String message, List<DramaItem> items, JsonObject raw,
-               boolean hasMore, String nextOffset, String sessionId,
-               HgContinuation continuation, List<DramaSearchTab> tabs,
-               List<DramaSearchRow> searchRows, List<DramaCategory> categories) {
-        this.code = code;
-        this.message = message;
         this.items = Collections.unmodifiableList(items);
         this.raw = raw;
         this.hasMore = hasMore;
@@ -76,11 +60,8 @@ public final class DramaCellPage {
         this.continuation = continuation;
         this.tabs = Collections.unmodifiableList(tabs);
         this.searchRows = Collections.unmodifiableList(searchRows);
-        this.categories = Collections.unmodifiableList(categories);
     }
 
-    public int getCode() { return code; }
-    public String getMessage() { return message; }
     public List<DramaItem> getItems() { return items; }
     public JsonObject getRaw() { return raw; }
     public boolean isHasMore() { return hasMore; }
@@ -89,5 +70,4 @@ public final class DramaCellPage {
     public HgContinuation getContinuation() { return continuation; }
     public List<DramaSearchTab> getTabs() { return tabs; }
     public List<DramaSearchRow> getSearchRows() { return searchRows; }
-    public List<DramaCategory> getCategories() { return categories; }
 }
