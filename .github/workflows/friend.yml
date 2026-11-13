@@ -1,0 +1,93 @@
+name: Build Friend APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate ThirdPartyKeys from secrets
+        env:
+          PASTEBIN_DEV_KEY: ${{ secrets.THIRDPARTY_PASTEBIN_DEV_KEY }}
+          NETEASE_EAPI_KEY: ${{ secrets.THIRDPARTY_NETEASE_EAPI_KEY }}
+        run: |
+          python3 - <<'PYEOF'
+          import os, sys
+          def java_escape(s):
+              return s.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
+          paste = os.environ.get('PASTEBIN_DEV_KEY')
+          netease = os.environ.get('NETEASE_EAPI_KEY')
+          if not paste or not netease:
+              sys.exit('missing third-party secret')
+          path = 'app/src/main/java/com/fongmi/android/tv/api/ThirdPartyKeys.java'
+          content = (
+              'package com.fongmi.android.tv.api;\n\n'
+              'public final class ThirdPartyKeys {\n\n'
+              '    private ThirdPartyKeys() {\n'
+              '    }\n\n'
+              f'    public static final String PASTEBIN_DEV_KEY = "{java_escape(paste)}";\n\n'
+              f'    public static final String NETEASE_EAPI_KEY = "{java_escape(netease)}";\n'
+              '}\n'
+          )
+          with open(path, 'w', encoding='utf-8') as f:
+              f.write(content)
+          PYEOF
+      - name: Download mihomo kernel (bundled jniLib)
+        run: |
+          mkdir -p third_party/mihomo/prebuilt/arm64-v8a
+          curl -fL -o /tmp/mihomo.gz "https://xingchen-dl.pages.dev/clash/mihomo-android-arm64-v8-v1.19.33.gz"
+          gzip -dc /tmp/mihomo.gz > third_party/mihomo/prebuilt/arm64-v8a/libmihomo.so
+          echo "cfa0be78846bfef7272fe5a73089f8cf0e1f15a6ffb601f5cc809f457f712f67  third_party/mihomo/prebuilt/arm64-v8a/libmihomo.so" | sha256sum -c -
+          ls -lh third_party/mihomo/prebuilt/arm64-v8a/
+      - name: Download sherpa-onnx.aar (compileOnly)
+        run: |
+          mkdir -p app/libs-compile
+          curl -L -o app/libs-compile/sherpa-onnx.aar "https://raw.githubusercontent.com/XingChenApp/xingchen-asr/main/sherpa-onnx.aar"
+          ls -lh app/libs-compile/
+      - name: Setup JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'jetbrains'
+          java-version: '21.0.3'
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Setup signing (release keystore)
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/xingchen.p12"
+          cat > local.properties <<EOF
+          storeFile=$RUNNER_TEMP/xingchen.p12
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          EOF
+      - name: Inject check-only updater (friend build only)
+        run: bash .github/scripts/strip-updater.sh
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleMobileArm64_v8aRelease --no-daemon
+      # 朋友版包名口径（潇洒哥 2026-11-11 16:35 亲定）：发布资产名带版本——
+      # xingchen-arm64_v8a-<版本号>.apk（架构在前、版本在后）；下方改名步已按此式
+      # 命名产物，将来发 Release 时原名上传；docs/index.html 运行时从 latest 发布
+      # 里挑 .apk 直跳、不写死文件名。
+      - name: Rename friend APK (versioned asset name)
+        run: |
+          set -euo pipefail
+          APK=$(find app/build/outputs/apk -name "*.apk" | head -1)
+          test -n "$APK"
+          VNAME=$(grep -oP 'versionName\s+"\K[^"]+' app/build.gradle | head -1)
+          test -n "$VNAME"
+          mv "$APK" "$(dirname "$APK")/xingchen-arm64_v8a-$VNAME.apk"
+          find app/build/outputs/apk -name "*.apk"
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: XingChen-Friend-APK
+          path: app/build/outputs/apk/**/*.apk
