@@ -1,0 +1,32 @@
+name: publish-release
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: '构建 run id'
+        required: true
+      tag:
+        description: '发布 tag'
+        required: true
+        default: 'v1.4.127'
+permissions:
+  contents: write
+  actions: read
+jobs:
+  pub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: friend-XingChen-Friend-APK
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dl
+      - name: Upload release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ls -la dl
+          APK=$(find dl -name '*.apk' | head -1)
+          echo "APK=$APK"
+          gh release upload "${{ inputs.tag }}" "$APK" --clobber --repo "$GITHUB_REPOSITORY"
