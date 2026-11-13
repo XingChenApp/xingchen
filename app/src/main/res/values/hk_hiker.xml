@@ -24,7 +24,6 @@
     <color name="gray_text">#ff848484</color>
     <color name="text">#ff222222</color>
     <color name="line_border">#60999999</color>
-    <color name="dark_edit">#ff333333</color>
     <color name="colorAccent">#ff109d58</color>
     <item name="custom_tag" type="id" />
     <color name="badge_color_background">#ffe9363f</color>
