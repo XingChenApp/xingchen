@@ -33,19 +33,11 @@
     -->
     <list>
         <mapping class="com.example.hikerview.model.Bookmark" />
-        <mapping class="com.example.hikerview.model.MovieRuleDO" />
         <mapping class="com.example.hikerview.model.PlayerPosHis" />
         <mapping class="com.example.hikerview.model.ViewCollection" />
-        <mapping class="com.example.hikerview.model.XiuTanFavor" />
         <mapping class="com.example.hikerview.ui.home.model.ArticleListRule" />
-        <mapping class="com.example.hikerview.model.AdBlockRule" />
-        <mapping class="com.example.hikerview.model.AdBlockUrl" />
         <mapping class="com.example.hikerview.model.ViewHistory" />
-        <mapping class="com.example.hikerview.model.SearchEngineDO" />
-        <mapping class="com.example.hikerview.model.UaRuleDO" />
-        <mapping class="com.example.hikerview.model.SharedAdUrl" />
         <mapping class="com.example.hikerview.model.DownloadRecord" />
-        <mapping class="com.example.hikerview.model.BigTextDO" />
     </list>
 
     <!--

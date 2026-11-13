@@ -122,7 +122,11 @@ public class App extends Application implements Application.ActivityLifecycleCal
         // LitePal.initialize(context) 后 LitePal.getDatabase().disableWriteAheadLogging()，
         // 官 Application 继承的是 android.app.Application（非 LitePalApplication）；
         // 咱家等价接进本类 onCreate 主进程守卫之后、其余初始化之前（记名接点）。
-        // 配置走 assets/litepal.xml（本树已有且与官逐字同：dbname=hiker、version=54、14 映射）。
+        // 配置走 assets/litepal.xml（dbname=hiker、version=54 与官同；mapping 只列树内
+        // 真实存在的 6 类——官名单另 8 名 MovieRuleDO/XiuTanFavor/AdBlockRule/AdBlockUrl/
+        // SearchEngineDO/UaRuleDO/SharedAdUrl/BigTextDO 在咱家无类、语义已由 SP 等载体承接，
+        // 不入名单：LitePal 建表逐个 Class.forName，死名在名单里启动即抛
+        // DatabaseGenerateException，1.4.130 曾因此点图标闪退）。
         org.litepal.LitePal.initialize(this);
         org.litepal.LitePal.getDatabase().disableWriteAheadLogging();
         // 实验室自启抢在已选配置首读之前：配置首读在 HomeActivity.initConfig，

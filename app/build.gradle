@@ -54,8 +54,8 @@ android {
         applicationId "com.XingChen.tv"
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
-        versionCode 213
-        versionName "1.4.130"
+        versionCode 214
+        versionName "1.4.131"
         buildConfigField "String", "BUILD_TIME", "\"${buildTime}\""
         buildConfigField "String", "BUILD_TAG", "\"${releaseTag}\""
         buildConfigField "String", "GIT_REVISION", "\"${gitRevision}\""
