@@ -29,6 +29,9 @@ public class PlayerSettingsActivity extends BaseActivity {
         binding.kernelMpv.setOnClickListener(v -> { setKernel("mpv"); updateKernelUI(); });
         binding.decodeHard.setOnClickListener(v -> { setDecode("hard"); updateDecodeUI(); });
         binding.decodeSoft.setOnClickListener(v -> { setDecode("soft"); updateDecodeUI(); });
+        updateRenderUI();
+        binding.renderSurface.setOnClickListener(v -> { PlayerSetting.putRender(PlayerSetting.RENDER_SURFACE); updateRenderUI(); });
+        binding.renderTexture.setOnClickListener(v -> { PlayerSetting.putRender(PlayerSetting.RENDER_TEXTURE); updateRenderUI(); });
         binding.switchAutonext.setChecked(PlayerSetting.isAutoPlay());
         binding.switchAutonext.setOnCheckedChangeListener((b, c) -> PlayerSetting.putAutoPlay(c));
         binding.switchSkip.setChecked(getSharedPreferences("xingchen", MODE_PRIVATE).getBoolean("skip_intro", true));
@@ -99,6 +102,11 @@ public class PlayerSettingsActivity extends BaseActivity {
     private void setDecode(String d) {
         getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString("player_decode", d).apply();
         PlayerSetting.putVideoPrefer("hard".equals(d));
+    }
+    private void updateRenderUI() {
+        int r = PlayerSetting.getRender();
+        binding.renderSurface.setBackgroundResource(r == PlayerSetting.RENDER_SURFACE ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
+        binding.renderTexture.setBackgroundResource(r == PlayerSetting.RENDER_TEXTURE ? com.fongmi.android.tv.R.drawable.xc_seg_selected : 0);
     }
 
     private void updateLongPressUI() {

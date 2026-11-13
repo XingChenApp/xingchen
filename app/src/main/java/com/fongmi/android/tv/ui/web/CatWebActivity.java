@@ -24,6 +24,7 @@ import androidx.webkit.WebSettingsCompat;
 import androidx.webkit.WebViewFeature;
 
 import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.utils.ExitContract;
 import com.fongmi.android.tv.utils.FileChooser;
 import com.fongmi.android.tv.utils.XcFadeTransition;
 import com.github.catvod.crawler.SpiderDebug;
@@ -302,7 +303,12 @@ public class CatWebActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
         if (webView != null && webView.canGoBack()) webView.goBack();
-        else finish();
+        else {
+            // 网页退无可退才出页：先过退出契约任务根自救（成任务根时
+            // 裸 finish 穿桌面，ExitContract 一处所有）。
+            ExitContract.rescueIfTaskRoot(this);
+            finish();
+        }
     }
 
     @Override

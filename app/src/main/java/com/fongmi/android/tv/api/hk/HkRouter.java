@@ -287,8 +287,16 @@ public class HkRouter {
                 // 四排除＋JS 型 lazy 才值得干跑；其余条目不会进选集、不必验。
                 if (!HkChapters.isPlayForm(u) || HkChapters.isExcluded(di.getColType(), u)) continue;
                 if (!HkEpisodeDryClassifier.isJsLazy(u)) continue;
-                di.setDryVerdict(HkEpisodeDryClassifier.classifyLazyItem(
-                        engine.getJsRuntime(), u, pageUrl));
+                // 逐条隔离（账 §十一）：单条干跑抛错只废该条（留无标＝
+                // UNKNOWN 口径保留），不许整环中止令其后条目全数无标——
+                // 128 真机《艾伦2026》整页动作项无标漏进选集的头号嫌疑。
+                try {
+                    di.setDryVerdict(HkEpisodeDryClassifier.classifyLazyItem(
+                            engine.getJsRuntime(), u, pageUrl));
+                } catch (Throwable itemError) {
+                    Logger.t(TAG).d("classifyDetailItems item failed: %s",
+                            itemError.getMessage());
+                }
             }
         } catch (Throwable e) {
             Logger.t(TAG).d("classifyDetailItems failed: %s", e.getMessage());

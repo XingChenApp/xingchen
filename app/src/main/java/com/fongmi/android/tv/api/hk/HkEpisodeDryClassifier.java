@@ -64,6 +64,10 @@ public final class HkEpisodeDryClassifier {
         String t = v.trim();
         String low = t.toLowerCase(Locale.ROOT);
         if (HkRouter.isActionUrl(t)) return true;
+        // 框架自发的 copy: 单冒号形（影视合集 66eb 库 quickSearch 配置原文
+        // "copy:https://…")：与 copy:// 同语义（复制导入串），isActionUrl
+        // 正表只认双斜杠形，此处补齐（账 §十一）。
+        if (low.startsWith("copy:")) return true;
         // hiker:// 内部导航全形（page/search/home/empty 等）都是页面动作、不是播放地址
         if (low.startsWith("hiker://")) return true;
         return low.startsWith("javascript:")

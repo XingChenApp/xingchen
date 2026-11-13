@@ -12,7 +12,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.os.HandlerCompat;
 
-import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.playback.PlaybackRemoteSyncer;
 import com.fongmi.android.tv.player.PlaybackMemoryMonitor;
@@ -22,7 +21,6 @@ import com.fongmi.android.tv.remote.RemoteAgent;
 import com.fongmi.android.tv.setting.ProxySetting;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.utils.AdBlock;
-import com.fongmi.android.tv.utils.AppBackup;
 import com.fongmi.android.tv.utils.DanmakuSearchListFocusFixer;
 import com.fongmi.android.tv.utils.NsdDeviceDiscovery;
 import com.fongmi.android.tv.utils.Notify;
@@ -120,12 +118,6 @@ public class App extends Application implements Application.ActivityLifecycleCal
         // 口径与 startBackgroundServices 的注释一致：非主进程什么都不起，
         // 只留 Application 本体供系统在该进程拉起页面（崩溃页/恢复页）。
         if (!PlaybackRecoveryMonitor.isMainProcess(this)) return;
-        // 备份待办消费判据（05-08 阶段 5 甲案）：进程启动这一刻把
-        // 待办旗读进进程内快照——旗在本进程启动前已立着，才算上个
-        // 进程留下的待办、本进程即「下次打开」有资格补跑；本进程
-        // 运行中才立的旗不在本进程武装，等下一个新进程（见下方
-        // pendingBackupTask 一段的武装判据）。
-        pendingBackupAtProcessStart = AppBackup.hasPendingBackup();
         // 实验室自启抢在已选配置首读之前：配置首读在 HomeActivity.initConfig，
         // 比这里晚得多；已选配置若是实验室服务的本地回环地址（如样本服务
         // http://127.0.0.1:<分配端口>/），服务没拉起来首读必然连不上、每次冷启
@@ -322,84 +314,6 @@ public class App extends Application implements Application.ActivityLifecycleCal
         if (listener != null) appBackgroundListeners.add(listener);
     }
 
-    // 备份待办补跑（宿主批刀3 立记账、05-08 阶段 5 换消费判据）：
-    // 首页非真退出销毁不再当场打包，只在 AppBackup 立待办旗。
-    // 旧消费挂在每次回前台（started 0→1）——同进程回前台正是回面
-    // 续播的当口，20 秒后一发打包与之抢 IO。现行判据（甲案）：只
-    // 认 onCreate 快照（旗在本进程启动前已立着＝上个进程的系统清
-    // 页面留下的待办），在本进程首个 0→1 只武装一次，仍延迟
-    // 20 秒、到点双判（仍在前台∧旗还在）才补跑；本进程运行中才
-    // 立的旗在本进程永不武装，同进程回前台零补跑，等下一个新
-    // 进程。补跑走 AppDatabase.backup() 既有口、成功在那一侧清
-    // 旗；失败旗留着，下一个新进程再补（不丢不重）。
-    private boolean pendingBackupAtProcessStart;
-    private boolean pendingBackupArmed;
-    private static final long PENDING_BACKUP_DELAY_MS = 20_000L;
-    private final Runnable pendingBackupTask = () -> {
-        if (startedActivityCount <= 0 || !AppBackup.hasPendingBackup()) return;
-        // 宿主存活步 4：短剧播放会话进行中不抢 IO/CPU——
-        // 顺延一档（同 PENDING_BACKUP_DELAY_MS）再判，会话
-        // 结束或回了壳子首页才跑。武装账与待备份旗都不
-        // 动：本进程内丢程与旧形同（旗在盘上，下一进程
-        // 照样补跑）。进门窗同理（2026-11-11 扩围，进门窗
-        // 避让账）：点进短剧到首条落定这段还没有台在播、
-        // 原判据不成立，冷启直进短剧正撞上——同列顺延。
-        if (dramaPlaybackActive() || dramaEntryWindowActive()) {
-            reschedulePendingBackup();
-            return;
-        }
-        AppDatabase.backup();
-    };
-
-    /** 补跑顺延重挂（步 4）：任务体在字段初始化器里不能
-     * 自引用，重挂走本方法在运行期读字段。 */
-    private void reschedulePendingBackup() {
-        handler.postDelayed(pendingBackupTask, PENDING_BACKUP_DELAY_MS);
-    }
-
-    // 短剧播放页/播放层类名拆开拼（同 legado 桥的现成体例）：本文件是
-    // 剥离后要留下的文件，类名整串写全会让剥离终检与公开镜像特征扫
-    // 误炸；反射问不到（剥离版无此包）时按无会话/无进门窗处理，与旧形
-    // try 兜底同义，真源行为不变。
-    private static final String DRAMA_PLAY_ACTIVITY =
-            "com.fongmi.android.tv.hon" + "guo.ui.Hg" + "PlayActivity";
-    private static final String DRAMA_PLAYER_LAYER =
-            "com.fongmi.android.tv.hon" + "guo.ui.Hg" + "PlayerLayer";
-
-    /** 短剧播放会话判据（步 4）：播放页在前台，或播放层
-     * 有台真在播（流页在宿主页内播放走后者）。判据问不到
-     * 时按无会话，维持旧形到点即跑。 */
-    private boolean dramaPlaybackActive() {
-        try {
-            android.app.Activity a = activity();
-            if (a != null && DRAMA_PLAY_ACTIVITY.equals(a.getClass().getName())) return true;
-            return dramaLayerFlag("anyUnitPlaying");
-        } catch (Throwable ignored) {
-            return false;
-        }
-    }
-
-    /** 短剧进门窗判据（步 4 扩围）：点进短剧到首条落定
-     * 这段——读播放层既有真源（预备槽/各页首台帧账，
-     * anyPageAwaitingFirstSettle），不新造状态。判据问
-     * 不到时按无进门窗，维持旧形到点即跑。 */
-    private boolean dramaEntryWindowActive() {
-        try {
-            return dramaLayerFlag("anyPageAwaitingFirstSettle");
-        } catch (Throwable ignored) {
-            return false;
-        }
-    }
-
-    /** 问短剧播放层的布尔判读（反射装配；类不在位/调用失败一律 false，
-     * 由调用方既有 try 兜底收口）。 */
-    private static boolean dramaLayerFlag(String method) throws Exception {
-        Class<?> layer = Class.forName(DRAMA_PLAYER_LAYER);
-        Object self = layer.getMethod("get").invoke(null);
-        Object r = layer.getMethod(method).invoke(self);
-        return r instanceof Boolean && (Boolean) r;
-    }
-
     private final Runnable appBackgroundLogTask = () -> {
         if (startedActivityCount == 0 && appForegroundLogged) {
             appForegroundLogged = false;
@@ -417,11 +331,6 @@ public class App extends Application implements Application.ActivityLifecycleCal
     public void onActivityStarted(@NonNull Activity activity) {
         if (++startedActivityCount == 1) {
             handler.removeCallbacks(appBackgroundLogTask);
-            handler.removeCallbacks(pendingBackupTask);
-            if (pendingBackupAtProcessStart && !pendingBackupArmed) {
-                pendingBackupArmed = true;
-                handler.postDelayed(pendingBackupTask, PENDING_BACKUP_DELAY_MS);
-            }
             if (!appForegroundLogged) {
                 appForegroundLogged = true;
                 appLog("app foreground");

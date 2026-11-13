@@ -40,7 +40,6 @@ import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.bean.Style;
 import com.fongmi.android.tv.bean.Vod;
 import com.fongmi.android.tv.databinding.ActivityHomeBinding;
-import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.event.CastEvent;
 import com.fongmi.android.tv.event.ConfigEvent;
 import com.fongmi.android.tv.event.RefreshEvent;
@@ -65,7 +64,6 @@ import com.fongmi.android.tv.ui.presenter.HeaderPresenter;
 import com.fongmi.android.tv.ui.presenter.HistoryPresenter;
 import com.fongmi.android.tv.ui.presenter.ProgressPresenter;
 import com.fongmi.android.tv.ui.presenter.VodPresenter;
-import com.fongmi.android.tv.utils.AppBackup;
 import com.fongmi.android.tv.utils.Clock;
 import com.fongmi.android.tv.utils.FileChooser;
 import com.fongmi.android.tv.utils.ImgUtil;
@@ -812,11 +810,8 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         DLNARendererService.stop(this);
         LiveConfig.get().clear();
         VodConfig.get().clear();
-        // 备份改判同 mobile（宿主批刀3）：真退出照旧当场备；非 finishing
-        // 的销毁只立待办旗，下次回前台安静期补跑，不当场跑 27MB 打包。
-        // 本面其余行的无条件清/停不在本批范围，不动。
-        if (isFinishing()) AppDatabase.backup();
-        else AppBackup.markBackupPending();
+        // 备份只走手动（2026-11-13 他定，同 mobile）：自动备份全摘。
+        // 本面其余行的无条件清/停不动。
         OkHttp.get().clear();
         Source.get().exit();
         Server.get().stop();

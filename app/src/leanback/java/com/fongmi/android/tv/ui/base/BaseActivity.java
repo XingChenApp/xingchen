@@ -20,6 +20,7 @@ import com.fongmi.android.tv.Updater;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.server.process.ApkUrlPush;
 import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.utils.ExitContract;
 import com.fongmi.android.tv.ui.custom.CustomWallView;
 import com.fongmi.android.tv.utils.Util;
 
@@ -152,6 +153,10 @@ public abstract class BaseActivity extends AppCompatActivity {
     }
 
     protected void onBackInvoked() {
+        // 退出契约（他 2026-11-13 定：退完层回点播首页，只有点播首页
+        // 本身按返回才退出）：落到本缺省路时先过 ExitContract 的任务
+        // 根自救再退，实现只此一处（utils.ExitContract），各页不许自备。
+        ExitContract.rescueIfTaskRoot(this);
         finish();
     }
 

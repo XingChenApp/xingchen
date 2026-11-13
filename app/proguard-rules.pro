@@ -12,12 +12,10 @@
 # 字段泛型签名剥掉、读回全变 LinkedTreeMap 直接崩；现在 Entry 只存字符串无泛型可剥，
 # 这里再加一道保险，防 R8 对缓存结构动手脚）
 -keep class com.fongmi.android.tv.api.hk.HkDetailCache$Entry { *; }
-# 音乐链落盘结构（2026-10-24 批 7 R8 审计 R1–R4）：这四件不在 bean 包、无 keep 时
+# 歌词/播放列表落盘结构（2026-10-24 批 7 R8 审计）：不在 bean 包、无 keep 时
 # R8 改字段名/裁未读字段，而读写两侧一侧反射字段名、一侧字面键，不对称即静默丢数据
 # （AudioPlaylistStore 已在 1.4.26 成品 dex 实证打坏：字段改名 a/b/c、同版往返即丢）。
--keep class com.fongmi.android.tv.ui.activity.MusicHomeChartStore$Snapshot { *; }
 -keep class com.fongmi.android.tv.player.lyrics.AudioPlaylistStore$* { *; }
--keep class com.fongmi.android.tv.music.ParametricEq$Band { *; }
 -keep class com.fongmi.android.tv.player.lyrics.LyricsResult { *; }
 # AI 实时字幕插件桥（2026-10-27 真机定罪）：插件 dex 里的 SherpaBridge 按全名实现宿主的
 # IAiAsrBridge，AiAsrPluginManager 靠 instanceof 认亲。无此 keep 时 R8 把接口改名，
@@ -151,6 +149,11 @@
 -keep class com.fongmi.android.tv.api.hk.HkJsRuntime { *; }
 -keep class com.fongmi.android.tv.api.hk.HkJsRuntime$* { *; }
 
+# JavaAdapter 抽象类桥（2026-11-13）：JS 侧经反射按名调桥的覆写方法与
+# super$ 化身（HkJsAdapterBridges），改名即断，整类保名。
+-keep class com.fongmi.android.tv.api.hk.HkJsAdapterBridges { *; }
+-keep class com.fongmi.android.tv.api.hk.HkJsAdapterBridges$* { *; }
+
 # 图片解密桥：crypto-java.js 按名调 FileUtil.toBytes（即本类），R8 改名后真机
 # TypeError 找不到函数、封面空流（1.3.7 真机日志实锤）。整类保名。
 -keep class com.fongmi.android.tv.api.hk.HkCryptoFileUtil { *; }
@@ -253,27 +256,10 @@
     public *** ai*(...);
 }
 
-# metasec 运行时 dex 的 SDK 类静态初始化靠它（运行时 dex 内的 SDK 类靠它过静态初始化，防 R8 摘除）
--keep class com.bytedance.covode.number.Covode { *; }
-
-# 红果登录会话落盘 JSON 字段名保活（gson 按字段名序列化，防跨版本混淆改名把已存会话读废）
--keep class com.fongmi.android.tv.hongguo.api.HgAccountStore$Session { *; }
-
-# 按字符串类名反射装配的类保名（2026-11-01，账 hg-novel-chain-diag-20261101）：
-# 这五类只被 Class.forName(字符串) 装配/预热、无编译期引用保名，R8 改名后
-# 装配静默失败——1.4.69/1.4.70 成品 dex 实证五类描述符全不在包内：
-# HgBookOpsImpl 装配一死，红果小说/听书哨兵源四段管线（搜索/详情/目录/正文）
-# 在成品里整段抛「红果书源在这个版本里不可用」，小说详情页点章同断；
-# 其余三类是 Startup 启动预热（失败静默、预热整段从未在成品生效）。
-# 按名装配的 Activity（HongguoNovelDetailActivity/HgBookBrowseActivity/
-# HgAudioPlayActivity 等）靠 Manifest 登记保名、在位，不在此列。
--keep class com.fongmi.android.tv.hongguo.book.HgBookOpsImpl { *; }
--keep class com.fongmi.android.tv.hongguo.drama.HgLandingCache { *; }
--keep class com.fongmi.android.tv.hongguo.drama.DramaParser { *; }
--keep class com.fongmi.android.tv.hongguo.drama.DramaCache { *; }
+# 按字符串类名反射装配的播放引擎保名（Startup 按名预热，无编译期引用保名）
 -keep class com.fongmi.android.tv.player.engine.ExoPlayerEngine { *; }
 
-# 收官大扫查类二加固（2026-10-31，账 hongguo-round-close-20261031）：以下三类含
+# 收官大扫查类二加固（2026-10-31，账 round-close-20261031）：以下三类含
 # 泛型集合字段、走 Gson .class 读回，此前只靠 -keepattributes Signature 保险丝
 # 单层防护（无 TypeToken/retype/点名 keep）——保险丝在位时不崩，但单层就是单层，
 # 按 HkRule/HkItem 同口径补点名保名作第二层。保险丝本体一字未动。

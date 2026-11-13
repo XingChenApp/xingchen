@@ -38,7 +38,6 @@ import com.fongmi.android.tv.api.config.WallConfig;
 import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.databinding.ActivityHomeBinding;
-import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.event.ConfigEvent;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.event.ServerEvent;
@@ -60,7 +59,6 @@ import com.fongmi.android.tv.ui.fragment.SettingPlayerFragment;
 import com.fongmi.android.tv.ui.fragment.VodFragment;
 import com.fongmi.android.tv.ui.lab.LabHomeActivity;
 import com.fongmi.android.tv.ui.lab.LabSettingActivity;
-import com.fongmi.android.tv.utils.AppBackup;
 import com.fongmi.android.tv.utils.FileChooser;
 import com.fongmi.android.tv.utils.MobileWindow;
 import com.fongmi.android.tv.utils.Notify;
@@ -794,16 +792,11 @@ public class HomeActivity extends BaseActivity implements XcBottomBar.OnItemSele
         if (mChrome != null) mChrome.destroy();
         // 主题切换 recreate 也走 onDestroy：此时不是真 finish，配置与服务留给新实例接手，
         // 不清 Vod/Live 配置、不停本地服务，否则重建后首页要重拉配置、后台播放也被掐断。
-        // 真 finish 时仍按原顺序全清；其它行（OkHttp 清理）与原行为一致，
-        // 备份一行为宿主批刀3 改判（见内注）。
+        // 真 finish 时仍按原顺序全清；其它行（OkHttp 清理）与原行为一致。
         if (isFinishing()) LiveConfig.get().clear();
         if (isFinishing()) VodConfig.get().clear();
-        // 备份改判（宿主批刀3）：真退出照原行为当场备；非 finishing 的
-        // 销毁（系统收拾页面、主题重建）不再当场跑 27MB 打包——113 实证
-        // 那一拍正压在进程被冻结的当口。改立待办旗，下次回前台安静期
-        // 由 App 补跑（成功清旗、失败留下轮，不丢不重）。
-        if (isFinishing()) AppDatabase.backup();
-        else AppBackup.markBackupPending();
+        // 备份只走手动（2026-11-13 他定）：自动备份全摘——退出不打包、
+        // 非真退出销毁不立旗补跑，设置里手动备份/恢复原样。
         OkHttp.get().clear();
         if (isFinishing()) Source.get().exit();
         if (isFinishing()) Server.get().stop();

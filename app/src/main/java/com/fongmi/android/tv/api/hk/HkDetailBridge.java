@@ -39,36 +39,47 @@ public class HkDetailBridge {
         // 用户拍板：海阔磁力走星辰，不维持原版）；ftp:// 不在放行之列
         // （放行口径见 HkRouter.isP2pPlayLink 的播放门）。
         // 第一遍换官形结构（账 §十）：集数只从 col_type 连续段里收（段外
-        // 条目结构上进不来），段内再以干跑 ACTION 标复核（无锚场景的实测
-        // 兜底，账 §九）——旧「整页扫＋资格判定五关」整段摘除。
-        java.util.Map<String, List<HkDetailItem>> byLine = new java.util.LinkedHashMap<>();
-        for (HkDetailItem di : HkChapters.collectEpisodeRuns(detail.getRawItems())) {
-            if (di.getDryVerdict() == HkEpisodeDryClassifier.Verdict.ACTION) continue;
-            String lineName = di.getLine() == null || di.getLine().isEmpty() ? "默认" : di.getLine();
-            byLine.computeIfAbsent(lineName, k -> new ArrayList<>()).add(di);
-        }
-        // 第二遍：逐线路分拣（HkEpisodeSorter：剔图片直链/详情自链/标签单例，治本通用层），
-        // 输入只是第一遍已过资格判定的候选——聚类只在集数区内整理，不再对整页条目运行；
+        // 条目结构上进不来）——旧「整页扫＋资格判定五关」整段摘除。
+        // 准入门（账 §十三，他 2026-11-13 准入规矩）：段过
+        // HkChapters.admitEpisodeRuns 才许进表（认段级结构，不逐条判
+        // 形态），干跑 ACTION 的剔除归准入门一处所有。
+        // 第二遍分拣（HkEpisodeSorter：剔图片直链/详情自链/标签单例，治本
+        // 通用层）以（段，线路）为单位运行（账 §十一）：聚类只在段内整理，
+        // 不许跨段并簇；分拣后的幸存者再按线路合并建 Flag（同名线路一面）。
         // 全被剔光的线路不建空 Flag。
         String pageUrl = detail.getPageUrl() != null && !detail.getPageUrl().isEmpty()
                 ? detail.getPageUrl() : (itemUrl == null ? "" : itemUrl);
+        java.util.Map<String, List<HkDetailItem>> byLine = new java.util.LinkedHashMap<>();
+        for (List<HkDetailItem> run : HkChapters.admitEpisodeRuns(
+                HkChapters.collectEpisodeRuns(detail.getRawItems()), pageUrl)) {
+            java.util.Map<String, List<HkDetailItem>> runByLine = new java.util.LinkedHashMap<>();
+            for (HkDetailItem di : run) {
+                String lineName = di.getLine() == null || di.getLine().isEmpty() ? "默认" : di.getLine();
+                runByLine.computeIfAbsent(lineName, k -> new ArrayList<>()).add(di);
+            }
+            for (java.util.Map.Entry<String, List<HkDetailItem>> re : runByLine.entrySet()) {
+                List<HkDetailItem> items = re.getValue();
+                List<String> urls = new ArrayList<>(items.size());
+                for (HkDetailItem di : items) urls.add(di.getUrl() == null ? "" : di.getUrl().trim());
+                boolean[] keep = HkEpisodeSorter.select(urls, pageUrl);
+                List<HkDetailItem> keptLine = byLine.computeIfAbsent(re.getKey(), k -> new ArrayList<>());
+                for (int i = 0; i < items.size(); i++) {
+                    if (keep[i]) keptLine.add(items.get(i));
+                }
+            }
+        }
         List<Flag> flags = new ArrayList<>();
         for (java.util.Map.Entry<String, List<HkDetailItem>> e : byLine.entrySet()) {
             List<HkDetailItem> items = e.getValue();
-            List<String> urls = new ArrayList<>(items.size());
-            for (HkDetailItem di : items) urls.add(di.getUrl() == null ? "" : di.getUrl().trim());
-            boolean[] keep = HkEpisodeSorter.select(urls, pageUrl);
-            // 分拣后的候选表（保序）：集名/地址/回退名标记/原始标题
+            // 候选表（保序）：集名/地址/回退名标记/原始标题
             List<String> candNames = new ArrayList<>();
             List<String> candUrls = new ArrayList<>();
             List<Boolean> candFallback = new ArrayList<>();
             List<String> candTitles = new ArrayList<>();
-            for (int i = 0; i < items.size(); i++) {
-                if (!keep[i]) continue;
-                HkDetailItem di = items.get(i);
+            for (HkDetailItem di : items) {
                 boolean fallbackName = di.getTitle() == null || di.getTitle().isEmpty();
                 candNames.add(fallbackName ? ("第" + (candNames.size() + 1) + "集") : di.getTitle());
-                candUrls.add(urls.get(i));
+                candUrls.add(di.getUrl() == null ? "" : di.getUrl().trim());
                 candFallback.add(fallbackName);
                 candTitles.add(di.getTitle() == null ? "" : di.getTitle());
             }

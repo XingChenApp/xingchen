@@ -198,12 +198,18 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
 
     private void setAdapter(Result result) {
         if (mWeb != null && mWeb.isVisible()) return;
+        // 顺序是承重的：PageAdapter.getCount 直读 mAdapter 的名单，名单
+        // 一变、翻页器那边的认知只能靠 notifyDataSetChanged 同步——变更
+        // 与通知之间不许插入任何会触发翻页器装填的调用（setOffscreen-
+        // PageLimit 内部就装填）。128 版把设保留页数插在通知之前，装填
+        // 时查出「记录 0、实际 6」当场崩（他 2026-11-13 23:01 真机栈，
+        // 账 pager-layout-crash-fix 订正节）；通知必须紧跟变更、先行。
         mAdapter.addAll(mResult = result);
+        notifyPagerAdapter();
         // 页面常驻归翻页器本职：保留页数覆盖全部分类，滑动时一页不销毁
         // （与旧 destroyItem 空覆写的常驻效果同），数据增删时框架按本职
         // 装填/销毁、子视图名单恒与数据一致（2026-11-13 布局结构修）。
         mBinding.pager.setOffscreenPageLimit(Math.max(1, mAdapter.getItemCount() - 1));
-        notifyPagerAdapter();
         setFabVisible(0);
         mBinding.typeMore.setVisibility(View.GONE);
         mBinding.type.post(this::updateTypeMoreVisible);

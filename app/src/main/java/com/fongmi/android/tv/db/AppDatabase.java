@@ -64,10 +64,6 @@ public abstract class AppDatabase extends RoomDatabase {
             File file = new File(Path.tv(), AppBackup.fileName());
             try {
                 AppBackup.CreateResult result = AppBackup.create(file, progress);
-                // 任一回备份成功即兑现销毁待办（宿主批刀3）：手动
-                // 备份与待办补跑同走本口，清旗只在此成功路，失败
-                // 留旗待下次回前台再补。
-                AppBackup.clearPendingBackup();
                 App.post(() -> {
                     callback.success();
                     if (result.hasWarning()) Notify.show(result.warning);

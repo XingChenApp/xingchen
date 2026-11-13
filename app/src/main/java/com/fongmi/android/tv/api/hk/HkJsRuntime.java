@@ -364,6 +364,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     }
     /** 跨规则公共持久化（setPublicItem/getPublicItem）。D3：并发图片求值可能同时读写，用并发 map。 */
     private final Map<String, String> publicKv = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** clearPublicItem 显式删除的键（跨实例墓碑）：savePublicKv 合并磁盘现状时不许复活；setPublicItem 同键时摘碑。 */
+    private static final java.util.Set<String> PUBLIC_KV_TOMBSTONES =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
     /** fc/rc 的内存缓存（url → 数据+过期时间）。 */
     private final Map<String, MemCache> memCache = new HashMap<>();
     /** 官式一次性交付记账（G51，见 HkFindDelivery）：parseList/parseSearch 每发按 CALLBACK_KEY 登记汇点。 */
@@ -4066,7 +4070,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // 8.83 smali:17688/24926/12255：key/value 须为字符串（缺参/undefined/非字符串抛"参数类型只能是字符串"）；
         // getPublicItem 缺键回默认，无默认则抛（原版先转默认再查表）。
         putFunction("setPublicItem", args -> {
-            publicKv.put(mustBeString(args, 0), mustBeString(args, 1));
+            String k = mustBeString(args, 0);
+            PUBLIC_KV_TOMBSTONES.remove(k);
+            publicKv.put(k, mustBeString(args, 1));
             savePublicKv();
             return null;
         });
@@ -4077,7 +4083,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             return v == null ? def : v;
         });
         putFunction("clearPublicItem", args -> {
-            publicKv.remove(mustBeString(args, 0));
+            String k = mustBeString(args, 0);
+            PUBLIC_KV_TOMBSTONES.add(k);
+            publicKv.remove(k);
             savePublicKv();
             return null;
         });
@@ -8435,6 +8443,28 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         try {
             File f = publicKvFile();
             if (f.getParentFile() != null) f.getParentFile().mkdirs();
+            // 合并写（2026-11-13 聚阅 findBtnF 案）：每规则一个 runtime 实例、
+            // 各自构造时载入快照，旧形整表覆写——早构造实例的迟写会把别实例
+            // 后落的键（如 preRule 落的 '聚阅' 基址）整表冲掉，getPublicItem
+            // 遂回空、jiekou 页 require 地址成裸名。落盘前先并磁盘现状：
+            // 磁盘独有键保住、内存持有键以内存为准，并回内存保后续一致。
+            if (f.exists()) {
+                try {
+                    byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
+                    Map<String, String> disk = GSON.fromJson(new String(bytes, "UTF-8"),
+                            new com.google.gson.reflect.TypeToken<Map<String, String>>() {}.getType());
+                    if (disk != null) {
+                        for (Map.Entry<String, String> e : disk.entrySet()) {
+                            // clearPublicItem 显式删过的键有墓碑记名，不许复活
+                            if (PUBLIC_KV_TOMBSTONES.contains(e.getKey())) continue;
+                            publicKv.putIfAbsent(e.getKey(), e.getValue());
+                        }
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+            // 别实例内存里的已删旧值同样不许借本次落盘复活
+            publicKv.keySet().removeAll(PUBLIC_KV_TOMBSTONES);
             java.nio.file.Files.write(f.toPath(), GSON.toJson(publicKv).getBytes("UTF-8"));
         } catch (Throwable ignored) {
         }
@@ -8565,7 +8595,18 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             if (!f.exists()) return null;
             byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
             String code = new String(bytes, Charset.forName("UTF-8"));
-            return TextUtils.isEmpty(code) ? null : code;
+            if (TextUtils.isEmpty(code)) return null;
+            // 缓存内容校验（2026-11-13 聚阅 findBtnF 案）：本口是咱家自加的
+            // 前置层，此前命中即直喂求值、无任何校验——缓存文件一旦是坏内容
+            // （错误页/截断/旧版残体），require0 的 isJsCode 回退路永远轮不到，
+            // 模块静默空载。非 JS 内容回 null 落回 require0 正常取码路（其内
+            // 含取码失败判与本地回退），与官 require0 对新内容的校验同义。
+            if (!isJsCode(code)) {
+                com.github.catvod.crawler.SpiderDebug.log("hk",
+                        "loadLibLocal reject non-js cache name=%s", libUrl);
+                return null;
+            }
+            return code;
         } catch (Throwable ignored) {
             return null;
         }
@@ -11333,32 +11374,18 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         void showErr(String err);
     }
 
-    /** 8.83 NoSecurityController (rhino/NoSecurityController.smali, 42 lines). */
+    /** 8.83 NoSecurityController (rhino/NoSecurityController.smali, 42 lines)。 */
     private static class HkNoSecurityController extends SecurityController {
         @Override
         public GeneratedClassLoader createClassLoader(ClassLoader parent, Object securityDomain) {
-            return new GeneratedClassLoader() {
-                private final HkDefiningLoader loader = new HkDefiningLoader(parent);
-                @Override public Class<?> defineClass(String name, byte[] data) {
-                    return loader.define(name, data);
-                }
-                @Override public void linkClass(Class<?> cl) {
-                    loader.link(cl);
-                }
-            };
+            // 官形：官方 createClassLoader 返回它自家的 AndroidClassLoader
+            // （service/parser/rhino/AndroidClassLoader，dx 翻译层装载器），
+            // 不是裸 defineClass——旧形把 JVM 字节码直喂 ClassLoader.
+            // defineClass，ART 必炸（聚阅 128「can't load this type of
+            // class file」即此），已换 HkAndroidClassLoader 镜像官形。
+            return new HkAndroidClassLoader(parent);
         }
         @Override public Object getDynamicSecurityDomain(Object securityDomain) { return null; }
-    }
-
-    /**
-     * ClassLoader 桥：Rhino 的 GeneratedClassLoader 是 interface，没有可 super
-     * 调用的 defineClass(String, byte[], int, int)，故用具名 ClassLoader 子类
-     * 承载真正的 defineClass/resolveClass。
-     */
-    private static class HkDefiningLoader extends ClassLoader {
-        HkDefiningLoader(ClassLoader parent) { super(parent); }
-        Class<?> define(String name, byte[] data) { return super.defineClass(name, data, 0, data.length); }
-        void link(Class<?> cl) { super.resolveClass(cl); }
     }
 
     /** 8.83 JSEngine$MyRequire: Rhino Require with function name "requirejs". */
@@ -12328,7 +12355,8 @@ private String wrapTryScript(String script) {
     // try/catch、也穿透宿主 catch(Exception)，短剧代理真机实证回 200 空包。海阔规则
     // 常用 new JavaAdapter(接口, js对象)（如 Enumeration 懒解密流）——接口情形一律走
     // java.lang.reflect.Proxy（ART 支持），回调时在调用线程进 Context 执行 JS 函数；
-    // 非接口情形回落原生实现，保持原行为。
+    // 抽象类情形自 2026-11-13 起，已知七父类（hikerPop 用集）走 HkJsAdapterBridges
+    // 真子类桥，其余未知类仍回落原生实现（ART 上仍会炸，维持原行为待扩桥）。
     static final class HkJavaAdapterFn extends BaseFunction {
         private final Object original;
         /** 环24-11 簇二：所属运行时的 ambient 登记表（installJavaAdapterShim
@@ -12373,6 +12401,18 @@ private String wrapTryScript(String script) {
                         if (cl == null) cl = HkJsRuntime.class.getClassLoader();
                         return java.lang.reflect.Proxy.newProxyInstance(cl,
                                 new Class<?>[]{cls}, new JsProxyHandler((Scriptable) args[1], ambientTl));
+                    }
+                    // 抽象类形（2026-11-13 聚阅 class file 案）：hikerPop 的
+                    // JavaAdapter(抽象类, jsObj, ...) 旧形穿透原生实现、在
+                    // ART 上 defineClass 必炸；已知七父类走 HkJsAdapterBridges
+                    // 的真子类桥，未知类维持旧穿透（行为不变）。
+                    if (cls != null) {
+                        Object bridge = HkJsAdapterBridges.tryCreate(cls,
+                                (Scriptable) args[1],
+                                args.length > 2 ? java.util.Arrays.copyOfRange(args, 2, args.length)
+                                        : new Object[0],
+                                ambientTl);
+                        if (bridge != null) return bridge;
                     }
                 }
             } catch (Throwable ignored) {

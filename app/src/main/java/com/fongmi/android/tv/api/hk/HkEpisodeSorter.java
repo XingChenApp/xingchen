@@ -35,6 +35,8 @@ import java.util.Map;
  *
  * 输入 urls 是段收编后的同一线路候选，保序；本类的聚类/编号门只在
  * 候选内整理，不再充当整页扫入的过滤层（钉根账 playpage-episode-pollution-dig-20261111）。
+ * 段级准入在上游 HkChapters.admitEpisodeRuns（账 §十三）：本类只在
+ * 已准入的段内整理，「全单例全收」只对段内候选成立、不是整页入口。
  * 返回与输入等长的 keep 标记。
  */
 public final class HkEpisodeSorter {

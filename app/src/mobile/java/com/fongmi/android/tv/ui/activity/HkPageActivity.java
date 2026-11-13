@@ -696,6 +696,9 @@ public class HkPageActivity extends BaseActivity {
             stack.pop();
             showView(stack.peek());
         } else {
+            // 内部栈退完，退出契约归 BaseActivity 缺省路一处所有
+            // （任务根自救回点播首页，他 2026-11-13 返回规矩）；
+            // 本页早先自备的那份已摘，不许两处同管一件事。
             super.onBackInvoked();
         }
     }

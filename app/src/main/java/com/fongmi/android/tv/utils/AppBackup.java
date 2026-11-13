@@ -46,37 +46,6 @@ public final class AppBackup {
     private AppBackup() {
     }
 
-    // 销毁备份待办（2026-11-07 宿主批刀3）：首页 onDestroy 的无条
-    // 件备份改判——真退出（isFinishing）照旧当场备；非真退出的
-    // 销毁（系统收拾页面/重建）不当场跑 27MB 打包，只立此旗，
-    // 下次 App 回前台安静期补跑（触发在 App 的前台转换处）。
-    // 旗走自有 SharedPreferences 持久化（ImgUtil 同款路）：连杀
-    // 两次只补一发（立旗幂等）、进程死了旗不丢；任一回备份成
-    // 功即清旗（AppDatabase.backup 的成功路），失败留旗、下次
-    // 回前台再补。
-    private static final String PREFS_BACKUP = "app_backup";
-    private static final String KEY_BACKUP_PENDING = "backup_pending";
-
-    private static android.content.SharedPreferences backupPrefs() {
-        return App.get().getSharedPreferences(PREFS_BACKUP,
-                android.content.Context.MODE_PRIVATE);
-    }
-
-    /** 登记一发待补备份（幂等，重复登记仍是一发）。 */
-    public static void markBackupPending() {
-        backupPrefs().edit().putBoolean(KEY_BACKUP_PENDING, true).apply();
-    }
-
-    /** 是否有待补的备份。 */
-    public static boolean hasPendingBackup() {
-        return backupPrefs().getBoolean(KEY_BACKUP_PENDING, false);
-    }
-
-    /** 备份已成，清待办旗。 */
-    public static void clearPendingBackup() {
-        backupPrefs().edit().putBoolean(KEY_BACKUP_PENDING, false).apply();
-    }
-
     public static String fileName() {
         return PREFIX + LocalDateTime.now().format(STAMP) + SUFFIX;
     }

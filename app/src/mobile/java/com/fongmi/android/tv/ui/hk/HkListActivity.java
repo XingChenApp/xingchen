@@ -52,6 +52,7 @@ import com.fongmi.android.tv.read.ReadingRouter;
 import com.fongmi.android.tv.read.ReadingSession;
 import com.fongmi.android.tv.read.ReadingStore;
 import com.fongmi.android.tv.ui.activity.VideoActivity;
+import com.fongmi.android.tv.utils.ExitContract;
 import com.fongmi.android.tv.utils.download.DownloadManager;
 import com.fongmi.android.tv.utils.XcFadeTransition;
 import com.google.gson.Gson;
@@ -1961,6 +1962,9 @@ public class HkListActivity extends AppCompatActivity
         // 照原版宿主分发：先问内容页的行内 WebView 要不要后退（能退且条目允许时先 goBack），
         // 它消费了就不出页；不消费才走原有返回。判定本体在 HkArticleFragment.onBackPressed。
         if (fragment != null && fragment.onBackPressed()) return;
+        // 内容页不消费才出页：出页前过退出契约任务根自救（本页成
+        // 任务根时裸退穿桌面，先回点播首页，ExitContract 一处所有）。
+        ExitContract.rescueIfTaskRoot(this);
         super.onBackPressed();
     }
 
