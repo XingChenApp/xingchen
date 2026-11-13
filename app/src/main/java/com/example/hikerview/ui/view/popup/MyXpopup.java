@@ -2,7 +2,7 @@ package com.example.hikerview.ui.view.popup;
 
 import android.content.Context;
 
-import com.lxj.xpopup.R;
+import com.example.hikerview.R;
 import com.lxj.xpopup.core.PopupInfo;
 import com.lxj.xpopup.impl.InputConfirmPopupView;
 import com.lxj.xpopup.impl.MyInputConfirmPopupView;
@@ -15,7 +15,7 @@ import com.lxj.xpopup.interfaces.OnInputConfirmListener;
  * 构造、Builder、三配置法（borderRadius/autoOpenSoftInput/autoFocusEditText/
  * isDestroyOnDismiss）、asInputConfirm 两重载、asInputMyConfirm 三重载。
  * 官默认布局 id 0x7f0d01e7 经官 public.xml 核为库布局 xpopup_confirm_input，
- * 咱家直引 com.lxj.xpopup.R.layout.xpopup_confirm_input（同一库布局）。
+ * 咱家引 com.example.hikerview.R.layout.xpopup_confirm_input（官布局原名落咱家 res，上游 2.9.0 库内同面布局已改名 _xpopup_center_impl_confirm、无此名）。
  * 官 asImageViewer 四重载依赖 MyImageViewerPopupView/XPopupImageLoader
  * （咱家树无此二类，ImgUtil 批已记名），本批不落。
  */

@@ -31,7 +31,7 @@ public class SubHDProvider implements SubtitleProvider {
             "(简体|繁体|双语|中英|简英|繁英|英文|英语)", Pattern.CASE_INSENSITIVE);
     private static final Pattern FORMAT_HINT = Pattern.compile(
             "\\b(ASS|SRT|SSA|VTT|SUP)\\b", Pattern.CASE_INSENSITIVE);
-    private static final Pattern TAG = Pattern.compile("<[^>]+>");
+    private static final Pattern HTML_TAG = Pattern.compile("<[^>]+>");
 
     @Override
     public String getId() {
@@ -149,7 +149,7 @@ public class SubHDProvider implements SubtitleProvider {
 
     private static String stripTags(String s) {
         if (s == null) return "";
-        return TAG.matcher(s).replaceAll("").replace("&nbsp;", " ").trim();
+        return HTML_TAG.matcher(s).replaceAll("").replace("&nbsp;", " ").trim();
     }
 
     private static Map<String, String> headers() {

@@ -191,7 +191,7 @@ public class AutoImportHelper {
                         .asInputMyConfirm("云口令导入提示",
                                 "确定导入以下云口令？非正常渠道获取的云口令谨慎导入",
                                 preview, "云口令", onInputConfirmListener, onCancelListener,
-                                com.lxj.xpopup.R.layout.xpopup_confirm_input, cancelText)
+                                R.layout.xpopup_confirm_input, cancelText)
                         .show();
                 return true;
             }

@@ -14,6 +14,8 @@ public final class R {
     }
 
     public static final class layout {
+        public static final int view_dialog_import_with_block_urls = com.fongmi.android.tv.R.layout.view_dialog_import_with_block_urls;
+        public static final int xpopup_confirm_input = com.fongmi.android.tv.R.layout.xpopup_confirm_input;
         public static final int view_color_pop = com.fongmi.android.tv.R.layout.view_color_pop;
         public static final int view_custom_copy_text = com.fongmi.android.tv.R.layout.view_custom_copy_text;
         public static final int view_msg_bottom_pop = com.fongmi.android.tv.R.layout.view_msg_bottom_pop;
@@ -44,6 +46,9 @@ public final class R {
     }
 
     public static final class id {
+        public static final int import_rule_title = com.fongmi.android.tv.R.id.import_rule_title;
+        public static final int import_rule_btn = com.fongmi.android.tv.R.id.import_rule_btn;
+        public static final int not_import_rule_btn = com.fongmi.android.tv.R.id.not_import_rule_btn;
         public static final int color1 = com.fongmi.android.tv.R.id.color1;
         public static final int color2 = com.fongmi.android.tv.R.id.color2;
         public static final int color3 = com.fongmi.android.tv.R.id.color3;
@@ -111,6 +116,8 @@ public final class R {
     }
 
     public static final class drawable {
+        public static final int button_layer = com.fongmi.android.tv.R.drawable.button_layer;
+        public static final int button_layer_green = com.fongmi.android.tv.R.drawable.button_layer_green;
         public static final int ic_arrow_right = com.fongmi.android.tv.R.drawable.ic_arrow_right;
         public static final int icon_rect = com.fongmi.android.tv.R.drawable.icon_rect;
         public static final int icon_rect_fill2 = com.fongmi.android.tv.R.drawable.icon_rect_fill2;

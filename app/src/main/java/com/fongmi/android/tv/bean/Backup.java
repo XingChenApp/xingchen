@@ -127,7 +127,7 @@ public class Backup {
         if (json == null) return true;
         try {
             JsonElement tree = JsonParser.parseString(json);
-            if (tree == null || !tree.isJsonObject()) return;
+            if (tree == null || !tree.isJsonObject()) return false;
             JsonObject object = tree.getAsJsonObject();
             List<Site> site = readList(gson, object, "site", Site.class);
             if (site != null) backup.site = site;

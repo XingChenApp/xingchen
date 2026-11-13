@@ -450,6 +450,14 @@ public class ArticleListRule extends LitePalSupport implements Cloneable, Compar
         return this.group;
     }
 
+    public void setGroup(String str) {
+        this.group = str;
+    }
+
+    public void setPinYin(String str) {
+        this.pinYin = str;
+    }
+
     public String getPinYin() {
         if (this.pinYin == null) {
             this.pinYin = "";
