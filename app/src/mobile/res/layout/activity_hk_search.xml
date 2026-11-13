@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔 8.83 聚合搜索页（SearchActivity）星辰版：顶部搜索栏（无搜索按钮、回车触发）+ 搜索栏下状态条 + 建议下拉 + ViewPager 多发动机结果。 -->
+<!-- 液态玻璃动态背景：LinearLayout 根，背景走 HkDynamicBgView.attachTo（decor 注入，见 HkSearchActivity） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:background="@android:color/transparent"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="52.0dip"
+        android:background="@android:color/transparent"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="4.0dip"
+        android:paddingEnd="8.0dip">
+
+        <ImageView
+            android:id="@+id/hk_search_back"
+            android:layout_width="40.0dip"
+            android:layout_height="40.0dip"
+            android:contentDescription="返回"
+            android:padding="10.0dip"
+            android:src="@drawable/ic_hk_back" />
+
+        <EditText
+            android:id="@+id/search_edit"
+            android:layout_width="0.0dip"
+            android:layout_height="40.0dip"
+            android:layout_marginStart="2.0dip"
+            android:layout_weight="1"
+            android:background="@null"
+            android:hint="搜索"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:singleLine="true"
+            android:textColor="#FF222222"
+            android:textColorHint="#FF999999"
+            android:textSize="16.0sp" />
+
+        <ImageView
+            android:id="@+id/search_clear"
+            android:layout_width="32.0dip"
+            android:layout_height="32.0dip"
+            android:contentDescription="清空输入框"
+            android:padding="7.0dip"
+            android:src="@drawable/search_clear"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/hk_search_group"
+            android:layout_width="wrap_content"
+            android:layout_height="40.0dip"
+            android:gravity="center"
+            android:paddingStart="8.0dip"
+            android:paddingEnd="4.0dip"
+            android:textColor="#FF8A6D00"
+            android:textSize="14.0sp" />
+
+        <TextView
+            android:id="@+id/hk_search_mode"
+            android:layout_width="wrap_content"
+            android:layout_height="40.0dip"
+            android:gravity="center"
+            android:paddingStart="8.0dip"
+            android:paddingEnd="4.0dip"
+            android:textColor="#FF222222"
+            android:textSize="14.0sp" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="fill_parent"
+        android:layout_height="0.5dip"
+        android:background="#FFE0E0E0" />
+
+    <!-- 各源状态条（2026-10-24 用户点名：原在页面最底部贴边几乎看不见，挪到搜索栏之下、结果区之上） -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/hk_search_bottom"
+        android:layout_width="fill_parent"
+        android:layout_height="42.0dip"
+        android:background="@android:color/transparent"
+        android:paddingStart="6.0dip"
+        android:paddingEnd="6.0dip" />
+
+    <FrameLayout
+        android:layout_width="fill_parent"
+        android:layout_height="0.0dip"
+        android:layout_weight="1">
+
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/hk_search_pager"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/hk_search_suggest"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            android:maxHeight="280.0dip"
+            android:visibility="gone" />
+    </FrameLayout>
+</LinearLayout>

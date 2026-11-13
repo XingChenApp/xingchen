@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- 网速：中央圆钮下方独立一行，不压播放图标。圆钮 76dp（下沿在圆心下 38dp）。
+         注意：FrameLayout 里 layout_gravity=center 时 marginTop 是全量叠加的
+         （childTop = (容器高-文字高)/2 + marginTop），文字中心 = 容器中心 + marginTop。
+         62dp → 文字中心在圆心下 62dp，文字上沿（约 46dp）在圆钮下沿之下，各种框高都成立。
+         旧值 124dp 是按「只下移一半」误算写下的，实际落到圆心下 124dp：
+         220dp 高的详情小窗里整行被推到框外裁掉，只有竖屏全屏的高框才看得见，就是小窗没网速的根。 -->
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/traffic"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="62dp"
+        android:fadingEdgeLength="5dp"
+        android:padding="5dp"
+        android:shadowColor="#ff000000"
+        android:shadowDx="2"
+        android:shadowDy="2"
+        android:shadowRadius="8"
+        android:textColor="@color/white"
+        android:textSize="18sp"
+        android:visibility="gone"
+        tools:text="120 KB/s"
+        tools:visibility="visible" />
+
+</FrameLayout>

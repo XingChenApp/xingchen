@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 开关轨道（液态玻璃口径，他的开关全玻璃令）：开＝强调红半透＋亮边，关＝白半透＋亮边。
+     此前是 iOS 风实色（开 #FA243C 实红／关 #E5E5EA 实灰），在玻璃卡上就是一块非玻璃。
+     由 MusicGlassWire.glassifyTree 统一给全树 SwitchCompat 换上。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true">
+        <shape android:shape="rectangle">
+            <size android:width="52dp" android:height="32dp" />
+            <corners android:radius="16dp" />
+            <solid android:color="#59FA243C" />
+            <stroke android:width="1dp" android:color="#66FFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <size android:width="52dp" android:height="32dp" />
+            <corners android:radius="16dp" />
+            <solid android:color="#29FFFFFF" />
+            <stroke android:width="1dp" android:color="#40FFFFFF" />
+        </shape>
+    </item>
+</selector>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="vertical" android:background="@drawable/bg_round_all" android:paddingBottom="16.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content">
+        <TextView android:textSize="20.0sp" android:textColor="#ff000000" android:ellipsize="end" android:layout_gravity="center_vertical" android:id="@id/title" android:padding="15.0dip" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="嗅探到的视频或者音乐" android:maxLines="1" android:lines="1" android:layout_weight="1.0" />
+        <ImageView android:layout_gravity="center_vertical" android:id="@id/menu_icon" android:padding="4.0dip" android:visibility="gone" android:layout_width="32.0dip" android:layout_height="32.0dip" android:src="@drawable/home_left_menu" android:layout_marginEnd="10.0dip" />
+    </LinearLayout>
+    <androidx.recyclerview.widget.RecyclerView android:id="@id/recyclerView" android:background="@drawable/shape_top_border" android:padding="10.0dip" android:layout_width="fill_parent" android:layout_height="0.0dip" android:layout_weight="1.0" />
+</LinearLayout>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- 星辰悬浮 UI：悬浮元素边距 -->
+    <dimen name="xc_float_margin">16dp</dimen>
+    <dimen name="xc_float_margin_small">12dp</dimen>
+    <dimen name="xc_float_margin_large">24dp</dimen>
+
+    <!-- 星辰悬浮 UI：圆角 -->
+    <dimen name="xc_corner_capsule">28dp</dimen>
+    <dimen name="xc_corner_card">22dp</dimen>
+    <dimen name="xc_corner_small">16dp</dimen>
+    <dimen name="xc_corner_tiny">12dp</dimen>
+
+    <!-- 星辰悬浮 UI：阴影 -->
+    <dimen name="xc_elevation_float">8dp</dimen>
+    <dimen name="xc_elevation_card">4dp</dimen>
+
+    <!-- 星辰悬浮 UI：底栏（带字款：图标 24dp＋标签 11sp＋紧凑留白，高度由 56 随之长到 62） -->
+    <dimen name="xc_bottombar_height">62dp</dimen>
+    <dimen name="xc_bottombar_margin_bottom">16dp</dimen>
+    <dimen name="xc_bottombar_icon_size">24dp</dimen>
+    <dimen name="xc_bottombar_label_size">11sp</dimen>
+    <dimen name="xc_bottombar_label_gap">2dp</dimen>
+
+    <!-- 星辰悬浮 UI：悬浮圆按钮 -->
+    <dimen name="xc_fab_size">40dp</dimen>
+    <dimen name="xc_fab_margin">8dp</dimen>
+
+</resources>

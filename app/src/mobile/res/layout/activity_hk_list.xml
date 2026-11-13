@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔列表页宿主（对应 8.83 FilmListActivity 的 activit_empty_fragment）：浅色独立主题，无窗口标题栏（8.83 原版即无，返回靠系统返回键），内容区全交 HkArticleFragment。 -->
+<!-- 液态玻璃动态背景：LinearLayout 根，背景走 HkDynamicBgView.attachTo（decor 注入，见 HkListActivity） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <!-- 顶部小程序切换 tabs（星辰自有功能，自旧内容页原样迁入：横向已启用小程序 + 最右「全部」弹窗）；仅规则首页级显示 -->
+    <!-- 玻璃悬浮条：左右 18dp 悬浮边距（样张定案的 margin 例外），背景代码设 HkGlassDrawable -->
+    <LinearLayout
+        android:id="@+id/hk_miniapp_tabs_row"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginLeft="18dp"
+        android:layout_marginRight="18dp"
+        android:background="@drawable/hk_miniapp_tabs_box"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:visibility="gone">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/hk_rv_miniapp_tabs"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:clipToPadding="false" />
+
+        <TextView
+            android:id="@+id/hk_btn_miniapp_all"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/hk_all_pill"
+            android:gravity="center"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:text="全部 ▾"
+            android:textColor="#8A6D00"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/hk_list_container"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+</LinearLayout>

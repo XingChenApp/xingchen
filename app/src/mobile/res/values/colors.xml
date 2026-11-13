@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔：对照 8.83 colors.xml -->
+<resources>
+    <color name="gray_rice">#fff5f5f5</color>
+    <color name="gray_rice_deep">#fff2f2f2</color>
+    <color name="gray_rice_light">#fff7f7f7</color>
+    <color name="grey_black">#ffdfdfdf</color>
+    <color name="simple_exo_style_Accent">#ffff4081</color>
+    <color name="hk_green">#ff14c47c</color>
+    <color name="hk_gray_text">#ff848484</color>
+    <color name="little_yellow">#f0e6f3e6</color>
+    <!-- 液态玻璃：淡色场顶色，海阔页状态栏/窗背景统一取它，不漏白条 -->
+    <color name="hk_status_bar">#FFF4F6F8</color>
+    <!-- 播放器点缀金（定稿 #F2B33D）：进度已播段/选中态/打点态 -->
+    <color name="player_gold">#FFF2B33D</color>
+    <!-- 音乐独立页自有实底基色：与 MusicGlassBackgroundView.BASE（0xFFFAFAFC）同值，
+         音乐页窗口底/主题底一律取它，页面自己的底从窗口层起，不借主壁纸 -->
+    <!-- 随心听独立页自有深底：与 activity_music_random.xml 布局根底 #0A0E16、
+         ThemeManager 随心听落色 0xFF0A0E16 三处同值，改色须三处同改 -->
+</resources>

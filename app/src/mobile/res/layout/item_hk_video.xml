@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔：视频卡片（对照 8.83 item_movie_tools，封面容器固定 150dp） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="0dp">
+
+        <RelativeLayout
+            android:id="@+id/cover_container"
+            android:layout_width="match_parent"
+            android:layout_height="150dp"
+            android:background="@drawable/hk_ripple_white">
+
+            <ImageView
+                android:id="@+id/iv_cover"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/hk_ripple_white"
+                android:scaleType="centerCrop" />
+
+            <TextView
+                android:id="@+id/tv_overlay"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:background="@drawable/hk_gradient_gray_trans_reverse2"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:padding="5dp"
+                android:textColor="#ffffffff"
+                android:textSize="14sp"
+                android:visibility="gone" />
+        </RelativeLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <TextView
+        android:id="@+id/tv_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:padding="4dp"
+        android:textColor="#101216"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/tv_desc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingLeft="4dp"
+        android:paddingRight="4dp"
+        android:textColor="#101216"
+        android:textSize="12sp"
+        android:visibility="gone" />
+</LinearLayout>

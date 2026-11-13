@@ -1,0 +1,261 @@
+# Xingchen baseline patch: PlaybackDiagnostics event hooks.
+#
+# 基线：上游 media 锁定提交 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d。
+#
+# 背景：media3-playback-diagnostics-r2.patch 只固化了 PlaybackDiagnostics
+# 类本体；产物基线里还散着 9 个类的 event/link 钩子调用（media-lock.json
+# 的 artifact_overrides 记为 "AV-DIAG-01 optional owner hooks"），此前
+# 同样只活在产物里。本补丁把钩子一并固化：
+#   common:  AudioFocusManager、AudioProcessingPipeline
+#            （含 diagnosticOwner 透传 setter）
+#   exoplayer: ExoPlayerImpl（PlaybackDiagnostics.link）、
+#            ExoPlayerImplInternal、AudioTrackAudioOutput、DefaultAudioSink、
+#            AsynchronousMediaCodecAdapter、SynchronousMediaCodecAdapter、
+#            BundledExtractorsAdapter
+# 内容取自现行工作树对锁定基线的真实 diff，后像与现行树逐字一致。
+# 顺序：排在 media3-playback-diagnostics-r2.patch 之后应用（钩子引用的
+# 类由 r2 提供）。
+diff --git a/libraries/common/src/main/java/androidx/media3/common/audio/AudioFocusManager.java b/libraries/common/src/main/java/androidx/media3/common/audio/AudioFocusManager.java
+index 90a252e..8e941e1 100644
+--- a/libraries/common/src/main/java/androidx/media3/common/audio/AudioFocusManager.java
++++ b/libraries/common/src/main/java/androidx/media3/common/audio/AudioFocusManager.java
+@@ -233,6 +233,8 @@ public final class AudioFocusManager {
+       return PLAYER_COMMAND_PLAY_WHEN_READY;
+     }
+     int requestResult = requestAudioFocusInternal();
++    androidx.media3.common.util.PlaybackDiagnostics.event(this, "audio.focus", "request", "returned", 0, requestResult,
++        "gain=" + focusGainToRequest, null);
+     if (requestResult == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+         || requestResult == AudioManager.AUDIOFOCUS_REQUEST_DELAYED) {
+       setAudioFocusState(AUDIO_FOCUS_STATE_HAVE_FOCUS);
+@@ -249,7 +251,8 @@ public final class AudioFocusManager {
+       return;
+     }
+     if (audioFocusRequest != null) {
+-      AudioManagerCompat.abandonAudioFocusRequest(audioManager.get(), audioFocusRequest);
++      int result = AudioManagerCompat.abandonAudioFocusRequest(audioManager.get(), audioFocusRequest);
++      androidx.media3.common.util.PlaybackDiagnostics.event(this, "audio.focus", "abandon", "returned", 0, result, "Media3", null);
+     }
+   }
+ 
+@@ -367,12 +370,15 @@ public final class AudioFocusManager {
+       return;
+     }
+     this.volumeMultiplier = volumeMultiplier;
++    if (androidx.media3.common.util.PlaybackDiagnostics.enabled("audio.focus"))
++      androidx.media3.common.util.PlaybackDiagnostics.event(this, "audio.focus", "duck-gain", "applied", 0, 0, Float.toString(volumeMultiplier), null);
+     if (playerControl != null) {
+       playerControl.setVolumeMultiplier(volumeMultiplier);
+     }
+   }
+ 
+   private void handlePlatformAudioFocusChange(int focusChange) {
++    androidx.media3.common.util.PlaybackDiagnostics.event(this, "audio.focus", "callback", "received", 0, focusChange, "Media3", null);
+     switch (focusChange) {
+       case AudioManager.AUDIOFOCUS_GAIN:
+         setAudioFocusState(AUDIO_FOCUS_STATE_HAVE_FOCUS);
+@@ -398,6 +404,7 @@ public final class AudioFocusManager {
+   }
+ 
+   private void executePlayerCommand(@PlayerCommand int playerCommand) {
++    androidx.media3.common.util.PlaybackDiagnostics.event(this, "audio.focus", "player-command", "requested", 0, playerCommand, "Media3", null);
+     if (playerControl != null) {
+       playerControl.executePlayerCommand(playerCommand);
+     }
+diff --git a/libraries/common/src/main/java/androidx/media3/common/audio/AudioProcessingPipeline.java b/libraries/common/src/main/java/androidx/media3/common/audio/AudioProcessingPipeline.java
+index db69712..891eab1 100644
+--- a/libraries/common/src/main/java/androidx/media3/common/audio/AudioProcessingPipeline.java
++++ b/libraries/common/src/main/java/androidx/media3/common/audio/AudioProcessingPipeline.java
+@@ -69,6 +69,8 @@ import java.util.List;
+  */
+ @UnstableApi
+ public final class AudioProcessingPipeline {
++  private Object diagnosticOwner = this;
++  public void setDiagnosticOwner(Object owner) { diagnosticOwner = owner; }
+ 
+   /** The {@link AudioProcessor} instances passed to {@link AudioProcessingPipeline}. */
+   private final ImmutableList<AudioProcessor> audioProcessors;
+@@ -136,6 +138,9 @@ public final class AudioProcessingPipeline {
+     for (int i = 0; i < audioProcessors.size(); i++) {
+       AudioProcessor audioProcessor = audioProcessors.get(i);
+       AudioFormat nextFormat = audioProcessor.configure(intermediateAudioFormat);
++      if (androidx.media3.common.util.PlaybackDiagnostics.enabled("audio.processing"))
++        androidx.media3.common.util.PlaybackDiagnostics.event(diagnosticOwner, "audio.processing", "configure", "returned", 0, i,
++            audioProcessor.getClass().getSimpleName() + " in=" + intermediateAudioFormat + " out=" + nextFormat, null);
+       if (audioProcessor.isActive()) {
+         checkState(!nextFormat.equals(AudioFormat.NOT_SET));
+         intermediateAudioFormat = nextFormat;
+@@ -192,6 +197,9 @@ public final class AudioProcessingPipeline {
+                       previousStreamMetadata.positionOffsetUs))
+               .build();
+       activeAudioProcessors.add(audioProcessor);
++      if (androidx.media3.common.util.PlaybackDiagnostics.enabled("audio.processing"))
++        androidx.media3.common.util.PlaybackDiagnostics.event(diagnosticOwner, "audio.processing", "active", "applied", 0,
++            activeAudioProcessors.size() - 1, audioProcessor.getClass().getSimpleName(), null);
+     }
+ 
+     outputBuffers = new ByteBuffer[activeAudioProcessors.size()];
+diff --git a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/ExoPlayerImpl.java b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/ExoPlayerImpl.java
+index 8c7d852..f93baf5 100644
+--- a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/ExoPlayerImpl.java
++++ b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/ExoPlayerImpl.java
+@@ -407,6 +407,7 @@ import java.util.function.IntConsumer;
+       playbackInfo = PlaybackInfo.createDummy(emptyTrackSelectorResult);
+       analyticsCollector.setPlayer(this.wrappingPlayer, applicationLooper);
+       PlayerId playerId = new PlayerId(builder.playerName);
++      androidx.media3.common.util.PlaybackDiagnostics.link(playerId, this.wrappingPlayer);
+       internalPlayer =
+           new ExoPlayerImplInternal(
+               applicationContext,
+diff --git a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/ExoPlayerImplInternal.java b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/ExoPlayerImplInternal.java
+index b0413c4..f9f00cf 100644
+--- a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/ExoPlayerImplInternal.java
++++ b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/ExoPlayerImplInternal.java
+@@ -388,6 +388,7 @@ import java.util.Objects;
+     handler = clock.createHandler(this.playbackLooper, this);
+ 
+     audioFocusManager = new AudioFocusManager(context, playbackLooper, /* playerControl= */ this);
++    androidx.media3.common.util.PlaybackDiagnostics.link(audioFocusManager, playerId);
+     VideoFrameMetadataListener internalVideoFrameMetadataListener =
+         (presentationTimeUs, releaseTimeNs, format, mediaFormat) -> {
+           videoFrameMetadataListener.onVideoFrameAboutToBeRendered(
+diff --git a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/audio/AudioTrackAudioOutput.java b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/audio/AudioTrackAudioOutput.java
+index 3a6d02a..9101a7d 100644
+--- a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/audio/AudioTrackAudioOutput.java
++++ b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/audio/AudioTrackAudioOutput.java
+@@ -257,8 +257,10 @@ public final class AudioTrackAudioOutput implements AudioOutput {
+       }
+       bytesWrittenOrError = writeWithAvSync(audioTrack, buffer, presentationTimeUs);
+     } else {
++      long diagnosticStart = androidx.media3.common.util.PlaybackDiagnostics.writeStart();
+       bytesWrittenOrError =
+           audioTrack.write(buffer, buffer.remaining(), AudioTrack.WRITE_NON_BLOCKING);
++      androidx.media3.common.util.PlaybackDiagnostics.write(audioTrack, bytesRemaining, bytesWrittenOrError, presentationTimeUs, false, diagnosticStart);
+     }
+ 
+     if (bytesWrittenOrError < 0) {
+@@ -405,8 +407,11 @@ public final class AudioTrackAudioOutput implements AudioOutput {
+     int size = buffer.remaining();
+     if (SDK_INT >= 26) {
+       // The underlying platform AudioTrack writes AV sync headers directly.
+-      return audioTrack.write(
++      long diagnosticStart = androidx.media3.common.util.PlaybackDiagnostics.writeStart();
++      int diagnosticResult = audioTrack.write(
+           buffer, size, AudioTrack.WRITE_NON_BLOCKING, presentationTimeUs * 1000);
++      androidx.media3.common.util.PlaybackDiagnostics.write(audioTrack, size, diagnosticResult, presentationTimeUs, false, diagnosticStart);
++      return diagnosticResult;
+     }
+     if (avSyncHeader == null) {
+       avSyncHeader = ByteBuffer.allocate(16);
+@@ -421,8 +426,10 @@ public final class AudioTrackAudioOutput implements AudioOutput {
+     }
+     int avSyncHeaderBytesRemaining = avSyncHeader.remaining();
+     if (avSyncHeaderBytesRemaining > 0) {
++      long diagnosticStart = androidx.media3.common.util.PlaybackDiagnostics.writeStart();
+       int result =
+           audioTrack.write(avSyncHeader, avSyncHeaderBytesRemaining, AudioTrack.WRITE_NON_BLOCKING);
++      androidx.media3.common.util.PlaybackDiagnostics.write(audioTrack, avSyncHeaderBytesRemaining, result, presentationTimeUs, true, diagnosticStart);
+       if (result < 0) {
+         bytesUntilNextAvSync = 0;
+         return result;
+@@ -431,7 +438,9 @@ public final class AudioTrackAudioOutput implements AudioOutput {
+         return 0;
+       }
+     }
++    long diagnosticStart = androidx.media3.common.util.PlaybackDiagnostics.writeStart();
+     int result = audioTrack.write(buffer, size, AudioTrack.WRITE_NON_BLOCKING);
++    androidx.media3.common.util.PlaybackDiagnostics.write(audioTrack, size, result, presentationTimeUs, false, diagnosticStart);
+     if (result < 0) {
+       bytesUntilNextAvSync = 0;
+       return result;
+diff --git a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/audio/DefaultAudioSink.java b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/audio/DefaultAudioSink.java
+index d497b46..21ebe2b 100644
+--- a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/audio/DefaultAudioSink.java
++++ b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/audio/DefaultAudioSink.java
+@@ -760,6 +760,7 @@ public final class DefaultAudioSink implements AudioSink {
+         pipelineProcessors.add(audioProcessorChain.getAudioProcessors());
+       }
+       audioProcessingPipeline = new AudioProcessingPipeline(pipelineProcessors.build());
++      audioProcessingPipeline.setDiagnosticOwner(this);
+ 
+       // If the underlying processors of the new pipeline are the same as the existing pipeline,
+       // then use the existing one when the configuration is used.
+@@ -794,6 +795,7 @@ public final class DefaultAudioSink implements AudioSink {
+     } else {
+       // Audio processing is not supported in offload or passthrough mode.
+       audioProcessingPipeline = new AudioProcessingPipeline(ImmutableList.of());
++      audioProcessingPipeline.setDiagnosticOwner(this);
+       inputPcmFrameSize = C.LENGTH_UNSET;
+       outputPcmFrameSize = C.LENGTH_UNSET;
+       afterProcessingFormat = inputFormat;
+diff --git a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/AsynchronousMediaCodecAdapter.java b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/AsynchronousMediaCodecAdapter.java
+index 5fdf9a2..dca501b 100644
+--- a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/AsynchronousMediaCodecAdapter.java
++++ b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/AsynchronousMediaCodecAdapter.java
+@@ -116,7 +116,7 @@ import java.util.List;
+       @Nullable MediaCodec codec = null;
+       try {
+         TraceUtil.beginSection("createCodec:" + codecName);
+-        codec = MediaCodec.createByCodecName(codecName);
++        codec = androidx.media3.common.util.PlaybackDiagnostics.createCodec(codecName);
+         int flags = 0;
+         MediaCodecBufferEnqueuer bufferEnqueuer;
+         if (enableSynchronousBufferQueueingWithAsyncCryptoFlag
+@@ -189,13 +189,13 @@ import java.util.List;
+     asynchronousMediaCodecCallback.initialize(codec);
+     callbackInitialized = true;
+     TraceUtil.beginSection("configureCodec");
+-    codec.configure(mediaFormat, surface, crypto, flags);
++    androidx.media3.common.util.PlaybackDiagnostics.configureCodec(codec, mediaFormat, surface, crypto, flags);
+     TraceUtil.endSection();
+     MediaCodecUtil.verifyColorTransferRequest(codec, mediaFormat);
+     bufferEnqueuer.start();
+     bufferEnqueuerStarted = true;
+     TraceUtil.beginSection("startCodec");
+-    codec.start();
++    androidx.media3.common.util.PlaybackDiagnostics.startCodec(codec);
+     codecStarted = true;
+     TraceUtil.endSection();
+     if (SDK_INT >= 35 && loudnessCodecController != null) {
+diff --git a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/SynchronousMediaCodecAdapter.java b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/SynchronousMediaCodecAdapter.java
+index 684e444..d4839fd 100644
+--- a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/SynchronousMediaCodecAdapter.java
++++ b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/SynchronousMediaCodecAdapter.java
+@@ -58,12 +58,12 @@ public final class SynchronousMediaCodecAdapter implements MediaCodecAdapter {
+             && SDK_INT >= 35) {
+           flags |= MediaCodec.CONFIGURE_FLAG_DETACHED_SURFACE;
+         }
+-        codec.configure(
++        androidx.media3.common.util.PlaybackDiagnostics.configureCodec(codec,
+             configuration.mediaFormat, configuration.surface, configuration.crypto, flags);
+         TraceUtil.endSection();
+         MediaCodecUtil.verifyColorTransferRequest(codec, configuration.mediaFormat);
+         TraceUtil.beginSection("startCodec");
+-        codec.start();
++        androidx.media3.common.util.PlaybackDiagnostics.startCodec(codec);
+         TraceUtil.endSection();
+         return new SynchronousMediaCodecAdapter(codec, configuration.loudnessCodecController);
+       } catch (IOException | RuntimeException e) {
+@@ -79,7 +79,7 @@ public final class SynchronousMediaCodecAdapter implements MediaCodecAdapter {
+       checkNotNull(configuration.codecInfo);
+       String codecName = configuration.codecInfo.name;
+       TraceUtil.beginSection("createCodec:" + codecName);
+-      MediaCodec mediaCodec = MediaCodec.createByCodecName(codecName);
++      MediaCodec mediaCodec = androidx.media3.common.util.PlaybackDiagnostics.createCodec(codecName);
+       TraceUtil.endSection();
+       return mediaCodec;
+     }
+diff --git a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/BundledExtractorsAdapter.java b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/BundledExtractorsAdapter.java
+index 384769f..14d404c 100644
+--- a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/BundledExtractorsAdapter.java
++++ b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/BundledExtractorsAdapter.java
+@@ -111,6 +111,9 @@ public final class BundledExtractorsAdapter implements ProgressiveMediaExtractor
+       }
+     }
+     extractor.init(output);
++    if (androidx.media3.common.util.PlaybackDiagnostics.enabled("media.container"))
++      androidx.media3.common.util.PlaybackDiagnostics.event(output, "media.container", "extractor-selected", "initialized", 0, position,
++          extractor.getUnderlyingImplementation().getClass().getName(), null);
+   }
+ 
+   @Override

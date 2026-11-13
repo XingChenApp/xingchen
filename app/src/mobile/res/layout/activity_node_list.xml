@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 节点列表页（从代理页拆出，2026-10-15 他拍板）：订阅几百个节点时不在代理页长列表里翻，
+     这里带搜索、全选/取消全选/批量删除、改名/删除/点名设当前。赛博朋克深色，文字高对比。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0B0E14"
+    android:orientation="vertical"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
+    android:paddingTop="20dp"
+    android:paddingBottom="16dp"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="节点列表"
+            android:textColor="#FFD700"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_test"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="测延迟"
+            android:padding="8dp"
+            android:text="⚡"
+            android:textSize="22sp" />
+    </LinearLayout>
+
+    <EditText
+        android:id="@+id/et_search"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:background="@drawable/xc_cyber_card"
+        android:hint="搜索节点名字"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#9AA4B5"
+        android:textSize="14sp"
+        android:padding="12dp"
+        android:singleLine="true" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:orientation="horizontal">
+        <Button
+            android:id="@+id/btn_check_all"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginRight="4dp"
+            android:background="@drawable/xc_cyber_card"
+            android:text="全选"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp" />
+        <Button
+            android:id="@+id/btn_uncheck_all"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginLeft="4dp"
+            android:layout_marginRight="4dp"
+            android:background="@drawable/xc_cyber_card"
+            android:text="取消全选"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp" />
+        <Button
+            android:id="@+id/btn_delete_checked"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginLeft="4dp"
+            android:background="@drawable/xc_cyber_card"
+            android:text="批量删除"
+            android:textColor="#FF6B6B"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="还没有节点，先订阅或粘贴导入"
+        android:textColor="#D7DEE8"
+        android:textSize="14sp"
+        android:padding="16dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_nodes"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+</LinearLayout>

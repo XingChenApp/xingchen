@@ -1,0 +1,17 @@
+diff --git a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/DefaultLoadControl.java b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/DefaultLoadControl.java
+index 218fec4..f4d8521 100644
+--- a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/DefaultLoadControl.java
++++ b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/DefaultLoadControl.java
+@@ -127,10 +127,10 @@ public class DefaultLoadControl implements LoadControl {
+       true;
+ 
+   /** The default back buffer duration in milliseconds. */
+-  public static final int DEFAULT_BACK_BUFFER_DURATION_MS = 0;
++  public static final int DEFAULT_BACK_BUFFER_DURATION_MS = 30_000;
+ 
+   /** The default for whether the back buffer is retained from the previous keyframe. */
+-  public static final boolean DEFAULT_RETAIN_BACK_BUFFER_FROM_KEYFRAME = false;
++  public static final boolean DEFAULT_RETAIN_BACK_BUFFER_FROM_KEYFRAME = true;
+ 
+   /** A default size in bytes for a video buffer. */
+   public static final int DEFAULT_VIDEO_BUFFER_SIZE = 2000 * C.DEFAULT_BUFFER_SEGMENT_SIZE;

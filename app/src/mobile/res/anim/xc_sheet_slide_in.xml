@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 底部面板进场：滑上＋淡入 200ms（照短剧面板 set＋减速曲线结构，时长按全应用 200ms 上限） -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:duration="200"
+    android:interpolator="@android:anim/decelerate_interpolator">
+    <translate
+        android:fromYDelta="100%"
+        android:toYDelta="0%" />
+    <alpha
+        android:fromAlpha="0.0"
+        android:toAlpha="1.0" />
+</set>

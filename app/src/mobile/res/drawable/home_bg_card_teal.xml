@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 排行榜：瓜子三段渐变（HomeScreenKt:2582，i7==1 分支）、圆角 20dp、对角线左上→右下 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="20dp" />
+    <gradient
+        android:angle="315"
+        android:startColor="#BDDEFA"
+        android:centerColor="#ADE9F3"
+        android:endColor="#9DF3DD"
+        android:type="linear" />
+</shape>

@@ -1,0 +1,54 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download mihomo kernel (bundled jniLib)
+        run: |
+          mkdir -p third_party/mihomo/prebuilt/arm64-v8a
+          curl -fL -o /tmp/mihomo.gz "https://xingchen-dl.pages.dev/clash/mihomo-android-arm64-v8-v1.19.33.gz"
+          gzip -dc /tmp/mihomo.gz > third_party/mihomo/prebuilt/arm64-v8a/libmihomo.so
+          echo "cfa0be78846bfef7272fe5a73089f8cf0e1f15a6ffb601f5cc809f457f712f67  third_party/mihomo/prebuilt/arm64-v8a/libmihomo.so" | sha256sum -c -
+          ls -lh third_party/mihomo/prebuilt/arm64-v8a/
+      - name: Download sherpa-onnx.aar (compileOnly)
+        run: |
+          mkdir -p app/libs-compile
+          curl -L -o app/libs-compile/sherpa-onnx.aar "https://raw.githubusercontent.com/XingChenApp/xingchen-asr/main/sherpa-onnx.aar"
+          ls -lh app/libs-compile/
+      - name: Setup JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'jetbrains'
+          java-version: '21.0.3'
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Setup signing (temporary keystore, CI verification only)
+        run: |
+          keytool -genkeypair -v -keystore "$RUNNER_TEMP/xingchen.p12" -storetype PKCS12 -alias xingchen -keyalg RSA -keysize 2048 -validity 3650 -storepass xingchen -keypass xingchen -dname "CN=XingChen"
+          cat > local.properties <<EOF
+          storeFile=$RUNNER_TEMP/xingchen.p12
+          keyAlias=xingchen
+          storePassword=xingchen
+          keyPassword=xingchen
+          EOF
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleMobileArm64_v8aRelease --no-daemon
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: XingChen-APK
+          path: app/build/outputs/apk/**/*.apk

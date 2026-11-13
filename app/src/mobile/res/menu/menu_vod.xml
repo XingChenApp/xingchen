@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/search"
+        android:icon="@drawable/ic_action_search"
+        android:title="@string/menu_search"
+        app:iconTint="@color/white"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/history"
+        android:icon="@drawable/ic_popup_history"
+        android:title="@string/app_history"
+        app:iconTint="@color/white"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/web_home_fullscreen"
+        android:icon="@drawable/ic_control_fullscreen"
+        android:title="@string/play_fullscreen"
+        android:visible="false"
+        app:iconTint="@color/white"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/more_actions"
+        android:icon="@drawable/ic_action_more_vert"
+        android:title="@string/control_other"
+        app:iconTint="@color/white"
+        app:showAsAction="always"></item>
+
+</menu>

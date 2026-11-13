@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 主页大页签切换：新页淡入 250ms，与旧页淡出同事务同时进行（交叉淡入淡出）。 -->
+<alpha xmlns:android="http://schemas.android.com/apk/res/android"
+    android:fromAlpha="0.0"
+    android:toAlpha="1.0"
+    android:duration="250"
+    android:interpolator="@interpolator/xc_tab_ease" />

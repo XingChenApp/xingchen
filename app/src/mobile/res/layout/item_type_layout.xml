@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" app:cardCornerRadius="10.0dip" app:cardElevation="0.0dip"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <RelativeLayout android:id="@id/clickBg" android:background="@drawable/ripple_white" android:padding="5.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content">
+        <ImageView android:id="@id/item_reult_img" android:layout_width="24.0dip" android:layout_height="24.0dip" android:layout_marginTop="5.0dip" android:src="@drawable/account_home" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" android:layout_alignParentEnd="true" />
+        <TextView android:textSize="18.0sp" android:textColor="@color/black" android:ellipsize="end" android:id="@id/textView" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="聚合" android:maxLines="1" android:lines="1" android:layout_toStartOf="@id/item_reult_img" />
+        <TextView android:ellipsize="end" android:id="@id/descView" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_margin="5.0dip" android:text="共 10 个" android:maxLines="1" android:layout_below="@id/textView" />
+    </RelativeLayout>
+</androidx.cardview.widget.CardView>

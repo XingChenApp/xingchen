@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.fongmi.android.tv.ui.hk.view.ScrollRelativeLayout android:paddingBottom="9.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:textSize="16.0sp" android:textColor="@color/black_666" android:gravity="center" android:id="@id/res_header_item_expand" android:background="@drawable/tab_item_default" android:paddingTop="4.0dip" android:paddingBottom="4.0dip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="30.0dip" android:text=">" android:maxLines="1" android:contentDescription="展开" android:paddingStart="10.0dip" android:paddingEnd="10.0dip" android:layout_marginStart="3.0dip" android:layout_marginEnd="5.0dip" android:layout_alignParentEnd="true" />
+    <com.fongmi.android.tv.ui.hk.view.ObservableScrollView android:id="@id/res_header_scroll" android:scrollbars="none" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_toStartOf="@id/res_header_item_expand">
+        <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:id="@id/res_header_linearlayout" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </com.fongmi.android.tv.ui.hk.view.ObservableScrollView>
+</com.fongmi.android.tv.ui.hk.view.ScrollRelativeLayout>

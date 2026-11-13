@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 随机筹（GZ PlayQueueSheet：AccentRed 0.12 底、圆角 8dp） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#1FFA243C" />
+    <corners android:radius="8dp" />
+</shape>

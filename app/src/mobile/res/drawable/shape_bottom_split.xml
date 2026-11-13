@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 条目底：原版为实心白面＋底部 1.2dp 分隔线（8.83 白页底下看不见白面）。
+     星辰海阔页是浅色渐变底，白面会露成白砖——基底改为透明涟漪（透出页底、保留按压反馈），只留底部分隔线。 -->
+<layer-list
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/ripple_trans2" />
+    <item android:left="15.0dip" android:right="15.0dip" android:gravity="bottom" android:height="1.1999817dip">
+        <shape>
+            <solid android:color="#fff2f4f9" />
+        </shape>
+    </item>
+</layer-list>

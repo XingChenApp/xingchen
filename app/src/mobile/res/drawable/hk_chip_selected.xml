@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 页签/分组 pill 选中态：奶油渐变胶囊＋3dp 金下划线＋辉光（液态玻璃，照 v2 样张对差） -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 辉光：金色柔晕，垫在奶油胶囊外 3dp -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#14D9A420" />
+            <corners android:radius="17dp" />
+        </shape>
+    </item>
+    <!-- 奶油渐变胶囊 -->
+    <item
+        android:left="3dp"
+        android:top="3dp"
+        android:right="3dp"
+        android:bottom="3dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="180"
+                android:startColor="#FFFFFBF0"
+                android:endColor="#FFFFF3DC" />
+            <corners android:radius="14dp" />
+            <stroke
+                android:width="1dp"
+                android:color="#BFFFFFFF" />
+        </shape>
+    </item>
+    <!-- 底部 3dp 金线 -->
+    <item
+        android:left="13dp"
+        android:right="13dp"
+        android:gravity="bottom">
+        <shape android:shape="rectangle">
+            <size android:height="3dp" />
+            <solid android:color="#D9A420" />
+            <corners android:radius="1.5dp" />
+        </shape>
+    </item>
+</layer-list>

@@ -1,0 +1,262 @@
+package com.fongmi.android.tv.ui.activity;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.SeekBar;
+import android.widget.TextView;
+
+import com.fongmi.android.tv.R;
+import androidx.viewbinding.ViewBinding;
+import com.fongmi.android.tv.databinding.ActivityUiSettingsBinding;
+import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.xingchen.tv.theme.ThemeManager;
+import com.xingchen.tv.theme.XingChenTheme;
+
+public class UiSettingsActivity extends BaseActivity {
+    private ActivityUiSettingsBinding binding;
+
+    public static void start(Activity activity) {
+        activity.startActivity(new Intent(activity, UiSettingsActivity.class));
+    }
+
+    @Override
+    protected ViewBinding getBinding() {
+        binding = ActivityUiSettingsBinding.inflate(getLayoutInflater());
+        return binding;
+    }
+
+    @Override
+    protected void initView(Bundle savedInstanceState) {
+        initCoverSizeSection();
+        initOrientSection();
+        initRatioSection();
+        initWallpaperSection();
+        
+        updateCoverSizeUI();
+        updateOrientUI();
+        updateRatioUI();updateVisibility();
+    }
+
+    private String getPref(String key, String def) {
+        return getSharedPreferences("xingchen", MODE_PRIVATE).getString(key, def);
+    }
+
+    private void setPref(String key, String value) {
+        getSharedPreferences("xingchen", MODE_PRIVATE).edit().putString(key, value).apply();
+        if (key.startsWith("cover_")) markCoverChanged();
+    }
+
+    /** 封面变更代次：只递增不清零，每个分类碎片各自比对自己已应用的代次，
+     * 避免旧的一次性布尔被先 resume 的碎片消费掉、其余页签永远收不到。 */
+    private void markCoverChanged() {
+        android.content.SharedPreferences sp = getSharedPreferences("xingchen", MODE_PRIVATE);
+        sp.edit().putLong("cover_gen", sp.getLong("cover_gen", 0) + 1).apply();
+    }
+
+    private void setPrefAndUpdate(String key, String value, Runnable update) {
+        setPref(key, value);
+        update.run();
+    }
+
+    private void initCoverSizeSection() {
+        binding.segCoverSmall.setOnClickListener(v -> setCoverSize(0, this::updateCoverSizeUI));
+        binding.segCoverMedium.setOnClickListener(v -> setCoverSize(1, this::updateCoverSizeUI));
+        binding.segCoverLarge.setOnClickListener(v -> setCoverSize(2, this::updateCoverSizeUI));
+        updateCoverSizeUI();
+    }
+
+    private void updateCoverSizeUI() {
+        int size = com.fongmi.android.tv.setting.PlayerSetting.getSize();
+        setSegSelected(binding.segCoverSmall, size == 0);
+        setSegSelected(binding.segCoverMedium, size == 1);
+        setSegSelected(binding.segCoverLarge, size == 2);
+        String name = size == 0 ? "小" : (size == 3 ? "特大" : (size == 2 ? "大" : "中"));
+        int column = com.fongmi.android.tv.Product.getColumn(this);
+        binding.tvCoverDesc.setText(name + "封面：一行显示 " + column + " 个海报");
+    }
+
+    private void initOrientSection() {
+        binding.segOrientPortrait.setOnClickListener(v -> setPrefAndUpdate("cover_orient", "portrait", this::updateOrientUI));
+        binding.segOrientLandscape.setOnClickListener(v -> setPrefAndUpdate("cover_orient", "landscape", this::updateOrientUI));
+        updateOrientUI();
+    }
+
+    private void updateOrientUI() {
+        String orient = getPref("cover_orient", "portrait");
+        setSegSelected(binding.segOrientPortrait, "portrait".equals(orient));
+        setSegSelected(binding.segOrientLandscape, "landscape".equals(orient));
+    }
+
+    private void initRatioSection() {
+        binding.segRatio23.setOnClickListener(v -> setPrefAndUpdate("cover_ratio", "2:3", this::updateRatioUI));
+        binding.segRatio34.setOnClickListener(v -> setPrefAndUpdate("cover_ratio", "3:4", this::updateRatioUI));
+        binding.segRatio916.setOnClickListener(v -> setPrefAndUpdate("cover_ratio", "9:16", this::updateRatioUI));
+        updateRatioUI();
+    }
+
+    private void updateRatioUI() {
+        String ratio = getPref("cover_ratio", "2:3");
+        setSegSelected(binding.segRatio23, "2:3".equals(ratio));
+        setSegSelected(binding.segRatio34, "3:4".equals(ratio));
+        setSegSelected(binding.segRatio916, "9:16".equals(ratio));
+    }
+
+    private void setSegSelected(TextView tv, boolean selected) {
+        if (selected) {
+            tv.setBackgroundResource(R.drawable.seg_selected);
+            tv.setTextColor(0xFFFFFFFF);
+        } else {
+            tv.setBackgroundResource(R.drawable.seg_unselected);
+            tv.setTextColor(0xFF333333);
+        }
+    }
+
+
+    private void initWallpaperSection() {
+        binding.segWpDefault.setOnClickListener(v -> setWallpaper(XingChenTheme.WP_BUILTIN, "shanjian"));
+        binding.segWpLocal.setOnClickListener(v -> pickLocalWallpaper());
+        binding.segWpUrl.setOnClickListener(v -> inputUrlWallpaper());
+        // Thumbnails click to select
+        binding.thumbDefault.setOnClickListener(v -> setWallpaper(XingChenTheme.WP_BUILTIN, "shanjian"));
+        binding.thumbLocal.setOnClickListener(v -> pickLocalWallpaper());
+        binding.thumbUrl.setOnClickListener(v -> inputUrlWallpaper());
+        // Blur switch
+        boolean blur = getSharedPreferences("xingchen", MODE_PRIVATE).getBoolean("wallpaper_blur", false);
+        binding.switchBlur.setChecked(blur);
+        binding.switchBlur.setOnCheckedChangeListener((btn, isChecked) -> {
+            try {
+                XingChenTheme theme = XingChenTheme.load(this);
+                theme.wallpaperBlur = isChecked;
+                theme.save(this);
+                com.xingchen.tv.theme.ThemeManager.get().setTheme(theme);
+                com.xingchen.tv.theme.ThemeManager.get().apply(this);
+            } catch (Exception e) {}
+        });
+        updateWallpaperUI();
+        updateThumbnails();
+    }
+
+    private void updateThumbnails() {
+        try {
+            XingChenTheme theme = XingChenTheme.load(this);
+            // Default thumbnail: always show builtin
+            // Local thumbnail: show if wallpaperType is local
+            if (XingChenTheme.WP_LOCAL.equals(theme.wallpaperType) && theme.wallpaperValue != null) {
+                com.bumptech.glide.Glide.with(this).load(theme.wallpaperValue).into(binding.thumbLocal);
+            }
+            // URL thumbnail: show if wallpaperType is url
+            if (XingChenTheme.WP_URL.equals(theme.wallpaperType) && theme.wallpaperValue != null) {
+                com.bumptech.glide.Glide.with(this).load(theme.wallpaperValue).into(binding.thumbUrl);
+            }
+        } catch (Exception e) {}
+    }
+
+    private void setWallpaper(String type, String value) {
+        XingChenTheme theme = XingChenTheme.load(this);
+        theme.wallpaperType = type;
+        theme.wallpaperValue = value;
+        theme.save(this);
+        try {
+            com.xingchen.tv.theme.ThemeManager.get().setTheme(theme);
+            com.xingchen.tv.theme.ThemeManager.get().apply(this);
+        } catch (Exception e) {}
+        updateWallpaperUI();
+        updateThumbnails();
+    }
+
+    private void pickLocalWallpaper() {
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("image/*");
+        startActivityForResult(intent, 1001);
+    }
+
+    private void inputUrlWallpaper() {
+        com.google.android.material.dialog.MaterialAlertDialogBuilder builder = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this, R.style.ThemeOverlay_WebHTV_LightDialog);
+        builder.setTitle("输入图片URL");
+        final android.widget.EditText input = new android.widget.EditText(this);
+        builder.setView(input);
+        builder.setPositiveButton("确定", (d, w) -> {
+            String url = input.getText().toString().trim();
+            if (!url.isEmpty()) {
+                downloadAndSetWallpaper(url);
+            }
+        });
+        builder.setNegativeButton("取消", null);
+        builder.show();
+    }
+
+    private void downloadAndSetWallpaper(String url) {
+        new Thread(() -> {
+            try {
+                java.net.URL u = new java.net.URL(url);
+                java.io.InputStream in = u.openStream();
+                java.io.File outFile = new java.io.File(getFilesDir(), "wallpaper_url.jpg");
+                java.io.FileOutputStream out = new java.io.FileOutputStream(outFile);
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
+                out.close();
+                in.close();
+                runOnUiThread(() -> setWallpaper(XingChenTheme.WP_URL, outFile.getAbsolutePath()));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1001 && resultCode == RESULT_OK && data != null) {
+            try {
+                android.net.Uri uri = data.getData();
+                java.io.InputStream in = getContentResolver().openInputStream(uri);
+                java.io.File outFile = new java.io.File(getFilesDir(), "wallpaper_local.jpg");
+                java.io.FileOutputStream out = new java.io.FileOutputStream(outFile);
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
+                out.close();
+                in.close();
+                setWallpaper(XingChenTheme.WP_LOCAL, outFile.getAbsolutePath());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void updateWallpaperUI() {
+        String type = ThemeManager.get().getTheme().wallpaperType;
+        setSegSelected(binding.segWpDefault, XingChenTheme.WP_BUILTIN.equals(type));
+        setSegSelected(binding.segWpLocal, XingChenTheme.WP_LOCAL.equals(type));
+        setSegSelected(binding.segWpUrl, XingChenTheme.WP_URL.equals(type));
+        String desc = "当前：";
+        if (XingChenTheme.WP_BUILTIN.equals(type)) desc += "默认壁纸";
+        else if (XingChenTheme.WP_LOCAL.equals(type)) desc += "本地壁纸";
+        else if (XingChenTheme.WP_URL.equals(type)) desc += "网络壁纸";
+        else desc += "默认壁纸";
+        binding.tvWpDesc.setText(desc);
+    }
+
+    private void updateVisibility() {
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // updateThemeUI(); // Removed with theme section
+        updateCoverSizeUI();
+        updateOrientUI();
+        updateRatioUI();
+        updateWallpaperUI();
+    }
+
+    private void setCoverSize(int size, Runnable updateUI) {
+        com.fongmi.android.tv.setting.PlayerSetting.putSize(size);
+        markCoverChanged();
+        if (updateUI != null) updateUI.run();
+    }
+
+}

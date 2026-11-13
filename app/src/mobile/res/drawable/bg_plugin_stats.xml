@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 插件页头卡渐变（GZ 插件页头卡：浅蓝→浅紫渐变，色值按图 112927 目测；圆角 24dp 与原玻璃卡同） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="135"
+        android:endColor="#F3E9FD"
+        android:startColor="#E8F1FE"
+        android:type="linear" />
+    <corners android:radius="24dp" />
+</shape>

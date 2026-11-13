@@ -1,0 +1,337 @@
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
+index bcf130c..73aab8a 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
+@@ -170,6 +170,15 @@ final class DanmakuPainter {
+   /** Minimum like count that earns the count tail. */
+   static final long DIGG_TAIL_MIN_COUNT = 10;
+ 
++  /**
++   * Half the vertical row gap, in dp: a row's hit box widens by this much above
++   * and below the row band (the official hit form reads the vertical tolerance
++   * as half the row gap; the gap in the embedder's tier table is 4dp, so the
++   * tolerance is 2dp). Converted with the display density only, like the tail
++   * gaps.
++   */
++  private static final float HIT_ROW_TOLERANCE_DP = 2f;
++
+   /**
+    * Fixed gap of the configured tail form, in dp: text-to-icon and icon-to-count
+    * (official client: 4dp on both sides of the tail icon). Converted with the
+@@ -306,27 +315,33 @@ final class DanmakuPainter {
+     float x;
+     float y;
+     boolean alive;
++    // Top of the item's row band (view coordinates), for the hit box below.
++    float hitRowTop = 0f;
+     switch (item.type) {
+       case Danmaku.TYPE_SCROLL:
+         float speed = (viewWidth + item.speedWidth()) / (float) effectiveScrollDurationMs();
+         x = viewWidth - speed * elapsedMs;
+         y = baseline(item.trackIndex, item.trackSpan) + scrollAreaOffsetPx(viewHeight);
++        hitRowTop = item.trackIndex * trackHeight + scrollAreaOffsetPx(viewHeight);
+         alive = x + item.measuredWidth > 0;
+         break;
+       case Danmaku.TYPE_REVERSE:
+         float reverseSpeed = (viewWidth + item.speedWidth()) / (float) effectiveScrollDurationMs();
+         x = -item.measuredWidth + reverseSpeed * elapsedMs;
+         y = baseline(item.trackIndex, item.trackSpan) + scrollAreaOffsetPx(viewHeight);
++        hitRowTop = item.trackIndex * trackHeight + scrollAreaOffsetPx(viewHeight);
+         alive = x < viewWidth;
+         break;
+       case Danmaku.TYPE_TOP:
+         x = (viewWidth - item.measuredWidth) / 2f;
+         y = baseline(item.trackIndex, item.trackSpan);
++        hitRowTop = item.trackIndex * trackHeight;
+         alive = elapsedMs < config.fixedDurationMs;
+         break;
+       case Danmaku.TYPE_BOTTOM:
+         x = (viewWidth - item.measuredWidth) / 2f;
+         y = bottomBaseline(item.trackIndex, item.trackSpan, viewHeight);
++        hitRowTop = viewHeight - (item.trackIndex + item.trackSpan) * trackHeight;
+         alive = elapsedMs < config.fixedDurationMs;
+         break;
+       case Danmaku.TYPE_POSITIONED:
+@@ -342,12 +357,30 @@ final class DanmakuPainter {
+       item.hitValid = false;
+       return false;
+     }
+-    // Record the drawn bounds for optional embedder hit-testing
+-    // (DanmakuView.findDanmakuUserIdAt). y is the text baseline.
++    // Record the hit box for embedder hit-testing
++    // (DanmakuView.findDanmakuUserIdAt), in the official form: horizontally
++    // the box is exactly the drawn extent — the body segment is the text's
++    // measured width and the tail segment is the like-count tail's width
++    // right after it (the same composition tailWidth measures); the item's
++    // horizontal margin after the tail is layout space between items and is
++    // never tappable. Vertically the box is the item's row band widened by
++    // half the row gap on both sides. Positioned items have no row band and
++    // keep the text-envelope box. findDanmakuBounds anchors on the same
++    // union box (hitLeft..hitRight, hitTop..hitBottom).
++    float textWidth = fillPaint.measureText(item.text);
++    float tailWidthPx =
++        tailWidth(item, fillPaint, sizePx, config.diggIconSizePx, tailGapPx(displayMetrics));
+     item.hitLeft = x;
+-    item.hitTop = y - sizePx * 1.15f;
+-    item.hitRight = x + item.measuredWidth;
+-    item.hitBottom = y + sizePx * 0.45f;
++    item.hitBodyRight = x + textWidth;
++    item.hitRight = item.hitBodyRight + tailWidthPx;
++    if (item.type == Danmaku.TYPE_POSITIONED) {
++      item.hitTop = y - sizePx * 1.15f;
++      item.hitBottom = y + sizePx * 0.45f;
++    } else {
++      float tolerancePx = HIT_ROW_TOLERANCE_DP * displayMetrics.density;
++      item.hitTop = hitRowTop - tolerancePx;
++      item.hitBottom = hitRowTop + item.trackSpan * trackHeight + tolerancePx;
++    }
+     item.hitValid = true;
+     if (canvas != null) {
+       drawAt(canvas, item, x, y, sizePx);
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
+index 0a09d13..874e6a2 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
+@@ -55,7 +55,13 @@ final class DanmakuRenderItem {
+ 
+   // Last drawn bounds (view coordinates), recorded by DanmakuPainter for
+   // optional tap hit-testing by embedders. Invalid until first drawn frame.
++  // hitLeft..hitRight is the union hit box: the body segment
++  // (hitLeft..hitBodyRight, the text's measured width) followed by the tail
++  // segment (hitBodyRight..hitRight, the like-count tail's width). The item's
++  // horizontal margin is layout space after the tail and is not part of the
++  // box. hitTop..hitBottom is the row band widened by half the row gap.
+   float hitLeft;
++  float hitBodyRight;
+   float hitTop;
+   float hitRight;
+   float hitBottom;
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuTrackManager.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuTrackManager.java
+index dd9219f..53f3ec2 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuTrackManager.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuTrackManager.java
+@@ -24,6 +24,13 @@ final class DanmakuTrackManager {
+   private DanmakuConfig config = DanmakuConfig.DEFAULT;
+   private DanmakuRenderItem[] scrollTails = new DanmakuRenderItem[0];
+   private DanmakuRenderItem[] reverseTails = new DanmakuRenderItem[0];
++  // The item recorded on each track before its current tail. A frozen tail
++  // leaves the row ledger (it answers to the view's freeze slot, not to its
++  // track), so admission decisions then judge against this previous item —
++  // the row's latest unfrozen item — exactly like the official client's row
++  // ledger, whose reference is the rightmost unfrozen item in the row.
++  private DanmakuRenderItem[] scrollPrevTails = new DanmakuRenderItem[0];
++  private DanmakuRenderItem[] reversePrevTails = new DanmakuRenderItem[0];
+   private long[] topExpiries = new long[0];
+   private long[] bottomExpiries = new long[0];
+   private int viewWidth;
+@@ -50,10 +57,20 @@ final class DanmakuTrackManager {
+   }
+ 
+   private static void recordLatest(
+-      DanmakuRenderItem[] tracks, DanmakuRenderItem item, int start, int end) {
++      DanmakuRenderItem[] tracks,
++      DanmakuRenderItem[] prevTracks,
++      DanmakuRenderItem item,
++      int start,
++      int end) {
+     for (int i = start; i < end; i++) {
+       DanmakuRenderItem previous = tracks[i];
+       if (previous == null || item.activatedTimeMs > previous.activatedTimeMs) {
++        // The displaced tail stays on the books as the track's previous
++        // item, so the admission reference survives the tail leaving the
++        // row ledger (a frozen tail, see admissionTail).
++        if (previous != null && previous != item) {
++          prevTracks[i] = previous;
++        }
+         tracks[i] = item;
+       }
+     }
+@@ -80,9 +97,11 @@ final class DanmakuTrackManager {
+     int bottomTrackCount = configuredCount(autoFixedTracks, config.maxBottomLines);
+     if (scrollTails.length != scrollTrackCount) {
+       scrollTails = new DanmakuRenderItem[scrollTrackCount];
++      scrollPrevTails = new DanmakuRenderItem[scrollTrackCount];
+     }
+     if (reverseTails.length != scrollTrackCount) {
+       reverseTails = new DanmakuRenderItem[scrollTrackCount];
++      reversePrevTails = new DanmakuRenderItem[scrollTrackCount];
+     }
+     if (topExpiries.length != topTrackCount) {
+       topExpiries = new long[topTrackCount];
+@@ -158,6 +177,8 @@ final class DanmakuTrackManager {
+   void clearOccupancy() {
+     Arrays.fill(scrollTails, null);
+     Arrays.fill(reverseTails, null);
++    Arrays.fill(scrollPrevTails, null);
++    Arrays.fill(reversePrevTails, null);
+     Arrays.fill(topExpiries, 0);
+     Arrays.fill(bottomExpiries, 0);
+   }
+@@ -167,10 +188,10 @@ final class DanmakuTrackManager {
+     int end = start + item.trackSpan;
+     switch (item.type) {
+       case Danmaku.TYPE_SCROLL:
+-        recordLatest(scrollTails, item, start, end);
++        recordLatest(scrollTails, scrollPrevTails, item, start, end);
+         break;
+       case Danmaku.TYPE_REVERSE:
+-        recordLatest(reverseTails, item, start, end);
++        recordLatest(reverseTails, reversePrevTails, item, start, end);
+         break;
+       case Danmaku.TYPE_TOP:
+         recordExpiry(topExpiries, item, start, end);
+@@ -189,27 +210,54 @@ final class DanmakuTrackManager {
+       return assignWithoutCollision(item, currentMs, scrollTails.length, false);
+     }
+     DanmakuRenderItem[] sameDirection = reverse ? reverseTails : scrollTails;
++    DanmakuRenderItem[] sameDirectionPrev = reverse ? reversePrevTails : scrollPrevTails;
+     DanmakuRenderItem[] oppositeDirection = reverse ? scrollTails : reverseTails;
+     int span = resolveSpan(item, sameDirection.length);
+     for (int i = 0; i + span <= sameDirection.length; i++) {
+-      if (areMovingTracksAvailable(sameDirection, oppositeDirection, item, currentMs, i, span)) {
++      if (areMovingTracksAvailable(
++          sameDirection, sameDirectionPrev, oppositeDirection, item, currentMs, i, span)) {
+         activate(item, currentMs, i, span);
+-        Arrays.fill(sameDirection, i, i + span, item);
++        // The admitted item becomes the tail of each track it spans; the
++        // displaced tails stay on the books as the tracks' previous items.
++        for (int j = i; j < i + span; j++) {
++          DanmakuRenderItem displaced = sameDirection[j];
++          if (displaced != null && displaced != item) {
++            sameDirectionPrev[j] = displaced;
++          }
++          sameDirection[j] = item;
++        }
+         return true;
+       }
+     }
+     return false;
+   }
+ 
++  /**
++   * The admission reference of a track: its latest item still in the row
++   * ledger. A frozen tail is out of the ledger (it is held by the view's
++   * freeze slot), so the reference falls back to the track's previous item.
++   * Only one item can be frozen at a time, so at most one of the two slots
++   * holds it and the fallback is always an unfrozen item.
++   */
++  private static @Nullable DanmakuRenderItem admissionTail(
++      DanmakuRenderItem[] tails, DanmakuRenderItem[] prevTails, int track) {
++    DanmakuRenderItem tail = tails[track];
++    if (tail != null && tail.frozen) {
++      tail = prevTails[track];
++    }
++    return tail;
++  }
++
+   private boolean areMovingTracksAvailable(
+       DanmakuRenderItem[] sameDirection,
++      DanmakuRenderItem[] sameDirectionPrev,
+       DanmakuRenderItem[] oppositeDirection,
+       DanmakuRenderItem item,
+       long currentMs,
+       int start,
+       int span) {
+     for (int i = start; i < start + span; i++) {
+-      DanmakuRenderItem tail = sameDirection[i];
++      DanmakuRenderItem tail = admissionTail(sameDirection, sameDirectionPrev, i);
+       if ((tail != null && !canFollow(tail, item, currentMs))
+           || isMoving(oppositeDirection[i], currentMs)) {
+         return false;
+@@ -286,17 +334,6 @@ final class DanmakuTrackManager {
+     next.speedWidthOverride = 0f;
+     float previousSpeed =
+         (viewWidth + previous.speedWidth()) / (float) effectiveScrollDurationMs();
+-    if (previous.frozen) {
+-      // A frozen item (tapped, its action UI is open) is a stationary object on
+-      // its track: it sits at the position captured when it froze and never
+-      // exits while frozen. A follower entering at the right edge starts
+-      // behind that position and, at any speed, reaches it in finite time —
+-      // so no follower is admitted behind a frozen item at all: the track is
+-      // closed for the duration of the freeze (the action UI dismisses itself
+-      // within the activation retry window, after which waiting items enter
+-      // behind the resumed item as usual).
+-      return false;
+-    }
+     long previousElapsed = currentMs - previous.activatedTimeMs;
+     float previousRight = viewWidth + previous.measuredWidth - previousSpeed * previousElapsed;
+     float minimumGap = textSizePx * config.scrollGapRatio;
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+index d88ed49..fedb3d2 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+@@ -361,7 +361,17 @@ public final class DanmakuView extends View {
+       if (!item.hitValid || item.userId == null || item.userId.isEmpty()) {
+         continue;
+       }
+-      if (x >= item.hitLeft && x <= item.hitRight && y >= item.hitTop && y <= item.hitBottom) {
++      if (y < item.hitTop || y > item.hitBottom) {
++        continue;
++      }
++      // Within an item the tail segment is hit-tested before the body
++      // segment (official form): a tap on the like-count tail belongs to the
++      // item even where a later-drawn item's body overlaps it. The margin
++      // after the tail is outside both segments and never hits.
++      if (x >= item.hitBodyRight && x <= item.hitRight) {
++        return item.userId;
++      }
++      if (x >= item.hitLeft && x <= item.hitBodyRight) {
+         return item.userId;
+       }
+     }
+@@ -404,13 +414,19 @@ public final class DanmakuView extends View {
+    * Freezes the visible danmaku identified like {@link #findDanmakuBounds} in place: the
+    * item stops where it is while every other item and the playback clock keep moving.
+    * Intended for embedders that open per-item action UI on tap — the tapped danmaku stays
+-   * under the action UI instead of flying away. Only one item can be frozen at a time;
+-   * freezing another item unfreezes the previous one. Returns whether an item was frozen.
++   * under the action UI instead of flying away. Only one item can be frozen at a time:
++   * while an item is frozen, a further freeze request is rejected (returns false) and
++   * the frozen item is left exactly as it is. Returns whether an item was frozen.
+    */
+   public boolean freezeDanmaku(String userId, long timeMs) {
+     if (userId == null || userId.isEmpty()) {
+       return false;
+     }
++    if (frozenItem != null && frozenItem.frozen) {
++      // Single freeze slot: the slot is busy, so this request is rejected
++      // outright — no item is unfrozen, replaced, or otherwise touched.
++      return false;
++    }
+     DanmakuRenderItem best = null;
+     long bestDiff = Long.MAX_VALUE;
+     for (int i = activeItems.size() - 1; i >= 0; i--) {
+@@ -427,7 +443,6 @@ public final class DanmakuView extends View {
+     if (best == null) {
+       return false;
+     }
+-    unfreezeDanmaku();
+     best.frozen = true;
+     best.frozenElapsedMs = Math.max(0L, getCurrentPositionMs() - best.activatedTimeMs);
+     frozenItem = best;
+@@ -454,6 +469,25 @@ public final class DanmakuView extends View {
+     postInvalidateOnAnimation();
+   }
+ 
++  /**
++   * Releases the frozen item only when the frozen item is the one identified by
++   * {@code userId} and {@code timeMs} — the identity the caller froze earlier. A
++   * late dismissal of an older action UI must not release a different item that
++   * holds the freeze slot now. Returns whether the frozen item was released.
++   */
++  public boolean unfreezeDanmaku(String userId, long timeMs) {
++    DanmakuRenderItem item = frozenItem;
++    if (item == null
++        || !item.frozen
++        || userId == null
++        || !userId.equals(item.userId)
++        || item.timeMs != timeMs) {
++      return false;
++    }
++    unfreezeDanmaku();
++    return true;
++  }
++
+   /** Live-item render statistics. */
+   public static final class LiveStats {
+     public static final LiveStats EMPTY = new LiveStats(0L, 0L, 0L, 0L, 0L, 0, 0, 0);

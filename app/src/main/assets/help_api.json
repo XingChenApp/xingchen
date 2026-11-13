@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "records": [
+    {
+      "date": "投屏开发",
+      "records": [
+        "获取投屏播放地址：",
+        "/playUrl，该接口会返回可播放的视频地址，如果手机端更新了链接，该接口也会自动刷新，因此可以定时检测",
+        "/playUrl?enhance=true，增强接口，返回{title:'xxx-第一集', url:'',headers:{},jumpStartDuration:0,jumpEndDuration:0}即带header和片头片尾",
+        "/getPlayList：获取选集列表，返回字符串数组，如['第一集','第二集']",
+        "/playMe?index=0&title=第一集，index和title参数为从/getPlayList获取的结果，返回true表示执行成功（软件会自动更新播放地址到/playUrl接口），返回false可能用户关闭了播放页",
+        "/playNext，播放下一集"
+      ]
+    },
+    {
+      "date": "广告拦截订阅",
+      "records": [
+        "广告订阅格式：{\n    \"urlV2\": \"https://ad_v2.txt\",\n    \"domBlockRuleUrl\": \"https://domBlockRules.txt\"\n}",
+        "urlV2为网址过滤，文件内容格式参考：广告过滤拦截里面分享为订阅文件",
+        "domBlockRuleUrl为网页元素过滤，文件内容格式参考：网页元素拦截里面分享为订阅文件"
+      ]
+    },
+    {
+      "date": "WebDav开放接口",
+      "records": [
+        "let webdav = buildWebDav('http://xxx/dav', user, password); let list = JSON.parse(webdav.list()); log(list)",
+        "播放文件：for(let it of list){\nlog(it.playUrl)\n}",
+        "下载文件：for(let it of list){\nlog('download://' + it.playUrl)\n}",
+        "手动下载子文件(如显示图片)：let webdav = buildWebDav('http://xxx/dav', user, password); webdav.download(it.name, 'hiker://files/cache/_fileSelect_' + it.name)",
+        "上传文件：webdav.upload('a.mp4', 'hiker://files/cache/a.mp4')",
+        "删除文件/文件夹：webdav.delete('a.mp4')",
+        "创建文件夹：webdav.makeDir('视频')",
+        "子文件夹，只需要将list子元素的url属性拿来buildWebDav即可：let childWebdav = buildWebDav(it.url, user, password)"
+      ]
+    },
+    {
+      "date": "EPUB开放接口",
+      "records": [
+        "解析章节目录：let c = getEpubChapters(path), log(c[0].title+'-' + c[0].url)，注意此方法是耗时方法，可以适当缓存结果",
+        "获取正文：let c = getEpubContent(path, chapter.url)，第二个参数为getEpubChapters获取到的url属性（建议不要用getEpubContent0）",
+        "获取更多信息：let meta = getEpubMetadata(path)，可以打印出来看里面的内容log(meta)",
+        "说明，其中包含的图片不用特殊处理，软件会自动识别，另外获取的正文请用rich_text加载，正文页链接可以搭配阅读模式#readTheme#、自动翻页#autoPage#使用"
+      ]
+    },
+    {
+      "date": "小程序订阅",
+      "records": [
+        "小程序规则订阅地址默认为正常直链网址，访问时需直接返回小程序规则合集数组",
+        "高级用法：订阅地址可以填写js规则，如http://a.com/1.txt@js=let a = fetch(input); JSON.parse(a).url，软件检查更新时会解析执行js规则，@js=前面的部分为input变量注入，如果整个js代码返回字符串为网址，那么软件会将它视为小程序规则的直链网址，继续请求获取小程序规则数组，和普通模式一样。如果返回hiker://empty或toast://等字符串则认为js代码有自己的提示更新逻辑，比如使用confirm()等方法提示更新、点击确定使用云口令来更新，如果返回空或者error:开头的字符串，那么会记录检测更新失败"
+      ]
+    },
+    {
+      "date": "小程序包",
+      "records": [
+        "小程序包是一个以.hk小程序.zip结尾的压缩包结构，其内包含rule.json小程序规则文件、libs.zip依赖文件压缩包、data.zip、data2.zip数据文件压缩包和require.json远程依赖表",
+        "其中libs.zip里面的文件来自require、requireCache等方法获取远程依赖时生成到libs目录下的js文件，data.zip里面的文件来自软件目录(hiker://files/)下的data目录下小程序规则名目录下的文件，如/storage/emulated/0/Android/data/com.example.hikerview/files/Documents/data/云盘君/test.js，其下的文件由小程序自行管理，软件只是会在分享小程序包时自动扫描压缩，导入小程序包时自动解压复制",
+        "data2.zip和data.zip类似，只是data2目录下的文件只参与小程序包分享和导入，不参与软件备份和恢复（包括WebDav），常用于非个性化的数据，可用于分享，如Drpy源"
+      ]
+    },
+    {
+      "date": "小程序合集包",
+      "records": [
+        "小程序合集包是一个以.hk合集.zip结尾的压缩包结构，也可以是以.hkpkg结尾的zip压缩包",
+        "其中可以包含.hiker小程序文件、.txt小程序规则文件、.hk小程序.zip小程序包、.json小程序聚合合集文件、.txt云口令文件、.hiker云口令文件",
+        "高级用法：里面可以包含以.hkshell结尾的脚本文件，脚本内支持多行指令，类似Dockerfile，每一行指令目前仅支持COPY指令",
+        "脚本示例：COPY a.txt hiker://files/cache/b.txt 表示拷贝该合集包内a.txt文件到hiker://files/cache/目录下覆盖为b.txt文件",
+        "脚本示例：COPY a.txt hiker://files/cache/ 表示拷贝该合集包内a.txt文件到hiker://files/cache/目录下覆盖为a.txt文件",
+        "脚本示例：COPY data hiker://files/cache/data2 表示拷贝该合集包内data文件夹内所有文件到hiker://files/cache/data2文件夹下，保留文件夹下目录结构",
+        "脚本示例：COPY data hiker://files/cache/ 表示拷贝该合集包内data文件夹内所有文件到hiker://files/cache/data文件夹下，保留文件夹下目录结构",
+        "小程序内分享小程序合集包：调用shareDirectory(path, name)，如shareDirectory('hiker://files/_cache/test')，或shareDirectory('hiker://files/_cache/test', '测试.hkpkg')，第二个参数不传默认文件名为文件夹名称.hk合集.zip",
+        "高级用法：hkshell可以使用js编写，只需要以js:开头即可，使用js编写时，可以使用copyFiles方法，如：js: let count = copyFiles('a.txt', 'hiker://files/cache/');，前两个参数和COPY语法类似，copyFiles有三个参数，第三个参数默认值为MY_DIR的值，代表当前文件夹，如果你需要跳转子页面处理，那么可能需要将MY_DIR的值当参数手动传递，然后在调用copyFiles时手动注入到第三个参数，因为只有点击hkshell文件执行时软件才会自动注入MY_DIR变量，在子页面是没有这个变量的。copyFiles会返回拷贝的文件数量"
+      ]
+    },
+    {
+      "date": "小程序处理外部唤起的JS文件",
+      "records": [
+        "只需要将一个小程序的子页面名称或标识设置为intent#js#，那么当有第三方软件唤起本软件打开js文件，且该js文件名不是global_开头或.user.js结尾的网页插件时，软件会自动检查所有带intent#js#子页面的小程序，如果有小程序就会提示用户是否调用小程序处理该js文件，用户点击确定后软件就会执行该小程序的子页面代码，并且注入一个值为文件路径的input变量"
+      ]
+    },
+    {
+      "date": "小程序提供弹幕搜索功能",
+      "records": [
+        "只需要将一个小程序的子页面标识设置为danmu#开头，软件在播放器界面搜索弹幕时就会尝试调起来检索弹幕，子页面解析规则需返回一个数组，数组内每个对象需包含title和url属性，如[{title: 'xxx 第一话', url: 'https://xxx.com/a.xml'}]",
+        "解析规则中使用input变量获取片名，该变量为用户在界面上输入",
+        "一个小程序可以有多个子页面提供弹幕搜索，比如子页面1取名Q站，页面标识danmu#1，子页面2取名W站，页面标识danmu#2，软件会同时显示",
+        "返回数组的url支持包含@lazyRule=的动态解析规则，用户点击时执行，需返回获取到的弹幕地址或文件路径，或包含title和url的数组列表",
+        "也就是解析规则执行后最后一行剩下个数组，这个数组就是搜索结果，而数组里对象包含title和url，url可以包含@lazyRule=.js:xxx，该动态解析执行后又可以返回数组，也可以返回字符串，比如第一层返回模糊搜索结果，第二层返回剧集章节，此时再点击才返回弹幕地址"
+      ]
+    },
+    {
+      "date": "支持Python代码运行",
+      "records": [
+        "““””需下载导入Python依赖包：<a href=\"https://www.123865.com/s/fajA-nNTEh\">点击下载</a>",
+        "解析规则中使用initChaquopy(path)方法，path参数地址为chaquopy框架的assets打包而成的apk路径",
+        "““””详细用法可参考<a href=\"https://www.123865.com/s/fajA-nNTEh\">https://www.123865.com/s/fajA-nNTEh</a>里面的示例"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+# media3-danmaku-bounds-r1.patch（2026-11-02 新生成，短剧弹幕动作面贴条落位的引擎取矩形通道）
+# 基线：third_party/sources/media @ 3c2cbe8（media-lock.json 的 fongmi_media commit）＋脚本
+# apply_media_patches 既有 14 个补丁全应用后的状态；本补丁须排在全部既有补丁之后应用
+# （已登记进 scripts/build_media_deps.sh 的 apply_media_patches 列表末尾与 media-lock.json）。
+# 内容仅一件、纯增量、无既有行为变更：DanmakuView 新增只读查询
+# findDanmakuBounds(userId, timeMs)——在 hitValid 条目里按 |ΔtimeMs| 最小定条，返回
+# hit-test-r1 记录的绘制矩形（视图坐标 RectF），查无返回 null。
+# 用途：短剧流页点中弹幕出动作浮窗时，按 commentId 取被点弹幕的绘制矩形作落位锚
+# （官方 DanmakuPopupWindow 贴弹幕落位，见 hg-danmaku-panel-form-20261102.md）。
+# 未设 userId 的既有消费者（点播/直播弹幕）不受影响。
+# 验证口径：干净基线（既有 14 补丁后状态）apply --check --unidiff-zero 过、应用后与
+# 补丁后状态逐字一致；ui_danmaku 模块 javac 0 错、javap 见方法在位（同上账）。
+# 订正（2026-11-03，1.81 编前 AAR 首跑实败后）：初版 diff 系对本地 sources 工作副本
+# 生成（该副本 DanmakuView 另含 SystemClock 导入与约 40 行本地差），对官方基线＋14 补丁
+# 的真序列在 hunk1 即不合。本版 diff 已按真序列（3c2cbe8＋脚本 14 补丁）重新生成并
+# 全序复验通过，落码后 findDanmakuBounds 方法体与初版逐字一致、仅导入行与行号归真。
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+index 6715684..8dbd5ee 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+@@ -20,6 +20,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
+ 
+ import android.content.Context;
+ import android.graphics.Canvas;
++import android.graphics.RectF;
+ import android.util.AttributeSet;
+ import android.view.View;
+ import androidx.annotation.MainThread;
+@@ -322,6 +323,36 @@ public final class DanmakuView extends View {
+     return null;
+   }
+ 
++  /**
++   * Returns the last drawn bounds (view coordinates) of the visible danmaku identified by
++   * {@code userId} whose {@code timeMs} is closest to {@code timeMs}, or {@code null} when no
++   * such item is currently drawn with valid bounds. Intended for embedders that anchor
++   * per-item action UI (for example an action popup) to the tapped danmaku, mirroring the
++   * identity resolution used with {@link #findDanmakuUserIdAt}.
++   */
++  public @Nullable RectF findDanmakuBounds(String userId, long timeMs) {
++    if (userId == null || userId.isEmpty()) {
++      return null;
++    }
++    DanmakuRenderItem best = null;
++    long bestDiff = Long.MAX_VALUE;
++    for (int i = activeItems.size() - 1; i >= 0; i--) {
++      DanmakuRenderItem item = activeItems.get(i);
++      if (!item.hitValid || !userId.equals(item.userId)) {
++        continue;
++      }
++      long diff = Math.abs(item.timeMs - timeMs);
++      if (diff < bestDiff) {
++        bestDiff = diff;
++        best = item;
++      }
++    }
++    if (best == null) {
++      return null;
++    }
++    return new RectF(best.hitLeft, best.hitTop, best.hitRight, best.hitBottom);
++  }
++
+   /** Live-item render statistics. */
+   public static final class LiveStats {
+     public static final LiveStats EMPTY = new LiveStats(0L, 0L, 0L, 0L, 0L, 0, 0, 0);

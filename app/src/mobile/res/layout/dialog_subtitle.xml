@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/shape_dialog_glass_panel"
+    android:orientation="horizontal"
+    android:gravity="center"
+    android:padding="8dp">
+
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/large"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:padding="8dp"
+        android:src="@drawable/ic_subtitle_large"
+        app:tint="#E6FFFFFF" />
+
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/small"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:padding="8dp"
+        android:src="@drawable/ic_subtitle_small"
+        app:tint="#E6FFFFFF" />
+
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/up"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:padding="8dp"
+        android:src="@drawable/ic_subtitle_up"
+        app:tint="#E6FFFFFF" />
+
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/down"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:padding="8dp"
+        android:src="@drawable/ic_subtitle_down"
+        app:tint="#E6FFFFFF" />
+
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/reset"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:padding="8dp"
+        android:src="@drawable/ic_subtitle_reset"
+        app:tint="#E6FFFFFF" />
+
+    <View
+        android:layout_width="1dp"
+        android:layout_height="24dp"
+        android:layout_marginHorizontal="4dp"
+        android:background="#33FFFFFF" />
+
+    <androidx.appcompat.widget.AppCompatTextView
+        android:id="@+id/ai_subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:padding="8dp"
+        android:text="AI实时字幕"
+        android:textColor="#E6FFFFFF"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
+</androidx.appcompat.widget.LinearLayoutCompat>

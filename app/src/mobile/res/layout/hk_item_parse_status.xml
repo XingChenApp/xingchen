@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 照抄 8.83 item_parse_status（SimpleParseStatusAdapter 条目）：左标题（粗体 15sp）+ 下状态行，
+     右上转圈。原版转圈是 SpinKitView，本树无该库，以系统小号 ProgressBar 承接（显隐口径不变） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="80.0dip"
+    android:orientation="horizontal">
+
+    <LinearLayout
+        android:layout_width="0.0dip"
+        android:layout_height="match_parent"
+        android:layout_weight="1.0"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/hk_parse_status_item_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10.0dip"
+            android:layout_marginTop="10.0dip"
+            android:textStyle="bold"
+            android:textSize="15.0sp" />
+
+        <TextView
+            android:id="@+id/hk_parse_status_item_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10.0dip"
+            android:layout_marginTop="10.0dip" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/hk_parse_status_item_spin"
+        style="?android:attr/progressBarStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_marginTop="10.0dip"
+        android:layout_marginEnd="10.0dip"
+        android:padding="10.0dip"
+        android:visibility="visible" />
+</LinearLayout>

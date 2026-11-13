@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 随心听页找歌骨架条：圆角 7dp（瓜子 TrackIdentity 找歌态骨架）；
+     2026-10-27 材料推广后页底转深，骨架色由黑 @0.07 翻成白 @0.18，深底上才看得见 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#2EFFFFFF" />
+    <corners android:radius="7dp" />
+</shape>

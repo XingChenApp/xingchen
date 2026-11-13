@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 首页（选中态）：照他 2026-10-27 20:07 发的参考图重画——圆角实心小房子，带门洞；
+     未选态用同造型的描线版 ic_nav_home_outline，染色由底栏按选中态给。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:tint="?attr/colorControlNormal"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M12,3.6 L20.6,11 Q21.3,11.6 20.9,12.4 Q20.6,13.1 19.7,13.1 L18.9,13.1 L18.9,19.2 Q18.9,20.6 17.5,20.6 L15,20.6 L15,16 L9,16 L9,20.6 L6.5,20.6 Q5.1,20.6 5.1,19.2 L5.1,13.1 L4.3,13.1 Q3.4,13.1 3.1,12.4 Q2.7,11.6 3.4,11 Z" />
+</vector>

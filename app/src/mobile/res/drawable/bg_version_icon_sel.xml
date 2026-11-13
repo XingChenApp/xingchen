@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 歌词版本行左侧图标方块选中态（粉底圆角） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FADFDF" />
+    <corners android:radius="12dp" />
+</shape>

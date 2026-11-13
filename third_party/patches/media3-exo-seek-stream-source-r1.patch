@@ -1,0 +1,285 @@
+diff --git a/libraries/decoder/src/main/java/androidx/media3/decoder/DecoderInputBuffer.java b/libraries/decoder/src/main/java/androidx/media3/decoder/DecoderInputBuffer.java
+index ced6ffb..8ab7d42 100644
+--- a/libraries/decoder/src/main/java/androidx/media3/decoder/DecoderInputBuffer.java
++++ b/libraries/decoder/src/main/java/androidx/media3/decoder/DecoderInputBuffer.java
+@@ -34,6 +34,37 @@ import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
+ @UnstableApi
+ public class DecoderInputBuffer extends Buffer {
+ 
++  /**
++   * Wedge fix (media3-exo-seek-stream-source-r1): when set on the scratch buffer passed to
++   * {@code SampleStream.readData}, the stream answers {@link #keyFrameQueryResult} in place
++   * instead of reading a sample, so a renderer can ask the stream about its next sample
++   * without consuming it. Cleared by {@link #clear()}.
++   */
++  private boolean keyFrameQuery;
++
++  private boolean keyFrameQueryResult;
++
++  /** Marks this buffer as a keyframe query for the next {@code readData} call. */
++  public void setKeyFrameQuery() {
++    keyFrameQuery = true;
++    keyFrameQueryResult = false;
++  }
++
++  /** Returns whether this buffer is currently marked as a keyframe query. */
++  public boolean isKeyFrameQuery() {
++    return keyFrameQuery;
++  }
++
++  /** Sets the answer to a keyframe query. Called by the stream being queried. */
++  public void setKeyFrameQueryResult(boolean keyFrameQueryResult) {
++    this.keyFrameQueryResult = keyFrameQueryResult;
++  }
++
++  /** Returns the answer recorded by {@link #setKeyFrameQueryResult}. */
++  public boolean getKeyFrameQueryResult() {
++    return keyFrameQueryResult;
++  }
++
+   static {
+     MediaLibraryInfo.registerModule("media3.decoder");
+   }
+@@ -232,6 +263,8 @@ public class DecoderInputBuffer extends Buffer {
+       supplementalData.clear();
+     }
+     waitingForKeys = false;
++    keyFrameQuery = false;
++    keyFrameQueryResult = false;
+   }
+ 
+   private ByteBuffer createReplacementByteBuffer(int requiredCapacity) {
+diff --git a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/MediaCodecRenderer.java b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/MediaCodecRenderer.java
+index b3948c4..40bd3f3 100644
+--- a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/MediaCodecRenderer.java
++++ b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/MediaCodecRenderer.java
+@@ -79,6 +79,8 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecUtil.DecoderQueryException
+ import androidx.media3.exoplayer.source.MediaPeriod;
+ import androidx.media3.exoplayer.source.MediaSource;
+ import androidx.media3.exoplayer.source.SampleStream;
++import androidx.media3.exoplayer.source.chunk.ChunkSampleStream;
++import androidx.media3.exoplayer.source.SampleStream;
+ import androidx.media3.exoplayer.source.SampleStream.ReadDataResult;
+ import androidx.media3.exoplayer.source.SampleStream.ReadFlags;
+ import com.google.common.collect.ImmutableSet;
+@@ -415,14 +417,20 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
+   private boolean experimentalEnableProcessedStreamChangedAtStart;
+   private boolean hasSkippedFlushAndWaitingForQueueInputBuffer;
+   private long skippedFlushOffsetUs;
+-  // Wedge fix (media3-exo-seek-discontinuity-codec-rebuild-r1): set when the current stream
+-  // position was reached via a stream discontinuity (a seek whose sample queues were reset,
+-  // as opposed to an in-buffer seek that only moved the read position). While set, a codec
+-  // reset releases and re-creates the codec instead of flushing it in place: flushing a codec
+-  // that is then refed its pre-seek queue tail can leave some device codecs with all input
+-  // buffers occupied and no output forthcoming. Cleared once the codec has queued a buffer
+-  // after the reset (see feedInputBuffer), so steady-state resets keep flushing.
++  // Wedge fix (media3-exo-seek-discontinuity-codec-rebuild-r1, signal corrected by
++  // media3-exo-seek-stream-source-r1): set by the keyframe position reset that follows a
++  // stream source reset (onPositionReset peeks the next sample through the stream: a surviving
++  // queue answers from its own reset-anchoring keyframe, a stream that was reset underneath
++  // the renderer answers keyframe-flagged sample data written after the reset). While set, a
++  // codec reset releases and re-creates the codec instead of flushing it in place: flushing a
++  // codec that is then refed can leave some device codecs with all input buffers occupied and
++  // no output forthcoming. Cleared once the codec has queued a buffer after the reset (see
++  // feedInputBuffer), so steady-state resets keep flushing.
+   private boolean codecReleaseOnNextReset;
++  // Scratch buffer for the stream keyframe query performed in onPositionReset. Kept separate
++  // from the decode buffers so the query never disturbs queued input.
++  private final DecoderInputBuffer keyFrameQueryBuffer =
++      new DecoderInputBuffer(DecoderInputBuffer.BUFFER_REPLACEMENT_MODE_NORMAL);
+   private CodecParameters activeCodecParameters;
+   private CodecParameters lastDispatchedCodecParameters;
+   private ImmutableSet<String> subscribedCodecParameterKeys;
+@@ -819,15 +827,19 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
+       outputStreamInfo = pendingOutputStreamChanges.getLast();
+     }
+     pendingOutputStreamChanges.clear();
+-    // A position reset that is not accompanied by a sample stream reset to a key frame is an
+-    // in-buffer seek: the codec is left untouched below, so any pending rebuild request from
+-    // an earlier discontinuity is stale and must not fire at a later reset.
+-    codecReleaseOnNextReset = !sampleStreamIsResetToKeyFrame;
+     if (!sampleStreamIsResetToKeyFrame) {
+       // onPositionReset is not resetting the sample stream and so codec-related state will not
+       // be reset.
+       return;
+     }
++    // Wedge fix: decide whether this keyframe reset follows a stream source reset by asking
++    // the stream about the sample it will deliver next. A queue that survived the reset
++    // answers from its own metadata (its first sample after the reset is the keyframe the
++    // reset anchored on), while a stream that was reset underneath the renderer (its queues
++    // discarded and refilled from the seek position) has no surviving metadata and answers
++    // with keyframe-flagged sample data written after the reset; only the latter arms a codec
++    // release instead of a flush at the reset below.
++    codecReleaseOnNextReset = !queryStreamStartsAtKeyFrame();
+     inputStreamEnded = false;
+     outputStreamEnded = false;
+     pendingOutputEndOfStream = false;
+@@ -1070,9 +1082,10 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
+   protected boolean shouldReleaseCodecInsteadOfFlushing() {
+     if (codecReleaseOnNextReset
+         && (getTrackType() == C.TRACK_TYPE_VIDEO || getTrackType() == C.TRACK_TYPE_AUDIO)) {
+-      // Wedge fix: the stream was reset under this codec by a seek discontinuity. Release and
+-      // re-create instead of flushing, so the codec starts from a clean state rather than
+-      // being refed the tail of its pre-seek queue (see codecReleaseOnNextReset).
++      // Wedge fix: the stream was reset under this codec (its queues were discarded and
++      // refilled from a new position). Release and re-create instead of flushing, so the codec
++      // starts from a clean state rather than being refed after an in-place flush (see
++      // codecReleaseOnNextReset).
+       return true;
+     }
+     if (codecDrainAction == DRAIN_ACTION_REINITIALIZE
+@@ -1156,9 +1169,10 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
+         codecReconfigured ? RECONFIGURATION_STATE_WRITE_PENDING : RECONFIGURATION_STATE_NONE;
+     hasSkippedFlushAndWaitingForQueueInputBuffer = false;
+     skippedFlushOffsetUs = 0;
+-    // Note: codecReleaseOnNextReset is deliberately not cleared here. It is consumed when the
+-    // first buffer is queued after this reset (see feedInputBuffer); clearing it in reset
+-    // state would defeat the release decision made by flushOrReleaseCodec in the same reset.
++    // Note: codecReleaseOnNextReset is deliberately not cleared here. It is armed in
++    // onPositionReset (from the stream keyframe query) and consumed when the first buffer is
++    // queued after this reset (see feedInputBuffer); clearing it in reset state would defeat
++    // the release decision made by flushOrReleaseCodec in the same reset.
+   }
+ 
+   /**
+@@ -1263,6 +1277,35 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
+     return false;
+   }
+ 
++  /**
++   * Wedge fix (media3-exo-seek-stream-source-r1): asks the current stream whether the sample it
++   * will deliver next is the keyframe the current position reset anchored on in a queue that
++   * survived the reset. Chunk-based streams and the (package-private) HLS sample stream answer
++   * through the keyframe query on {@link #keyFrameQueryBuffer}; the HLS stream is matched by
++   * class name because it is package-private and cannot be linked from this module. If the
++   * answer does not come from surviving queue metadata (exact-position read awaiting data, or
++   * a next sample queued from metadata), the stream was reset and this returns false. All other
++   * streams answer from their next sample's keyframe flag directly.
++   */
++  private boolean queryStreamStartsAtKeyFrame() {
++    SampleStream stream = getStream();
++    if (stream instanceof ChunkSampleStream) {
++      keyFrameQueryBuffer.clear();
++      keyFrameQueryBuffer.setKeyFrameQuery();
++      stream.readData(getFormatHolder(), keyFrameQueryBuffer, /* readFlags= */ 0);
++      return keyFrameQueryBuffer.getKeyFrameQueryResult();
++    }
++    if (stream.getClass().getName().equals("androidx.media3.exoplayer.hls.HlsSampleStream")) {
++      keyFrameQueryBuffer.clear();
++      keyFrameQueryBuffer.setKeyFrameQuery();
++      stream.readData(getFormatHolder(), keyFrameQueryBuffer, /* readFlags= */ 0);
++      return keyFrameQueryBuffer.getKeyFrameQueryResult();
++    }
++    keyFrameQueryBuffer.clear();
++    int result = stream.readData(getFormatHolder(), keyFrameQueryBuffer, FLAG_PEEK);
++    return result == C.RESULT_BUFFER_READ && keyFrameQueryBuffer.isKeyFrame();
++  }
++
+   /**
+    * Checks whether {@link #codecDrmSession} is ready for playback, and if so initializes {@link
+    * #mediaCrypto} if needed.
+@@ -1707,9 +1750,9 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
+     }
+ 
+     onQueueInputBuffer(buffer);
+-    // Wedge fix: the codec has now queued a buffer past the discontinuity reset (or skipped
+-    // one while waiting for a key frame, which equally proves post-reset feeding works), so
+-    // any pending rebuild request is consumed; later resets flush as before.
++    // Wedge fix: the codec has now queued a buffer past the stream reset (or skipped one
++    // while waiting for a key frame, which equally proves post-reset feeding works), so any
++    // pending rebuild request is consumed; later resets flush as before.
+     codecReleaseOnNextReset = false;
+     int flags = getCodecBufferFlags(buffer);
+     presentationTimeUs += skippedFlushOffsetUs;
+diff --git a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/SampleQueue.java b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/SampleQueue.java
+index 4b6e57b..d7c50d3 100644
+--- a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/SampleQueue.java
++++ b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/SampleQueue.java
+@@ -352,6 +352,17 @@ public class SampleQueue implements TrackOutput {
+     return absoluteFirstIndex + readPosition;
+   }
+ 
++  /**
++   * Returns the keyframe flag of the next sample to be read, or {@code false} if there is no
++   * next sample. Wedge fix (media3-exo-seek-stream-source-r1): lets the renderer tell whether
++   * the sample it is about to queue came out of the queue that survived a position reset or
++   * out of a stream that was reset underneath it (see MediaCodecRenderer).
++   */
++  public final synchronized boolean peekNextSampleIsKeyFrame() {
++    return hasNextSample()
++        && (flags[getRelativeIndex(readPosition)] & C.BUFFER_FLAG_KEY_FRAME) != 0;
++  }
++
+   /**
+    * Peeks the source id of the next sample to be read, or the current upstream source id if the
+    * queue is empty or if the read position is at the end of the queue.
+diff --git a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/chunk/ChunkSampleStream.java b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/chunk/ChunkSampleStream.java
+index 5ae5e7f..4718d1c 100644
+--- a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/chunk/ChunkSampleStream.java
++++ b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/chunk/ChunkSampleStream.java
+@@ -446,6 +446,12 @@ public class ChunkSampleStream<T extends ChunkSource>
+     if (isPendingReset() || shouldBlockForInitialDiscontinuity || suppressRead) {
+       return C.RESULT_NOTHING_READ;
+     }
++    if (buffer.isKeyFrameQuery()) {
++      // Wedge fix (media3-exo-seek-stream-source-r1): answer in place, without consuming
++      // the sample the renderer is about to queue.
++      buffer.setKeyFrameQueryResult(primarySampleQueue.peekNextSampleIsKeyFrame());
++      return C.RESULT_NOTHING_READ;
++    }
+     if (canceledMediaChunk != null
+         && canceledMediaChunk.getFirstSampleIndex(/* trackIndex= */ 0)
+             <= primarySampleQueue.getReadIndex()) {
+diff --git a/libraries/exoplayer_hls/src/main/java/androidx/media3/exoplayer/hls/HlsSampleStream.java b/libraries/exoplayer_hls/src/main/java/androidx/media3/exoplayer/hls/HlsSampleStream.java
+index d7bb951..4dc2cca 100644
+--- a/libraries/exoplayer_hls/src/main/java/androidx/media3/exoplayer/hls/HlsSampleStream.java
++++ b/libraries/exoplayer_hls/src/main/java/androidx/media3/exoplayer/hls/HlsSampleStream.java
+@@ -75,6 +75,12 @@ import java.io.IOException;
+       buffer.addFlag(C.BUFFER_FLAG_END_OF_STREAM);
+       return C.RESULT_BUFFER_READ;
+     }
++    if (buffer.isKeyFrameQuery()) {
++      // Wedge fix (media3-exo-seek-stream-source-r1): answer in place, without consuming
++      // the sample the renderer is about to queue.
++      buffer.setKeyFrameQueryResult(peekNextSampleIsKeyFrame());
++      return C.RESULT_NOTHING_READ;
++    }
+     return hasValidSampleQueueIndex()
+         ? sampleStreamWrapper.readData(sampleQueueIndex, formatHolder, buffer, readFlags)
+         : C.RESULT_NOTHING_READ;
+@@ -87,6 +93,15 @@ import java.io.IOException;
+         : 0;
+   }
+ 
++  /**
++   * Returns whether the next sample to be read from this stream is a keyframe. Wedge fix
++   * (media3-exo-seek-stream-source-r1).
++   */
++  public boolean peekNextSampleIsKeyFrame() {
++    return hasValidSampleQueueIndex()
++        && sampleStreamWrapper.peekNextSampleIsKeyFrame(sampleQueueIndex);
++  }
++
+   // Internal methods.
+ 
+   private boolean hasValidSampleQueueIndex() {
+diff --git a/libraries/exoplayer_hls/src/main/java/androidx/media3/exoplayer/hls/HlsSampleStreamWrapper.java b/libraries/exoplayer_hls/src/main/java/androidx/media3/exoplayer/hls/HlsSampleStreamWrapper.java
+index 69a2753..4c64faf 100644
+--- a/libraries/exoplayer_hls/src/main/java/androidx/media3/exoplayer/hls/HlsSampleStreamWrapper.java
++++ b/libraries/exoplayer_hls/src/main/java/androidx/media3/exoplayer/hls/HlsSampleStreamWrapper.java
+@@ -646,6 +646,15 @@ import org.checkerframework.checker.nullness.qual.RequiresNonNull;
+     return !isPendingReset() && sampleQueues[sampleQueueIndex].isReady(loadingFinished);
+   }
+ 
++  /**
++   * Returns whether the next sample to be read from the given queue is a keyframe, or {@code
++   * false} if a reset is pending or there is no next sample. Wedge fix
++   * (media3-exo-seek-stream-source-r1).
++   */
++  public boolean peekNextSampleIsKeyFrame(int sampleQueueIndex) {
++    return !isPendingReset() && sampleQueues[sampleQueueIndex].peekNextSampleIsKeyFrame();
++  }
++
+   public void maybeThrowError(int sampleQueueIndex) throws IOException {
+     maybeThrowError();
+     sampleQueues[sampleQueueIndex].maybeThrowError();

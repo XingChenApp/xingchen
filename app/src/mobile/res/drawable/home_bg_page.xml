@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 非播放页兜底底色：2026-10-26 起全域统一背景换截图式固定暖底，本件只作背景层
+     盖满前的首帧兜底，色取暖渐变中段 #6E4E30（与 @color/music_page_base 同值）；
+     播放页／歌词页不动（走封面带色那条）。共用方：音乐首页、列表页、设置页。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FF6E4E30" />
+</shape>

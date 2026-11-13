@@ -1,0 +1,83 @@
+package com.fongmi.android.tv.ui.dialog;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.text.InputFilter;
+import android.text.TextUtils;
+import android.view.View;
+import android.view.inputmethod.EditorInfo;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.fragment.app.Fragment;
+import androidx.viewbinding.ViewBinding;
+
+import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.databinding.DialogLinkBinding;
+import com.fongmi.android.tv.ui.activity.VideoActivity;
+import com.fongmi.android.tv.utils.FileChooser;
+import com.fongmi.android.tv.utils.Sniffer;
+import com.fongmi.android.tv.utils.Util;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
+public class LinkDialog extends BaseAlertDialog {
+
+    private DialogLinkBinding binding;
+
+    public static void show(Fragment fragment) {
+        new LinkDialog().show(fragment.getChildFragmentManager(), null);
+    }
+
+    @Override
+    protected ViewBinding getBinding() {
+        return binding = DialogLinkBinding.inflate(getLayoutInflater());
+    }
+
+    @Override
+    protected MaterialAlertDialogBuilder getBuilder() {
+        return builder().setView(getBinding().getRoot());
+    }
+
+    @Override
+    protected void initView() {
+        CharSequence text = Util.getClipText();
+        binding.text.setFilters(new InputFilter[]{new InputFilter.LengthFilter(Integer.MAX_VALUE)});
+        if (!TextUtils.isEmpty(text)) binding.text.setText(Sniffer.getUrl(text.toString()));
+        setWidth(0.78f);
+    }
+
+    @Override
+    protected void initEvent() {
+        binding.choose.setOnClickListener(this::onChoose);
+        binding.positive.setOnClickListener(v -> onPositive());
+        binding.negative.setOnClickListener(v -> dismiss());
+        binding.text.setOnEditorActionListener((textView, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_DONE) onPositive();
+            return true;
+        });
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (getDialog() != null && getDialog().getWindow() != null) {
+            getDialog().getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+    }
+
+    private void onChoose(View view) {
+        FileChooser.from(launcher).show();
+    }
+
+    private void onPositive() {
+        String text = binding.text.getText().toString().trim();
+        if (!text.isEmpty()) VideoActivity.start(requireActivity(), text);
+        dismiss();
+    }
+
+    private final ActivityResultLauncher<Intent> launcher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null || result.getData().getData() == null) return;
+        VideoActivity.file(requireActivity(), FileChooser.getPathFromUri(result.getData().getData()));
+        dismiss();
+    });
+}

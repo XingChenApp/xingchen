@@ -1,0 +1,65 @@
+package com.fongmi.android.tv.ui.dialog;
+
+import android.app.Dialog;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.Window;
+import android.view.WindowManager;
+import android.view.ViewGroup;
+
+import androidx.fragment.app.FragmentActivity;
+
+import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.databinding.DialogAboutBinding;
+import com.fongmi.android.tv.utils.ResUtil;
+
+public final class AboutDialog {
+
+    private AboutDialog() {
+    }
+
+    public static void show(FragmentActivity activity) {
+        // 裸 Dialog.show() 无守卫时，宿主正退出/已销毁会抛异常：先判活。
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
+        DialogAboutBinding binding = DialogAboutBinding.inflate(LayoutInflater.from(activity));
+        configureContentHeight(activity, binding);
+
+        Dialog dialog = new Dialog(activity);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(binding.getRoot());
+        binding.confirm.setOnClickListener(v -> dialog.dismiss());
+        dialog.setCanceledOnTouchOutside(false);
+        dialog.show();
+        configureWindow(activity, dialog);
+        binding.confirm.requestFocus();
+    }
+
+    private static void configureContentHeight(FragmentActivity activity, DialogAboutBinding binding) {
+        int screenHeight = ResUtil.getScreenHeight(activity);
+        int maxHeight = (int) (screenHeight * (ResUtil.isLand(activity) ? 0.42f : 0.38f));
+        int minHeight = ResUtil.dp2px(220);
+        ViewGroup.LayoutParams params = binding.contentScroll.getLayoutParams();
+        params.height = Math.max(minHeight, Math.min(maxHeight, ResUtil.dp2px(420)));
+        binding.contentScroll.setLayoutParams(params);
+    }
+
+    private static boolean configureWindow(FragmentActivity activity, Dialog dialog) {
+        Window window = dialog.getWindow();
+        if (window == null) return false;
+        WindowManager.LayoutParams params = window.getAttributes();
+        params.width = (int) (ResUtil.getScreenWidth(activity) * (ResUtil.isLand(activity) ? 0.62f : 0.92f));
+        params.height = WindowManager.LayoutParams.WRAP_CONTENT;
+        params.gravity = Gravity.CENTER;
+        params.dimAmount = 0.58f;
+        window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        window.getDecorView().setPadding(0, 0, 0, 0);
+        window.setAttributes(params);
+        window.setLayout(params.width, WindowManager.LayoutParams.WRAP_CONTENT);
+        // 进出统一口径：淡入淡出 200ms（与 BaseAlertDialog 基类同一套 HkDialogFade）
+        window.setWindowAnimations(R.style.HkDialogFade);
+        return true;
+    }
+}

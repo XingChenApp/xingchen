@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔页起始窗口底：与 HkDynamicBgView 场景同值的三段渐变近似
+     （#F4F6F8 → #EEF2F5 → #F2F0F4，即其对角渐变三色；起始面用纵向近似对角）。
+     只作进页首帧之前的起始面，让起始窗口≈页面定案浅色场，不再是一块平板灰白；
+     四团漂移色团不进起始面，页面首帧由 HkDynamicBgView 本体接管。
+     运行时窗口底仍由 ThemeManager 落 hk_status_bar 平色（现行口径不动）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:startColor="#FFF4F6F8"
+        android:centerColor="#FFEEF2F5"
+        android:endColor="#FFF2F0F4"
+        android:type="linear" />
+</shape>

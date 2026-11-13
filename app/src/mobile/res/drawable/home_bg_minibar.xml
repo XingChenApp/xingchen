@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 音乐迷你条条底的 XML 可见下限（2026-10-27 暗磨砂试点）：钉死中性深灰半透 #333333@.85＋白 .25 淡边的胶囊
+     （圆角 999），运行时 ListenMiniBar 换同源 MusicFrostDrawable(999)（同灰同浓度＋身后照片糊底），
+     取样失效时本件照样成形。只被 home_minibar_music 引用。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="999dp" />
+    <solid android:color="#D9333333" />
+    <stroke
+        android:width="1dp"
+        android:color="#40FFFFFF" />
+</shape>

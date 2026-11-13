@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 随心听页第二波页面侧新串（只供随心听页用，不改共享 strings.xml；名均以 random_ 开头防撞） -->
+<resources>
+    <string name="random_finding">正在寻找下一首…</string>
+    <string name="random_loading">正在加载…</string>
+    <string name="random_failed">播放失败</string>
+    <string name="random_failed_hint">这首暂时播不了，点重试再试一次</string>
+    <string name="random_retry">重试</string>
+    <string name="random_reshuffle">再随机一次</string>
+    <string name="random_no_id_fav">这首暂不支持收藏</string>
+    <string name="random_empty_hint">这里还没有能随机播的歌，先去音乐首页找歌、收藏或下载几首，再回来随机听</string>
+    <string name="random_back_home">回音乐首页</string>
+    <string name="random_retry_gone">这首已不在队列里</string>
+</resources>

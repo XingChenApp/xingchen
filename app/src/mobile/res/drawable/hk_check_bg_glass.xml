@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 玻璃版 check_bg_white：几何照原版（8dp 圆角＋2dp 描边），材质换玻璃皮——
+     填充半透浅面 #C2FFFFFF、描边用玻璃描边色 #E1E5EB（同 tab_item_default／hk_ripple_glass）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <corners android:radius="8.0dip" />
+    <stroke android:width="2.0dip" android:color="#E1E5EB" />
+    <solid android:color="#C2FFFFFF" />
+</shape>

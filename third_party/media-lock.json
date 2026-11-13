@@ -1,0 +1,258 @@
+{
+  "fongmi_media": {
+    "repo": "https://github.com/FongMi/media",
+    "branch": "release-1.11.0-fongmi",
+    "commit": "3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d",
+    "version": "1.11.0-alpha01-fongmi",
+    "patches": [
+      {
+        "path": "third_party/patches/media3-exo-avs3-r2.patch",
+        "sha256": "0fa69a16167a569eb19688cf4ed37780883d19ccffb552f6e71baf4fe47fa429"
+      },
+      {
+        "path": "third_party/patches/media3-danmaku-live-r2.patch",
+        "sha256": "20e5749f98a06edea0513bf8a3cd6e1dd93c5e6a1939d7aa8f3f405c8bb1d25d"
+      },
+      {
+        "path": "third_party/patches/media3-danmaku-scroll-area-r1.patch",
+        "sha256": "382d91022c6d84a790606fec341d9e9e7b59a65d70df66f833030a94c764ff59"
+      },
+      {
+        "path": "third_party/patches/media3-playback-diagnostics-r2.patch",
+        "sha256": "460465ff49b30b9767e1694a85ab2cdfc8347785e256743a57393b197f11628b"
+      },
+      {
+        "path": "third_party/patches/media3-playback-diagnostics-hooks-r1.patch",
+        "sha256": "47695811c049a3946ebe879f4c5b34043ed3539dbfbeb8ebb67c936433f1eeb6"
+      },
+      {
+        "path": "third_party/patches/media3-deferred-cues-r2.patch",
+        "sha256": "22a401e8ce6e5f0c020858088ea32e07a71eee82d0affc2fdf2ad106ecfbc032"
+      },
+      {
+        "path": "third_party/patches/media3-exo-ass-observer.patch",
+        "sha256": "381480a24edbebe1c40522025c3f21f93a9ae7eb2950d472f55e62d5601dc478"
+      },
+      {
+        "path": "third_party/patches/media3-dolby-vision-matroska.patch",
+        "sha256": "3c46c34fff95e77f595857edeae0005bf2def3b40a1759cf2cc036687323cf5c"
+      },
+      {
+        "path": "third_party/patches/media3-exo-alac-wave.patch",
+        "sha256": "7392cdfb3514eb944a3dd1b3935e2a07e7472599a5d1d77415c5bb6abef657b0"
+      },
+      {
+        "path": "third_party/patches/media3-precache-hls-safety.patch",
+        "sha256": "2142adfb2df8dc92b996be8f00b6d016216b5d4531b473fc62bf2ba38911f575"
+      },
+      {
+        "path": "third_party/patches/media3-exo-av3a-dash-channel-config.patch",
+        "sha256": "a8e236d0763f29944d7e651f2b1eb16bac6897d2fe4ea3bc9303cbc00a760f2c"
+      },
+      {
+        "path": "third_party/patches/media3-exo-hdmv-dts-flag-r1.patch",
+        "sha256": "ef444f5244bda152137c5cce2be29fe748d6513822afbce75532068ab197e56c"
+      },
+      {
+        "path": "third_party/patches/media3-danmaku-hit-test-r1.patch",
+        "sha256": "f4c7abb4ac712202a4c964e9910dddd65c112f67e28d6229bd8c062731a59645"
+      },
+      {
+        "path": "third_party/patches/media3-danmaku-external-view-r1.patch",
+        "sha256": "5c66fdbdd952697ad966f6c3328339e3093f9693e7df0675654b149c35be6df0"
+      },
+      {
+        "path": "third_party/patches/media3-danmaku-bounds-r1.patch",
+        "sha256": "e5c196156b29cf170e8872fc5041a70ea53afeb00136bb15bf293ed08215736e"
+      },
+      {
+        "path": "third_party/patches/media3-danmaku-geo-r1.patch",
+        "sha256": "d8529ae54b7f137c887fe70ce66a0e29c53444ec59cab7fcabc0d070c61819a1"
+      },
+      {
+        "path": "third_party/patches/media3-danmaku-overlap-r1.patch",
+        "sha256": "cd9e5cbc54a4e70fef695bfa9e7ad79f00c69c188516773448b9bc4c865f198d"
+      },
+      {
+        "path": "third_party/patches/media3-exo-back-buffer-r1.patch",
+        "sha256": "7aa315c78f7a0b9ac08747215f4cd6dc49d72535f0954064b6f1f7e7d60e583b"
+      },
+      {
+        "path": "third_party/patches/media3-exo-seek-discontinuity-codec-rebuild-r1.patch",
+        "sha256": "cd2ea348278307611082c77c96e796caa4d3180dab51045189695796d8abbe46"
+      },
+      {
+        "path": "third_party/patches/media3-exo-seek-stream-source-r1.patch",
+        "sha256": "b7bb166d2eb79919966e814acf80aa9968ab8ec415ca7576fae940f5244ff218"
+      },
+      {
+        "path": "third_party/patches/media3-exo-seek-stream-source-r2.patch",
+        "sha256": "673c768a791d6c91dc2970a27da312c48b9775f4aea3642ddb77dda29af4e92d"
+      },
+      {
+        "path": "third_party/patches/media3-danmaku-digg-width-r1.patch",
+        "sha256": "53b09ed764ea45bb3d9327447952d2dd721d0533da7840d2f26798c9b1d0b5db"
+      },
+      {
+        "path": "third_party/patches/media3-danmaku-tap-freeze-r1.patch",
+        "sha256": "64dbcb7f8f841c68931eccd119e1e13f7261bca5e8c73335cc6ecc9ad9a88f32"
+      }
+    ],
+    "artifact_overrides": [
+      {
+        "coordinate": "androidx.media3:media3-common:1.11.0-alpha01-fongmi",
+        "aar_sha256": "77ba330120fa81c8f2a05adb4651d767db6d1990d6cf7e8f11326fef0230dd65",
+        "sources_sha256": "dc9aefdcf38b0b8a2a55a467476c67ac51094fe6a32995bd5e61bce079140bcc",
+        "reason": "C-AVS3 MIME/MP4/TS/Matroska support; all other committed class bytes preserved, including ASS and diagnostics +memberfix: steered-pathway cluster swapped from locked source (Chunk family, HlsChunkSource/HlsMediaChunk/DefaultHlsPlaylistTracker, HlsRedundantGroup)."
+      },
+      {
+        "coordinate": "androidx.media3:media3-container:1.11.0-alpha01-fongmi",
+        "aar_sha256": "db23c133556a03df178090eef482ce427ae33f8e2d639ee82bdb6911b79b01e3",
+        "sources_sha256": "c681e7071d709b4826099388ae18d7d2713c2f55b768e4440d9c965734674da0",
+        "reason": "C-AVS3 MIME/MP4/TS/Matroska support; all other committed class bytes preserved, including ASS and diagnostics"
+      },
+      {
+        "coordinate": "androidx.media3:media3-extractor:1.11.0-alpha01-fongmi",
+        "aar_sha256": "a7ab30b9b6729fbffc821b1ec29b4bd51be2df86a13ad6c2dff73a6cd6fac604",
+        "sources_sha256": "bc864243c03f29722dddf1bedf58f24e3d83189d3f90c883ec294350651e4559",
+        "reason": "C-AVS3 MIME/MP4/TS/Matroska support; all other committed class bytes preserved, including ASS and diagnostics; extractor provenance audit 2026-11-08 (hk-seek-extractor-baseline-20261108): shipped AAR+sources.jar are the pre-rebase old-baseline (843a7774-era, webhtv-lineage) surgical artifacts, byte-identical since 1.4.16 and NOT products of the current sources worktree/patch chain; worktree two-file drift closed (stale TrueHD-Atmos reset line removed per dolby patch header + commit 134e909f4, TsPayloadReaderFactory realigned to chain incl. FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS); sources.jar deliberately NOT regenerated from the new-baseline worktree (it documents the shipped old-baseline classes, incl. TrueHD Atmos analysis and BDMV/ISO/UDF readers absent from the new base; full alignment requires recompiling old-baseline sources, out of scope) +memberfix: steered-pathway cluster swapped from locked source (Chunk family, HlsChunkSource/HlsMediaChunk/DefaultHlsPlaylistTracker, HlsRedundantGroup). +memberfix: steered-pathway cluster swapped from locked source (Chunk family, HlsChunkSource/HlsMediaChunk/DefaultHlsPlaylistTracker, HlsRedundantGroup)."
+      },
+      {
+        "coordinate": "androidx.media3:media3-exoplayer:1.11.0-alpha01-fongmi",
+        "aar_sha256": "6d13a63a6ed314364fedce1405812c61fe58781f20b288e103585c28b4302a22",
+        "sources_sha256": "a81a39624b0a24d54f7afb9bc8bb87dee7d9cf675470157ab4a76dff9308f5bc",
+        "reason": "Committed local baseline including ASS; AV-DIAG-01 optional owner hooks, all unrelated class bytes preserved; seek back-buffer batch (media3-exo-back-buffer-r1): DefaultLoadControl defaults retain a 30s keyframe-anchored back buffer so seeking back into played media stays in the sample queues instead of resetting the stream; surgical swap of DefaultLoadControl classes only, all unrelated class bytes preserved; seek discontinuity codec rebuild batch (media3-exo-seek-discontinuity-codec-rebuild-r1): after a seek that reset the sample queues, the first codec reset releases and re-creates the codec instead of flushing it, so a flushed codec is not refed the tail of its pre-seek queue (far-seek wedge); surgical swap of MediaCodecRenderer classes only, all unrelated class bytes preserved; seek stream-source signal batch (media3-exo-seek-stream-source-r1): MediaCodecRenderer now asks the sample stream at position reset whether it restarts at a key frame instead of trusting the skipSource-normalized reset flag (which the r1 batch keyed on and which never fired on a real queue reset); SampleQueue exposes the next sample's key-frame flag and ChunkSampleStream answers the buffer query in place; surgical swap of MediaCodecRenderer, SampleQueue and ChunkSampleStream classes only +loadeventinfo-fix: swapped in locked-source LoadEventInfo + Builder (old baseline lacked Builder; recompiled HLS/chunk classes link against it, NoClassDefFoundError on device). +memberfix: steered-pathway cluster swapped from locked source (Chunk family, HlsChunkSource/HlsMediaChunk/DefaultHlsPlaylistTracker, HlsRedundantGroup). +memberfix: steered-pathway cluster swapped from locked source (Chunk family, HlsChunkSource/HlsMediaChunk/DefaultHlsPlaylistTracker, HlsRedundantGroup). +seek-stream-source-r2: wedge codec-release arming limited to Chunk/HLS metadata queues; generic (progressive) streams flush instead of tearing the codec down on every seek/adopt reset (episode-advance seam stall, device log 2026-11-09). MediaCodecRenderer classes only. +dead-surface-fix: MediaCodecVideoRenderer.setOutput revalidates the surface at handle time (invalid = removal) so a surface destroyed while its message was queued can no longer reach MediaCodec.setOutputSurface (1.4.119 device crash 2026-11-09 16:41:18)."
+      },
+      {
+        "coordinate": "androidx.media3:media3-exoplayer-dash:1.11.0-alpha01-fongmi",
+        "aar_sha256": "de557f0b91512a1e0726155bd0cbb23879279ce05a819ab27a49bea069225546",
+        "sources_sha256": "5462494d6ed12e64b5597070b86206727775c760ebe040ef6d3a3a51244431d4",
+        "reason": "E12 AVS3A P7 DASH AudioChannelConfiguration mapping"
+      },
+      {
+        "coordinate": "androidx.media3:media3-datasource:1.11.0-alpha01-fongmi",
+        "aar_sha256": "1b6b51e921577cb955db2ce05106a44001ad126b8f4cc67f997d1f3404ec3598",
+        "sources_sha256": "26306314752ff1b4297aea2f25e6ff0213497404564f23af95ec4bb5c25ada62",
+        "reason": "E6-1/E7-1 baseline plus E7-2 multi-extent ISO/UDF virtual data source"
+      },
+      {
+        "coordinate": "androidx.media3:media3-ui:1.11.0-alpha01-fongmi",
+        "aar_sha256": "832bd1bbcb336b6d3e3a2c7a8bf96c0d338b3bab84ff84347df030906c71d02d",
+        "sources_sha256": "c359638146466d4daf3100c90ebc20957f77572dadf014a43e97a2f11c1ff486",
+        "reason": "PlayerView external danmaku view (setExternalDanmakuView); class recompiled against a NON-final R generated from the AAR R.txt so every R reference stays symbolic (the first surgical compile used a final-constant stub R: javac inlined all resource ids as 0 -> PlayerView constructor inflate(0) -> Resources$NotFoundException #0x0 crash on entering Drama in 1.4.76); only PlayerView.class bytes changed vs the 1.4.75 AAR, all other committed class bytes preserved"
+      },
+      {
+        "coordinate": "androidx.media3:media3-ui-danmaku:1.11.0-alpha01-fongmi",
+        "aar_sha256": "13aabb67b48cb869dd5a21ff66b0fb81965df40c64724e4aa118d55c74ac34fa",
+        "sources_sha256": "939a7f9d625083c37c3ff45222abc2ab054c72f6d865dedb16ddb9e6094427a4",
+        "reason": "1.4.84 danmaku engine batch (account danmaku-geo-20261103): DanmakuController.addItems incremental merge, DanmakuView freezeDanmaku/unfreezeDanmaku single-item freeze, digg-count tail (Danmaku.diggCount, DanmakuConfig.diggIcon/Builder.setDiggIcon, DanmakuPainter.diggTailText) plus live-item pool/view upkeep already in the sources tree; surgical replacement per r176 precedent: the 7 changed units recompiled --release 8 against the AAR's own classes.jar and only their 19 class files swapped (14 bytes differ, other 45 classes byte-identical), sources.jar synced to the nested sources tree, .module + sidecar hashes refreshed; nested sources working tree kept uncommitted as before; 1.4.114 overlap batch (media3-danmaku-overlap-r1): same surgical path — the 6 changed units recompiled --release 8 against the AAR classes.jar, only their 8 differing class files swapped (DanmakuConfig$1/$ColorMode/$StyleMode and DanmakuRenderPool$Listener byte-identical), sources.jar synced, .module + sidecar hashes refreshed; 1.4.121 danmaku S1/S2 batch (media3-danmaku-digg-width-r1 + media3-danmaku-tap-freeze-r1): full-module recompile --release 8 against deps, classes.jar swapped wholesale (61 classes, public surface diff = 3 pure additions: Builder.setDiggIconSizePx, DanmakuConfig.diggIconSizePx, DanmakuView.unfreezeDanmaku(String,long)), sources.jar synced, .module + sidecar hashes refreshed"
+      },
+      {
+        "coordinate": "androidx.media3:media3-exoplayer-hls:1.11.0-alpha01-fongmi",
+        "aar_sha256": "5d1c5b1450064eccccf573ec5e5c9cc099d14cb54dd34da75b02dcac7e916347",
+        "sources_sha256": "ff5d4889190f0011929e79db55a99aee0a921b123e661c0565c1d85dc6a2ef7b",
+        "reason": "Local FongMi media3 HLS artifact; seek stream-source signal batch (media3-exo-seek-stream-source-r1): HlsSampleStream and its wrapper expose whether the next queued sample is a key frame and the wrapper is not mid-reset, so the renderer can tell a surviving queue from a discarded one at reset time; surgical swap of HlsSampleStream and HlsSampleStreamWrapper classes only +memberfix: steered-pathway cluster swapped from locked source (Chunk family, HlsChunkSource/HlsMediaChunk/DefaultHlsPlaylistTracker, HlsRedundantGroup). +memberfix: steered-pathway cluster swapped from locked source (Chunk family, HlsChunkSource/HlsMediaChunk/DefaultHlsPlaylistTracker, HlsRedundantGroup)."
+      }
+    ],
+    "upstream_repo": "https://github.com/FongMi/media.git",
+    "upstream_cherry_picks": [
+      "d1bf079238ae4a36d64f0f3b2129b1944a824317",
+      "8103b046bcc0d7e7b8972e709a8ec1002700c96c",
+      "8465e107ece2bb26d5fb45d8d302559fc8783fd8",
+      "6f542f2fa4ac8bd76b376da79dc84f0f98fff2e3",
+      "7745e47713505609a594d5355426b84d0f679c69",
+      "dad705254f16b5b276bf56929736f461359ca1ee",
+      "b33316303d3ef5ad0ede57cbc9dab6d8ab1e63a6",
+      "bb3d9921f14d900a2e76528f2d97cf82e925a499",
+      "fc38c2cda8789db646ae6a01e06494de059a2495"
+    ],
+    "upstream_partial_dependencies": [
+      {
+        "commit": "2fcf67cc83b295f389c0c9c4c5b5c40615781dcf",
+        "scope": "libraries/common Util.getSystemProperty public API hunk only",
+        "reason": "Required by bb3d9921; the unrelated HE-AAC offload behavior is intentionally excluded"
+      },
+      {
+        "commit": "dd00f94b58b7324ab29febb0b50f3a190d544a3b",
+        "scope": "libraries/datasource CacheWriter bounded read/count/end-position hunks and focused test only",
+        "reason": "E6-1 fixes bounded cache writes; progressive parallel download, DiskPreloadManager, priority setter, and factory/cancel changes are intentionally excluded"
+      },
+      {
+        "commit": "990abc2368fd74779f525ee345734470659f3d53",
+        "scope": "libraries/datasource IsoDataReader zero-length, prefetch bound, open/close, and EOF hunks plus focused tests only",
+        "reason": "E7-1 hardens the existing single-extent ISO reader; multi-extent UDF, virtual data source, and App resolver changes remain isolated to E7-2"
+      }
+    ]
+  },
+  "avs3_video": {
+    "high_decoder": {
+      "repo": "https://github.com/zzZ2001a/avs",
+      "commit": "0c7ac42edfac6d18b92b58a5ef43bca58526ca7a",
+      "subdirectory": "dependencies/hpm-HPM-15.0",
+      "archive": "third_party/avs3-hpm/vendor/hpm-15.0.tar.gz",
+      "sha256": "7cfd796f4052b491af0a53a3a82356b5886ab03fcde3eea1a2f5ac4060370afb",
+      "version": "HPM-15.0-webhtv-1",
+      "simd_adapter": {
+        "repo": "https://github.com/DLTcollab/sse2neon",
+        "commit": "3cf69760cc6fdc45a5d70f0d42a8f079489f9867",
+        "version": "1.8.0",
+        "header": "third_party/avs3-hpm/vendor/sse2neon.h",
+        "sha256": "07723c9f9457dd4316f1fde3dd4eb6f31dd67d9955f6c21f4e609ac1698be48a",
+        "license": "MIT"
+      },
+      "license": "LicenseRef-AVS-HPM-standards-testing-and-promotion",
+      "profiles": [
+        "0x32"
+      ],
+      "bit_depths": [
+        10
+      ],
+      "linkage": "static, separately built for Exo and MPV"
+    },
+    "decoder": {
+      "repo": "https://github.com/uavs3/uavs3d",
+      "commit": "0e20d2c291853f196c68922a264bcd8471d75b68",
+      "url": "https://codeload.github.com/uavs3/uavs3d/tar.gz/0e20d2c291853f196c68922a264bcd8471d75b68",
+      "sha256": "1c1eb778b6080bc01493180ea7ae671c6444ce3aa760b5d021ba882eb0f9e3a0",
+      "license": "BSD-3-Clause",
+      "profiles": [
+        "0x20",
+        "0x22"
+      ],
+      "bit_depths": [
+        8,
+        10
+      ],
+      "linkage": "static, separately built for Exo and MPV"
+    },
+    "ffmpeg_patch": {
+      "path": "third_party/patches/ffmpeg-avs3.patch",
+      "sha256": "26c1cfb7fc1bb26fd48ca6b2efc09ea837fd060bcc0e1f578ee97de870585544"
+    }
+  },
+  "nextlib": {
+    "repo": "https://github.com/anilbeesetti/nextlib.git",
+    "branch": "release/1.10.0-0.12.1",
+    "commit": "6ff6cf9d0820382b3c233d018c52e4163b09d345",
+    "version": "1.10.0-0.12.1-fongmi-softload-av3a-avs3-ffmpeg901-r5",
+    "upstream_version": "1.10.0-0.12.1",
+    "patches": [
+      "third_party/patches/nextlib-ffmpeg-soft-load-shedding.patch",
+      "third_party/patches/nextlib-av3a.patch",
+      "third_party/patches/nextlib-ape-support.patch",
+      "third_party/patches/nextlib-avs3.patch"
+    ],
+    "ffmpeg_repo": "https://github.com/FongMi/FFmpeg.git",
+    "ffmpeg_commit": "177f090e0503b7e013922ca903bde14b1c375f18",
+    "ndk": "28.2.13676358",
+    "cmake": "3.22.1",
+    "abis": [
+      "arm64-v8a",
+      "armeabi-v7a"
+    ],
+    "avs3_artifact": {
+      "aar_sha256": "398a266d31ad756b66a05af8be077f77298436994408cf3644a5554ee73f4773",
+      "sources_sha256": "2a08cc5f58718a3da3dc437784891680a0710c376b322a385cd6e5adcde01492"
+    }
+  }
+}

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TV 端模块页：ModuleActivity 的 binding 字段 bdj / python / nodejs / quickjs / mpv / check。
+     include 必须带 android:id，ViewBinding 才会生成对应 ItemModuleBinding 字段。 -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:text="@string/module_title"
+            android:textColor="#0C0E12"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <include
+            android:id="@+id/bdj"
+            layout="@layout/item_module" />
+
+        <include
+            android:id="@+id/python"
+            layout="@layout/item_module" />
+
+        <include
+            android:id="@+id/nodejs"
+            layout="@layout/item_module" />
+
+        <include
+            android:id="@+id/quickjs"
+            layout="@layout/item_module" />
+
+        <include
+            android:id="@+id/mpv"
+            layout="@layout/item_module" />
+
+        <Button
+            android:id="@+id/check"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/module_check" />
+    </LinearLayout>
+</ScrollView>

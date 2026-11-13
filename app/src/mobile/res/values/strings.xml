@@ -1,0 +1,199 @@
+<resources xmlns:xliff="http://schemas.android.com/apk/res-auto">
+
+    <!-- App -->
+    <string name="app_keep">Keep</string>
+    <string name="app_history">History</string>
+
+    <!-- Nav -->
+    <string name="nav_vod">Vod</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_live">Live</string>
+    <string name="nav_reading">Reading</string>
+    <string name="nav_miniapp">Mini App</string>
+    <string name="nav_lab">实验室</string>
+    <string name="nav_setting">Setting</string>
+
+    <!-- Reading source mark (not-miss layer 1) -->
+    <string name="reading_mark_add">标记为书源</string>
+    <string name="reading_mark_remove">已标记·取消</string>
+    <string name="reading_marked_toast">已标记为书源，打开即进阅读器</string>
+    <string name="reading_unmarked_toast">已取消书源标记</string>
+
+    <!-- Menu -->
+    <string name="menu_sync">Sync</string>
+    <string name="menu_delete">Delete</string>
+    <string name="menu_search">Search</string>
+    <string name="menu_site">Site</string>
+    <string name="menu_reset">Reset</string>
+    <string name="menu_push_apk">Push APK</string>
+    <string name="menu_push_play">Push playback</string>
+    <string name="apk_push_preparing">Preparing APK...</string>
+    <string name="apk_push_select_device">Push APK · Select receiving device</string>
+    <string name="apk_push_ready">Push APK · %1$s · %2$s</string>
+    <string name="apk_push_progress">Pushing APK · %1$d%% · %2$s / %3$s</string>
+    <string name="apk_push_success">APK sent. Confirm installation on the receiving device.</string>
+    <string name="apk_push_failed">APK push failed: %1$s</string>
+    <string name="apk_push_invalid">Select a valid APK file</string>
+    <string name="apk_push_read_failed">Unable to read the selected APK</string>
+    <string name="apk_push_no_space">Not enough storage to prepare the APK</string>
+    <string name="apk_push_receiver_unsupported">The receiving device does not support APK push. Update WebHTV first.</string>
+    <string name="apk_push_method_title">Push APK</string>
+    <string name="apk_push_method_target">Target: %1$s</string>
+    <string name="apk_push_method_local">Choose local APK</string>
+    <string name="apk_push_method_link">Push by link</string>
+    <string name="apk_push_url_target">Push APK link · %1$s</string>
+    <string name="apk_push_url_hint">HTTPS APK link</string>
+    <string name="apk_push_url_send">Send link</string>
+    <string name="apk_push_url_required">Enter an HTTPS APK link</string>
+    <string name="apk_push_url_invalid">Enter a valid HTTPS APK link without credentials</string>
+    <string name="apk_push_url_sent">Link sent. The TV is downloading the APK.</string>
+    <string name="apk_push_url_unsupported">The receiving device does not support APK link push. Update WebHTV first.</string>
+    <string name="apk_push_url_failed">APK link push failed</string>
+    <string name="apk_push_url_failed_reason">APK link push failed: %1$s</string>
+    <string name="push_play_select_device">Push playback · Select receiving device</string>
+    <string name="push_play_target">Push playback · %1$s</string>
+    <string name="push_play_url_required">Enter a playback URL</string>
+    <string name="push_play_success">Playback URL sent</string>
+    <string name="push_play_failed">Playback push failed</string>
+    <string name="push_play_failed_reason">Playback push failed: %1$s</string>
+
+    <!-- Vod -->
+    <string name="vod_home">Home</string>
+
+    <!-- Detail -->
+    <string name="detail_flag">Flag</string>
+    <string name="detail_episode">Episode</string>
+    <string name="detail_quality">Quality</string>
+    <string name="detail_content">Summary: <xliff:g name="name">%s</xliff:g></string>
+    <string name="detail_search">Searching <xliff:g name="name">%s</xliff:g></string>
+
+    <!-- Device -->
+    <string name="device_select">Select devices</string>
+    <string name="device_offline">Device is offline</string>
+    <string name="device_scan">Please scan QR Code to bind</string>
+
+    <!-- Control -->
+    <string name="control_speed">Speed</string>
+    <string name="control_scale">Scale</string>
+    <string name="control_episode_column">Long title columns</string>
+    <string name="control_episode_column_single">Single</string>
+    <string name="control_episode_column_double">Double</string>
+    <string name="control_compact_episode_title">Compact title</string>
+    <string name="control_track">Track</string>
+    <string name="control_other">Other</string>
+    <string name="live_control_play">Sources</string>
+    <string name="live_control_config">Subscription</string>
+    <string name="live_control_source">Live source</string>
+    <string name="live_control_epg">EPG source</string>
+    <string name="live_control_action">Actions</string>
+    <string name="live_control_pip">PiP</string>
+    <string name="live_control_preference">Preference</string>
+    <string name="live_control_display_style">Display Style</string>
+    <string name="live_control_list_transparent">Transparent</string>
+    <string name="live_control_list_readable">Readable</string>
+    <string name="live_control_player">Player</string>
+    <string name="live_source_select">Select live source</string>
+    <string name="live_epg_select">Select EPG source</string>
+    <string name="live_epg_default">Follow live source</string>
+    <string name="live_epg_follow">Source</string>
+    <string name="live_epg_apply">Use</string>
+    <string name="live_epg_save">Save</string>
+    <string name="live_epg_edit">Edit</string>
+    <string name="live_epg_delete">Delete</string>
+    <string name="live_epg_hint">XML/GZ or {name}/{date} template URL</string>
+    <string name="live_epg_empty">Enter an EPG URL or select a source below</string>
+    <string name="live_program_title">Program guide</string>
+    <string name="live_program_empty">No program guide</string>
+    <string name="live_program_current">Live</string>
+    <string name="dialog_clear">Clear</string>
+
+    <!-- Dialog -->
+    <string name="dialog_delete_record">Delete all records?</string>
+    <string name="dialog_delete_keep">All keep records will be removed.</string>
+    <string name="dialog_delete_history">All history records will be removed.</string>
+
+    <!-- Timer -->
+    <string name="timer_5">5 minutes</string>
+    <string name="timer_15">15 minutes</string>
+    <string name="timer_30">30 minutes</string>
+    <string name="timer_60">1 hour</string>
+    <string name="timer_delay">Add 5 minutes</string>
+    <string name="timer_cancel">Cancel timer</string>
+
+    <!-- Hint -->
+    <string name="shortcut">Shortcut has been added.</string>
+
+    <string-array name="select_background">
+        <item>Off</item>
+        <item>On</item>
+    </string-array>
+
+    <string-array name="select_pad_live_mode">
+        <item>Fullscreen</item>
+        <item>Standard</item>
+    </string-array>
+
+    <string name="player_more">更多</string>
+    <string name="player_fine_setting">弹幕字幕设置</string>
+
+    <!-- 音乐播放器 -->
+    <string name="site_loading">源正在加载中，稍等一下…</string>
+    <string name="site_empty">暂无可用源</string>
+    <!-- 插件页＋设置页对照表本批新增串（只新增，不改现有串） -->
+    <string name="sheet_queue_from">来自</string>
+    <!-- 工具面板快捷格专用（瓜子文案「加到歌单」）：其它页的加歌单菜单仍用 music_add_to_playlist，不动 -->
+
+    <!-- 音乐工具面板 / 全屏歌词页（2026-10-21，只追加） -->
+    <string name="home_search_hint">搜索歌曲、歌手、专辑</string>
+    <string name="home_more">更多</string>
+    <string name="home_favorite">音乐收藏</string>
+    <string name="home_sheets">我的歌单</string>
+    <string name="home_device">本地音乐</string>
+    <string name="home_recent">播放历史</string>
+    <string name="home_download">下载音乐</string>
+    <string name="home_guess">猜你喜欢</string>
+    <string name="home_square">歌单广场</string>
+    <string name="home_square_sub">发现好歌单</string>
+    <string name="home_continue">继续播放</string>
+    <string name="home_guess_sub">每日精选</string>
+    <string name="home_charts">排行榜</string>
+    <string name="home_charts_sub">此刻热门</string>
+    <string name="home_shuffle">随心听</string>
+    <string name="home_shuffle_sub">随机漫游</string>
+    <string name="home_shuffle_playing">正在播放</string>
+    <string name="home_no_recent">还没有播放记录</string>
+    <string name="home_next">下一首</string>
+    <string name="home_play">播放或暂停</string>
+
+    <string name="lyr_quality_switched">已切换</string>
+    <string name="lyr_word_on">逐字已开</string>
+    <string name="lyr_word_off">逐字已关，整行显示</string>
+    <string name="pl_play_pause">播放/暂停</string>
+
+    <string name="sheet_theme_desc">选择播放详情页的整体布局，新增主题会自动出现在这里。</string>
+    <string name="sheet_sleep_not_on">未开启</string>
+    <string name="sheet_advanced_fx_title">已开启高级动效</string>
+    <string name="sheet_advanced_fx_msg">开启后可能影响性能和功耗，如出现卡顿发热等情况，请关闭。</string>
+    <string name="sheet_got_it">知道了</string>
+    <string name="sheet_hint_no_translation">当前歌词无翻译</string>
+    <string name="sheet_hint_translation_off">翻译歌词已关闭</string>
+    <string name="sheet_hint_no_romanization">当前歌词无音译</string>
+    <string name="sheet_hint_romanization_off">音译歌词已关闭</string>
+    <string name="sheet_queue_title">播放列表</string>
+    <string name="sheet_queue_shuffle">随机</string>
+    <string name="sheet_queue_hint">长按拖动调整顺序</string>
+    <string name="sheet_queue_empty">队列为空</string>
+
+    <!-- 批 3：封面卡片展开态／Apple 歌曲信息页（文案照瓜子 SongInfoPageKt 字面） -->
+
+    <string name="hongguo_comment">Comments</string>
+    <string name="hongguo_comment_series_tab">Reviews</string>
+    <string name="hongguo_comment_episode_tab">Episode comments</string>
+    <string name="hongguo_comment_empty">No comments yet</string>
+    <string name="hongguo_comment_failed">Failed to load comments. Tap to retry</string>
+    <string name="hongguo_comment_loading">Loading…</string>
+    <string name="hongguo_comment_replies">Replies</string>
+    <string name="hongguo_comment_more_replies">More replies</string>
+    <string name="hongguo_comment_reply_to">Reply to %s</string>
+    <string name="hongguo_comment_likes">%d likes</string>
+</resources>

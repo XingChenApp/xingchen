@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:fitsSystemWindows="false"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@+id/navigation" />
+    <com.fongmi.android.tv.ui.view.XcBottomBar
+        android:id="@+id/navigation"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/xc_bottombar_height"
+        android:layout_alignParentBottom="true"
+        android:layout_marginStart="@dimen/xc_float_margin"
+        android:layout_marginEnd="@dimen/xc_float_margin"
+        android:layout_marginBottom="@dimen/xc_bottombar_margin_bottom"
+        android:background="@drawable/xc_bottombar_pill"
+        android:elevation="@dimen/xc_elevation_float" />
+</RelativeLayout>

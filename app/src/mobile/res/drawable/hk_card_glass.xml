@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小程序卡片底：纯白实底 + 描边 + 圆角（卡片必须明显，不能跟背景融在一起） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#FFFFFF" />
+    <stroke
+        android:width="1.5dp"
+        android:color="#9AA1AB" />
+    <corners android:radius="12dp" />
+</shape>

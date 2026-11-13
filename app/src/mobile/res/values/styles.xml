@@ -1,0 +1,303 @@
+<resources>
+
+    <!-- 评论面板横屏形态：右侧划入/划出（窗口动画） -->
+    <style name="HongguoCommentRightAnim">
+        <item name="android:windowEnterAnimation">@anim/hongguo_panel_right_in</item>
+        <item name="android:windowExitAnimation">@anim/hongguo_panel_right_out</item>
+    </style>
+
+    <style name="Theme.Base" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@color/transparent</item>
+        <item name="android:navigationBarColor">@color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    </style>
+
+    <style name="Theme.Splash" parent="Theme.SplashScreen">
+        <item name="postSplashScreenTheme">@style/Theme.App</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_glyph</item>
+        <item name="windowSplashScreenBackground">#000000</item>
+    </style>
+
+    <style name="Theme.App" parent="Theme.XingChen">
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowSplashScreenBackground">#FF0E1622</item>
+        <!-- 起始窗口不许再纯黑（进页闪普查 2026-10-26）：透明＝点开新页到首帧的空档里
+             透出上一页（同在星辰壁纸上），不再先糊一帧纯黑；真底由 ThemeManager 在
+             onResume 同步落（缓存壁纸／自带底页定案色／冷缓存深色占位）。 -->
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+
+    <!-- 音乐独立页专属主题（第一页＝音乐首页）：窗口底就是页面自己的玻璃基色，
+         冷启首帧/转场/ overscroll 都不许透出主壁纸或黑底；运行时 ThemeManager 对本页豁免贴壁纸、只落此色 -->
+
+    <!-- 随心听独立页专属主题：沉浸深底页，窗口底落它自己的深底（@color/music_random_base），
+         不借浅色音乐基色、也不透主壁纸；运行时 ThemeManager 对本页同样落 0xFF0A0E16 -->
+
+
+    <style name="Theme.Crash" parent="Theme.XingChen">
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+
+    <style name="Control">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:textColor">@color/yellow</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:padding">8dp</item>
+    </style>
+
+    <style name="ControlSheetTitle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">13dp</item>
+        <item name="android:layout_marginBottom">7dp</item>
+        <item name="android:textColor">@color/white_70</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="ControlSheetTitleLight">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">13dp</item>
+        <item name="android:layout_marginBottom">7dp</item>
+        <item name="android:textColor">#99000000</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="ControlSheetButton">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">34dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginEnd">7dp</item>
+        <item name="android:background">@drawable/selector_control_sheet_button</item>
+        <item name="android:gravity">center</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:textColor">@color/selector_control_sheet_text</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <style name="ControlSheetButtonLight">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">34dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginEnd">7dp</item>
+        <item name="android:background">@drawable/selector_control_sheet_button_light</item>
+        <item name="android:gravity">center</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:textColor">@color/selector_control_sheet_text_dark</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <style name="VideoActionButton" parent="Video.ContextText">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:drawablePadding">2dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingTop">3dp</item>
+        <item name="android:paddingBottom">3dp</item>
+        <item name="android:shadowColor">@color/black_90</item>
+        <item name="android:shadowDx">0</item>
+        <item name="android:shadowDy">2</item>
+        <item name="android:shadowRadius">4</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+
+    <style name="AudioActionButton" parent="Video.ContextText">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">46dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:drawablePadding">3dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingTop">3dp</item>
+        <item name="android:paddingBottom">3dp</item>
+        <item name="android:textColor">@color/white_80</item>
+        <item name="android:textSize">11sp</item>
+    </style>
+
+    <style name="ShapeAppearance.WebHTV.AudioCover" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <style name="ToolbarTextAppearance" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="titleTextColor">@color/white</item>
+    </style>
+
+    <style name="ToolbarPopupTheme" parent="ThemeOverlay.Material3.Light">
+        <item name="android:popupBackground">@drawable/shape_toolbar_popup</item>
+        <item name="android:textColorPrimary">#101216</item>
+        <item name="android:textColorSecondary">#2E3339</item>
+        <item name="android:colorControlNormal">#2D4C55</item>
+        <item name="colorControlNormal">#2D4C55</item>
+        <item name="colorSurface">#F2FFFFFF</item>
+        <item name="colorOnSurface">#18333A</item>
+        <item name="colorOnSurfaceVariant">#5D7278</item>
+        <item name="popupMenuStyle">@style/ToolbarPopupMenu</item>
+        <item name="android:popupMenuStyle">@style/ToolbarPopupMenu</item>
+        <item name="textAppearanceLargePopupMenu">@style/ToolbarPopupTextAppearance</item>
+        <item name="textAppearanceSmallPopupMenu">@style/ToolbarPopupTextAppearance</item>
+        <item name="android:textAppearanceLargePopupMenu">@style/ToolbarPopupTextAppearance</item>
+        <item name="android:textAppearanceSmallPopupMenu">@style/ToolbarPopupTextAppearance</item>
+    </style>
+
+    <style name="ToolbarPopupMenu" parent="Widget.AppCompat.PopupMenu.Overflow">
+        <item name="android:popupBackground">@drawable/shape_toolbar_popup</item>
+    </style>
+
+    <style name="ToolbarPopupTextAppearance" parent="TextAppearance.AppCompat.Widget.PopupMenu.Large">
+        <item name="android:textColor">#18333A</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+
+
+    <style name="Theme.XingChen" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+              <item name="android:colorBackground">@android:color/transparent</item>
+        <item name="colorPrimary">#f0a400</item>
+        <item name="colorPrimaryVariant">#c07f00</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+    </style>
+
+
+    <style name="ThemeOverlay.XingChen.GlassDialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="dialogCornerRadius">16dp</item>
+        <item name="background">@drawable/dialog_glass</item>
+        <!-- 同 Dark 版教训：不许加 android:background（会级联成子 view 背景致三层框错位） -->
+        <item name="android:windowBackground">@drawable/dialog_glass</item>
+    </style>
+
+    <!-- 海阔小程序弹窗：深色毛玻璃（用户不要白色底） -->
+    <style name="XingChen.DialogEditText.Dark" parent="android:Widget.EditText">
+        <item name="android:background">@drawable/bg_input_dark</item>
+        <item name="android:textColor">#F2F4F8</item>
+        <item name="android:textColorHint">#6E7686</item>
+        <item name="android:padding">12dp</item>
+    </style>
+
+    <style name="ThemeOverlay.XingChen.GlassDialog.Dark" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="dialogCornerRadius">16dp</item>
+        <item name="background">@drawable/dialog_glass_dark</item>
+        <!-- 注意：不许加 android:background——它会级联成弹窗内每个子 view（标题区/内容区/按钮区）的默认背景，
+             导致三层圆角框错位叠加（1.3.47 搜书弹窗渲染坏的根因）。卡片背景只走 background＋windowBackground。 -->
+        <item name="android:windowBackground">@drawable/dialog_glass_dark</item>
+        <item name="android:textColor">#F2F4F8</item>
+        <item name="android:textColorPrimary">#F2F4F8</item>
+        <item name="android:textColorSecondary">#A8B0C0</item>
+        <!-- MaterialAlertDialog 的标题/正文走 ?attr/colorOnSurface（不是 android:textColor），
+             不声明会继承 Activity 基主题的深色值，深底上正文隐形（1.3.49 导入结果框 bug） -->
+        <item name="colorOnSurface">#F2F4F8</item>
+        <item name="android:textColorAlertDialogListItem">#F2F4F8</item>
+        <item name="textColorAlertDialogListItem">#F2F4F8</item>
+        <item name="android:colorAccent">#D9A420</item>
+        <item name="android:editTextStyle">@style/XingChen.DialogEditText.Dark</item>
+    </style>
+
+    <!-- 海阔小程序弹窗：浅色 -->
+    <style name="XingChen.DialogEditText.HkLight" parent="android:Widget.EditText">
+        <item name="android:background">@drawable/bg_input_light</item>
+        <item name="android:textColor">#101216</item>
+        <item name="android:textColorHint">#3A3F45</item>
+        <item name="android:padding">12dp</item>
+    </style>
+
+    <style name="ThemeOverlay.XingChen.GlassDialog.HkLight" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="dialogCornerRadius">16dp</item>
+        <item name="android:windowBackground">@drawable/dialog_glass_light</item>
+        <item name="android:textColor">#101216</item>
+        <item name="android:textColorPrimary">#101216</item>
+        <item name="android:textColorSecondary">#1E2126</item>
+        <item name="android:textColorAlertDialogListItem">#101216</item>
+        <item name="textColorAlertDialogListItem">#101216</item>
+        <item name="android:colorAccent">#D9A420</item>
+        <item name="android:editTextStyle">@style/XingChen.DialogEditText.HkLight</item>
+    </style>
+
+    <!-- 海阔弹窗统一淡入淡出（HkDialogs.create 里挂到 window 上） -->
+    <style name="HkDialogFade">
+        <item name="android:windowEnterAnimation">@anim/hk_dialog_fade_in</item>
+        <item name="android:windowExitAnimation">@anim/hk_dialog_fade_out</item>
+    </style>
+
+    <!-- PopupWindow 浮层统一淡入淡出 200ms（与 HkDialogFade 同口径） -->
+    <style name="XcPopupFade">
+        <item name="android:windowEnterAnimation">@anim/hk_dialog_fade_in</item>
+        <item name="android:windowExitAnimation">@anim/hk_dialog_fade_out</item>
+    </style>
+
+    <!-- 底部面板统一滑上滑下＋淡入淡出 200ms（裸 Dialog 底部面板用，如音乐工具面板） -->
+    <style name="XcBottomSheetSlide">
+        <item name="android:windowEnterAnimation">@anim/xc_sheet_slide_in</item>
+        <item name="android:windowExitAnimation">@anim/xc_sheet_slide_out</item>
+    </style>
+
+    <!-- 侧边面板统一右侧滑入滑出＋淡入淡出 200ms（BaseSideSheetDialog 基类用） -->
+    <style name="XcSideSheetSlide">
+        <item name="android:windowEnterAnimation">@anim/xc_side_sheet_slide_in</item>
+        <item name="android:windowExitAnimation">@anim/xc_side_sheet_slide_out</item>
+    </style>
+
+    <!-- 海阔单页 Activity 主题：浅色独立主题，不跟主 App 走；弹窗走深色毛玻璃（用户不要白色底） -->
+    <style name="Theme.XingChen.HkPage" parent="Theme.XingChen">
+        <item name="android:alertDialogTheme">@style/ThemeOverlay.XingChen.GlassDialog.Dark</item>
+        <!-- 液态玻璃：起始窗口用与动态背景场景同值的渐变（bg_hk_window_gradient，顶色仍是
+             hk_status_bar，透明状态栏下不断带）；运行时窗底仍由 ThemeManager 落 hk_status_bar 平色 -->
+        <item name="android:windowBackground">@drawable/bg_hk_window_gradient</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!-- 实验室页：跟星辰全局壁纸走（ThemeManager.doApply 给窗口铺壁纸，内容根透明）。
+         windowBackground 只做壁纸没贴上前的兜底＝定稿底色 #FBFBFA；
+         运行时窗口背景会被全局壁纸 drawable 替换，这里不决定最终底色。 -->
+    <style name="Theme.XingChen.LabPage" parent="Theme.XingChen.HkPage">
+        <item name="android:windowBackground">#FFFBFBFA</item>
+    </style>
+
+    <!-- 外部文件导入总门（ImportActivity）专用：静默无界面，登记分发完即 finish，
+         观感＝透明、无标题、无转场闪烁。父链必须是 AppCompat 血统
+         （Theme.XingChen→Material3），否则 AppCompatActivity 在 onPostCreate 抛
+         IllegalStateException——1.4.63 真机实证：旧写法挂平台
+         @android:style/Theme.Translucent.NoTitleBar 踩的就是这个。
+         透明靠 windowIsTranslucent＋窗底透明（钉死，不随父链漂移）；
+         windowDisablePreview 防外部拉起时最近任务预览闪一帧；
+         windowAnimationStyle 置空，去掉普通页那套进出转场。 -->
+    <style name="Theme.XingChen.ImportGate" parent="Theme.XingChen">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
+    <!-- 音乐设置页行：跟首页导航行同一张卡皮，名字左、值/开关右。
+         v1 稿落码：行不再各自成卡，改由分组卡包行（卡皮见布局内分组容器）；
+         行背景透明、行高由 36dp 图标块＋12dp 上下内边距撑到 60dp。
+         分组标题间距留足：上 28dp、下 10dp，标题不许压上一张卡的底边、不许两行挤。 -->
+    <!-- 设置页文字色口径（2026-10-26 黑字全扫）：名字全白、区头/值走副字白 .60，
+         与 MusicGlassWire 的 FG_MAIN/FG_SUB 同一套，不许再回旧浅色口径的黑/中灰。 -->
+
+
+    <!-- 分组卡内行间细分隔线：卡内左右各缩 16dp，不贴卡边 -->
+
+    <!-- v1 稿行首彩色图标块：36dp 圆角方块＋白图标（图标色由各行 backgroundTint 给 pastel 色） -->
+
+
+
+    <!-- U4：M3 Switch 本体缩放 0.75（瓜子源码只给缩放系数，本征轨宽／轨高是 M3 库值，不冒充瓜子值）。
+         v1 稿开关统一强调色：钮恒白、开态轨珊瑚红、关态轨浅灰（白钮在红轨上显眼，上一稿白钮不显的毛病靠钮色写死白根治）。 -->
+
+
+
+</resources>

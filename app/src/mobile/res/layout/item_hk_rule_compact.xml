@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔小程序：3列紧凑卡片（v5 质感：卡面微渐变＋同色淡染，adapter 按图标主色设；描边已随 v5 去掉）
+     3列下卡片约100dp宽，横向空间紧张，故图标/⋮按钮缩小、间距收紧，保证名字可读 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="60dp">
+
+    <!-- 独立背景层：v5 卡面（adapter 设微渐变＋淡染 drawable），外层柔阴影 -->
+    <View
+        android:id="@+id/card_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/hk_card_glass" />
+
+    <!-- 内容层：透明，永远不被模糊 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:minHeight="60dp"
+        android:orientation="horizontal"
+        android:padding="6dp">
+
+        <FrameLayout
+            android:layout_width="30dp"
+            android:layout_height="30dp">
+
+            <ImageView
+                android:id="@+id/iv_icon"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tv_icon"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/hk_miniapp_icon_bg"
+                android:gravity="center"
+                android:text="海"
+                android:textColor="#6B5300"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textColor="#000000"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <!-- 编辑模式才显示：实际分组标签，点卡片可改 -->
+            <TextView
+                android:id="@+id/tv_group_tag"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:background="@drawable/hk_group_tag"
+                android:maxLines="1"
+                android:paddingLeft="6dp"
+                android:paddingTop="1dp"
+                android:paddingRight="6dp"
+                android:paddingBottom="1dp"
+                android:textColor="#8A6D00"
+                android:textSize="9sp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/sw_enable"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/btn_more"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="更多操作"
+            android:src="@drawable/ic_action_more_vert"
+            android:tint="#8A8F98" />
+    </LinearLayout>
+</FrameLayout>

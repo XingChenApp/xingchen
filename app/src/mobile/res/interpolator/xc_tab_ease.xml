@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 主页大页签交叉淡出的缓动：Material 标准曲线 cubic-bezier(0.4, 0, 0.2, 1)，
+     起步快、中段顺、收尾稳，避免线性 fade 那种一刀切的生硬感。 -->
+<pathInterpolator xmlns:android="http://schemas.android.com/apk/res/android"
+    android:controlX1="0.4"
+    android:controlY1="0"
+    android:controlX2="0.2"
+    android:controlY2="1" />

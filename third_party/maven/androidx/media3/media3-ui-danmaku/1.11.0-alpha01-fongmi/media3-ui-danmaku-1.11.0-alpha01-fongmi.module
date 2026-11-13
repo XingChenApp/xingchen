@@ -1,0 +1,159 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "androidx.media3",
+    "module": "media3-ui-danmaku",
+    "version": "1.11.0-alpha01-fongmi",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.1.0"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseVariantReleaseApiPublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "androidx.media3",
+          "module": "media3-common",
+          "version": {
+            "requires": "1.11.0-alpha01-fongmi"
+          }
+        },
+        {
+          "group": "androidx.media3",
+          "module": "media3-datasource",
+          "version": {
+            "requires": "1.11.0-alpha01-fongmi"
+          }
+        },
+        {
+          "group": "com.squareup.okhttp3",
+          "module": "okhttp",
+          "version": {
+            "requires": "4.12.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.2.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "media3-ui-danmaku-1.11.0-alpha01-fongmi.aar",
+          "url": "media3-ui-danmaku-1.11.0-alpha01-fongmi.aar",
+          "size": 109870,
+          "sha512": "f0457e71593076af3c2969b5bf84e1c5bbcf6ba0ee906a9fae7b8073de583b8ba0281bb448d760713ac664e6b8c72802b9bd4868cfb25ccd1917b0e410858f26",
+          "sha256": "13aabb67b48cb869dd5a21ff66b0fb81965df40c64724e4aa118d55c74ac34fa",
+          "sha1": "07ae3462fb5b24d6f80ada545d6b67c9a21ce871",
+          "md5": "5600e459a860ad7bc9a664dcbcd11f23"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseRuntimePublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "androidx.media3",
+          "module": "media3-datasource-okhttp",
+          "version": {
+            "requires": "1.11.0-alpha01-fongmi"
+          }
+        },
+        {
+          "group": "org.brotli",
+          "module": "dec",
+          "version": {
+            "requires": "0.1.2"
+          }
+        },
+        {
+          "group": "androidx.annotation",
+          "module": "annotation",
+          "version": {
+            "requires": "1.6.0"
+          }
+        },
+        {
+          "group": "androidx.media3",
+          "module": "media3-common",
+          "version": {
+            "requires": "1.11.0-alpha01-fongmi"
+          }
+        },
+        {
+          "group": "androidx.media3",
+          "module": "media3-datasource",
+          "version": {
+            "requires": "1.11.0-alpha01-fongmi"
+          }
+        },
+        {
+          "group": "com.squareup.okhttp3",
+          "module": "okhttp",
+          "version": {
+            "requires": "4.12.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.2.10"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "media3-ui-danmaku-1.11.0-alpha01-fongmi.aar",
+          "url": "media3-ui-danmaku-1.11.0-alpha01-fongmi.aar",
+          "size": 109870,
+          "sha512": "f0457e71593076af3c2969b5bf84e1c5bbcf6ba0ee906a9fae7b8073de583b8ba0281bb448d760713ac664e6b8c72802b9bd4868cfb25ccd1917b0e410858f26",
+          "sha256": "13aabb67b48cb869dd5a21ff66b0fb81965df40c64724e4aa118d55c74ac34fa",
+          "sha1": "07ae3462fb5b24d6f80ada545d6b67c9a21ce871",
+          "md5": "5600e459a860ad7bc9a664dcbcd11f23"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseSourcePublication",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "media3-ui-danmaku-1.11.0-alpha01-fongmi-sources.jar",
+          "url": "media3-ui-danmaku-1.11.0-alpha01-fongmi-sources.jar",
+          "size": 77453,
+          "sha512": "14822e9a8fed7feec78a9a9c771a952ce262e24f6f96612cebe1d0ebd77dd8adfa0dc99eadcf5e90f0e03c6f030815cf34b3602b089ac0c7bb77e4e2f444068e",
+          "sha256": "939a7f9d625083c37c3ff45222abc2ab054c72f6d865dedb16ddb9e6094427a4",
+          "sha1": "91feda7fce7952a6688c49b049dc13def8400c1c",
+          "md5": "5fee5ace11675b8b141a11572f3a0d60"
+        }
+      ]
+    }
+  ]
+}

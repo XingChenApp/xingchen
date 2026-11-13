@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 信息页歌词 MutedChip（瓜子 SongInfoPageKt MutedChip：inset 白 0.12 底、圆角 8dp）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#1FFFFFFF" />
+    <corners android:radius="8dp" />
+</shape>

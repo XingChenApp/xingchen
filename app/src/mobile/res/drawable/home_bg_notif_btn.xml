@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 首页通知提示条「去开启」钮底：黄底（2026-10-09 定案），只被 activity_music 引用。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="10dp" />
+    <solid android:color="#FFFFD54F" />
+</shape>

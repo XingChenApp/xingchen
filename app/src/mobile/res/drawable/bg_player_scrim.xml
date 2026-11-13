@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 播放页氛围罩：上透下暗，保证白字在任何封面色上可读 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:startColor="#1A000000"
+        android:centerColor="#33000000"
+        android:endColor="#99000000"
+        android:type="linear" />
+</shape>

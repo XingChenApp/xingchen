@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 玻璃圆钮（GZ LiquidGlassButton 口径：只有白 0.14 底、无独立描边字面值，
+     PlayerScreenKt.java:3147,3157-3159／展开态四键 :9097-9124 同口径） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="#24FFFFFF" />
+</shape>

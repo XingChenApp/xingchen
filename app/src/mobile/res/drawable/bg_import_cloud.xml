@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GZ 导入面板红云图标底：52dp 方块、圆角 16dp、#FA243C 向白提亮 22% 渐变（末值近似） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient android:angle="135" android:startColor="#FA243C" android:endColor="#FB5467" />
+    <corners android:radius="16dp" />
+</shape>

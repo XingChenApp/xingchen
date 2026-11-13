@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔单页：悬浮胶囊条（深色毛玻璃强调底） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#E62A2E44" />
+    <corners android:radius="26dp" />
+    <stroke android:width="1dp" android:color="#40FFFFFF" />
+</shape>

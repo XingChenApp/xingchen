@@ -1,0 +1,57 @@
+# Xingchen baseline patch: restore DefaultTsPayloadReaderFactory
+# FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS (= 1 << 6) for API compatibility.
+#
+# 基线：上游 media 锁定提交 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d。
+#
+# 背景：旧基线产物（843a7774/902b8c10 的 extractor AAR 与 sources jar）
+# 的 DefaultTsPayloadReaderFactory 带此旗标，星辰 App 的
+# MediaSourceFactory 以 setTsExtractorFlags(FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS)
+# 直接引用；新锁定基线里上游已删除该旗标（HDMV DTS 改走
+# DtsProbeReader/DtsReader 无条件处理，BdmvTsPayloadReaderFactory 也不再
+# 传此旗标）。2026-10-23 全量重建冲掉旧产物后 App 因此编译失败
+# （cannot find symbol: FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS）。
+#
+# 口径（与 media3-deferred-cues-r2.patch 的旗标兼容处理一致）：只恢复
+# 常量与 @IntDef 登记，值与旧基线相同（1 << 6，新基线该位未被占用）；
+# 不恢复旧的门控分支——新基线对 HDMV DTS 流已无条件创建 reader，App
+# 恒置此旗标，用法行为等价；若强行恢复门控，反而会打断新基线的 BDMV
+# 委托链（BdmvTsPayloadReaderFactory 不传旗标会被门控误杀）。
+# 改动取自旧基线 sources jar 中该文件的旗标 hunk，按新基线文件上下文
+# 适配。
+diff --git a/libraries/extractor/src/main/java/androidx/media3/extractor/ts/DefaultTsPayloadReaderFactory.java b/libraries/extractor/src/main/java/androidx/media3/extractor/ts/DefaultTsPayloadReaderFactory.java
+index 66de85a..62215d7 100644
+--- a/libraries/extractor/src/main/java/androidx/media3/extractor/ts/DefaultTsPayloadReaderFactory.java
++++ b/libraries/extractor/src/main/java/androidx/media3/extractor/ts/DefaultTsPayloadReaderFactory.java
+@@ -41,7 +41,8 @@ public final class DefaultTsPayloadReaderFactory implements TsPayloadReader.Fact
+   /**
+    * Flags controlling elementary stream readers' behavior. Possible flag values are {@link
+    * #FLAG_IGNORE_AAC_STREAM}, {@link #FLAG_IGNORE_H264_STREAM}, {@link
+-   * #FLAG_IGNORE_SPLICE_INFO_STREAM} and {@link #FLAG_OVERRIDE_CAPTION_DESCRIPTORS}.
++   * #FLAG_IGNORE_SPLICE_INFO_STREAM}, {@link #FLAG_OVERRIDE_CAPTION_DESCRIPTORS} and {@link
++   * #FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS}.
+    */
+   @Documented
+   @Retention(RetentionPolicy.SOURCE)
+@@ -52,7 +53,8 @@ public final class DefaultTsPayloadReaderFactory implements TsPayloadReader.Fact
+         FLAG_IGNORE_AAC_STREAM,
+         FLAG_IGNORE_H264_STREAM,
+         FLAG_IGNORE_SPLICE_INFO_STREAM,
+-        FLAG_OVERRIDE_CAPTION_DESCRIPTORS
++        FLAG_OVERRIDE_CAPTION_DESCRIPTORS,
++        FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS
+       })
+   public @interface Flags {}
+ 
+@@ -84,6 +86,12 @@ public final class DefaultTsPayloadReaderFactory implements TsPayloadReader.Fact
+    */
+   public static final int FLAG_OVERRIDE_CAPTION_DESCRIPTORS = 1 << 5;
+ 
++  /**
++   * Sets whether HDMV DTS audio streams will be handled. If this flag is set, SCTE subtitles will
++   * not be detected, as they share the same elementary stream type as HDMV DTS.
++   */
++  public static final int FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS = 1 << 6;
++
+   private static final int DESCRIPTOR_TAG_CAPTION_SERVICE = 0x86;
+   private final @Flags int flags;
+   private final List<Format> closedCaptionFormats;

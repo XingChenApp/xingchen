@@ -1,0 +1,253 @@
+{
+ "BaseResp": {
+  "StatusCode": 0,
+  "StatusMessage": "success"
+ },
+ "code": 0,
+ "data": {
+  "common_list_info": {
+   "cursor": "{\"start_offset_time\":0,\"end_offset_time\":30000,\"danmaku_window_count\":{\"30000\":58,\"120000\":3,\"0\":51,\"60000\":22,\"90000\":39},\"danmaku_count\":173,\"session_id\":\"202610241347168934412603363DFD7396\"}",
+   "has_more": true,
+   "log_extra": {
+    "recommend_info": "{\"channel_id\":\"\",\"request_id\":\"202610241347168934412603363DFD7396\"}"
+   },
+   "total": 4
+  },
+  "data_list": [
+   {
+    "comment": {
+     "comment_id": "11114",
+     "common": {
+      "comment_type": 0,
+      "content": {
+       "text": "参与弹幕活动，替TA发声！"
+      },
+      "create_timestamp": 0,
+      "group_id": "7695729394496588862",
+      "service_id": 0,
+      "status": 0,
+      "user_info": {}
+     },
+     "expand": {
+      "book_id": "7695727473111092286",
+      "common_stat": {},
+      "creator_id": "",
+      "danmaku_activity_info": {
+       "activity_id": "7687486352526508094",
+       "activity_name": "弹幕开麦，替TA发声",
+       "schema": "dragon8662://webview?hideNavigationBar=1&bounceDisable=1&hideStatusBar=1&hideLoading=1&url=https%3A%2F%2Freading.snssdk.com%2Fmagic%2Feco%2Fruntime%2Frelease%2F6ab10157b17376ebdc25bf3b%3Fentrance%3Dparagraph_comment"
+      },
+      "danmaku_guide_type": 4,
+      "is_force_insert_danmaku": true,
+      "offset_time": 0,
+      "show_boost": 999999,
+      "show_publish_button": true
+     }
+    },
+    "data_type": 4
+   },
+   {
+    "comment": {
+     "comment_id": "7697067809939129112",
+     "common": {
+      "comment_type": 0,
+      "content": {
+       "text": "来看看不同的孙芊浔角色挑战[送花]"
+      },
+      "create_timestamp": 1792119625,
+      "group_id": "7695729394496588862",
+      "service_id": 20,
+      "status": 1,
+      "user_info": {
+       "base_info": {},
+       "expand_extra": {},
+       "user_id": "111475924665948"
+      }
+     },
+     "expand": {
+      "book_id": "0",
+      "book_info_list": [],
+      "common_stat": {},
+      "creator_id": "0",
+      "extra": {
+       "comment_jump_schema": ""
+      },
+      "log_extra": {
+       "recommend_info": "{\"channel_id\":\"\",\"request_id\":\"202610241347168934412603363DFD7396\"}"
+      },
+      "offset_time": 2163,
+      "relate_info_list": [],
+      "reply_show_count": 0,
+      "reply_show_row": 0,
+      "show_boost": 14,
+      "show_digg_button": true
+     },
+     "stat": {
+      "add_one_count": 1,
+      "digg_count": 14,
+      "reply_count": 0
+     },
+     "user_action": {
+      "is_author_stick": false,
+      "user_add_one": false,
+      "user_digg": false,
+      "user_disagree": false
+     }
+    },
+    "data_type": 4
+   },
+   {
+    "comment": {
+     "comment_id": "7697038025231762200",
+     "common": {
+      "comment_type": 0,
+      "content": {
+       "text": "芊浔不愧是上戏毕业，演技真好，没有偶像包袱，敢于尝试不同角色"
+      },
+      "create_timestamp": 1792120601,
+      "group_id": "7695729394496588862",
+      "service_id": 20,
+      "status": 1,
+      "user_info": {
+       "base_info": {},
+       "expand_extra": {},
+       "user_id": "111475924665948"
+      }
+     },
+     "expand": {
+      "book_id": "0",
+      "book_info_list": [],
+      "common_stat": {},
+      "creator_id": "0",
+      "extra": {
+       "comment_jump_schema": ""
+      },
+      "log_extra": {
+       "recommend_info": "{\"channel_id\":\"\",\"request_id\":\"202610241347168934412603363DFD7396\"}"
+      },
+      "offset_time": 10686,
+      "relate_info_list": [],
+      "reply_show_count": 0,
+      "reply_show_row": 0,
+      "show_boost": 16,
+      "show_digg_button": true
+     },
+     "stat": {
+      "digg_count": 16,
+      "reply_count": 0
+     },
+     "user_action": {
+      "is_author_stick": false,
+      "user_digg": false,
+      "user_disagree": false
+     }
+    },
+    "data_type": 4
+   },
+   {
+    "comment": {
+     "comment_id": "7697355598771684158",
+     "common": {
+      "comment_type": 0,
+      "content": {
+       "text": "女主挺有劲儿啊[偷笑]"
+      },
+      "create_timestamp": 1792197853,
+      "group_id": "7695729394496588862",
+      "service_id": 20,
+      "status": 1,
+      "user_info": {
+       "base_info": {},
+       "expand_extra": {},
+       "user_id": "582119567397860"
+      }
+     },
+     "expand": {
+      "book_id": "0",
+      "book_info_list": [],
+      "common_stat": {},
+      "creator_id": "0",
+      "extra": {
+       "comment_jump_schema": ""
+      },
+      "log_extra": {
+       "recommend_info": "{\"channel_id\":\"\",\"request_id\":\"202610241347168934412603363DFD7396\"}"
+      },
+      "offset_time": 14890,
+      "relate_info_list": [],
+      "reply_show_count": 0,
+      "reply_show_row": 0,
+      "show_boost": 5
+     },
+     "stat": {
+      "add_one_count": 1,
+      "digg_count": 5,
+      "reply_count": 0
+     },
+     "user_action": {
+      "is_author_stick": false,
+      "user_add_one": false,
+      "user_digg": false,
+      "user_disagree": false
+     }
+    },
+    "data_type": 4
+   },
+   {
+    "comment": {
+     "comment_id": "7697061113406145305",
+     "common": {
+      "comment_type": 0,
+      "content": {
+       "text": "男女都是演技派，演的好好[鼓掌]"
+      },
+      "create_timestamp": 1792118985,
+      "group_id": "7695729394496588862",
+      "service_id": 20,
+      "status": 1,
+      "user_info": {
+       "base_info": {},
+       "expand_extra": {},
+       "user_id": "1506803224963929"
+      }
+     },
+     "expand": {
+      "book_id": "0",
+      "book_info_list": [],
+      "common_stat": {},
+      "creator_id": "0",
+      "extra": {
+       "comment_jump_schema": ""
+      },
+      "log_extra": {
+       "recommend_info": "{\"channel_id\":\"\",\"request_id\":\"202610241347168934412603363DFD7396\"}"
+      },
+      "offset_time": 20187,
+      "relate_info_list": [],
+      "reply_show_count": 0,
+      "reply_show_row": 0,
+      "show_boost": 8
+     },
+     "stat": {
+      "add_one_count": 2,
+      "digg_count": 8,
+      "reply_count": 0
+     },
+     "user_action": {
+      "is_author_stick": false,
+      "user_add_one": false,
+      "user_digg": false,
+      "user_disagree": false
+     }
+    },
+    "data_type": 4
+   }
+  ],
+  "extra": {
+   "next_query_danmaku_list_time": 30000
+  }
+ },
+ "debug_info": "",
+ "log_id": "202610241347168934412603363DFD7396",
+ "message": "请求成功"
+}

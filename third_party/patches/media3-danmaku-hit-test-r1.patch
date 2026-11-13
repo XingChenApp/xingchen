@@ -1,0 +1,94 @@
+# media3-danmaku-hit-test-r1.patch（2026-10-29 新生成，短剧弹幕点赞的引擎命中通道）
+# 基线：third_party/sources/media @ 3c2cbe8（media-lock.json 的 fongmi_media commit）＋脚本
+# apply_media_patches 既有 12 个补丁全应用后的状态；本补丁须排在全部既有补丁之后应用
+# （已登记进 scripts/build_media_deps.sh 的 apply_media_patches 列表末尾）。
+# 内容仅三件套、全部增量、无既有行为变更：DanmakuRenderItem 增 userId 拷贝与上帧绘制矩形
+# 字段；DanmakuPainter.draw 在条目存活时记录绘制矩形（y 为文字基线，上下按字号放宽）；
+# DanmakuView 新增只读查询 findDanmakuUserIdAt(x,y)（按矩形回查 userId，未命中返回 null）。
+# 未设 userId 的既有消费者（点播/直播弹幕）查询恒返回 null，不受影响。
+# 用途：短剧流页点中飞行弹幕 → 按 commentId（经 Danmaku.userId 槽带入）回查模型出点赞层。
+# 验证口径：干净基线＋12 补丁＋本补丁 apply --check 全过、三文件与补丁后状态逐字一致、
+# ui_danmaku 模块 javac 0 错（见 danmaku-completion-20261029.md）。
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
+@@ -193,8 +193,16 @@
+         return false;
+     }
+     if (!alive) {
++      item.hitValid = false;
+       return false;
+     }
++    // Record the drawn bounds for optional embedder hit-testing
++    // (DanmakuView.findDanmakuUserIdAt). y is the text baseline.
++    item.hitLeft = x;
++    item.hitTop = y - sizePx * 1.15f;
++    item.hitRight = x + item.measuredWidth;
++    item.hitBottom = y + sizePx * 0.45f;
++    item.hitValid = true;
+     if (canvas != null) {
+       drawAt(canvas, item, x, y, sizePx);
+     }
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
+@@ -22,6 +22,7 @@
+ final class DanmakuRenderItem {
+ 
+   final String text;
++  final String userId;
+   final long timeMs;
+   final @Danmaku.Type int type;
+   final int color;
+@@ -34,6 +35,13 @@
+   final boolean forceGeneratedWhite;
+   @Nullable final int[] sourceGradientColors;
+   float measuredWidth;
++  // Last drawn bounds (view coordinates), recorded by DanmakuPainter for
++  // optional tap hit-testing by embedders. Invalid until first drawn frame.
++  float hitLeft;
++  float hitTop;
++  float hitRight;
++  float hitBottom;
++  boolean hitValid;
+   boolean liveItem;
+   int trackIndex = -1;
+   int trackSpan = 1;
+@@ -47,6 +55,7 @@
+ 
+   DanmakuRenderItem(Danmaku danmaku) {
+     text = danmaku.text;
++    userId = danmaku.userId;
+     timeMs = danmaku.timeMs;
+     type = danmaku.type;
+     color = danmaku.color;
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+@@ -302,6 +302,26 @@
+     return new LiveStats(liveOffered, liveAdmitted, 0, 0, 0, 0, 0, activeItems.size());
+   }
+ 
++  /**
++   * Returns the {@link Danmaku#userId} of the topmost visible danmaku whose last drawn bounds
++   * contain the point (view coordinates), or {@code null} when no item with a non-empty userId is
++   * hit. Bounds are recorded during drawing; items not yet drawn in the current frame have no
++   * bounds and are never hit. Intended for embedders that attach per-item actions (for example a
++   * like button) to danmaku items identified through {@code userId}.
++   */
++  public @Nullable String findDanmakuUserIdAt(float x, float y) {
++    for (int i = activeItems.size() - 1; i >= 0; i--) {
++      DanmakuRenderItem item = activeItems.get(i);
++      if (!item.hitValid || item.userId == null || item.userId.isEmpty()) {
++        continue;
++      }
++      if (x >= item.hitLeft && x <= item.hitRight && y >= item.hitTop && y <= item.hitBottom) {
++        return item.userId;
++      }
++    }
++    return null;
++  }
++
+   /** Live-item render statistics. */
+   public static final class LiveStats {
+     public static final LiveStats EMPTY = new LiveStats(0L, 0L, 0L, 0L, 0L, 0, 0, 0);

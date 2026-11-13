@@ -1,0 +1,15 @@
+-nowarn
+-cp
+/home/hatch/workspace/android-sdk/platforms/android-36/android.jar:/home/hatch/workspace/gradle-dist/gradle-8.10.2/lib/junit-4.13.2.jar
+-sourcepath
+/tmp/testsync-stub
+-d
+/tmp/ts2
+player/PlaybackExperimentPolicy.java
+player/PlaybackProfileAbPolicy.java
+player/PlaybackProfileAbIdentity.java
+player/PlaybackAutoContext.java
+player/PlaybackRoute.java
+player/PlaybackRouteCapabilities.java
+setting/PlaybackPerformanceSetting.java
+/home/hatch/workspace/xingchen-full/app/src/test/java/com/fongmi/android/tv/player/PlaybackProfileAbPolicyTest.java

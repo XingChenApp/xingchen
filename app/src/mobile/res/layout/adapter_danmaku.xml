@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.textview.MaterialTextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/text"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/selector_player_child_sheet_button"
+    android:clickable="true"
+    android:ellipsize="marquee"
+    android:focusable="true"
+    android:singleLine="true"
+    android:textColor="@color/white"
+    android:textSize="15sp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp"
+    tools:text="弹弹Play" />

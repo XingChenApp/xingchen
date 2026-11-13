@@ -1,0 +1,14 @@
+plugins {
+    id 'groovy'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation gradleApi()
+    implementation localGroovy()
+    // 编包任务 PrepareRuntimeTask 用到的压缩包类；版本与主工程版本目录里同一项保持一致
+    implementation 'org.apache.commons:commons-compress:1.27.1'
+}

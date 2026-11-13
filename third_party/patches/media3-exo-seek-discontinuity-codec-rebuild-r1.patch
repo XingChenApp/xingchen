@@ -1,0 +1,63 @@
+--- a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/MediaCodecRenderer.java
++++ b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/MediaCodecRenderer.java
+@@ -415,6 +415,14 @@
+   private boolean experimentalEnableProcessedStreamChangedAtStart;
+   private boolean hasSkippedFlushAndWaitingForQueueInputBuffer;
+   private long skippedFlushOffsetUs;
++  // Wedge fix (media3-exo-seek-discontinuity-codec-rebuild-r1): set when the current stream
++  // position was reached via a stream discontinuity (a seek whose sample queues were reset,
++  // as opposed to an in-buffer seek that only moved the read position). While set, a codec
++  // reset releases and re-creates the codec instead of flushing it in place: flushing a codec
++  // that is then refed its pre-seek queue tail can leave some device codecs with all input
++  // buffers occupied and no output forthcoming. Cleared once the codec has queued a buffer
++  // after the reset (see feedInputBuffer), so steady-state resets keep flushing.
++  private boolean codecReleaseOnNextReset;
+   private CodecParameters activeCodecParameters;
+   private CodecParameters lastDispatchedCodecParameters;
+   private ImmutableSet<String> subscribedCodecParameterKeys;
+@@ -811,6 +819,10 @@
+       outputStreamInfo = pendingOutputStreamChanges.getLast();
+     }
+     pendingOutputStreamChanges.clear();
++    // A position reset that is not accompanied by a sample stream reset to a key frame is an
++    // in-buffer seek: the codec is left untouched below, so any pending rebuild request from
++    // an earlier discontinuity is stale and must not fire at a later reset.
++    codecReleaseOnNextReset = !sampleStreamIsResetToKeyFrame;
+     if (!sampleStreamIsResetToKeyFrame) {
+       // onPositionReset is not resetting the sample stream and so codec-related state will not
+       // be reset.
+@@ -1056,6 +1068,13 @@
+    * @see #flushOrReleaseCodec
+    */
+   protected boolean shouldReleaseCodecInsteadOfFlushing() {
++    if (codecReleaseOnNextReset
++        && (getTrackType() == C.TRACK_TYPE_VIDEO || getTrackType() == C.TRACK_TYPE_AUDIO)) {
++      // Wedge fix: the stream was reset under this codec by a seek discontinuity. Release and
++      // re-create instead of flushing, so the codec starts from a clean state rather than
++      // being refed the tail of its pre-seek queue (see codecReleaseOnNextReset).
++      return true;
++    }
+     if (codecDrainAction == DRAIN_ACTION_REINITIALIZE
+         || (codecNeedsSosFlushWorkaround && !codecHasOutputMediaFormat)
+         || (codecNeedsEosFlushWorkaround
+@@ -1137,6 +1156,9 @@
+         codecReconfigured ? RECONFIGURATION_STATE_WRITE_PENDING : RECONFIGURATION_STATE_NONE;
+     hasSkippedFlushAndWaitingForQueueInputBuffer = false;
+     skippedFlushOffsetUs = 0;
++    // Note: codecReleaseOnNextReset is deliberately not cleared here. It is consumed when the
++    // first buffer is queued after this reset (see feedInputBuffer); clearing it in reset
++    // state would defeat the release decision made by flushOrReleaseCodec in the same reset.
+   }
+ 
+   /**
+@@ -1685,6 +1707,10 @@
+     }
+ 
+     onQueueInputBuffer(buffer);
++    // Wedge fix: the codec has now queued a buffer past the discontinuity reset (or skipped
++    // one while waiting for a key frame, which equally proves post-reset feeding works), so
++    // any pending rebuild request is consumed; later resets flush as before.
++    codecReleaseOnNextReset = false;
+     int flags = getCodecBufferFlags(buffer);
+     presentationTimeUs += skippedFlushOffsetUs;
+     if (bufferEncrypted) {

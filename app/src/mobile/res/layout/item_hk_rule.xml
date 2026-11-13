@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔小程序列表卡片：v5 质感——卡面微渐变＋同色淡染（adapter 按图标主色设）、圆角 12dp、外层柔阴影 6dp -->
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="10dp"
+    android:layout_marginStart="5dp"
+    android:layout_marginEnd="5dp"
+    app:cardBackgroundColor="#FFFFFF"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="6dp">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="56dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
+
+        <FrameLayout
+            android:id="@+id/icon_box"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="12dp">
+
+            <ImageView
+                android:id="@+id/iv_icon"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tv_icon"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/hk_miniapp_icon_bg"
+                android:gravity="center"
+                android:text="海"
+                android:textColor="#6B5300"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/tv_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="5dp"
+            android:layout_marginEnd="7dp"
+            android:layout_toStartOf="@id/sw_enable"
+            android:layout_toEndOf="@id/icon_box"
+            android:ellipsize="end"
+            android:gravity="center_vertical"
+            android:maxLines="1"
+            android:minHeight="32dp"
+            android:paddingStart="5dp"
+            android:paddingEnd="5dp"
+            android:textColor="#101216"
+            android:textSize="16sp" />
+
+        <!-- 编辑模式才显示：实际分组标签，点卡片可改 -->
+        <TextView
+            android:id="@+id/tv_group_tag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/tv_name"
+            android:layout_marginStart="17dp"
+            android:layout_marginTop="2dp"
+            android:layout_toEndOf="@id/icon_box"
+            android:background="@drawable/hk_group_tag"
+            android:maxLines="1"
+            android:paddingLeft="7dp"
+            android:paddingTop="2dp"
+            android:paddingRight="7dp"
+            android:paddingBottom="2dp"
+            android:textColor="#8A6D00"
+            android:textSize="10sp"
+            android:visibility="gone" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/sw_enable"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="8dp"
+            android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/btn_more"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="更多操作"
+            android:src="@drawable/ic_action_more_vert"
+            android:tint="#8A8F98"
+            android:visibility="gone" />
+    </RelativeLayout>
+</androidx.cardview.widget.CardView>

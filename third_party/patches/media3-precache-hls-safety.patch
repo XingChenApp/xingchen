@@ -1,0 +1,38 @@
+# Xingchen baseline patch: PreCacheHelper HLS prepare race guard.
+#
+# 基线：上游 media 锁定提交 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d。
+#
+# 内容：PreCacheHelper 里 getDownloadRequest() 可能因 HLS 主播放列表
+# 尚未就绪抛 RuntimeException；改为捕获后走既有 onPrepareError 路径
+# （包成 IOException "Pre-cache download request unavailable"），不再
+# 让异步状态竞态打崩 App。后像与现行工作树逐字一致。
+# 本文件由 webhtv 的零上下文旧补丁按 2026-10-23 口径重生成（带上下文
+# 锚点）。
+diff --git a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/preload/PreCacheHelper.java b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/preload/PreCacheHelper.java
+index 347e3fa..1a2a27c 100644
+--- a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/preload/PreCacheHelper.java
++++ b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/preload/PreCacheHelper.java
+@@ -522,8 +522,21 @@ public final class PreCacheHelper {
+       checkState(Looper.myLooper() == preCacheHandler.getLooper());
+       checkState(helper == this.downloadHelper);
+       isPreparationOngoing = false;
+-      DownloadRequest downloadRequest =
+-          helper.getDownloadRequest(/* data= */ null, startPositionMs, durationMs);
++      DownloadRequest downloadRequest;
++      try {
++        downloadRequest =
++            helper.getDownloadRequest(/* data= */ null, startPositionMs, durationMs);
++      } catch (RuntimeException e) {
++        // HLS can report prepared tracks before its initial multivariant playlist is available.
++        // DownloadHelper.getDownloadRequest() must not let that asynchronous state race crash the
++        // application. Report the request-build failure through the existing prepare-error path.
++        downloadHelper.release();
++        notifyListeners(
++            listener ->
++                listener.onPrepareError(
++                    mediaItem, new IOException("Pre-cache download request unavailable", e)));
++        return;
++      }
+       downloadHelper.release();
+       MediaItem updatedMediaItem = downloadRequest.toMediaItem(mediaItem.buildUpon());
+       notifyListeners(listener -> listener.onPrepared(mediaItem, updatedMediaItem));

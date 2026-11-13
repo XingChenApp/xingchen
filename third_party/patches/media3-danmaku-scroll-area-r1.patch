@@ -1,0 +1,114 @@
+# media3-danmaku-scroll-area-r1.patch（2026-10-23 新生成，固化此前只活在本机 sources 树的弹幕区域锚点改动）
+# 基线：third_party/sources/media @ 3c2cbe8（media-lock.json 的 fongmi_media commit）＋既有 4 个 r2 补丁
+# （avs3/danmaku-live/playback-diagnostics/deferred-cues）应用后的状态；本补丁须排在 danmaku-live-r2 之后应用。
+# 内容仅三件套：DanmakuConfig 新增 scrollAreaBottom 字段＋Builder.setScrollAreaBottom；DanmakuPainter
+# 滚动/反向弹幕基线加 scrollAreaOffsetPx 偏移；DanmakuView 配置变更判定纳入 scrollAreaBottom。
+# 抽差量时已剔除本机树里与区域无关的直播本地态差异（DanmakuView 直播统计/过期剔除、DanmakuRenderPool
+# 直播代际、DanmakuRenderItem.liveExpiryElapsedRealtimeMs、DanmakuController 注释位置），一律不摘。
+# 验证口径：干净基线＋5 补丁 apply --check 全过，ui_danmaku 模块 javac 0 错，产物 javap 可见 setScrollAreaBottom。
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java
+index 6a648c9..4c368e7 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java
+@@ -134,6 +134,9 @@ public final class DanmakuConfig {
+   /** Fraction of the view height available to scrolling items. */
+   public final float scrollAreaRatio;
+ 
++  /** Whether the scrolling area is anchored to the bottom of the view instead of the top. */
++  public final boolean scrollAreaBottom;
++
+   /** Track height relative to the default text size. */
+   public final float lineSpacing;
+ 
+@@ -202,6 +205,7 @@ public final class DanmakuConfig {
+     this.maxTopLines = builder.maxTopLines;
+     this.maxBottomLines = builder.maxBottomLines;
+     this.scrollAreaRatio = builder.scrollAreaRatio;
++    this.scrollAreaBottom = builder.scrollAreaBottom;
+     this.lineSpacing = builder.lineSpacing;
+     this.showScroll = builder.showScroll;
+     this.showTop = builder.showTop;
+@@ -247,6 +251,7 @@ public final class DanmakuConfig {
+     private int maxTopLines;
+     private int maxBottomLines;
+     private float scrollAreaRatio;
++    private boolean scrollAreaBottom;
+     private float lineSpacing;
+     private boolean showScroll;
+     private boolean showTop;
+@@ -285,6 +290,7 @@ public final class DanmakuConfig {
+       maxTopLines = 0;
+       maxBottomLines = 0;
+       scrollAreaRatio = 0.5f;
++      scrollAreaBottom = false;
+       lineSpacing = 1.4f;
+       showScroll = true;
+       showTop = true;
+@@ -323,6 +329,7 @@ public final class DanmakuConfig {
+       this.maxTopLines = config.maxTopLines;
+       this.maxBottomLines = config.maxBottomLines;
+       this.scrollAreaRatio = config.scrollAreaRatio;
++      this.scrollAreaBottom = config.scrollAreaBottom;
+       this.lineSpacing = config.lineSpacing;
+       this.showScroll = config.showScroll;
+       this.showTop = config.showTop;
+@@ -474,6 +481,13 @@ public final class DanmakuConfig {
+       return this;
+     }
+ 
++    /** Sets whether the scrolling area is anchored to the bottom of the view. */
++    @CanIgnoreReturnValue
++    public Builder setScrollAreaBottom(boolean scrollAreaBottom) {
++      this.scrollAreaBottom = scrollAreaBottom;
++      return this;
++    }
++
+     /** Sets track height relative to the default text size. */
+     @CanIgnoreReturnValue
+     public Builder setLineSpacing(float lineSpacing) {
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
+index 35a7095..b7f7468 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
+@@ -164,13 +164,13 @@ final class DanmakuPainter {
+       case Danmaku.TYPE_SCROLL:
+         float speed = (viewWidth + item.measuredWidth) / (float) effectiveScrollDurationMs();
+         x = viewWidth - speed * elapsedMs;
+-        y = baseline(item.trackIndex, item.trackSpan);
++        y = baseline(item.trackIndex, item.trackSpan) + scrollAreaOffsetPx(viewHeight);
+         alive = x + item.measuredWidth > 0;
+         break;
+       case Danmaku.TYPE_REVERSE:
+         float reverseSpeed = (viewWidth + item.measuredWidth) / (float) effectiveScrollDurationMs();
+         x = -item.measuredWidth + reverseSpeed * elapsedMs;
+-        y = baseline(item.trackIndex, item.trackSpan);
++        y = baseline(item.trackIndex, item.trackSpan) + scrollAreaOffsetPx(viewHeight);
+         alive = x < viewWidth;
+         break;
+       case Danmaku.TYPE_TOP:
+@@ -331,6 +331,13 @@ final class DanmakuPainter {
+     }
+   }
+ 
++  private float scrollAreaOffsetPx(int viewHeight) {
++    if (!config.scrollAreaBottom || trackHeight <= 0 || viewHeight <= 0) return 0f;
++    int availableTracks = (int) (viewHeight / trackHeight);
++    int scrollTracks = (int) (availableTracks * config.scrollAreaRatio);
++    return Math.max(0, availableTracks - scrollTracks) * trackHeight;
++  }
++
+   private float baseline(int trackIndex, int trackSpan) {
+     float trackTop = trackIndex * trackHeight;
+     return trackTop + (trackSpan * trackHeight - fillPaint.descent() - fillPaint.ascent()) / 2f;
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+index 9018f7b..68e733b 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+@@ -82,6 +82,7 @@ public final class DanmakuView extends View {
+       DanmakuConfig oldConfig, DanmakuConfig newConfig) {
+     return isMeasurementConfigChanged(oldConfig, newConfig)
+         || oldConfig.scrollAreaRatio != newConfig.scrollAreaRatio
++        || oldConfig.scrollAreaBottom != newConfig.scrollAreaBottom
+         || oldConfig.lineSpacing != newConfig.lineSpacing
+         || oldConfig.maxScrollLines != newConfig.maxScrollLines
+         || oldConfig.maxTopLines != newConfig.maxTopLines

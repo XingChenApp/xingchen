@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 歌单页＋新建歌单钮：瓜子主按钮灰色。截图实测 #98979C～#9C9BA0（JPEG 容差 ±2），取中值 #98979D；
+     星辰旧 bg_pill_dark #1C1C1E 是黑色，别处（收藏／历史播放全部等）还在用，故单独立新件，只换歌单页新建钮。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#98979D" />
+    <corners android:radius="22dp" />
+</shape>

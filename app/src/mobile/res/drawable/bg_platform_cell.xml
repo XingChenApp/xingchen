@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GZ 平台图标格：40dp 方块、圆角 12dp、白 92%＋黑 6% 描边（星辰无各平台 logo 素材，格内用平台名文字代替，见表） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#EBFFFFFF" />
+    <stroke android:width="1dp" android:color="#0F000000" />
+    <corners android:radius="12dp" />
+</shape>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 一比一对照 8.83 反编译原文：res/layout/view_scroll_text.xml -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <TextView
+        android:id="@+id/get_html_txt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="5dp"
+        android:enabled="true"
+        android:focusable="true"
+        android:longClickable="true"
+        android:padding="5dp"
+        android:textIsSelectable="true" />
+</ScrollView>

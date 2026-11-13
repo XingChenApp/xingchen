@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 第二波播放核心新增串：只放本波新串，不改共享 strings.xml -->
+<resources>
+    <!-- S10：后台起前台被系统拒时给用户的可见提示（不只记调试日志） -->
+</resources>

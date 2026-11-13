@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/vector_progress_indeterminate_horizontal">
+    <target android:name="rect1_grp" android:animation="@anim/anim_apih_rect1_grp" />
+    <target android:name="rect2_grp" android:animation="@anim/anim_apih_rect2_grp" />
+</animated-vector>

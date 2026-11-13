@@ -1,0 +1,24 @@
+diff --git a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/MediaCodecRenderer.java b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/MediaCodecRenderer.java
+--- a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/MediaCodecRenderer.java
++++ b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/mediacodec/MediaCodecRenderer.java
+@@ -1301,9 +1301,17 @@
+       stream.readData(getFormatHolder(), keyFrameQueryBuffer, /* readFlags= */ 0);
+       return keyFrameQueryBuffer.getKeyFrameQueryResult();
+     }
+-    keyFrameQueryBuffer.clear();
+-    int result = stream.readData(getFormatHolder(), keyFrameQueryBuffer, FLAG_PEEK);
+-    return result == C.RESULT_BUFFER_READ && keyFrameQueryBuffer.isKeyFrame();
++    // Wedge fix scope limit (media3-exo-seek-stream-source-r2): generic streams
++    // (progressive etc.) have no metadata channel for this query. A FLAG_PEEK here
++    // cannot distinguish "the sample queue survived this reset" from "the queue is
++    // momentarily empty while refilling after an ordinary seek" -- both present
++    // nothing readable -- so arming a codec release from that non-answer converted
++    // every routine seek / adopt reset on progressive streams into a full codec
++    // teardown and re-create (device log 2026-11-09: five decoder instances in 8s
++    // on one player during a single seek drag; the episode-advance seam stall).
++    // Only the two queue types with a real metadata answer (Chunk/HLS above) may
++    // arm the release; generic streams flush, as upstream does.
++    return true;
+   }
+ 
+   /**

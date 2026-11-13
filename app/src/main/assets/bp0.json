@@ -1,0 +1,38 @@
+[
+  {
+    "name": "_inner_google",
+    "match": ".*google\\.com.*/oauth.*",
+    "replace": "",
+    "force": false,
+    "requestHeaders": {
+      "x-requested-with": "hiker://empty"
+    },
+    "responseHeaders": []
+  },
+  {
+    "name": "_inner_youtube",
+    "match": ".*youtube\\.com/.*",
+    "replace": "",
+    "force": false,
+    "requestHeaders": {},
+    "responseHeaders": [
+      {
+        "match": "content-security-policy",
+        "replace": ""
+      }
+    ]
+  },
+  {
+    "name": "_inner_github",
+    "match": ".*//github\\.com.*",
+    "replace": "",
+    "force": false,
+    "requestHeaders": {},
+    "responseHeaders": [
+      {
+        "match": "content-security-policy",
+        "replace": ""
+      }
+    ]
+  }
+]

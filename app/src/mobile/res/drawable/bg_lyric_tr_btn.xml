@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 歌词页 Tr 钮圆圈（GZ 全屏歌词页右上 Tr：淡圈＋Tr 字；圈透明度按截图目测，源码未给值） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="#00000000" />
+    <stroke android:width="1dp" android:color="#66FFFFFF" />
+</shape>

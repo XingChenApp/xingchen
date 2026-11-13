@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 第二波：榜单详情「播放全部」钮底（深色实底、圆角 14dp；瓜子 BoardDetailHero 播放全部钮高 48dp 圆角 14dp） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#1C1C1E" />
+    <corners android:radius="14dp" />
+</shape>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 8.83 同款：请选择分类弹窗按钮（对照 item_rect_radius.xml center=true 浅色模式） -->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_margin="5dp"
+        app:cardBackgroundColor="#FFF5F5F5"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="0dp">
+
+        <TextView
+            android:id="@+id/tv_category"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/ripple_grey"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:lines="1"
+            android:paddingStart="3dp"
+            android:paddingEnd="3dp"
+            android:textColor="#FF222222"
+            android:textSize="14sp" />
+    </com.google.android.material.card.MaterialCardView>
+</RelativeLayout>

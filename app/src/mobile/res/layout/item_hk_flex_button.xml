@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 8.83 item_flex_box.xml：流式按钮组（flex_button 用） -->
+<com.google.android.flexbox.FlexboxLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/flexboxLayout"
+    android:padding="10dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:alignContent="stretch"
+    app:alignItems="stretch"
+    app:flexWrap="wrap"
+    app:showDivider="middle" />

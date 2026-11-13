@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔 8.83 原版布局引用的 id 声明（原版靠全 App @+id 汇总，这里显式声明同名 id）。 -->
+<resources>
+    <item type="id" name="clearBtn" />
+    <item type="id" name="divider" />
+    <item type="id" name="item_button_bg" />
+    <item type="id" name="item_rect_text_no_center" />
+    <item type="id" name="item_rect_text_no_center_img" />
+    <item type="id" name="item_rect_wrap_text" />
+    <item type="id" name="item_reult_img" />
+    <item type="id" name="item_reult_img2" />
+    <item type="id" name="item_reult_img_end" />
+    <item type="id" name="movie_one_desc" />
+    <item type="id" name="movie_one_title" />
+    <item type="id" name="pop_input_edit_bg" />
+    <item type="id" name="reult_tools_RelativeLayout" />
+    <item type="id" name="reult_tools_desc" />
+    <item type="id" name="reult_tools_title" />
+    <item type="id" name="search_suggest" />
+    <item type="id" name="shortcut_bg" />
+    <item type="id" name="shortcut_bg2" />
+    <item type="id" name="shortcut_icon" />
+    <item type="id" name="shortcut_icon_bg" />
+    <item type="id" name="shortcut_text" />
+    <item type="id" name="menu_icon" />
+    <item type="id" name="recyclerView" />
+    <item type="id" name="title" />
+    <item type="id" name="res_header_scroll" />
+    <item type="id" name="custom_tag" />
+    <item type="id" name="float_container" />
+    <item type="id" name="webview_container" />
+    <item type="id" name="progress_bar" />
+    <item type="id" name="bodyContainer" />
+    <item type="id" name="refresh_layout" />
+    <item type="id" name="frag_article_list_recycler_view" />
+    <item type="id" name="frag_article_list_recycler_scroller" />
+    <item type="id" name="read_layout" />
+    <item type="id" name="progress_image_view1" />
+    <item type="id" name="notify_bg" />
+    <item type="id" name="notify_queue" />
+    <item type="id" name="notify_text" />
+    <item type="id" name="choose_item_all_desc_more" />
+    <item type="id" name="choose_item_all_notice" />
+    <item type="id" name="chooseitem_all_RelativeLayout" />
+    <item type="id" name="chooseitem_all_desc" />
+    <item type="id" name="chooseitem_all_img" />
+    <item type="id" name="chooseitem_all_img_bg" />
+    <item type="id" name="chooseitem_all_title" />
+    <item type="id" name="loadmre_footer" />
+    <item type="id" name="res_header_item_expand" />
+    <item type="id" name="res_header_linearlayout" />
+    <item type="id" name="search_all_content" />
+    <item type="id" name="item_button" />
+    <item type="id" name="desc_bg" />
+</resources>

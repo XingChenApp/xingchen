@@ -1,0 +1,153 @@
+package com.fongmi.android.tv.api;
+
+import android.text.TextUtils;
+
+import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.api.config.VodConfig;
+import com.fongmi.android.tv.bean.Site;
+import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.utils.Task;
+import com.github.catvod.crawler.SpiderDebug;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+public final class CspWarmup {
+
+    private static final long DELAY_MS = 500;
+    private static final Object LOCK = new Object();
+
+    private static final Set<String> attemptedKeys = new HashSet<>();
+    private static long generation;
+
+    private CspWarmup() {
+    }
+
+    public static void reset() {
+        long currentGeneration;
+        synchronized (LOCK) {
+            currentGeneration = ++generation;
+            attemptedKeys.clear();
+        }
+        SpiderDebug.log("csp-warmup", "reset generation=%s", currentGeneration);
+    }
+
+    public static void schedule(String reason) {
+        if (!Setting.isCspWarmup()) return;
+        String key = configKey();
+        long currentGeneration;
+        synchronized (LOCK) {
+            if (!attemptedKeys.add(key)) {
+                SpiderDebug.log("csp-warmup", "skip duplicate reason=%s config=%s", reason, key);
+                return;
+            }
+            currentGeneration = generation;
+        }
+        SpiderDebug.log("csp-warmup", "schedule reason=%s config=%s generation=%s delay=%sms", reason, key, currentGeneration, DELAY_MS);
+        App.post(() -> Task.execute(() -> run(key, reason, currentGeneration)), DELAY_MS);
+    }
+
+    private static void run(String key, String reason, long scheduledGeneration) {
+        long start = System.currentTimeMillis();
+        try {
+            synchronized (LOCK) {
+                if (scheduledGeneration != generation) {
+                    SpiderDebug.log("csp-warmup", "skip stale reason=%s config=%s scheduled=%s current=%s", reason, key, scheduledGeneration, generation);
+                    return;
+                }
+            }
+            if (!Setting.isCspWarmup()) {
+                SpiderDebug.log("csp-warmup", "cancel disabled reason=%s", reason);
+                return;
+            }
+            List<Site> sites = pickSites();
+            if (sites.isEmpty()) {
+                SpiderDebug.log("csp-warmup", "skip no native csp reason=%s cost=%sms", reason, System.currentTimeMillis() - start);
+                return;
+            }
+            int success = 0;
+            for (Site site : sites) if (initSite(site, reason)) success++;
+            SpiderDebug.log("csp-warmup", "done reason=%s success=%s total=%s cost=%sms", reason, success, sites.size(), System.currentTimeMillis() - start);
+        } catch (Throwable e) {
+            SpiderDebug.log("csp-warmup", "error reason=%s err=%s msg=%s cost=%sms", reason, e.getClass().getSimpleName(), e.getMessage(), System.currentTimeMillis() - start);
+        }
+    }
+
+    private static boolean initSite(Site site, String reason) {
+        long start = System.currentTimeMillis();
+        try {
+            SpiderDebug.log("csp-warmup", "init start reason=%s site=%s api=%s jar=%s", reason, site.getKey(), site.getApi(), jarKey(site));
+            // 后台预热走静默加载：PY 源失败只落强制日志，不弹「PY加载失败」。
+            // 扫描 T8：成败看返回值——加载失败回的是 SpiderNull 而非抛异常，
+            // 此前不接返回值恒记 init done 并计入 success，靠日志定位时被假成功误导。
+            com.github.catvod.crawler.Spider spider = site.recent().spiderQuiet();
+            if (spider == null || spider instanceof com.github.catvod.crawler.SpiderNull) {
+                SpiderDebug.log("csp-warmup", "init failed reason=%s site=%s api=%s (spider null) cost=%sms", reason, site.getKey(), site.getApi(), System.currentTimeMillis() - start);
+                return false;
+            }
+            SpiderDebug.log("csp-warmup", "init done reason=%s site=%s api=%s cost=%sms", reason, site.getKey(), site.getApi(), System.currentTimeMillis() - start);
+            return true;
+        } catch (Throwable e) {
+            SpiderDebug.log("csp-warmup", "init error reason=%s site=%s err=%s msg=%s cost=%sms", reason, site.getKey(), e.getClass().getSimpleName(), e.getMessage(), System.currentTimeMillis() - start);
+            return false;
+        }
+    }
+
+    private static List<Site> pickSites() {
+        if (Setting.getCspWarmupMode() == Setting.CSP_WARMUP_CUSTOM) return pickCustomSites();
+        // Warm the home site first: it is the first spider the user actually opens.
+        // (Previously a non-home CSP site was preferred, which missed PY home sources entirely.)
+        Site home = VodConfig.get().getHome();
+        if (isWarmable(home)) return Collections.singletonList(home);
+        Site site = pickSite();
+        return site == null ? Collections.emptyList() : Collections.singletonList(site);
+    }
+
+    private static List<Site> pickCustomSites() {
+        List<Site> result = new ArrayList<>();
+        Set<String> jars = new HashSet<>();
+        for (String key : Setting.getCspWarmupSites()) {
+            Site site = VodConfig.get().getSite(key);
+            if (!isWarmable(site)) continue;
+            String jar = jarKey(site);
+            // PY sites have no jar; only de-duplicate when a jar key actually exists,
+            // otherwise only the first PY site would ever be warmed.
+            if (!jar.isEmpty() && !jars.add(jar)) continue;
+            result.add(site);
+        }
+        return result;
+    }
+
+    private static Site pickSite() {
+        Site fallback = null;
+        for (Site site : VodConfig.get().getSites()) {
+            if (!isWarmable(site)) continue;
+            if (fallback == null) fallback = site;
+            if (!site.hasHomePage()) return site;
+        }
+        return fallback;
+    }
+
+    public static boolean isWarmable(Site site) {
+        if (site == null || site.isEmpty()) return false;
+        String api = site.getApi();
+        if (TextUtils.isEmpty(api)) return false;
+        // PY sources use the same routing predicate as BaseLoader.isPy(api):
+        // warming them here pre-imports the script and runs init() in the
+        // background, so the first homeContent() no longer blocks on it.
+        if (api.contains(".py")) return true;
+        return site.getType() == 3 && api.startsWith("csp_") && !"csp_Builtin".equalsIgnoreCase(api) && !TextUtils.isEmpty(jarKey(site));
+    }
+
+    public static String jarKey(Site site) {
+        return site == null ? "" : site.getJar().trim();
+    }
+
+    private static String configKey() {
+        int mode = Setting.getCspWarmupMode();
+        return VodConfig.getCid() + ":" + VodConfig.getUrl() + ":" + mode + (mode == Setting.CSP_WARMUP_CUSTOM ? ":" + TextUtils.join(",", Setting.getCspWarmupSites()) : "");
+    }
+}

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 手机端模块页：ModuleFragment 的 binding 字段 toolbar / bdj / python / nodejs / quickjs / mpv。
+     本页以覆盖方式叠在首页容器上，根布局必须不透明，否则底下页签会透出来。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground"
+    android:orientation="vertical">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?android:attr/colorBackground" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <include
+                android:id="@+id/bdj"
+                layout="@layout/item_module" />
+
+            <include
+                android:id="@+id/python"
+                layout="@layout/item_module" />
+
+            <include
+                android:id="@+id/nodejs"
+                layout="@layout/item_module" />
+
+            <include
+                android:id="@+id/quickjs"
+                layout="@layout/item_module" />
+
+            <include
+                android:id="@+id/mpv"
+                layout="@layout/item_module" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

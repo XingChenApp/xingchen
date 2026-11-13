@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔 8.83 原版颜色（res/values/colors.xml 原值），供照抄移植的原版布局引用；与工程既有同名同值的不重复定义。 -->
+<resources>
+    <color name="blackText">#ff222222</color>
+    <color name="blackText3">#ff444444</color>
+    <color name="black_77">#773e3e40</color>
+    <color name="black_secondary">#ff222222</color>
+    <color name="half_transparent2">#60000000</color>
+    <color name="tabText">#99999999</color>
+    <color name="tabText2">#ff888888</color>
+    <color name="text">#ff222222</color>
+    <color name="text_color_default">#ff888888</color>
+    <color name="whiteblack">#99999999</color>
+    <color name="whiteblack2">#60333333</color>
+    <color name="yellowAction">#ff109d58</color>
+    <color name="text_color_tertiary">#ff757575</color>
+    <color name="redAction">#ffed424b</color>
+    <color name="greenAction">#ff109d58</color>
+    <color name="little_green">#f0e6f3e6</color>
+    <color name="progress_blue">#ff62a6fb</color>
+    <color name="green">#ff14c47c</color>
+    <color name="gray_text">#ff848484</color>
+    <color name="red_shallow">#fffe7577</color>
+</resources>

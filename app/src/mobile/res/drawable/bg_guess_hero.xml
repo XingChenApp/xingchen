@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 猜你喜欢页头图卡占位底：粉紫浅渐变、圆角 20dp；运行时被首首封面取色淡染覆盖（tintGuessHero），
+     取色未到时照样成形。只被 item_music_guess_hero 引用。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="20dp" />
+    <gradient
+        android:angle="315"
+        android:centerColor="#FFE3D9FF"
+        android:endColor="#FFFDEFF5"
+        android:startColor="#FFFFC5DC"
+        android:type="linear" />
+</shape>

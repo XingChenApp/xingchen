@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 独立规则搜索页：搜已安装小程序（对齐 8.83 activit_rules_search） -->
+<!-- 液态玻璃动态背景：LinearLayout 根，背景走 HkDynamicBgView.attachTo（decor 注入，见 HkRuleSearchActivity） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical"
+    android:paddingTop="12dp">
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="46dp"
+        android:layout_marginLeft="12dp"
+        android:layout_marginRight="12dp"
+        app:cardBackgroundColor="#FFFFFF"
+        app:cardCornerRadius="23dp"
+        app:cardElevation="0dp"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ImageButton
+                android:id="@+id/btn_back"
+                android:layout_width="44dp"
+                android:layout_height="match_parent"
+                android:layout_alignParentStart="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="返回"
+                android:padding="10dp"
+                android:src="@drawable/ic_hk_back" />
+
+            <EditText
+                android:id="@+id/et_keyword"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginEnd="44dp"
+                android:layout_toEndOf="@id/btn_back"
+                android:background="@null"
+                android:hint="搜索小程序名称、链接、规则"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:textColor="#101216"
+                android:textColorHint="#4B5563"
+                android:textSize="15sp" />
+
+            <ImageButton
+                android:id="@+id/btn_clear"
+                android:layout_width="44dp"
+                android:layout_height="match_parent"
+                android:layout_alignParentEnd="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="清空"
+                android:padding="12dp"
+                android:src="@drawable/ic_hk_close"
+                android:visibility="invisible" />
+        </RelativeLayout>
+    </androidx.cardview.widget.CardView>
+
+    <TextView
+        android:id="@+id/tv_history_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="16dp"
+        android:layout_marginTop="12dp"
+        android:text="搜索历史"
+        android:textColor="#374151"
+        android:textSize="13sp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_history"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:clipToPadding="false"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_results"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingLeft="7dp"
+        android:paddingRight="7dp"
+        android:paddingBottom="8dp" />
+
+    <TextView
+        android:id="@+id/tv_empty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="无相关结果"
+        android:textColor="#4B5563"
+        android:textSize="15sp"
+        android:visibility="gone" />
+</LinearLayout>

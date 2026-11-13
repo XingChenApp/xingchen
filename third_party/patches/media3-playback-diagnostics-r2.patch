@@ -1,0 +1,87 @@
+diff --git a/libraries/common/src/main/java/androidx/media3/common/util/PlaybackDiagnostics.java b/libraries/common/src/main/java/androidx/media3/common/util/PlaybackDiagnostics.java
+new file mode 100644
+index 0000000..ac22c13
+--- /dev/null
++++ b/libraries/common/src/main/java/androidx/media3/common/util/PlaybackDiagnostics.java
+@@ -0,0 +1,81 @@
++package androidx.media3.common.util;
++
++import android.media.MediaCodec;
++import android.media.MediaCrypto;
++import android.media.MediaFormat;
++import android.os.SystemClock;
++import android.view.Surface;
++import java.io.IOException;
++import java.lang.ref.WeakReference;
++import java.util.WeakHashMap;
++
++/** Optional observation only. Exceptions and playback decisions remain owned by the caller. */
++@UnstableApi
++public final class PlaybackDiagnostics {
++  public interface Listener {
++    boolean enabled(String event);
++    void event(Object owner, String event, String operation, String phase, long durationNs,
++        long value, String detail, Throwable error);
++    void write(Object owner, int requested, int result, long ptsUs, boolean header, long durationNs);
++  }
++  private static volatile Listener listener;
++  private static final ThreadLocal<Object> context = new ThreadLocal<>();
++  private static final WeakHashMap<Object, WeakReference<Object>> parents = new WeakHashMap<>();
++  private PlaybackDiagnostics() {}
++  public static void setListener(Listener value) { listener = value; }
++  public static Object enter(Object owner) { Object prior = context.get(); context.set(owner); return prior; }
++  public static void leave(Object prior) { if (prior == null) context.remove(); else context.set(prior); }
++  public static synchronized void link(Object owner, Object parent) { parents.put(owner, new WeakReference<>(parent)); }
++  private static synchronized Object resolve(Object owner) {
++    if (owner == null) return context.get();
++    for (int i = 0; i < 4; i++) {
++      WeakReference<Object> parent = parents.get(owner);
++      if (parent == null || parent.get() == null) break;
++      owner = parent.get();
++    }
++    return owner;
++  }
++  public static boolean enabled(String event) {
++    Listener current = listener;
++    try { return current != null && current.enabled(event); }
++    catch (RuntimeException | LinkageError ignored) { return false; }
++  }
++  public static long begin(Object owner, String event, String operation, String detail) {
++    if (!enabled(event)) return 0;
++    long now = SystemClock.elapsedRealtimeNanos();
++    event(owner, event, operation, "begin", 0, 0, detail, null); return now;
++  }
++  public static void end(Object owner, String event, String operation, long start, long value, String detail, Throwable error) {
++    event(owner, event, operation, error == null ? "end" : "failed",
++        start == 0 ? -1 : SystemClock.elapsedRealtimeNanos() - start, value, detail, error);
++  }
++  public static void event(Object owner, String event, String operation, String phase, long duration,
++      long value, String detail, Throwable error) {
++    Listener current = listener;
++    try { if (current != null && current.enabled(event)) current.event(resolve(owner), event, operation, phase, duration, value, detail, error); }
++    catch (RuntimeException | LinkageError ignored) { /* Diagnostics cannot change playback. */ }
++  }
++  public static void write(Object owner, int requested, int result, long ptsUs, boolean header, long start) {
++    Listener current = listener;
++    try { if (current != null && current.enabled("audio.output.write")) current.write(owner, requested, result, ptsUs, header,
++        start == 0 ? -1 : SystemClock.elapsedRealtimeNanos() - start); }
++    catch (RuntimeException | LinkageError ignored) { /* Preserve the original write result. */ }
++  }
++  public static long writeStart() { return enabled("audio.output.write") ? SystemClock.elapsedRealtimeNanos() : 0; }
++
++  public static MediaCodec createCodec(String name) throws IOException {
++    long start = begin(null, "codec", "create", name);
++    try { MediaCodec codec = MediaCodec.createByCodecName(name); end(null, "codec", "create", start, 0, name, null); return codec; }
++    catch (IOException | RuntimeException error) { end(null, "codec", "create", start, 0, name, error); throw error; }
++  }
++  public static void configureCodec(MediaCodec codec, MediaFormat format, Surface surface, MediaCrypto crypto, int flags) {
++    long start = begin(null, "codec", "configure", "MediaCodec.configure");
++    try { codec.configure(format, surface, crypto, flags); end(null, "codec", "configure", start, flags, "MediaCodec.configure", null); }
++    catch (RuntimeException error) { end(null, "codec", "configure", start, flags, "MediaCodec.configure", error); throw error; }
++  }
++  public static void startCodec(MediaCodec codec) {
++    long start = begin(null, "codec", "start", "MediaCodec.start");
++    try { codec.start(); end(null, "codec", "start", start, 0, "MediaCodec.start", null); }
++    catch (RuntimeException error) { end(null, "codec", "start", start, 0, "MediaCodec.start", error); throw error; }
++  }
++}

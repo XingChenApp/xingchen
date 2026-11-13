@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 随心听：三段渐变卡面本体（蓝绿→绿黄，与粉 home_bg_card_pink／蓝绿 home_bg_card_teal 同族同角 20dp；
+     卡面本体就是渐变，光晕只作卡内淡水印——回归清单第 2 条）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="20dp" />
+    <gradient
+        android:angle="315"
+        android:centerColor="#FFCFF2B8"
+        android:endColor="#FFEAF989"
+        android:startColor="#FF9FE8D0"
+        android:type="linear" />
+</shape>

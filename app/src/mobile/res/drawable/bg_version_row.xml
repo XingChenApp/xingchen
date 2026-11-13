@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 歌词版本行卡（GZ 歌词版本面板行底：浅灰卡） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#F5F5F5" />
+    <corners android:radius="10dp" />
+</shape>

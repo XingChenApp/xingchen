@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 随心听页反馈丸子键底＝discoveryInset #F0F0F4、圆角 18dp（瓜子 FeedbackButton） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#F0F0F4" />
+    <corners android:radius="18dp" />
+</shape>

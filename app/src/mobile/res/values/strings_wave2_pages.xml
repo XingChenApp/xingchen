@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 第二波页面对齐新增串：只放本波新串，不动共享 strings.xml。 -->
+<resources>
+    <!-- 下载页顶标题：瓜子 DownloadsScreen「下载管理」；首页「下载音乐」入口文案不动 -->
+    <string name="wave2_download_manage">下载管理</string>
+    <!-- 插件分组头：瓜子 LxPluginScreen 三组名（空组不渲染） -->
+    <string name="wave2_plugin_group_audio">音源插件</string>
+    <string name="wave2_plugin_group_other">其他插件</string>
+    <string name="wave2_plugin_group_lyric">内置歌词</string>
+    <!-- 批 6 双轨分组头：落雪 JS 源／FreeJS 源两轨各自成列（空轨不渲染） -->
+    <string name="wave2_plugin_group_lx">落雪 JS 源</string>
+    <string name="wave2_plugin_group_freejs">FreeJS 源</string>
+    <!-- 播放路由：瓜子 LxPluginScreen 播放路由区 -->
+    <string name="wave2_route_title">播放路由</string>
+    <string name="wave2_route_sub">高级设置</string>
+    <string name="wave2_route_policy">取链策略</string>
+    <string name="wave2_route_policy_auto">自动切换</string>
+    <string name="wave2_route_policy_auto_desc">自动切换取链渠道，失败后自动跨平台换源（成功率优先）</string>
+    <string name="wave2_route_policy_only">仅插件</string>
+    <string name="wave2_route_policy_only_desc">仅通过第三方插件取链，不跨平台换源</string>
+    <string name="wave2_route_policy_no_plugin">当前未安装音源插件，在线播放不可用</string>
+    <string name="wave2_route_policy_no_plugin_only">当前未安装音源插件，请先导入</string>
+    <string name="wave2_route_assign">指定平台插件</string>
+    <string name="wave2_route_assign_none">为各平台固定指定取链插件（未指定 = 自动）</string>
+    <string name="wave2_route_assign_some">已指定 %1$d 个平台 · 点击查看与修改</string>
+    <string name="wave2_route_assign_default">默认（自动选择）</string>
+    <string name="wave2_route_assign_default_desc">按取链策略顺序 / 智能切换自动选择</string>
+    <string name="wave2_route_assign_disabled">已停用 · 不会参与取链</string>
+    <string name="wave2_route_assign_fallback_note">当前指定插件不可用，将自动回落默认顺序；请重新指定或选「默认」</string>
+    <!-- 列表区头：瓜子 HistoryScreen / FavoritesScreen SectionHeader -->
+    <string name="wave2_section_all_records">全部记录</string>
+    <string name="wave2_section_search_result">搜索结果</string>
+    <string name="wave2_section_all_songs">全部歌曲</string>
+    <!-- 历史行「已缓存」标签：瓜子 HistoryScreenKt（字号未抠到，沿用行内徽标 11sp） -->
+    <string name="wave2_cached">已缓存</string>
+    <!-- 榜单空态：瓜子 TopListScreen 空态（星辰刷新不在右上，文案不写位置） -->
+    <string name="wave2_chart_empty">暂无榜单数据\n点击刷新，再来看看</string>
+    <!-- 首页榜单卡内空态／加载：瓜子 HomeRankingCardKt -->
+    <string name="wave2_home_chart_empty">暂未获取到榜单</string>
+    <string name="wave2_home_chart_retry">点击重试</string>
+    <string name="wave2_home_chart_loading">正在加载榜单</string>
+    <!-- 本地扫描设置 -->
+    <string name="wave2_device_scan_settings">扫描设置</string>
+    <string name="wave2_device_scan_filter">扫描过滤</string>
+    <string name="wave2_device_exclude">文件夹排除管理</string>
+    <string name="wave2_device_removed">已移除（%1$d）</string>
+    <string name="wave2_device_restore_all">恢复全部</string>
+    <string name="wave2_device_restored">已恢复全部移除歌曲</string>
+    <!-- 聆听报告：只用本地播放历史＋收藏算，口径见代码注释 -->
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ⋮ 小菜单：白色圆角卡（浅色口径，字底对比足） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="16dp" />
+    <solid android:color="#FFFFFF" />
+    <stroke android:width="1dp" android:color="#14000000" />
+</shape>

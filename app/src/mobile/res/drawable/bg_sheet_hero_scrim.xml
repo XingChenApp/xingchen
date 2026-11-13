@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 第 1 项：歌单英雄卡底部压暗渐变（歌单名／简介压在封面图上时保证可读） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:angle="270"
+        android:endColor="#CC000000"
+        android:startColor="#00000000"
+        android:type="linear" />
+</shape>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 开关轨道（暗磨砂口径，2026-10-27 材料推广）：未开＝磨砂钉死深灰 #333333@.85＋白 .25 边，
+     与全页磨砂件（MusicFrostDrawable／bg_home_frost_* 下限）同值同边；开＝状态红半透＋亮边
+     （色是件自己的状态色，与磨砂 tone 同理，不从背景取色）。圆钮沿用 switch_glass_thumb 白钮。
+     由 MusicGlassWire.glassifyTree 统一给全树 SwitchCompat 换上。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true">
+        <shape android:shape="rectangle">
+            <size android:width="52dp" android:height="32dp" />
+            <corners android:radius="16dp" />
+            <solid android:color="#59FA243C" />
+            <stroke android:width="1dp" android:color="#66FFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <size android:width="52dp" android:height="32dp" />
+            <corners android:radius="16dp" />
+            <solid android:color="#D9333333" />
+            <stroke android:width="1dp" android:color="#40FFFFFF" />
+        </shape>
+    </item>
+</selector>

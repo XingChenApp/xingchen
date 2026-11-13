@@ -1,0 +1,406 @@
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java
+index 5352ff9..91e90d6 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java
+@@ -195,6 +195,15 @@ public final class DanmakuConfig {
+    */
+   public final @Nullable Bitmap diggIcon;
+ 
++  /**
++   * Edge length in pixels of the like-count tail icon, fed per text-size tier by the
++   * hosting surface (official client: the tier value of its danmaku text-size table).
++   * Zero (the default) means unconfigured: tail measurement and drawing keep the
++   * legacy text-size-proportional form, so surfaces that never feed a tier value see
++   * no behavior change.
++   */
++  public final float diggIconSizePx;
++
+   private DanmakuConfig(Builder builder) {
+     this.durationMs = builder.durationMs;
+     this.fixedDurationMs = builder.fixedDurationMs;
+@@ -234,6 +243,7 @@ public final class DanmakuConfig {
+     this.colorMode = builder.colorMode;
+     this.timeOffsetMs = builder.timeOffsetMs;
+     this.diggIcon = builder.diggIcon;
++    this.diggIconSizePx = builder.diggIconSizePx;
+   }
+ 
+   /** Returns a builder initialized from this configuration. */
+@@ -282,6 +292,7 @@ public final class DanmakuConfig {
+     private @ColorMode int colorMode;
+     private long timeOffsetMs;
+     private @Nullable Bitmap diggIcon;
++    private float diggIconSizePx;
+ 
+     /** Creates a builder initialized with default values. */
+     public Builder() {
+@@ -323,6 +334,7 @@ public final class DanmakuConfig {
+       colorMode = COLOR_MODE_DEFAULT;
+       timeOffsetMs = 0;
+       diggIcon = null;
++      diggIconSizePx = 0f;
+     }
+ 
+     private Builder(DanmakuConfig config) {
+@@ -364,6 +376,7 @@ public final class DanmakuConfig {
+       this.colorMode = config.colorMode;
+       this.timeOffsetMs = config.timeOffsetMs;
+       this.diggIcon = config.diggIcon;
++      this.diggIconSizePx = config.diggIconSizePx;
+     }
+ 
+     /** Sets the scrolling item duration in milliseconds. */
+@@ -647,6 +660,17 @@ public final class DanmakuConfig {
+       return this;
+     }
+ 
++    /**
++     * Sets the like-count tail icon edge length in pixels. The hosting surface feeds
++     * its per-text-size-tier value; zero (the default) leaves tail measurement and
++     * drawing in the legacy text-size-proportional form.
++     */
++    @CanIgnoreReturnValue
++    public Builder setDiggIconSizePx(float diggIconSizePx) {
++      this.diggIconSizePx = Math.max(0f, diggIconSizePx);
++      return this;
++    }
++
+     /** Builds the configuration. */
+     public DanmakuConfig build() {
+       return new DanmakuConfig(this);
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuMeasurement.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuMeasurement.java
+index 9067b47..b732a9f 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuMeasurement.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuMeasurement.java
+@@ -32,6 +32,8 @@ final class DanmakuMeasurement {
+   private final boolean bold;
+   final float horizontalMarginPx;
+   final boolean diggIconPresent;
++  /** Captured tail icon size in pixels; 0 keeps the legacy tail form (see DanmakuPainter). */
++  final float diggIconSizePx;
+ 
+   DanmakuMeasurement(
+       int poolGeneration,
+@@ -42,7 +44,8 @@ final class DanmakuMeasurement {
+       Typeface typeface,
+       boolean bold,
+       float horizontalMarginPx,
+-      boolean diggIconPresent) {
++      boolean diggIconPresent,
++      float diggIconSizePx) {
+     this.poolGeneration = poolGeneration;
+     this.configGeneration = configGeneration;
+     this.defaultSizePx = defaultSizePx;
+@@ -53,6 +56,7 @@ final class DanmakuMeasurement {
+     this.bold = bold;
+     this.horizontalMarginPx = horizontalMarginPx;
+     this.diggIconPresent = diggIconPresent;
++    this.diggIconSizePx = diggIconSizePx;
+   }
+ 
+   Paint createPaint() {
+@@ -73,13 +77,17 @@ final class DanmakuMeasurement {
+   float occupiedWidth(DanmakuRenderItem item, Paint paint, float sizePx) {
+     float previousSize = paint.getTextSize();
+     paint.setTextSize(sizePx);
++    float gapPx = DanmakuPainter.tailGapPx(displayMetrics);
+     float tail =
+         diggIconPresent
+-            ? DanmakuPainter.tailWidth(item, paint, sizePx)
+-            : DanmakuPainter.tailWidthWithoutIcon(item, paint, sizePx);
++            ? DanmakuPainter.tailWidth(item, paint, sizePx, diggIconSizePx, gapPx)
++            : DanmakuPainter.tailWidthWithoutIcon(item, paint, sizePx, diggIconSizePx, gapPx);
+     float width = paint.measureText(item.text) + tail;
+     paint.setTextSize(previousSize);
+-    return width + horizontalMarginPx;
++    float total = width + horizontalMarginPx;
++    // Same whole-pixel total as the painter's measurement on configured
++    // surfaces; unconfigured surfaces keep the float total.
++    return diggIconSizePx > 0f ? (float) Math.ceil(total) : total;
+   }
+ 
+   float textSizePx(DanmakuRenderItem item) {
+@@ -99,6 +107,7 @@ final class DanmakuMeasurement {
+         typeface,
+         bold,
+         horizontalMarginPx,
+-        diggIconPresent);
++        diggIconPresent,
++        diggIconSizePx);
+   }
+ }
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
+index c99839b..bcf130c 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
+@@ -124,14 +124,19 @@ final class DanmakuPainter {
+    * with the item as a layout property, exactly like the tail.
+    */
+   float measureWidth(DanmakuRenderItem item) {
++    // A fresh measurement voids any speed-width override an earlier admission
++    // decision wrote for a previous flight of this item.
++    item.speedWidthOverride = 0f;
+     float sizePx = item.textSizeSp > 0 ? resolveTextSizePx(item.textSizeSp) : textSizePx;
+     fillPaint.setTextSize(sizePx);
+     float width =
+         fillPaint.measureText(item.text)
+-            + tailWidth(item, fillPaint, sizePx)
++            + tailWidth(item, fillPaint, sizePx, config.diggIconSizePx, tailGapPx(displayMetrics))
+             + config.horizontalMarginPx;
+     fillPaint.setTextSize(textSizePx);
+-    return width;
++    // A configured surface measures on the official client's whole-pixel total
++    // (its layout widths are ints); an unconfigured surface keeps the float total.
++    return config.diggIconSizePx > 0f ? (float) Math.ceil(width) : width;
+   }
+ 
+   void remeasure(List<DanmakuRenderItem> items) {
+@@ -141,10 +146,14 @@ final class DanmakuPainter {
+       if (fillPaint.getTextSize() != sizePx) {
+         fillPaint.setTextSize(sizePx);
+       }
+-      item.measuredWidth =
++      // Re-measurement voids any speed-width override from a previous flight.
++      item.speedWidthOverride = 0f;
++      float width =
+           fillPaint.measureText(item.text)
+-              + tailWidth(item, fillPaint, sizePx)
++              + tailWidth(item, fillPaint, sizePx, config.diggIconSizePx, tailGapPx(displayMetrics))
+               + config.horizontalMarginPx;
++      item.measuredWidth =
++          config.diggIconSizePx > 0f ? (float) Math.ceil(width) : width;
+     }
+     fillPaint.setTextSize(textSizePx);
+   }
+@@ -161,9 +170,25 @@ final class DanmakuPainter {
+   /** Minimum like count that earns the count tail. */
+   static final long DIGG_TAIL_MIN_COUNT = 10;
+ 
++  /**
++   * Fixed gap of the configured tail form, in dp: text-to-icon and icon-to-count
++   * (official client: 4dp on both sides of the tail icon). Converted with the
++   * display density only — the tail gaps live in the same density space as the
++   * fed icon size, not in the text-scale space.
++   */
++  static final float TAIL_GAP_DP = 4f;
++
++  // Legacy proportional gaps, used only by the unconfigured tail form (surfaces
++  // that never feed a tail icon size keep their historical measurement and
++  // drawing exactly).
+   private static final float TAIL_GAP_RATIO = 0.3f;
+   private static final float TAIL_ICON_GAP_RATIO = 0.12f;
+ 
++  /** The configured tail gap in pixels for {@code metrics}' density. */
++  static float tailGapPx(DisplayMetrics metrics) {
++    return TAIL_GAP_DP * metrics.density;
++  }
++
+   /**
+    * Returns the tail label for {@code diggCount}, or null when the item gets no tail.
+    *
+@@ -203,22 +228,42 @@ final class DanmakuPainter {
+    * for both the painter (which owns the configured icon) and background measurement (which
+    * only knows whether an icon is configured); {@code paint} must already be at {@code
+    * sizePx}.
++   *
++   * <p>When the surface configured a tail icon size ({@code diggIconSizePx} &gt; 0), the
++   * composition is the official client's: a fixed 4dp gap ({@code gapPx}), the tier icon
++   * size, a fixed 4dp gap, and the count label's measured width. When it did not, the
++   * legacy text-size-proportional composition is kept verbatim, so unconfigured surfaces
++   * measure exactly as before.
+    */
+-  static float tailWidth(DanmakuRenderItem item, Paint paint, float sizePx) {
+-    return tailWidth(item, paint, sizePx, true);
++  static float tailWidth(
++      DanmakuRenderItem item, Paint paint, float sizePx, float diggIconSizePx, float gapPx) {
++    return tailWidth(item, paint, sizePx, true, diggIconSizePx, gapPx);
+   }
+ 
+-  /** Icon-less variant of {@link #tailWidth(DanmakuRenderItem, Paint, float)}. */
+-  static float tailWidthWithoutIcon(DanmakuRenderItem item, Paint paint, float sizePx) {
+-    return tailWidth(item, paint, sizePx, false);
++  /** Icon-less variant of {@link #tailWidth(DanmakuRenderItem, Paint, float, float, float)}. */
++  static float tailWidthWithoutIcon(
++      DanmakuRenderItem item, Paint paint, float sizePx, float diggIconSizePx, float gapPx) {
++    return tailWidth(item, paint, sizePx, false, diggIconSizePx, gapPx);
+   }
+ 
+   private static float tailWidth(
+-      DanmakuRenderItem item, Paint paint, float sizePx, boolean withIcon) {
++      DanmakuRenderItem item,
++      Paint paint,
++      float sizePx,
++      boolean withIcon,
++      float diggIconSizePx,
++      float gapPx) {
+     String tail = diggTailText(item.diggCount);
+     if (tail == null) {
+       return 0f;
+     }
++    if (diggIconSizePx > 0f) {
++      float width = gapPx + paint.measureText(tail);
++      if (withIcon) {
++        width += diggIconSizePx + gapPx;
++      }
++      return width;
++    }
+     float width = sizePx * TAIL_GAP_RATIO + paint.measureText(tail);
+     if (withIcon) {
+       width += sizePx + sizePx * TAIL_ICON_GAP_RATIO;
+@@ -236,7 +281,8 @@ final class DanmakuPainter {
+         config.typeface != null ? config.typeface : Typeface.DEFAULT,
+         config.textBold,
+         config.horizontalMarginPx,
+-        config.diggIcon != null);
++        config.diggIcon != null,
++        config.diggIconSizePx);
+   }
+ 
+   void beginFrame() {
+@@ -262,13 +308,13 @@ final class DanmakuPainter {
+     boolean alive;
+     switch (item.type) {
+       case Danmaku.TYPE_SCROLL:
+-        float speed = (viewWidth + item.measuredWidth) / (float) effectiveScrollDurationMs();
++        float speed = (viewWidth + item.speedWidth()) / (float) effectiveScrollDurationMs();
+         x = viewWidth - speed * elapsedMs;
+         y = baseline(item.trackIndex, item.trackSpan) + scrollAreaOffsetPx(viewHeight);
+         alive = x + item.measuredWidth > 0;
+         break;
+       case Danmaku.TYPE_REVERSE:
+-        float reverseSpeed = (viewWidth + item.measuredWidth) / (float) effectiveScrollDurationMs();
++        float reverseSpeed = (viewWidth + item.speedWidth()) / (float) effectiveScrollDurationMs();
+         x = -item.measuredWidth + reverseSpeed * elapsedMs;
+         y = baseline(item.trackIndex, item.trackSpan) + scrollAreaOffsetPx(viewHeight);
+         alive = x < viewWidth;
+@@ -345,16 +391,22 @@ final class DanmakuPainter {
+     }
+     // The drawn extent ends before the item's horizontal margin: the text
+     // starts at x and the tail follows the text, margin excluded.
+-    float tailX = x + fillPaint.measureText(item.text) + sizePx * TAIL_GAP_RATIO;
++    // The drawn composition is the measured composition (tailWidth above): on
++    // a configured surface the fixed 4dp gaps and the tier icon size,
++    // otherwise the legacy text-size-proportional form.
++    boolean configured = config.diggIconSizePx > 0f;
++    float gapPx = configured ? tailGapPx(displayMetrics) : sizePx * TAIL_GAP_RATIO;
++    float tailX = x + fillPaint.measureText(item.text) + gapPx;
+     android.graphics.Bitmap icon = config.diggIcon;
+     if (icon != null && !icon.isRecycled()) {
+       android.graphics.Paint.FontMetrics metrics = fillPaint.getFontMetrics();
+       float centerY = y + (metrics.ascent + metrics.descent) / 2f;
+-      float half = sizePx / 2f;
+-      tailIconRect.set(tailX, centerY - half, tailX + sizePx, centerY + half);
++      float iconSize = configured ? config.diggIconSizePx : sizePx;
++      float half = iconSize / 2f;
++      tailIconRect.set(tailX, centerY - half, tailX + iconSize, centerY + half);
+       tailIconPaint.setAlpha(alpha);
+       canvas.drawBitmap(icon, null, tailIconRect, tailIconPaint);
+-      tailX += sizePx + sizePx * TAIL_ICON_GAP_RATIO;
++      tailX += iconSize + (configured ? gapPx : sizePx * TAIL_ICON_GAP_RATIO);
+     }
+     drawText(canvas, tail, tailX, y, color, alpha, sizePx);
+   }
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
+index a63cb8f..0a09d13 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
+@@ -36,6 +36,23 @@ final class DanmakuRenderItem {
+   final boolean forceGeneratedWhite;
+   @Nullable final int[] sourceGradientColors;
+   float measuredWidth;
++  /**
++   * Effective width for speed computation only, for this one flight: the track
++   * manager's admission decision writes the previous item's speed width here when
++   * a faster follower is admitted on the catch-up gate, so the follower flies at
++   * exactly the previous item's speed (the official client's per-item effective
++   * width). Zero means no override: speed reads {@link #measuredWidth}. Written
++   * only by the admission decision; cleared when the item is re-measured, when a
++   * fresh admission decision starts, and when the item is released from flight.
++   * Never used by geometry, which always reads {@link #measuredWidth}.
++   */
++  float speedWidthOverride;
++
++  /** The width speed computation must use for this item. */
++  float speedWidth() {
++    return speedWidthOverride > 0f ? speedWidthOverride : measuredWidth;
++  }
++
+   // Last drawn bounds (view coordinates), recorded by DanmakuPainter for
+   // optional tap hit-testing by embedders. Invalid until first drawn frame.
+   float hitLeft;
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuTrackManager.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuTrackManager.java
+index 4618fa5..dd9219f 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuTrackManager.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuTrackManager.java
+@@ -113,6 +113,9 @@ final class DanmakuTrackManager {
+   }
+ 
+   void forceActivate(DanmakuRenderItem item, long currentMs) {
++    // No admission decision happens on this path, so no speed equalization
++    // applies: any override a rejected decision left on the item is void.
++    item.speedWidthOverride = 0f;
+     switch (item.type) {
+       case Danmaku.TYPE_SCROLL:
+       case Danmaku.TYPE_REVERSE:
+@@ -277,8 +280,12 @@ final class DanmakuTrackManager {
+   }
+ 
+   private boolean canFollow(DanmakuRenderItem previous, DanmakuRenderItem next, long currentMs) {
++    // Every admission decision starts from the candidate's measured width: a
++    // speed-width override is written only by the passing decision below, for
++    // this one flight.
++    next.speedWidthOverride = 0f;
+     float previousSpeed =
+-        (viewWidth + previous.measuredWidth) / (float) effectiveScrollDurationMs();
++        (viewWidth + previous.speedWidth()) / (float) effectiveScrollDurationMs();
+     if (previous.frozen) {
+       // A frozen item (tapped, its action UI is open) is a stationary object on
+       // its track: it sits at the position captured when it froze and never
+@@ -296,13 +303,22 @@ final class DanmakuTrackManager {
+     if (previousRight > viewWidth - minimumGap) {
+       return false;
+     }
+-    float nextSpeed = (viewWidth + next.measuredWidth) / (float) effectiveScrollDurationMs();
++    float nextSpeed = (viewWidth + next.speedWidth()) / (float) effectiveScrollDurationMs();
+     if (nextSpeed <= previousSpeed) {
+       return true;
+     }
+     float catchUpTime = (viewWidth - previousRight) / (nextSpeed - previousSpeed);
+     float previousExitTime = previousRight / previousSpeed;
+-    return catchUpTime >= previousExitTime;
++    if (catchUpTime < previousExitTime) {
++      return false;
++    }
++    // Fourth gate (official form): a faster follower that still clears the
++    // previous item in time is not held back; it is handed the previous item's
++    // speed width as its effective width, so from here on it flies at exactly
++    // the previous item's speed and the gap between them can never close. The
++    // override lives only for this flight (see DanmakuRenderItem).
++    next.speedWidthOverride = previous.speedWidth();
++    return true;
+   }
+ 
+   private boolean isMoving(@Nullable DanmakuRenderItem item, long currentMs) {
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+index 7e1feb3..d88ed49 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+@@ -84,7 +84,8 @@ public final class DanmakuView extends View {
+         || oldConfig.typeface != newConfig.typeface
+         || oldConfig.textBold != newConfig.textBold
+         || oldConfig.horizontalMarginPx != newConfig.horizontalMarginPx
+-        || oldConfig.diggIcon != newConfig.diggIcon;
++        || oldConfig.diggIcon != newConfig.diggIcon
++        || oldConfig.diggIconSizePx != newConfig.diggIconSizePx;
+   }
+ 
+   private static boolean isTrackLayoutConfigChanged(
+@@ -116,6 +117,8 @@ public final class DanmakuView extends View {
+     danmaku.trackIndex = -1;
+     danmaku.trackSpan = 1;
+     danmaku.activatedTimeMs = -1;
++    // Flight over: the speed-width override was for this flight only.
++    danmaku.speedWidthOverride = 0f;
+   }
+ 
+   @VisibleForTesting

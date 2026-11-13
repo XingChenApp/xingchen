@@ -1,0 +1,253 @@
+plugins {
+    alias libs.plugins.android.application
+    // 播放页新一套（瓜子渲染组织法）地基：Kotlin 走 AGP 9.2.1 内建线（2.2.10，见其 POM），
+    // 不另装 kotlin-android 插件；Compose 编译器插件与内建 Kotlin 同号。
+    alias libs.plugins.kotlin.compose
+}
+
+def localProps = new Properties()
+def localPropsFile = rootProject.file('local.properties')
+if (localPropsFile.exists()) {
+    localPropsFile.withInputStream {
+        localProps.load(it)
+    }
+}
+def hasReleaseSigning = localProps['storeFile'] && localProps['keyAlias'] && localProps['storePassword']
+def releaseKeyPassword = localProps['keyPassword'] ?: localProps['storePassword']
+def fastRelease = (project.findProperty('fastRelease') ?: 'false').toString().toBoolean()
+def buildTimestamp = new Date().format('yyyyMMddHHmm', TimeZone.getTimeZone('Asia/Shanghai'))
+def buildTime = fastRelease ? "fast-${buildTimestamp}" : buildTimestamp
+def releaseTag = (System.getenv('WEBHTV_RELEASE_TAG') ?: '').replace('\\', '\\\\').replace('"', '\\"')
+def apkSuffix = (System.getenv('WEBHTV_APK_SUFFIX') ?: '').replaceAll('[^A-Za-z0-9._-]', '')
+def gitRevision = 'unavailable'
+def gitState = 'unavailable'
+def mpvSourceLock = new groovy.json.JsonSlurper().parse(rootProject.file('third_party/mpv-native-lock.json'))
+def mpvSourceRevisions = ['mpv', 'ffmpeg', 'libplacebo'].collect { name -> "${name}=${mpvSourceLock.sources[name].commit}" }.join(' ') + " framework=${mpvSourceLock.builder.commit}"
+try {
+    def revision = providers.exec { workingDir rootDir; commandLine 'git', 'rev-parse', 'HEAD' }.standardOutput.asText.get().trim()
+    if (revision ==~ /[0-9a-f]{40}/) {
+        gitRevision = revision
+        gitState = providers.exec { workingDir rootDir; commandLine 'git', 'status', '--porcelain', '--untracked-files=no' }.standardOutput.asText.get().trim().isEmpty() ? 'clean' : 'dirty'
+    }
+} catch (Exception ignored) { /* Source archives may not contain Git metadata. */ }
+
+android {
+    packaging {
+        jniLibs {
+            // 内核 libmihomo.so 要被执行：必须装机时解到可执行目录（AGP9 的正规开关，
+            // 清单里显式写 extractNativeLibs 会被打包任务拒绝）
+            useLegacyPackaging = true
+            // 内核是可执行程序不是普通库：禁止打包时裁剪，保证与验过哈希的原件逐字节一致
+            // （首版 1.3.16 被裁了 8 字节、一个可加载段内容变了，没交付，重编）
+            keepDebugSymbols += '**/libmihomo.so'
+        }
+        resources {
+            excludes += '**/wl.webp'
+        }
+    }
+    namespace = 'com.fongmi.android.tv'
+
+    compileSdk libs.versions.compileSdk.get().toInteger()
+    ndkVersion "29.0.14206865"
+
+    defaultConfig {
+        applicationId "com.XingChen.tv"
+        minSdk libs.versions.minSdk.get().toInteger()
+        targetSdk libs.versions.targetSdk.get().toInteger()
+        versionCode 210
+        versionName "1.4.127"
+        buildConfigField "String", "BUILD_TIME", "\"${buildTime}\""
+        buildConfigField "String", "BUILD_TAG", "\"${releaseTag}\""
+        buildConfigField "String", "GIT_REVISION", "\"${gitRevision}\""
+        buildConfigField "String", "GIT_STATE", "\"${gitState}\""
+        buildConfigField "String", "MPV_NATIVE_SOURCES", "\"${mpvSourceRevisions}\""
+        buildConfigField "String", "MEDIA3_VERSION", "\"${libs.versions.media3.get()}\""
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments = ["room.schemaLocation": "$projectDir/schemas".toString(), "eventBusIndex": "com.fongmi.android.tv.event.EventIndex"]
+            }
+        }
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_PLATFORM=android-26"
+                cppFlags "-std=c++20", "-Wall", "-Wextra", "-Werror=return-type"
+            }
+        }
+    }
+
+    flavorDimensions = ["mode", "abi"]
+
+    productFlavors {
+        leanback {
+            dimension "mode"
+        }
+        mobile {
+            dimension "mode"
+        }
+        arm64_v8a {
+            dimension "abi"
+            ndk { abiFilters "arm64-v8a" }
+        }
+        armeabi_v7a {
+            dimension "abi"
+            ndk { abiFilters "armeabi-v7a" }
+        }
+    }
+
+    buildFeatures {
+        buildConfig = true
+        viewBinding = true
+        compose = true
+    }
+
+    testOptions {
+        unitTests.includeAndroidResources = true
+    }
+
+    // ASS rendering is part of normal builds; package the matching prebuilt ABI.
+    sourceSets.main.jniLibs.srcDir(rootProject.file('third_party/exo-ass-native/prebuilt'))
+    // mihomo 内核随包内置（2026-10-15 他拍板「塞」）：下载到私有目录的内核在
+    // 安卓 10+ 因 W^X 不让执行、定向全链没通；放 jniLibs 由系统装到可执行目录。
+    sourceSets.main.jniLibs.srcDir(rootProject.file('third_party/mihomo/prebuilt'))
+
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(localProps['storeFile'])
+                keyAlias localProps['keyAlias']
+                keyPassword releaseKeyPassword
+                storePassword localProps['storePassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled = !fastRelease
+            shrinkResources = !fastRelease
+            signingConfig = hasReleaseSigning ? signingConfigs.release : signingConfigs.debug
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'proguard-rules-media.pro'
+        }
+    }
+
+    configurations.configureEach {
+        exclude group: 'stax', module: 'stax-api'
+        exclude group: 'xpp3', module: 'xpp3'
+        exclude group: 'com.android.support'
+        resolutionStrategy {
+            force libs.okhttp
+            eachDependency { details ->
+                if (details.requested.group == 'androidx.media3') {
+                    details.useVersion(libs.versions.media3.get())
+                    details.because('Use bundled Media3 build with MediaTitle and danmaku APIs')
+                }
+            }
+        }
+    }
+
+    lint {
+        disable 'UnsafeOptInUsageError'
+        disable 'ExpiredTargetSdkVersion'
+        checkReleaseBuilds = !fastRelease
+    }
+
+    compileOptions {
+        coreLibraryDesugaringEnabled = true
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+
+    externalNativeBuild {
+        cmake {
+            path file("src/main/cpp/CMakeLists.txt")
+            version "3.22.1"
+        }
+    }
+}
+
+androidComponents {
+    onVariants(selector().withBuildType('release')) { variant ->
+        def flavors = variant.productFlavors.collectEntries { [(it.first): it.second] }
+        def mode = flavors['mode'] ?: 'mode'
+        def abi = flavors['abi'] ?: 'abi'
+        variant.outputs.each { output ->
+            output.outputFileName.set("${mode}-${abi}${apkSuffix}.apk")
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: "libs", include: ["*.aar", "*.jar"])
+    implementation "io.github.scwang90:refresh-layout-kernel:2.0.5"
+    implementation "com.jakewharton.timber:timber:5.0.1"
+    implementation "io.github.scwang90:refresh-header-classics:2.0.5"
+    implementation "io.github.scwang90:refresh-footer-classics:2.0.5"
+    // sherpa-onnx: compileOnly，运行时通过插件动态加载，不打包进 APK
+    compileOnly files("libs-compile/sherpa-onnx.aar")
+    implementation project(':catvod')
+    implementation project(':chaquo')
+    implementation project(':quickjs')
+    implementation project(':thunder')
+    implementation project(':nodejs')
+    implementation libs.rhino
+    implementation libs.appcompat
+    // 播放页新一套地基（Compose）：版本配对见 ~/workspace/gz-render-tree-map.md 第三节
+    implementation platform(libs.compose.bom)
+    implementation libs.compose.ui
+    implementation libs.compose.foundation
+    implementation libs.compose.material3
+    implementation libs.activity.compose
+    implementation libs.kotlin.stdlib
+    implementation libs.lifecycle.service
+    implementation libs.media
+    implementation libs.bundles.media3
+    implementation libs.exoplayer.hdr.utils
+    implementation libs.nextlib.media3ext
+    implementation libs.palette
+    implementation libs.recyclerview
+    implementation libs.room.runtime
+    implementation libs.splashscreen
+    implementation libs.security.crypto
+    implementation libs.swiperefreshlayout
+    implementation libs.viewpager2
+    implementation libs.constraintlayout
+    implementation libs.webkit
+    implementation libs.android.gif.drawable
+    implementation libs.jsoup
+    implementation libs.htmlcleaner
+    implementation libs.junrar
+    implementation libs.commons.compress
+    implementation libs.commons.io
+    implementation libs.xz
+    implementation libs.bundles.glide
+    implementation libs.bundles.jupnp
+    implementation libs.customactivityoncrash
+    implementation libs.eventbus
+    implementation libs.flexbox
+    implementation libs.jgit
+    implementation libs.lottie
+    implementation libs.material
+    implementation libs.materialdesigncolors
+    implementation libs.nanohttpd
+    implementation libs.newpipeextractor
+    implementation libs.permissionx
+    implementation libs.simple.xml
+    implementation libs.textdrawable
+    implementation libs.tensorflow.lite
+    implementation libs.zxing.core
+    leanbackImplementation libs.leanback
+    leanbackImplementation libs.androidautosize
+    leanbackImplementation libs.zxing.android.embedded
+    mobileImplementation libs.biometric
+    mobileImplementation libs.zxing.android.embedded
+    annotationProcessor libs.room.compiler
+    annotationProcessor libs.eventbus.annotation.processor
+    annotationProcessor libs.glide.compiler
+    coreLibraryDesugaring libs.desugar
+    testImplementation libs.junit
+    testLeanbackImplementation 'org.robolectric:robolectric:4.16'
+    androidTestImplementation libs.junit
+    androidTestImplementation 'androidx.test:runner:1.7.0'
+    testImplementation libs.okhttp.mockwebserver
+}

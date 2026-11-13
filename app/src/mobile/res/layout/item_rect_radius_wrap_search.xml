@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <androidx.cardview.widget.CardView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="2.0dip" app:cardBackgroundColor="@color/gray_rice" app:cardCornerRadius="8.0dip" app:cardElevation="0.0dip">
+        <TextView android:textColor="@color/black_666" android:ellipsize="end" android:gravity="center" android:id="@id/item_rect_wrap_text" android:background="@drawable/ripple_grey" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="32.0dip" android:maxLines="1" android:lines="1" android:maxLength="30" android:paddingStart="10.0dip" android:paddingEnd="10.0dip" />
+    </androidx.cardview.widget.CardView>
+</RelativeLayout>

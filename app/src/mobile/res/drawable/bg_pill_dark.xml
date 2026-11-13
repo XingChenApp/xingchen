@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GZ 新建歌单深色 pill：高 44dp、满圆角 22dp（GZ 底是封面取色渐变，截图呈深灰；星辰歌单无封面取色，用深色实底） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#1C1C1E" />
+    <corners android:radius="22dp" />
+</shape>

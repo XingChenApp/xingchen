@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Apple 主题进度：轨道 6dp、底轨白 0.14、已播白 0.58（GZ PlaybackScrubber scrubTrackIdle 常态 0.14） -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <solid android:color="#24FFFFFF" />
+            <corners android:radius="3dp" />
+            <size android:height="6dp" />
+        </shape>
+    </item>
+    <item android:id="@android:id/progress">
+        <clip>
+            <shape android:shape="rectangle">
+                <solid android:color="#94FFFFFF" />
+                <corners android:radius="3dp" />
+                <size android:height="6dp" />
+            </shape>
+        </clip>
+    </item>
+</layer-list>

@@ -1,0 +1,153 @@
+{
+ "envs": [
+  {
+   "id": "alist",
+   "name": "alist",
+   "version": "3.65.0",
+   "downloads": [
+    {
+     "arch": "arm64",
+     "url": "https://raw.githubusercontent.com/XingChenApp/xingchen-lab-assets/main/env/env-alist.json",
+     "size": 42010903,
+     "mirrors": []
+    }
+   ]
+  },
+  {
+   "id": "aria2",
+   "name": "aria2",
+   "version": "1.37.0",
+   "downloads": [
+    {
+     "arch": "arm64",
+     "url": "https://raw.githubusercontent.com/XingChenApp/xingchen-lab-assets/main/env/env-aria2.zip",
+     "size": 2481027,
+     "mirrors": [
+      "https://cdn.jsdelivr.net/gh/XingChenApp/xingchen-lab-assets@main/env/env-aria2.zip"
+     ],
+     "sha256": "272ebf5c717a337ea86e27007ff5dbb07875993d2d4a20277622956641780580"
+    }
+   ]
+  },
+  {
+   "id": "bun",
+   "name": "Bun 环境",
+   "version": "1.4.3",
+   "downloads": [
+    {
+     "arch": "arm64",
+     "url": "https://raw.githubusercontent.com/XingChenApp/xingchen-lab-assets/main/env/env-bun.zip",
+     "size": 39196506,
+     "mirrors": [],
+     "sha256": "8ff4385d826a9d5a6c3f7efe93375e6586a1cd6127d012952ea992266de2da0d"
+    }
+   ]
+  },
+  {
+   "id": "ffmpeg",
+   "name": "ffmpeg",
+   "version": "9.0.2",
+   "downloads": [
+    {
+     "arch": "arm64",
+     "url": "https://raw.githubusercontent.com/XingChenApp/xingchen-lab-assets/main/env/env-ffmpeg-9.0.2.json",
+     "size": 42056568,
+     "mirrors": []
+    }
+   ]
+  },
+  {
+   "id": "frp",
+   "name": "frp",
+   "version": "0.71.1",
+   "downloads": [
+    {
+     "arch": "arm64",
+     "url": "https://raw.githubusercontent.com/XingChenApp/xingchen-lab-assets/main/env/env-frp.zip",
+     "size": 12469827,
+     "mirrors": [
+      "https://cdn.jsdelivr.net/gh/XingChenApp/xingchen-lab-assets@main/env/env-frp.zip"
+     ],
+     "sha256": "1e86a57b73a0ccd5e8bcf20d3b16996a80dcd337e3805925d1008165171e5809"
+    }
+   ]
+  },
+  {
+   "id": "java",
+   "name": "Java 环境",
+   "version": "17.0.20",
+   "downloads": [
+    {
+     "arch": "arm64",
+     "url": "https://raw.githubusercontent.com/XingChenApp/xingchen-lab-assets/main/env/env-java.json",
+     "size": 66186060,
+     "mirrors": []
+    }
+   ]
+  },
+  {
+   "id": "mihomo",
+   "name": "mihomo",
+   "version": "1.19.32",
+   "downloads": [
+    {
+     "arch": "arm64",
+     "url": "https://raw.githubusercontent.com/XingChenApp/xingchen-lab-assets/main/env/env-mihomo.zip",
+     "size": 20698996,
+     "mirrors": [
+      "https://cdn.jsdelivr.net/gh/XingChenApp/xingchen-lab-assets@main/env/env-mihomo.zip"
+     ],
+     "sha256": "5c89a3108406d264ad83d9c89e00c50701435e6ffe43025add4556a727884dd9"
+    }
+   ]
+  },
+  {
+   "id": "node",
+   "name": "Node 环境",
+   "version": "26.4.0-1",
+   "downloads": [
+    {
+     "arch": "arm64",
+     "url": "https://raw.githubusercontent.com/XingChenApp/xingchen-lab-assets/main/env/env-node.json",
+     "size": 55876413,
+     "mirrors": []
+    }
+   ]
+  },
+  {
+   "id": "php",
+   "name": "PHP 环境",
+   "version": "8.5.1-1",
+   "downloads": [
+    {
+     "arch": "arm64",
+     "url": "https://raw.githubusercontent.com/XingChenApp/xingchen-lab-assets/main/env/env-php.json",
+     "size": 49454027,
+     "mirrors": []
+    }
+   ]
+  },
+  {
+   "id": "python",
+   "name": "Python 环境",
+   "version": "3.14.8-1",
+   "downloads": [
+    {
+     "arch": "arm64",
+     "url": "https://raw.githubusercontent.com/XingChenApp/xingchen-lab-assets/main/env/env-python.zip",
+     "size": 14158025,
+     "mirrors": [
+      "https://cdn.jsdelivr.net/gh/XingChenApp/xingchen-lab-assets@main/env/env-python.zip"
+     ],
+     "sha256": "a9369193e2bd06936cac97047001caab22cc656bc5378e32e3082003f3ce5ce6"
+    }
+   ]
+  },
+  {
+   "id": "ubuntu",
+   "name": "Ubuntu 环境",
+   "version": "24.04.4",
+   "downloads": []
+  }
+ ]
+}

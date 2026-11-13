@@ -1,0 +1,144 @@
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/Danmaku.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/Danmaku.java
+index 6debf76..74bf12c 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/Danmaku.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/Danmaku.java
+@@ -112,0 +113,5 @@ public final class Danmaku {
++  /** Whether this is a live-stream item (mutable for live batch API compatibility). */
++  public boolean liveItem;
++  /** Elapsed-realtime expiry for live items, or 0 if none. */
++  public long liveExpiryElapsedRealtimeMs;
++
+@@ -207,0 +213,11 @@ public final class Danmaku {
++
++  /**
++   * Sets the elapsed-realtime expiry for live items.
++   *
++   * @param expiryElapsedRealtimeMs Elapsed realtime ms after which the item expires, or 0.
++   * @return This instance.
++   */
++  public Danmaku setLiveExpiryElapsedRealtimeMs(long expiryElapsedRealtimeMs) {
++    this.liveExpiryElapsedRealtimeMs = Math.max(0L, expiryElapsedRealtimeMs);
++    return this;
++  }
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuController.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuController.java
+index 7bf291c..91c0860 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuController.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuController.java
+@@ -431,0 +432,21 @@ public final class DanmakuController {
++  /**
++   * Offers a batch of live-stream danmaku items for immediate display.
++   */
++  public void offerLiveBatch(java.util.List<Danmaku> items) {
++    if (danmakuView != null && items != null && !items.isEmpty()) {
++      danmakuView.offerLiveBatch(items);
++    }
++  }
++
++  /** Returns live-item render statistics. */
++  public DanmakuView.LiveStats getLiveStats() {
++    return danmakuView == null ? DanmakuView.LiveStats.EMPTY : danmakuView.getLiveStats();
++  }
++
++  /** Removes all live items from the view. */
++  public void clearLiveItems() {
++    if (danmakuView != null) {
++      danmakuView.clearLiveItems();
++    }
++  }
++
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
+index a2bcd99..183a360 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
+@@ -36,0 +37 @@ final class DanmakuRenderItem {
++  boolean liveItem;
+@@ -59,0 +61 @@ final class DanmakuRenderItem {
++    liveItem = danmaku.liveItem;
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+index 2142ac7..9018f7b 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+@@ -48,0 +49,2 @@ public final class DanmakuView extends View {
++  private long liveOffered;
++  private long liveAdmitted;
+@@ -253,0 +256,80 @@ public final class DanmakuView extends View {
++  /**
++   * Offers a batch of live-stream danmaku items for immediate display.
++   *
++   * <p>Items are marked as live and added to the render pool. They activate like regular items
++   * but can be removed en masse via {@link #clearLiveItems()}.
++   */
++  public void offerLiveBatch(java.util.List<Danmaku> items) {
++    if (released || items.isEmpty()) {
++      return;
++    }
++    for (int i = 0; i < items.size(); i++) {
++      Danmaku danmaku = items.get(i);
++      if (danmaku != null) {
++        danmaku.liveItem = true;
++      }
++    }
++    liveOffered += items.size();
++    addItems(items);
++    liveAdmitted += items.size();
++  }
++
++  /** Removes all live items from the active list and render pool. */
++  public void clearLiveItems() {
++    // Remove from active items.
++    int writeIndex = 0;
++    for (int i = 0; i < activeItems.size(); i++) {
++      DanmakuRenderItem item = activeItems.get(i);
++      if (item.liveItem) {
++        continue;
++      }
++      if (writeIndex != i) {
++        activeItems.set(writeIndex, item);
++      }
++      writeIndex++;
++    }
++    if (activeItems.size() > writeIndex) {
++      activeItems.subList(writeIndex, activeItems.size()).clear();
++    }
++    liveOffered = 0;
++    liveAdmitted = 0;
++    requestRedrawForExternalChange();
++  }
++
++  /** Returns live-item render statistics. */
++  public LiveStats getLiveStats() {
++    return new LiveStats(liveOffered, liveAdmitted, 0, 0, 0, 0, 0, activeItems.size());
++  }
++
++  /** Live-item render statistics. */
++  public static final class LiveStats {
++    public static final LiveStats EMPTY = new LiveStats(0L, 0L, 0L, 0L, 0L, 0, 0, 0);
++    public final long offered;
++    public final long admitted;
++    public final long droppedOverflow;
++    public final long droppedExpired;
++    public final long trackWaits;
++    public final int pending;
++    public final int highWaterMark;
++    public final int active;
++
++    public LiveStats(
++        long offered,
++        long admitted,
++        long droppedOverflow,
++        long droppedExpired,
++        long trackWaits,
++        int pending,
++        int highWaterMark,
++        int active) {
++      this.offered = offered;
++      this.admitted = admitted;
++      this.droppedOverflow = droppedOverflow;
++      this.droppedExpired = droppedExpired;
++      this.trackWaits = trackWaits;
++      this.pending = pending;
++      this.highWaterMark = highWaterMark;
++      this.active = active;
++    }
++  }
++

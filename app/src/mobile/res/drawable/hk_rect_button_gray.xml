@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 一比一对照 8.83 反编译原文：res/drawable/rect_button_gray.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#ffe2e2e2" />
+    <corners android:radius="99dp" />
+</shape>

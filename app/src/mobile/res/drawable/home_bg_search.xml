@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- W2 材料层：液态玻璃件的 XML 可见下限（取样/接线未就绪时照样成形）；运行时由 MusicGlassWire 换同源 MusicGlassDrawable，圆角 24dp 逐件对应。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="24dp" />
+    <gradient android:angle="270" android:startColor="#E0FFFFFF" android:centerColor="#D0FFFFFF" android:endColor="#C7FFFFFF" />
+    <stroke android:width="1dp" android:color="#BFFFFFFF" />
+</shape>

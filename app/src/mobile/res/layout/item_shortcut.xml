@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView android:id="@id/shortcut_bg" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" app:cardBackgroundColor="@color/white" app:cardCornerRadius="8.0dip" app:cardElevation="0.0dip"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <RelativeLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:minHeight="44.0dip">
+        <FrameLayout android:id="@id/shortcut_icon_bg" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_centerVertical="true" android:layout_marginStart="8.0dip">
+            <ImageView android:layout_gravity="center" android:id="@id/shortcut_icon" android:layout_width="24.0dip" android:layout_height="24.0dip" android:scaleType="centerCrop" />
+            <TextView android:textSize="13.0sp" android:textColor="@color/white" android:ellipsize="none" android:gravity="center" android:layout_gravity="center" android:id="@id/shortcut_icon_text" android:visibility="gone" android:layout_width="24.0dip" android:layout_height="24.0dip" android:singleLine="true" android:maxLength="1" android:fontFamily="@font/alloy" />
+        </FrameLayout>
+        <TextView android:textSize="15.0sp" android:textColor="@color/blackText" android:gravity="center_vertical" android:id="@id/shortcut_text" android:layout_width="fill_parent" android:layout_height="wrap_content" android:minHeight="32.0dip" android:maxLines="1" android:lines="1" android:layout_centerVertical="true" android:paddingStart="5.0dip" android:paddingEnd="5.0dip" android:layout_toEndOf="@id/shortcut_icon_bg" />
+    </RelativeLayout>
+</androidx.cardview.widget.CardView>

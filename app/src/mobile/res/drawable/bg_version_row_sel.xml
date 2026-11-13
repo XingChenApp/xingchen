@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 歌词版本行卡选中态（L9：与常态同底，只用透明度区分） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#F5F5F5" />
+    <corners android:radius="10dp" />
+</shape>

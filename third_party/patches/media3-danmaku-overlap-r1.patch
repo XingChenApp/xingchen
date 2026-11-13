@@ -1,0 +1,354 @@
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java
+index 1f66531..5352ff9 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java
+@@ -171,6 +171,9 @@ public final class DanmakuConfig {
+   /** Minimum scrolling gap relative to the default text size. */
+   public final float scrollGapRatio;
+ 
++  /** Horizontal margin in pixels carried by each item as a layout property. */
++  public final float horizontalMarginPx;
++
+   /** Whether positioned items are shown. */
+   public final boolean showPositioned;
+ 
+@@ -224,6 +227,7 @@ public final class DanmakuConfig {
+     this.allowReverseOverlap = builder.allowReverseOverlap;
+     this.scrollSpeedFactor = builder.scrollSpeedFactor;
+     this.scrollGapRatio = builder.scrollGapRatio;
++    this.horizontalMarginPx = builder.horizontalMarginPx;
+     this.showPositioned = builder.showPositioned;
+     this.showSubtitle = builder.showSubtitle;
+     this.showSpecial = builder.showSpecial;
+@@ -271,6 +275,7 @@ public final class DanmakuConfig {
+     private boolean allowReverseOverlap;
+     private float scrollSpeedFactor;
+     private float scrollGapRatio;
++    private float horizontalMarginPx;
+     private boolean showPositioned;
+     private boolean showSubtitle;
+     private boolean showSpecial;
+@@ -311,6 +316,7 @@ public final class DanmakuConfig {
+       allowReverseOverlap = false;
+       scrollSpeedFactor = 1f;
+       scrollGapRatio = 0f;
++      horizontalMarginPx = 0f;
+       showPositioned = true;
+       showSubtitle = true;
+       showSpecial = true;
+@@ -351,6 +357,7 @@ public final class DanmakuConfig {
+       this.allowReverseOverlap = config.allowReverseOverlap;
+       this.scrollSpeedFactor = config.scrollSpeedFactor;
+       this.scrollGapRatio = config.scrollGapRatio;
++      this.horizontalMarginPx = config.horizontalMarginPx;
+       this.showPositioned = config.showPositioned;
+       this.showSubtitle = config.showSubtitle;
+       this.showSpecial = config.showSpecial;
+@@ -586,6 +593,18 @@ public final class DanmakuConfig {
+       return this;
+     }
+ 
++    /**
++     * Sets the horizontal margin in pixels each item carries as a layout property. The
++     * margin is part of the item's occupied width — the single measurement the pool, the
++     * track manager and the painter all share — so following items keep that much clear
++     * space behind this one. Zero (the default) leaves items back to back.
++     */
++    @CanIgnoreReturnValue
++    public Builder setHorizontalMarginPx(float horizontalMarginPx) {
++      this.horizontalMarginPx = Math.max(0f, horizontalMarginPx);
++      return this;
++    }
++
+     /** Sets whether positioned items are shown. */
+     @CanIgnoreReturnValue
+     public Builder setShowPositioned(boolean showPositioned) {
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuMeasurement.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuMeasurement.java
+index f46768f..9067b47 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuMeasurement.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuMeasurement.java
+@@ -30,6 +30,8 @@ final class DanmakuMeasurement {
+   private final DisplayMetrics displayMetrics;
+   private final Typeface typeface;
+   private final boolean bold;
++  final float horizontalMarginPx;
++  final boolean diggIconPresent;
+ 
+   DanmakuMeasurement(
+       int poolGeneration,
+@@ -38,7 +40,9 @@ final class DanmakuMeasurement {
+       float textScale,
+       DisplayMetrics displayMetrics,
+       Typeface typeface,
+-      boolean bold) {
++      boolean bold,
++      float horizontalMarginPx,
++      boolean diggIconPresent) {
+     this.poolGeneration = poolGeneration;
+     this.configGeneration = configGeneration;
+     this.defaultSizePx = defaultSizePx;
+@@ -47,6 +51,8 @@ final class DanmakuMeasurement {
+     this.displayMetrics.setTo(displayMetrics);
+     this.typeface = typeface;
+     this.bold = bold;
++    this.horizontalMarginPx = horizontalMarginPx;
++    this.diggIconPresent = diggIconPresent;
+   }
+ 
+   Paint createPaint() {
+@@ -56,6 +62,26 @@ final class DanmakuMeasurement {
+     return paint;
+   }
+ 
++  /**
++   * Occupied width of {@code item} at {@code sizePx} with {@code paint}: the one measurement
++   * every consumer shares (pool admission accounting, speed and exit decisions in the track
++   * manager, draw geometry in the painter). It is the drawn width — text plus the like-count
++   * tail when the item carries one — plus the item's horizontal margin, which the embedder
++   * feeds per text-size tier; the margin travels with the item as a layout property, exactly
++   * like the tail, instead of living in track space.
++   */
++  float occupiedWidth(DanmakuRenderItem item, Paint paint, float sizePx) {
++    float previousSize = paint.getTextSize();
++    paint.setTextSize(sizePx);
++    float tail =
++        diggIconPresent
++            ? DanmakuPainter.tailWidth(item, paint, sizePx)
++            : DanmakuPainter.tailWidthWithoutIcon(item, paint, sizePx);
++    float width = paint.measureText(item.text) + tail;
++    paint.setTextSize(previousSize);
++    return width + horizontalMarginPx;
++  }
++
+   float textSizePx(DanmakuRenderItem item) {
+     return item.textSizeSp > 0
+         ? TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, item.textSizeSp, displayMetrics)
+@@ -65,6 +91,14 @@ final class DanmakuMeasurement {
+ 
+   DanmakuMeasurement withPoolGeneration(int poolGeneration) {
+     return new DanmakuMeasurement(
+-        poolGeneration, configGeneration, defaultSizePx, textScale, displayMetrics, typeface, bold);
++        poolGeneration,
++        configGeneration,
++        defaultSizePx,
++        textScale,
++        displayMetrics,
++        typeface,
++        bold,
++        horizontalMarginPx,
++        diggIconPresent);
+   }
+ }
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
+index 742e44e..c99839b 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
+@@ -28,6 +28,7 @@ import android.util.TypedValue;
+ import androidx.annotation.Nullable;
+ import androidx.media3.common.util.Util;
+ import java.util.List;
++import java.util.Locale;
+ 
+ /** Owns paint configuration, text measurement, and rendering of active items. */
+ final class DanmakuPainter {
+@@ -115,10 +116,20 @@ final class DanmakuPainter {
+         * config.textScale;
+   }
+ 
++  /**
++   * Occupied width of {@code item}: the one measurement every consumer shares (pool
++   * admission accounting, speed and exit decisions in the track manager, draw geometry
++   * here). It is the drawn width — text plus the like-count tail below — plus the item's
++   * horizontal margin, which the embedder feeds per text-size tier; the margin travels
++   * with the item as a layout property, exactly like the tail.
++   */
+   float measureWidth(DanmakuRenderItem item) {
+     float sizePx = item.textSizeSp > 0 ? resolveTextSizePx(item.textSizeSp) : textSizePx;
+     fillPaint.setTextSize(sizePx);
+-    float width = fillPaint.measureText(item.text) + tailWidth(item, sizePx);
++    float width =
++        fillPaint.measureText(item.text)
++            + tailWidth(item, fillPaint, sizePx)
++            + config.horizontalMarginPx;
+     fillPaint.setTextSize(textSizePx);
+     return width;
+   }
+@@ -130,17 +141,22 @@ final class DanmakuPainter {
+       if (fillPaint.getTextSize() != sizePx) {
+         fillPaint.setTextSize(sizePx);
+       }
+-      item.measuredWidth = fillPaint.measureText(item.text) + tailWidth(item, sizePx);
++      item.measuredWidth =
++          fillPaint.measureText(item.text)
++              + tailWidth(item, fillPaint, sizePx)
++              + config.horizontalMarginPx;
+     }
+     fillPaint.setTextSize(textSizePx);
+   }
+ 
+   // ---- Like-count tail (official form: a tail piece after the text, icon + count) ----
+   //
+-  // The official rule is a server-side configuration (danmaku_digg_v707:
+-  // enable / digg_cnt threshold / show_cnt per window_sec); its live values
+-  // are not in the app package, so the threshold and label format below are
+-  // local set values, not extracted official ones.
++  // The official visibility rule is a server-side configuration
++  // (danmaku_digg_v707: enable / digg_cnt threshold / show_cnt per
++  // window_sec); its live values are not in the app package, so the
++  // threshold below is a local set value. The label format in
++  // diggTailText is not local: it is the official smartCountNumber,
++  // copied branch for branch (see there).
+ 
+   /** Minimum like count that earns the count tail. */
+   static final long DIGG_TAIL_MIN_COUNT = 10;
+@@ -148,7 +164,16 @@ final class DanmakuPainter {
+   private static final float TAIL_GAP_RATIO = 0.3f;
+   private static final float TAIL_ICON_GAP_RATIO = 0.12f;
+ 
+-  /** Returns the tail label for {@code diggCount}, or null when the item gets no tail. */
++  /**
++   * Returns the tail label for {@code diggCount}, or null when the item gets no tail.
++   *
++   * <p>The format is the official com.dragon.read.util.NumberUtils.smartCountNumber copied
++   * branch for branch — the same four branches (and the same float arithmetic) as the app-side
++   * canonical HgTimeTextCount.format, so the flying tail and every app-side count read
++   * identically: the wan tier truncates via /1000 and drops the fraction when the tenths digit
++   * is 0 (10000/10500 → "1万", 1234567 → "123.4万"), the yi tier is the same shape (100000000 →
++   * "1亿"), capped at "10亿".
++   */
+   static @Nullable String diggTailText(long diggCount) {
+     if (diggCount < DIGG_TAIL_MIN_COUNT) {
+       return null;
+@@ -156,18 +181,46 @@ final class DanmakuPainter {
+     if (diggCount < 10_000) {
+       return Long.toString(diggCount);
+     }
+-    long tenthsOfWan = diggCount / 1000;
+-    return (tenthsOfWan / 10) + "." + (tenthsOfWan % 10) + "万";
++    if (diggCount < 100_000_000) {
++      long j = diggCount / 1000;
++      return j % 10 == 0
++          ? String.format(Locale.getDefault(), "%d万", j / 10)
++          : String.format(Locale.getDefault(), "%.1f万", (j * 1.0f) / 10.0f);
++    }
++    if (diggCount < 1_000_000_000) {
++      long j2 = diggCount / 10000000;
++      return j2 % 10 == 0
++          ? String.format(Locale.getDefault(), "%d亿", j2 / 10)
++          : String.format(Locale.getDefault(), "%.1f亿", (j2 * 1.0f) / 10.0f);
++    }
++    long j3 = diggCount / 100000000;
++    return j3 <= 10 ? "10亿" : String.format(Locale.getDefault(), "%d亿", j3);
++  }
++
++  /**
++   * Width of the like-count tail of {@code item} at text size {@code sizePx}: the gap, the
++   * icon when the configuration carries one, and the count label. The single tail formula
++   * for both the painter (which owns the configured icon) and background measurement (which
++   * only knows whether an icon is configured); {@code paint} must already be at {@code
++   * sizePx}.
++   */
++  static float tailWidth(DanmakuRenderItem item, Paint paint, float sizePx) {
++    return tailWidth(item, paint, sizePx, true);
++  }
++
++  /** Icon-less variant of {@link #tailWidth(DanmakuRenderItem, Paint, float)}. */
++  static float tailWidthWithoutIcon(DanmakuRenderItem item, Paint paint, float sizePx) {
++    return tailWidth(item, paint, sizePx, false);
+   }
+ 
+-  /** Tail width at the item's current paint size; the paint must already be at that size. */
+-  private float tailWidth(DanmakuRenderItem item, float sizePx) {
++  private static float tailWidth(
++      DanmakuRenderItem item, Paint paint, float sizePx, boolean withIcon) {
+     String tail = diggTailText(item.diggCount);
+     if (tail == null) {
+       return 0f;
+     }
+-    float width = sizePx * TAIL_GAP_RATIO + fillPaint.measureText(tail);
+-    if (config.diggIcon != null) {
++    float width = sizePx * TAIL_GAP_RATIO + paint.measureText(tail);
++    if (withIcon) {
+       width += sizePx + sizePx * TAIL_ICON_GAP_RATIO;
+     }
+     return width;
+@@ -181,7 +234,9 @@ final class DanmakuPainter {
+         config.textScale,
+         displayMetrics,
+         config.typeface != null ? config.typeface : Typeface.DEFAULT,
+-        config.textBold);
++        config.textBold,
++        config.horizontalMarginPx,
++        config.diggIcon != null);
+   }
+ 
+   void beginFrame() {
+@@ -288,6 +343,8 @@ final class DanmakuPainter {
+     if (tail == null) {
+       return;
+     }
++    // The drawn extent ends before the item's horizontal margin: the text
++    // starts at x and the tail follows the text, margin excluded.
+     float tailX = x + fillPaint.measureText(item.text) + sizePx * TAIL_GAP_RATIO;
+     android.graphics.Bitmap icon = config.diggIcon;
+     if (icon != null && !icon.isRecycled()) {
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderPool.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderPool.java
+index 62fa61f..0ed7a6f 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderPool.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderPool.java
+@@ -243,8 +243,7 @@ final class DanmakuRenderPool {
+         return null;
+       }
+       DanmakuRenderItem item = items.get(i);
+-      paint.setTextSize(measurement.textSizePx(item));
+-      widths[i] = paint.measureText(item.text);
++      widths[i] = measurement.occupiedWidth(item, paint, measurement.textSizePx(item));
+     }
+     return widths;
+   }
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuTrackManager.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuTrackManager.java
+index 7935566..4618fa5 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuTrackManager.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuTrackManager.java
+@@ -279,6 +279,17 @@ final class DanmakuTrackManager {
+   private boolean canFollow(DanmakuRenderItem previous, DanmakuRenderItem next, long currentMs) {
+     float previousSpeed =
+         (viewWidth + previous.measuredWidth) / (float) effectiveScrollDurationMs();
++    if (previous.frozen) {
++      // A frozen item (tapped, its action UI is open) is a stationary object on
++      // its track: it sits at the position captured when it froze and never
++      // exits while frozen. A follower entering at the right edge starts
++      // behind that position and, at any speed, reaches it in finite time —
++      // so no follower is admitted behind a frozen item at all: the track is
++      // closed for the duration of the freeze (the action UI dismisses itself
++      // within the activation retry window, after which waiting items enter
++      // behind the resumed item as usual).
++      return false;
++    }
+     long previousElapsed = currentMs - previous.activatedTimeMs;
+     float previousRight = viewWidth + previous.measuredWidth - previousSpeed * previousElapsed;
+     float minimumGap = textSizePx * config.scrollGapRatio;
+@@ -297,7 +308,7 @@ final class DanmakuTrackManager {
+   private boolean isMoving(@Nullable DanmakuRenderItem item, long currentMs) {
+     return item != null
+         && item.active
+-        && currentMs - item.activatedTimeMs < effectiveScrollDurationMs();
++        && (item.frozen || currentMs - item.activatedTimeMs < effectiveScrollDurationMs());
+   }
+ 
+   private int resolveSpan(DanmakuRenderItem item, int trackCount) {
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+index ef54ecd..7e1feb3 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+@@ -82,7 +82,9 @@ public final class DanmakuView extends View {
+     return oldConfig.textSizeSp != newConfig.textSizeSp
+         || oldConfig.textScale != newConfig.textScale
+         || oldConfig.typeface != newConfig.typeface
+-        || oldConfig.textBold != newConfig.textBold;
++        || oldConfig.textBold != newConfig.textBold
++        || oldConfig.horizontalMarginPx != newConfig.horizontalMarginPx
++        || oldConfig.diggIcon != newConfig.diggIcon;
+   }
+ 
+   private static boolean isTrackLayoutConfigChanged(

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 导航 tab 默认态（2026-11-02 用户点头换）：小程序卡面静态同款——兜底主色 #C9970D 经
+     HkCardFace 配方（上端白染 6%＝#FCF9F0、下端暖白染 10%＝#FAEBCD）＋顶部 gloss、无描边；
+     改前是 #C2FFFFFF 白透＋内层 shape_gray_corners 近白实底（用户实拍 114107 指「还是白的」）。
+     几何保留：外圆角 10dp、涟漪层左右内缩 2dip、涟漪色 grey_black、内圆角 8dp（改纯 mask、不再常显实底）。
+     选中态 hk_chip_selected 不动。 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient android:type="linear" android:angle="270" android:startColor="#FCF9F0" android:endColor="#FAEBCD" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient android:type="linear" android:angle="270" android:startColor="#2EFFFFFF" android:endColor="#00FFFFFF" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+    <item
+        android:left="2.0dip"
+        android:right="2.0dip">
+        <ripple android:color="@color/grey_black">
+            <item android:id="@android:id/mask">
+                <shape android:shape="rectangle">
+                    <corners android:radius="8.0dip" />
+                    <solid android:color="#FFFFFF" />
+                </shape>
+            </item>
+        </ripple>
+    </item>
+</layer-list>

@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 阅读子系统未移植（用户范围外）：view_read_bottom 仅作 ViewStub 占位，阅读模式触发时不展开实际控件。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" />

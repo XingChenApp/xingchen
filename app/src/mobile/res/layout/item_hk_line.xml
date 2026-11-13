@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 8.83 item_line_col.xml：分隔细线（line 用） -->
+<TextView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/result_bg"
+    android:background="#fff2f4f9"
+    android:layout_width="match_parent"
+    android:layout_height="1.2dp"
+    android:layout_marginStart="15dp"
+    android:layout_marginEnd="15dp" />

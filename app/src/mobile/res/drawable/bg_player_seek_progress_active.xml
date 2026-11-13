@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 细进度拖动态（GZ：底轨白 0.22、填充渐变白 0.56→0.78、轨高 5dp） -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <solid android:color="#38FFFFFF" />
+            <corners android:radius="3dp" />
+            <size android:height="5dp" />
+        </shape>
+    </item>
+    <item android:id="@android:id/progress">
+        <clip>
+            <shape android:shape="rectangle">
+                <gradient android:angle="0" android:startColor="#8FFFFFFF" android:endColor="#C7FFFFFF" />
+                <corners android:radius="3dp" />
+                <size android:height="5dp" />
+            </shape>
+        </clip>
+    </item>
+</layer-list>

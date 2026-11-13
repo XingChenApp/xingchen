@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔 V2：内嵌网页（x5_webview_single，如 JRKAN直播 这类网页版小程序）。
+     本布局只作挂载容器：WebView 本体由 HkWebViewHolder/HkWebkitHolder 全承载创建后挂入
+     （双承载收归，2026-11-11；此前此处裸 WebView 只 loadUrl，extra/ua/js 全丢）。 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wv_page"
+    android:layout_width="match_parent"
+    android:layout_height="420dp" />

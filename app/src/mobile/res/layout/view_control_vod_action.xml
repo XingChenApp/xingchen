@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 播放器主行：固定 9 项（图标＋小字），均分布局；GONE 项自动由其余项补齐 -->
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp">
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/player"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:drawableTop="@drawable/ic_player_chip"
+        android:drawablePadding="4dp"
+        android:fontFeatureSettings="tnum"
+        android:gravity="center"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:text="@string/play_exo"
+        android:textColor="@color/white"
+        android:textSize="11sp"
+        tools:text="EXO" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/decode"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:drawableTop="@drawable/ic_player_bolt"
+        android:drawablePadding="4dp"
+        android:gravity="center"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:text="@string/play_decode"
+        android:textColor="@color/white"
+        android:textSize="11sp"
+        tools:text="硬解" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/speed"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:drawableTop="@drawable/ic_player_speed"
+        android:drawablePadding="4dp"
+        android:fontFeatureSettings="tnum"
+        android:gravity="center"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:text="@string/play_speed"
+        android:textColor="@color/white"
+        android:textSize="11sp"
+        tools:text="1x" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:drawableTop="@drawable/ic_player_sub"
+        android:drawablePadding="4dp"
+        android:gravity="center"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:tag="3"
+        android:text="@string/play_track_text"
+        android:textColor="@color/white"
+        android:textSize="11sp"
+        tools:text="字幕" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/danmakuText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:drawableTop="@drawable/ic_player_danmu"
+        android:drawablePadding="4dp"
+        android:gravity="center"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:text="@string/danmaku"
+        android:textColor="@color/white"
+        android:textSize="11sp"
+        tools:text="弹幕" />
+
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:id="@+id/openingItem"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp">
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/openingIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_player_opening" />
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/opening"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:text="@string/play_op"
+            android:textColor="@color/white"
+            android:textSize="11sp"
+            tools:text="片头" />
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/openingTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFeatureSettings="tnum"
+            android:textColor="@color/player_gold"
+            android:textSize="10sp"
+            android:visibility="gone"
+            tools:text="01:25"
+            tools:visibility="visible" />
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:id="@+id/endingItem"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp">
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/endingIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_player_ending" />
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/ending"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:text="@string/play_ed"
+            android:textColor="@color/white"
+            android:textSize="11sp"
+            tools:text="片尾" />
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/endingTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFeatureSettings="tnum"
+            android:textColor="@color/player_gold"
+            android:textSize="10sp"
+            android:visibility="gone"
+            tools:text="00:30"
+            tools:visibility="visible" />
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/episodes"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:drawableTop="@drawable/ic_player_grid"
+        android:drawablePadding="4dp"
+        android:gravity="center"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:text="@string/detail_episode"
+        android:textColor="@color/white"
+        android:textSize="11sp"
+        tools:text="选集" />
+
+    <!-- 评论入口（横屏底排，紧挨选集）：预抓到评论才显示；竖屏全屏时走右侧栏，此项藏起 -->
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/commentAction"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:drawableTop="@drawable/ic_player_comment"
+        android:drawablePadding="4dp"
+        android:gravity="center"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:text="@string/hongguo_comment"
+        android:textColor="@color/white"
+        android:textSize="11sp"
+        android:visibility="gone"
+        tools:text="评论" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/moreText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:drawableTop="@drawable/ic_player_more"
+        android:drawablePadding="4dp"
+        android:gravity="center"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:text="@string/player_more"
+        android:textColor="@color/white"
+        android:textSize="11sp"
+        tools:text="更多" />
+
+    <!-- 占位：已移至更多面板；ControlDialog 仍经过程序化点击触发，保持引用有效，永不显示 -->
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/reset"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        tools:ignore="UnusedResources" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/repeat"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        tools:ignore="UnusedResources" />
+
+</androidx.appcompat.widget.LinearLayoutCompat>

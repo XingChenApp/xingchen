@@ -1,0 +1,50 @@
+diff --git a/libraries/ui/src/main/java/androidx/media3/ui/PlayerView.java b/libraries/ui/src/main/java/androidx/media3/ui/PlayerView.java
+index d984398..b9d5577 100644
+--- a/libraries/ui/src/main/java/androidx/media3/ui/PlayerView.java
++++ b/libraries/ui/src/main/java/androidx/media3/ui/PlayerView.java
+@@ -313,6 +313,11 @@ public class PlayerView extends FrameLayout implements AdViewProvider {
+   @Nullable private final ImageView artworkView;
+   @Nullable private final SubtitleView subtitleView;
+   @Nullable private final DanmakuView danmakuView;
++  // External danmaku view (host-provided, e.g. a full-page overlay in the
++  // item root instead of the in-layout view). When set, the controller
++  // renders into it and attach/detach cycles must not steal the binding
++  // back to the internal view.
++  @Nullable private DanmakuView externalDanmakuView;
+   private final DanmakuController danmakuController;
+   @Nullable private final View bufferingView;
+   @Nullable private final TextView errorMessageView;
+@@ -795,7 +800,8 @@ public class PlayerView extends FrameLayout implements AdViewProvider {
+   protected void onAttachedToWindow() {
+     super.onAttachedToWindow();
+     danmakuController.setPlayer(player);
+-    danmakuController.setView(danmakuView);
++    danmakuController.setView(
++        externalDanmakuView != null ? externalDanmakuView : danmakuView);
+   }
+ 
+   @Override
+@@ -1533,7 +1539,22 @@ public class PlayerView extends FrameLayout implements AdViewProvider {
+   @UnstableApi
+   @Nullable
+   public DanmakuView getDanmakuView() {
+-    return danmakuView;
++    return externalDanmakuView != null ? externalDanmakuView : danmakuView;
++  }
++
++  /**
++   * Sets an external danmaku view that takes precedence over the in-layout
++   * view, or {@code null} to fall back to the in-layout view. The binding
++   * survives attach/detach cycles: {@link #onAttachedToWindow()} re-applies
++   * the external view instead of stealing the controller back to the
++   * internal one.
++   */
++  @UnstableApi
++  public void setExternalDanmakuView(@Nullable DanmakuView view) {
++    externalDanmakuView = view;
++    if (isAttachedToWindow()) {
++      danmakuController.setView(view != null ? view : danmakuView);
++    }
+   }
+ 
+   /** Returns the {@link DanmakuController} currently attached to this view. */

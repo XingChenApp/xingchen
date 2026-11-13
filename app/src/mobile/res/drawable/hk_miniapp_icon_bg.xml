@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔小程序图标瓷砖（v5 质感）：135° 渐变底 ＋ 顶部内高光；只改 drawable，不动布局 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:startColor="#FFF9E7"
+                android:endColor="#EEDCAF" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#66FFFFFF"
+                android:centerColor="#14FFFFFF"
+                android:centerY="0.4"
+                android:endColor="#00FFFFFF" />
+            <corners
+                android:topLeftRadius="10dp"
+                android:topRightRadius="10dp"
+                android:bottomLeftRadius="2dp"
+                android:bottomRightRadius="2dp" />
+        </shape>
+    </item>
+</layer-list>

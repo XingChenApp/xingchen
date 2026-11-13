@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/vod"
+        android:icon="@drawable/ic_nav_vod"
+        android:title="@string/nav_vod"
+        android:visible="true" />
+
+    <item
+        android:id="@+id/live"
+        android:icon="@drawable/ic_nav_live"
+        android:title="@string/nav_live"
+        android:visible="true" />
+
+
+    <item
+        android:id="@+id/reading"
+        android:icon="@drawable/ic_nav_reading"
+        android:title="@string/nav_reading"
+        android:visible="true" />
+
+    <item
+        android:id="@+id/miniapp"
+        android:icon="@drawable/ic_nav_miniapp"
+        android:title="@string/nav_miniapp"
+        android:visible="false" />
+
+    <item
+        android:id="@+id/setting"
+        android:icon="@drawable/ic_nav_setting"
+        android:title="@string/nav_setting"
+        android:visible="true" />
+
+</menu>

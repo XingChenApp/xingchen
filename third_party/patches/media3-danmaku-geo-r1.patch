@@ -1,0 +1,670 @@
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/Danmaku.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/Danmaku.java
+index 74bf12c..45431e8 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/Danmaku.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/Danmaku.java
+@@ -114,6 +114,13 @@ public final class Danmaku {
+   public boolean liveItem;
+   /** Elapsed-realtime expiry for live items, or 0 if none. */
+   public long liveExpiryElapsedRealtimeMs;
++  /**
++   * Like count carried from the source data (0 = none/unknown), mutable for the same batch
++   * API compatibility as {@link #liveItem}: parsers that know the count set it after
++   * construction. The painter appends it to the item's text when it reaches the display
++   * threshold.
++   */
++  public long diggCount;
+ 
+   /** Creates a danmaku item. */
+   public Danmaku(
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java
+index 4c368e7..1f66531 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuConfig.java
+@@ -22,6 +22,7 @@ import static java.lang.annotation.ElementType.METHOD;
+ import static java.lang.annotation.ElementType.PARAMETER;
+ import static java.lang.annotation.ElementType.TYPE_USE;
+ 
++import android.graphics.Bitmap;
+ import android.graphics.Typeface;
+ import androidx.annotation.IntDef;
+ import androidx.annotation.Nullable;
+@@ -185,6 +186,12 @@ public final class DanmakuConfig {
+   /** Offset applied to source item times in milliseconds. */
+   public final long timeOffsetMs;
+ 
++  /**
++   * Optional icon drawn in the like-count tail of high-like items, before the count text.
++   * Null (the default) draws the count text without an icon.
++   */
++  public final @Nullable Bitmap diggIcon;
++
+   private DanmakuConfig(Builder builder) {
+     this.durationMs = builder.durationMs;
+     this.fixedDurationMs = builder.fixedDurationMs;
+@@ -222,6 +229,7 @@ public final class DanmakuConfig {
+     this.showSpecial = builder.showSpecial;
+     this.colorMode = builder.colorMode;
+     this.timeOffsetMs = builder.timeOffsetMs;
++    this.diggIcon = builder.diggIcon;
+   }
+ 
+   /** Returns a builder initialized from this configuration. */
+@@ -268,6 +276,7 @@ public final class DanmakuConfig {
+     private boolean showSpecial;
+     private @ColorMode int colorMode;
+     private long timeOffsetMs;
++    private @Nullable Bitmap diggIcon;
+ 
+     /** Creates a builder initialized with default values. */
+     public Builder() {
+@@ -307,6 +316,7 @@ public final class DanmakuConfig {
+       showSpecial = true;
+       colorMode = COLOR_MODE_DEFAULT;
+       timeOffsetMs = 0;
++      diggIcon = null;
+     }
+ 
+     private Builder(DanmakuConfig config) {
+@@ -346,6 +356,7 @@ public final class DanmakuConfig {
+       this.showSpecial = config.showSpecial;
+       this.colorMode = config.colorMode;
+       this.timeOffsetMs = config.timeOffsetMs;
++      this.diggIcon = config.diggIcon;
+     }
+ 
+     /** Sets the scrolling item duration in milliseconds. */
+@@ -610,6 +621,13 @@ public final class DanmakuConfig {
+       return this;
+     }
+ 
++    /** Sets the icon drawn before the count in high-like items' like-count tails. */
++    @CanIgnoreReturnValue
++    public Builder setDiggIcon(@Nullable Bitmap diggIcon) {
++      this.diggIcon = diggIcon;
++      return this;
++    }
++
+     /** Builds the configuration. */
+     public DanmakuConfig build() {
+       return new DanmakuConfig(this);
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuController.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuController.java
+index 91c0860..5a65573 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuController.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuController.java
+@@ -369,6 +369,26 @@ public final class DanmakuController {
+     replaceItems(items);
+   }
+ 
++  /**
++   * Merges additional items into the current timeline without resetting the view: items
++   * already in flight keep their progress, and only the newly merged items inside the
++   * visible window are handed to the view. Intended for incremental deliveries of one
++   * source (for example windowed fetching that reports a growing list); callers must pass
++   * only items that were not previously supplied to this controller, as duplicates are not
++   * filtered. For a fresh source use {@link #setItems(List)} instead.
++   */
++  public void addItems(List<Danmaku> items) {
++    checkNotNull(items);
++    if (items.isEmpty()) {
++      return;
++    }
++    dataSourceUri = null;
++    dataSourceDirty = false;
++    Danmaku[] sorted = items.toArray(new Danmaku[0]);
++    java.util.Arrays.sort(sorted, Danmaku.BY_TIME);
++    mergeItems(sorted);
++  }
++
+   private void setLoadedItems(Uri uri, Danmaku[] items) {
+     replaceSortedItems(items);
+     dataSourceUri = uri;
+@@ -428,7 +448,6 @@ public final class DanmakuController {
+     }
+   }
+ 
+-  /** Sets whether danmaku rendering is enabled. */
+   /**
+    * Offers a batch of live-stream danmaku items for immediate display.
+    */
+@@ -450,6 +469,7 @@ public final class DanmakuController {
+     }
+   }
+ 
++  /** Sets whether danmaku rendering is enabled. */
+   public void setEnabled(boolean enabled) {
+     if (this.enabled == enabled) {
+       return;
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
+index ad970fa..742e44e 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuPainter.java
+@@ -20,6 +20,7 @@ import android.graphics.Color;
+ import android.graphics.LinearGradient;
+ import android.graphics.Matrix;
+ import android.graphics.Paint;
++import android.graphics.RectF;
+ import android.graphics.Shader;
+ import android.graphics.Typeface;
+ import android.util.DisplayMetrics;
+@@ -38,6 +39,9 @@ final class DanmakuPainter {
+   private static final int[] GENERATED_GRADIENT = new int[0];
+   private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+   private final Paint strokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
++  private final Paint tailIconPaint =
++      new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
++  private final RectF tailIconRect = new RectF();
+   private final Matrix gradientMatrix = new Matrix();
+   private final float[] hsv = new float[3];
+   private final PaintColorState fillState = new PaintColorState();
+@@ -114,7 +118,7 @@ final class DanmakuPainter {
+   float measureWidth(DanmakuRenderItem item) {
+     float sizePx = item.textSizeSp > 0 ? resolveTextSizePx(item.textSizeSp) : textSizePx;
+     fillPaint.setTextSize(sizePx);
+-    float width = fillPaint.measureText(item.text);
++    float width = fillPaint.measureText(item.text) + tailWidth(item, sizePx);
+     fillPaint.setTextSize(textSizePx);
+     return width;
+   }
+@@ -126,11 +130,49 @@ final class DanmakuPainter {
+       if (fillPaint.getTextSize() != sizePx) {
+         fillPaint.setTextSize(sizePx);
+       }
+-      item.measuredWidth = fillPaint.measureText(item.text);
++      item.measuredWidth = fillPaint.measureText(item.text) + tailWidth(item, sizePx);
+     }
+     fillPaint.setTextSize(textSizePx);
+   }
+ 
++  // ---- Like-count tail (official form: a tail piece after the text, icon + count) ----
++  //
++  // The official rule is a server-side configuration (danmaku_digg_v707:
++  // enable / digg_cnt threshold / show_cnt per window_sec); its live values
++  // are not in the app package, so the threshold and label format below are
++  // local set values, not extracted official ones.
++
++  /** Minimum like count that earns the count tail. */
++  static final long DIGG_TAIL_MIN_COUNT = 10;
++
++  private static final float TAIL_GAP_RATIO = 0.3f;
++  private static final float TAIL_ICON_GAP_RATIO = 0.12f;
++
++  /** Returns the tail label for {@code diggCount}, or null when the item gets no tail. */
++  static @Nullable String diggTailText(long diggCount) {
++    if (diggCount < DIGG_TAIL_MIN_COUNT) {
++      return null;
++    }
++    if (diggCount < 10_000) {
++      return Long.toString(diggCount);
++    }
++    long tenthsOfWan = diggCount / 1000;
++    return (tenthsOfWan / 10) + "." + (tenthsOfWan % 10) + "万";
++  }
++
++  /** Tail width at the item's current paint size; the paint must already be at that size. */
++  private float tailWidth(DanmakuRenderItem item, float sizePx) {
++    String tail = diggTailText(item.diggCount);
++    if (tail == null) {
++      return 0f;
++    }
++    float width = sizePx * TAIL_GAP_RATIO + fillPaint.measureText(tail);
++    if (config.diggIcon != null) {
++      width += sizePx + sizePx * TAIL_ICON_GAP_RATIO;
++    }
++    return width;
++  }
++
+   DanmakuMeasurement measurement(int poolGeneration, int configGeneration) {
+     return new DanmakuMeasurement(
+         poolGeneration,
+@@ -154,7 +196,10 @@ final class DanmakuPainter {
+       long currentMs,
+       int viewWidth,
+       int viewHeight) {
+-    long elapsedMs = currentMs - item.activatedTimeMs;
++    // A frozen item (tapped by the embedder, action UI open) is pinned at
++    // the elapsed value captured when it froze; every other item keeps
++    // following the live clock.
++    long elapsedMs = item.frozen ? item.frozenElapsedMs : currentMs - item.activatedTimeMs;
+     float sizePx = item.textSizeSp > 0 ? resolveTextSizePx(item.textSizeSp) : textSizePx;
+     setPaintSize(sizePx);
+     float x;
+@@ -230,11 +275,33 @@ final class DanmakuPainter {
+       fillPaint.setShader(item.gradientShader);
+     }
+     drawText(canvas, item.text, x, y, color, alpha, sizePx);
++    drawDiggTail(canvas, item, x, y, color, alpha, sizePx);
+     if (gradientColors != null) {
+       fillPaint.setShader(null);
+     }
+   }
+ 
++  /** Draws the like-count tail (optional icon + count) right after the item's text. */
++  private void drawDiggTail(
++      Canvas canvas, DanmakuRenderItem item, float x, float y, int color, int alpha, float sizePx) {
++    String tail = diggTailText(item.diggCount);
++    if (tail == null) {
++      return;
++    }
++    float tailX = x + fillPaint.measureText(item.text) + sizePx * TAIL_GAP_RATIO;
++    android.graphics.Bitmap icon = config.diggIcon;
++    if (icon != null && !icon.isRecycled()) {
++      android.graphics.Paint.FontMetrics metrics = fillPaint.getFontMetrics();
++      float centerY = y + (metrics.ascent + metrics.descent) / 2f;
++      float half = sizePx / 2f;
++      tailIconRect.set(tailX, centerY - half, tailX + sizePx, centerY + half);
++      tailIconPaint.setAlpha(alpha);
++      canvas.drawBitmap(icon, null, tailIconRect, tailIconPaint);
++      tailX += sizePx + sizePx * TAIL_ICON_GAP_RATIO;
++    }
++    drawText(canvas, tail, tailX, y, color, alpha, sizePx);
++  }
++
+   private int resolveColor(DanmakuRenderItem item) {
+     if (config.colorMode != DanmakuConfig.COLOR_MODE_COLORFUL) {
+       return item.color;
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
+index 13a2edc..a63cb8f 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderItem.java
+@@ -23,6 +23,7 @@ final class DanmakuRenderItem {
+ 
+   final String text;
+   final String userId;
++  final long diggCount;
+   final long timeMs;
+   final @Danmaku.Type int type;
+   final int color;
+@@ -43,10 +44,16 @@ final class DanmakuRenderItem {
+   float hitBottom;
+   boolean hitValid;
+   boolean liveItem;
++  long liveExpiryElapsedRealtimeMs;
+   int trackIndex = -1;
+   int trackSpan = 1;
+   long activatedTimeMs = -1;
+   boolean active;
++  // Single-item freeze (embedder tapped this item and opened its action UI):
++  // while frozen, the painter uses frozenElapsedMs instead of the live clock
++  // delta, pinning the item where it was tapped. Other items are unaffected.
++  boolean frozen;
++  long frozenElapsedMs;
+   @Nullable Shader gradientShader;
+   float gradientShaderWidth;
+   int gradientShaderColorMode = -1;
+@@ -56,6 +63,7 @@ final class DanmakuRenderItem {
+   DanmakuRenderItem(Danmaku danmaku) {
+     text = danmaku.text;
+     userId = danmaku.userId;
++    diggCount = danmaku.diggCount;
+     timeMs = danmaku.timeMs;
+     type = danmaku.type;
+     color = danmaku.color;
+@@ -68,5 +76,6 @@ final class DanmakuRenderItem {
+     forceGeneratedWhite = Math.abs(textHash) % 5 == 0;
+     sourceGradientColors = danmaku.getSourceGradientColors();
+     liveItem = danmaku.liveItem;
++    liveExpiryElapsedRealtimeMs = danmaku.liveExpiryElapsedRealtimeMs;
+   }
+ }
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderPool.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderPool.java
+index 49f3ab0..62fa61f 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderPool.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuRenderPool.java
+@@ -39,6 +39,7 @@ final class DanmakuRenderPool {
+   private final Object lock = new Object();
+   private final List<TreeMap<Long, List<DanmakuRenderItem>>> poolChunks = new ArrayList<>();
+   private final AtomicInteger poolGeneration = new AtomicInteger();
++  private final AtomicInteger liveGeneration = new AtomicInteger();
+   private final AtomicInteger measurementGeneration = new AtomicInteger();
+   private final Object remeasureToken = new Object();
+   private final Handler mainHandler = new Handler(Looper.getMainLooper());
+@@ -62,7 +63,8 @@ final class DanmakuRenderPool {
+     }
+     Danmaku[] sourceItems = items.toArray(new Danmaku[0]);
+     int poolVersion = poolGeneration.get();
+-    postToBackground(() -> createAndMeasure(sourceItems, poolVersion));
++    int liveVersion = liveGeneration.get();
++    postToBackground(() -> createAndMeasure(sourceItems, poolVersion, liveVersion));
+   }
+ 
+   void clear() {
+@@ -72,6 +74,46 @@ final class DanmakuRenderPool {
+     }
+   }
+ 
++  /**
++   * Removes all live items from the committed chunks and invalidates live batches that are
++   * still being measured on the background thread, so cleared live items never activate later.
++   */
++  void removeLiveItems() {
++    liveGeneration.incrementAndGet();
++    synchronized (lock) {
++      for (int i = poolChunks.size() - 1; i >= 0; i--) {
++        TreeMap<Long, List<DanmakuRenderItem>> chunk = poolChunks.get(i);
++        chunk.values().removeIf(bucket -> {
++          bucket.removeIf(item -> item.liveItem);
++          return bucket.isEmpty();
++        });
++        if (chunk.isEmpty()) {
++          poolChunks.remove(i);
++        }
++      }
++    }
++  }
++
++  /** Removes a single item from the committed chunks, returning whether it was present. */
++  boolean remove(DanmakuRenderItem target) {
++    synchronized (lock) {
++      for (int i = 0; i < poolChunks.size(); i++) {
++        TreeMap<Long, List<DanmakuRenderItem>> chunk = poolChunks.get(i);
++        List<DanmakuRenderItem> bucket = chunk.get(target.timeMs);
++        if (bucket != null && bucket.remove(target)) {
++          if (bucket.isEmpty()) {
++            chunk.remove(target.timeMs);
++            if (chunk.isEmpty()) {
++              poolChunks.remove(i);
++            }
++          }
++          return true;
++        }
++      }
++      return false;
++    }
++  }
++
+   void onMeasurementConfigChanged() {
+     int configGeneration = measurementGeneration.incrementAndGet();
+     currentMeasurement = painter.measurement(0, configGeneration);
+@@ -138,7 +180,7 @@ final class DanmakuRenderPool {
+     return poolGeneration.get() == generation;
+   }
+ 
+-  private void createAndMeasure(Danmaku[] sourceItems, int poolVersion) {
++  private void createAndMeasure(Danmaku[] sourceItems, int poolVersion, int liveVersion) {
+     if (!isCurrent(poolVersion)) {
+       return;
+     }
+@@ -149,19 +191,41 @@ final class DanmakuRenderPool {
+       }
+       renderItems.add(new DanmakuRenderItem(sourceItems[i]));
+     }
+-    measureAndAddOnBackground(renderItems, poolVersion);
++    measureAndAddOnBackground(renderItems, poolVersion, liveVersion);
+   }
+ 
+-  private void measureAndAddOnBackground(List<DanmakuRenderItem> items, int poolVersion) {
++  private void measureAndAddOnBackground(
++      List<DanmakuRenderItem> items, int poolVersion, int liveVersion) {
+     while (isCurrent(poolVersion)) {
+       DanmakuMeasurement measurement = measurement(poolVersion);
+       @Nullable float[] widths = measureWidths(items, measurement);
+       if (widths == null) {
+         continue;
+       }
++      if (liveVersion != liveGeneration.get()) {
++        // Live items were cleared while this batch was being measured: drop the live
++        // items so they can never activate, but keep any regular items from the batch.
++        List<DanmakuRenderItem> keptItems = new ArrayList<>(items.size());
++        List<Float> keptWidths = new ArrayList<>(items.size());
++        for (int i = 0; i < items.size(); i++) {
++          if (!items.get(i).liveItem) {
++            keptItems.add(items.get(i));
++            keptWidths.add(widths[i]);
++          }
++        }
++        if (keptItems.isEmpty()) {
++          return;
++        }
++        items = keptItems;
++        widths = new float[keptItems.size()];
++        for (int i = 0; i < keptWidths.size(); i++) {
++          widths[i] = keptWidths.get(i);
++        }
++      }
+       TreeMap<Long, List<DanmakuRenderItem>> chunk = buildChunk(items, widths);
+       if (commitChunk(chunk, measurement)) {
+-        mainHandler.post(() -> listener.onItemsAdded(items, measurement.poolGeneration));
++        List<DanmakuRenderItem> addedItems = items;
++        mainHandler.post(() -> listener.onItemsAdded(addedItems, measurement.poolGeneration));
+         return;
+       }
+     }
+diff --git a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+index 8dbd5ee..ef54ecd 100644
+--- a/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
++++ b/libraries/ui_danmaku/src/main/java/androidx/media3/ui/danmaku/DanmakuView.java
+@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
+ import android.content.Context;
+ import android.graphics.Canvas;
+ import android.graphics.RectF;
++import android.os.SystemClock;
+ import android.util.AttributeSet;
+ import android.view.View;
+ import androidx.annotation.MainThread;
+@@ -49,6 +50,11 @@ public final class DanmakuView extends View {
+   private long lastActivationPositionMs = Long.MIN_VALUE;
+   private long liveOffered;
+   private long liveAdmitted;
++  private long liveDroppedOverflow;
++  private long liveDroppedExpired;
++  private long liveTrackWaits;
++  private int livePending;
++  private int liveHighWaterMark;
+   private boolean released;
+   private int viewWidth;
+   private int viewHeight;
+@@ -251,6 +257,7 @@ public final class DanmakuView extends View {
+   public void clear() {
+     renderPool.clear();
+     clearActiveItems();
++    resetLiveStats();
+     lastActivationPositionMs = Long.MIN_VALUE;
+     invalidate();
+   }
+@@ -262,18 +269,24 @@ public final class DanmakuView extends View {
+    * but can be removed en masse via {@link #clearLiveItems()}.
+    */
+   public void offerLiveBatch(java.util.List<Danmaku> items) {
+-    if (released || items.isEmpty()) {
++    if (released || items == null || items.isEmpty()) {
+       return;
+     }
++    List<Danmaku> batch = new ArrayList<>(items.size());
+     for (int i = 0; i < items.size(); i++) {
+       Danmaku danmaku = items.get(i);
+       if (danmaku != null) {
+         danmaku.liveItem = true;
++        batch.add(danmaku);
+       }
+     }
+-    liveOffered += items.size();
+-    addItems(items);
+-    liveAdmitted += items.size();
++    if (batch.isEmpty()) {
++      return;
++    }
++    liveOffered += batch.size();
++    livePending += batch.size();
++    liveHighWaterMark = Math.max(liveHighWaterMark, livePending);
++    addItems(batch);
+   }
+ 
+   /** Removes all live items from the active list and render pool. */
+@@ -283,6 +296,7 @@ public final class DanmakuView extends View {
+     for (int i = 0; i < activeItems.size(); i++) {
+       DanmakuRenderItem item = activeItems.get(i);
+       if (item.liveItem) {
++        deactivate(item);
+         continue;
+       }
+       if (writeIndex != i) {
+@@ -293,14 +307,40 @@ public final class DanmakuView extends View {
+     if (activeItems.size() > writeIndex) {
+       activeItems.subList(writeIndex, activeItems.size()).clear();
+     }
++    // Remove pooled live items so they cannot activate after the clear.
++    renderPool.removeLiveItems();
++    resetLiveStats();
++    reconcileActiveItemsToTracks();
++    requestRedrawForExternalChange();
++  }
++
++  private void resetLiveStats() {
+     liveOffered = 0;
+     liveAdmitted = 0;
+-    requestRedrawForExternalChange();
++    liveDroppedOverflow = 0;
++    liveDroppedExpired = 0;
++    liveTrackWaits = 0;
++    livePending = 0;
++    liveHighWaterMark = 0;
++  }
++
++  private void onLiveItemDroppedOverflow(DanmakuRenderItem item) {
++    liveDroppedOverflow++;
++    livePending = Math.max(0, livePending - 1);
++    renderPool.remove(item);
+   }
+ 
+   /** Returns live-item render statistics. */
+   public LiveStats getLiveStats() {
+-    return new LiveStats(liveOffered, liveAdmitted, 0, 0, 0, 0, 0, activeItems.size());
++    return new LiveStats(
++        liveOffered,
++        liveAdmitted,
++        liveDroppedOverflow,
++        liveDroppedExpired,
++        liveTrackWaits,
++        livePending,
++        liveHighWaterMark,
++        activeItems.size());
+   }
+ 
+   /**
+@@ -353,6 +393,62 @@ public final class DanmakuView extends View {
+     return new RectF(best.hitLeft, best.hitTop, best.hitRight, best.hitBottom);
+   }
+ 
++  private @Nullable DanmakuRenderItem frozenItem;
++
++  /**
++   * Freezes the visible danmaku identified like {@link #findDanmakuBounds} in place: the
++   * item stops where it is while every other item and the playback clock keep moving.
++   * Intended for embedders that open per-item action UI on tap — the tapped danmaku stays
++   * under the action UI instead of flying away. Only one item can be frozen at a time;
++   * freezing another item unfreezes the previous one. Returns whether an item was frozen.
++   */
++  public boolean freezeDanmaku(String userId, long timeMs) {
++    if (userId == null || userId.isEmpty()) {
++      return false;
++    }
++    DanmakuRenderItem best = null;
++    long bestDiff = Long.MAX_VALUE;
++    for (int i = activeItems.size() - 1; i >= 0; i--) {
++      DanmakuRenderItem item = activeItems.get(i);
++      if (!item.hitValid || !userId.equals(item.userId)) {
++        continue;
++      }
++      long diff = Math.abs(item.timeMs - timeMs);
++      if (diff < bestDiff) {
++        bestDiff = diff;
++        best = item;
++      }
++    }
++    if (best == null) {
++      return false;
++    }
++    unfreezeDanmaku();
++    best.frozen = true;
++    best.frozenElapsedMs = Math.max(0L, getCurrentPositionMs() - best.activatedTimeMs);
++    frozenItem = best;
++    postInvalidateOnAnimation();
++    return true;
++  }
++
++  /**
++   * Releases the frozen item, if any: it resumes travelling from the position where it was
++   * frozen (its activation baseline is rebased by the frozen span, so there is no jump).
++   * A frozen item that has since left the active set (seek, clear, source replacement) is
++   * simply forgotten.
++   */
++  public void unfreezeDanmaku() {
++    DanmakuRenderItem item = frozenItem;
++    frozenItem = null;
++    if (item == null || !item.frozen) {
++      return;
++    }
++    item.frozen = false;
++    if (activeItems.contains(item)) {
++      item.activatedTimeMs = getCurrentPositionMs() - item.frozenElapsedMs;
++    }
++    postInvalidateOnAnimation();
++  }
++
+   /** Live-item render statistics. */
+   public static final class LiveStats {
+     public static final LiveStats EMPTY = new LiveStats(0L, 0L, 0L, 0L, 0L, 0, 0, 0);
+@@ -393,6 +489,7 @@ public final class DanmakuView extends View {
+     }
+     renderPool.clear();
+     clearActiveItems();
++    resetLiveStats();
+     resetActivationCursor(getCurrentPositionMs());
+     if (!items.isEmpty()) {
+       addItems(items);
+@@ -544,9 +641,20 @@ public final class DanmakuView extends View {
+     List<DanmakuRenderItem> candidates = activationScratch;
+     candidates.clear();
+     renderPool.copyRange(fromMs, activationMs, candidates);
++    long elapsedRealtimeMs = SystemClock.elapsedRealtime();
+     int candidateCount = 0;
+     for (int i = 0; i < candidates.size(); i++) {
+       DanmakuRenderItem item = candidates.get(i);
++      if (!item.active
++          && item.liveItem
++          && item.liveExpiryElapsedRealtimeMs > 0
++          && elapsedRealtimeMs > item.liveExpiryElapsedRealtimeMs) {
++        // Expired live items are dropped for good instead of activating late.
++        liveDroppedExpired++;
++        livePending = Math.max(0, livePending - 1);
++        renderPool.remove(item);
++        continue;
++      }
+       if (!item.active && isTypeVisible(item.type) && isPoolVisible(item.pool)) {
+         candidates.set(candidateCount++, item);
+       }
+@@ -565,13 +673,24 @@ public final class DanmakuView extends View {
+       if (activeItems.size() >= config.maxOnScreen) {
+         if (isWithinRetryWindow(activationMs, item.timeMs, retryWindowMs)) {
+           advanceTo = Math.min(advanceTo, item.timeMs - 1);
++        } else if (item.liveItem) {
++          onLiveItemDroppedOverflow(item);
+         }
+         break;
+       }
+       if (trackManager.tryActivate(item, currentMs)) {
+         activeItems.add(item);
++        if (item.liveItem) {
++          liveAdmitted++;
++          livePending = Math.max(0, livePending - 1);
++        }
+       } else if (isWithinRetryWindow(activationMs, item.timeMs, retryWindowMs)) {
+         advanceTo = Math.min(advanceTo, item.timeMs - 1);
++        if (item.liveItem) {
++          liveTrackWaits++;
++        }
++      } else if (item.liveItem) {
++        onLiveItemDroppedOverflow(item);
+       }
+     }
+     return advanceTo;
+@@ -635,6 +754,9 @@ public final class DanmakuView extends View {
+       deactivate(activeItems.get(i));
+     }
+     activeItems.clear();
++    // The frozen item (if any) is gone with the set; drop the reference so a
++    // later unfreeze does not rebase a discarded item.
++    frozenItem = null;
+     trackManager.clear();
+   }
+ 

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 侧边面板退场：向右滑出＋淡出 200ms（结构照底部面板 xc_sheet_slide，方向照 Material 侧栏默认的右侧） -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:duration="200"
+    android:interpolator="@android:anim/accelerate_interpolator">
+    <translate
+        android:fromXDelta="0%"
+        android:toXDelta="100%" />
+    <alpha
+        android:fromAlpha="1.0"
+        android:toAlpha="0.0" />
+</set>

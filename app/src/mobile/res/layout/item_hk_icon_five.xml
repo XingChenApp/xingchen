@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 8.83 IconFiveHolder：五列图标（icon_5 用，原 DrawableTextView 为图上文下复合控件，标准 View 替代） -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/result_bg"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:background="@drawable/tab_item_default"
+    android:focusable="true"
+    android:clickable="true"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="8dp">
+    <ImageView
+        android:id="@+id/iv_icon"
+        android:layout_width="40dp"
+        android:layout_height="40dp" />
+    <TextView
+        android:id="@+id/tv_title"
+        android:textSize="13sp"
+        android:textColor="#101216"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="center_horizontal"
+        android:maxLines="1"
+        android:ellipsize="end" />
+</LinearLayout>

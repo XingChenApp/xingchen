@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 三彩卡内权重 Spacer 基准高：汽车档 48dp（瓜子 z?30:48 的汽车档；非汽车档见 values/dimens.xml）。 -->
+    <dimen name="home_entry_icon_spacer">48dp</dimen>
+</resources>

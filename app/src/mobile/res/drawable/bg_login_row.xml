@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GZ 登录账号导入行：红 #FA243C 10% 底＋同红 30% 描边、圆角 10dp -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#1AFA243C" />
+    <stroke android:width="1dp" android:color="#4DFA243C" />
+    <corners android:radius="10dp" />
+</shape>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 面板分组白卡（GZ SettingsListCard：白、圆角 16dp、阴影 2dp；阴影由代码侧 elevation 2dp 落，drawable 本身不再描边） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FFFFFF" />
+    <corners android:radius="16dp" />
+</shape>

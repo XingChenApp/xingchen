@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 播放器毛玻璃圆形按钮：深底 + 白边 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#85121418" />
+    <stroke
+        android:width="1.5dp"
+        android:color="#4DFFFFFF" />
+</shape>

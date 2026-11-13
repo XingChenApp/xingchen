@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 歌曲信息玻璃卡面（Apple 信息页 GlassSection／封面卡片信息卡共用）：
+     瓜子口径＝液态玻璃面、底白 0.10、阴影黑 0.04/0.08、无白色描边（SongInfoPageKt.java:195,286）；
+     形状 drawable 表达不了阴影，此处只落底色 0.10＋摘描边，阴影差记对照表。圆角 20dp。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#1AFFFFFF" />
+    <corners android:radius="20dp" />
+</shape>

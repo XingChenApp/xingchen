@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 计数筹（inset 浅色＝白 0.10（深色玻璃面板口径；本资源仅队列面板用）、圆角 8dp） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#1AFFFFFF" />
+    <corners android:radius="8dp" />
+</shape>

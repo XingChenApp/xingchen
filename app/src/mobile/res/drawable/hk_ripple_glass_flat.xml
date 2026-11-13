@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 玻璃平底（对照 tab_item_default／hk_ripple_glass 的半透浅面 #C2FFFFFF，无圆角无描边）：
+     原版 ripple_white／ripple_grey 的平铺衬底位置专用——几何照原版那层（平铺、圆角由外层 CardView 裁），
+     材质换用户定案的玻璃皮，不用原版纯白/米灰原色。 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#ffdfdfdf">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#C2FFFFFF" />
+        </shape>
+    </item>
+</ripple>

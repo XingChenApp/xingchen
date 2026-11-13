@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 工具面板底（GZ SheetTokens 浅色套：sheetPanelBg #F3F3F3 作底、描边黑 0.06、上圆角 16dp） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#F3F3F3" />
+    <corners android:topLeftRadius="16dp" android:topRightRadius="16dp" />
+    <stroke android:width="1dp" android:color="#0F000000" />
+</shape>

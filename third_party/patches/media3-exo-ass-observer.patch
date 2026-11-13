@@ -1,0 +1,253 @@
+# Xingchen baseline patch: ASS subtitle observer bridge for TextRenderer.
+#
+# 基线：上游 media 锁定提交 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d
+# （见 third_party/media-lock.json）。
+#
+# 背景：已提交产物基线（843a7774/902b8c10 的 third_party/maven）里的
+# exoplayer AAR 带 TextRenderer.Observer / TextRenderer.Stream 接口，
+# 星辰 App 的 ASS 字幕链依赖它；该改动此前只活在产物里，2026-10-23
+# build-media3 全量重建（bot 提交 2dfb644d）把它冲掉后双版构建失败。
+# 本补丁把它固化为源码补丁（media-lock.json 里 exoplayer 的
+# artifact_overrides 所记 "including ASS and diagnostics" 的 ASS 部分）。
+#
+# 内容：Observer/Stream 接口、setObserver、stream 注册与样本转发，
+# 与 third_party/sources/media 现行工作树的 TextRenderer 逐字一致。
+# 本文件由 webhtv 的零上下文旧补丁按 2026-10-23 口径重生成：带 3 行
+# 上下文锚点，可在锁定基线上以 --unidiff-zero 校验、应用，后像与
+# 现行树该文件逐字一致。
+diff --git a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/text/TextRenderer.java b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/text/TextRenderer.java
+index 148a719..7e3b69d 100644
+--- a/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/text/TextRenderer.java
++++ b/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/text/TextRenderer.java
+@@ -73,6 +73,43 @@ public final class TextRenderer extends BaseRenderer implements Callback {
+ 
+   private static final String TAG = "TextRenderer";
+ 
++  /**
++   * Optional side-channel for a separately owned subtitle presenter.
++   *
++   * <p>All callbacks run on the playback thread and must return without waiting, native calls or
++   * I/O. A sample view is valid only for the duration of its callback; consumers must bound and copy
++   * the remaining bytes before returning. Cue output and renderer scheduling are never replaced.
++   */
++  public interface Observer {
++    void onStream(Stream stream, long generation);
++    void onReset(Stream stream, long generation, long positionUs);
++    void onSample(Stream stream, long generation, Format format, ByteBuffer data, long timeUs);
++    void onClock(
++        Stream readingStream, @Nullable Stream displayingStream, long generation,
++        long positionUs, long textOffsetUs, boolean started, boolean ended);
++    void onCues(@Nullable Stream displayingStream, long generation, CueGroup cues);
++    void onDisabled(long generation);
++  }
++
++  /** Immutable identity of a selected SampleStream, distinct from a seek generation. */
++  public static final class Stream {
++    public final long sequence;
++    public final Format format;
++    public final MediaSource.MediaPeriodId mediaPeriodId;
++    public final long startPositionUs;
++    public final long offsetUs;
++
++    private Stream(
++        long sequence, Format format, MediaSource.MediaPeriodId mediaPeriodId,
++        long startPositionUs, long offsetUs) {
++      this.sequence = sequence;
++      this.format = format;
++      this.mediaPeriodId = mediaPeriodId;
++      this.startPositionUs = startPositionUs;
++      this.offsetUs = offsetUs;
++    }
++  }
++
+   /**
+    * The type of a message that can be passed to this renderer via {@link
+    * androidx.media3.exoplayer.ExoPlayer#createMessage(
+@@ -148,6 +185,45 @@ public final class TextRenderer extends BaseRenderer implements Callback {
+   private boolean textOffsetChanged;
+   private boolean legacyDecodingEnabled;
+ 
++  @Nullable private Observer observer;
++  @Nullable private Stream observerReadingStream;
++  @Nullable private Stream observerDecoderStream;
++  @Nullable private Stream observerDisplayingStream;
++  private long observerStreamSequence;
++  private long observerGeneration;
++
++  /** Installs an observer before enabling this renderer. Null preserves the original path. */
++  public void setObserver(@Nullable Observer observer) {
++    checkState(getState() == STATE_DISABLED);
++    this.observer = observer;
++  }
++
++  private void observerFailed(RuntimeException error) {
++    Observer failed = observer;
++    observer = null;
++    Log.e(TAG, "Subtitle observer disabled", error);
++    if (failed != null) {
++      try {
++        failed.onDisabled(++observerGeneration);
++      } catch (RuntimeException ignored) {
++        // Observers must never break the compatible subtitle or audio/video path.
++      }
++    }
++  }
++
++  private void notifyObserverClock(long positionUs) {
++    if (observer == null || observerReadingStream == null || positionUs == C.TIME_UNSET) {
++      return;
++    }
++    try {
++      observer.onClock(
++          observerReadingStream, observerDisplayingStream, observerGeneration,
++          positionUs, textOffsetUs, getState() == STATE_STARTED, outputStreamEnded);
++    } catch (RuntimeException error) {
++      observerFailed(error);
++    }
++  }
++
+   /**
+    * @param output The output.
+    * @param outputLooper The looper associated with the thread on which the output should be called.
+@@ -245,7 +321,19 @@ public final class TextRenderer extends BaseRenderer implements Callback {
+     this.textOffsetUs = textOffsetUs;
+     textOffsetChanged = true;
+     if (lastRendererPositionUs != C.TIME_UNSET) {
+-      clearOutput();
++      if (observer != null && subtitle != null
++          && observerDisplayingStream == observerReadingStream
++          && decoderReplacementState == REPLACEMENT_STATE_NONE) {
++        long positionUs = getTextPositionUs(lastRendererPositionUs);
++        nextSubtitleEventIndex = subtitle.getNextEventTimeIndex(positionUs);
++        long presentationTimeUs = getPresentationTimeUs(
++            getRendererPositionUs(getCurrentEventTimeUs(positionUs)));
++        updateOutput(new CueGroup(subtitle.getCues(positionUs), presentationTimeUs));
++        textOffsetChanged = false;
++      } else {
++        clearOutput();
++      }
++      notifyObserverClock(lastRendererPositionUs);
+     }
+   }
+ 
+@@ -261,6 +349,15 @@ public final class TextRenderer extends BaseRenderer implements Callback {
+       long offsetUs,
+       MediaSource.MediaPeriodId mediaPeriodId) {
+     streamFormat = formats[0];
++    if (observer != null) {
++      observerReadingStream = new Stream(
++          ++observerStreamSequence, streamFormat, mediaPeriodId, startPositionUs, offsetUs);
++      try {
++        observer.onStream(observerReadingStream, ++observerGeneration);
++      } catch (RuntimeException error) {
++        observerFailed(error);
++      }
++    }
+     if (!isCuesWithTiming(streamFormat)) {
+       assertLegacyDecodingEnabledIfRequired();
+       if (subtitleDecoder != null) {
+@@ -280,6 +377,14 @@ public final class TextRenderer extends BaseRenderer implements Callback {
+   protected void onPositionReset(
+       long positionUs, boolean joining, boolean sampleStreamIsResetToKeyFrame) {
+     lastRendererPositionUs = positionUs;
++    observerDisplayingStream = observerReadingStream;
++    if (observer != null && observerReadingStream != null) {
++      try {
++        observer.onReset(observerReadingStream, ++observerGeneration, positionUs);
++      } catch (RuntimeException error) {
++        observerFailed(error);
++      }
++    }
+     if (cuesResolver != null) {
+       cuesResolver.clear();
+     }
+@@ -310,6 +415,7 @@ public final class TextRenderer extends BaseRenderer implements Callback {
+     }
+ 
+     if (outputStreamEnded) {
++      notifyObserverClock(positionUs);
+       return;
+     }
+ 
+@@ -320,6 +426,17 @@ public final class TextRenderer extends BaseRenderer implements Callback {
+       assertLegacyDecodingEnabledIfRequired();
+       renderFromSubtitles(positionUs);
+     }
++    notifyObserverClock(positionUs);
++  }
++
++  @Override
++  protected void onStarted() {
++    notifyObserverClock(lastRendererPositionUs);
++  }
++
++  @Override
++  protected void onStopped() {
++    notifyObserverClock(lastRendererPositionUs);
+   }
+ 
+   /**
+@@ -482,6 +599,7 @@ public final class TextRenderer extends BaseRenderer implements Callback {
+         }
+         nextSubtitleEventIndex = nextSubtitle.getNextEventTimeIndex(subtitlePositionUs);
+         subtitle = nextSubtitle;
++        observerDisplayingStream = observerDecoderStream;
+         this.nextSubtitle = null;
+         textRendererNeedsUpdate = true;
+       }
+@@ -557,6 +675,16 @@ public final class TextRenderer extends BaseRenderer implements Callback {
+             }
+             nextInputBuffer.subsampleOffsetUs = format.subsampleOffsetUs;
+             nextInputBuffer.flip();
++            if (observer != null && observerReadingStream != null
++                && !nextInputBuffer.isEncrypted() && nextInputBuffer.data != null) {
++              try {
++                observer.onSample(
++                    observerReadingStream, observerGeneration, format,
++                    nextInputBuffer.data.asReadOnlyBuffer(), nextInputBuffer.timeUs);
++              } catch (RuntimeException error) {
++                observerFailed(error);
++              }
++            }
+             waitingForKeyFrame &= !nextInputBuffer.isKeyFrame();
+           }
+           if (!waitingForKeyFrame) {
+@@ -574,6 +702,16 @@ public final class TextRenderer extends BaseRenderer implements Callback {
+ 
+   @Override
+   protected void onDisabled() {
++    if (observer != null) {
++      try {
++        observer.onDisabled(++observerGeneration);
++      } catch (RuntimeException error) {
++        observerFailed(error);
++      }
++    }
++    observerReadingStream = null;
++    observerDisplayingStream = null;
++    observerDecoderStream = null;
+     streamFormat = null;
+     finalStreamEndPositionUs = C.TIME_UNSET;
+     clearOutput();
+@@ -648,6 +786,7 @@ public final class TextRenderer extends BaseRenderer implements Callback {
+   }
+ 
+   private void initSubtitleDecoder() {
++    observerDecoderStream = observerReadingStream;
+     waitingForKeyFrame = true;
+     subtitleDecoder = subtitleDecoderFactory.createDecoder(checkNotNull(streamFormat));
+     subtitleDecoder.setOutputStartTimeUs(getLastResetPositionUs());
+@@ -669,6 +808,13 @@ public final class TextRenderer extends BaseRenderer implements Callback {
+   }
+ 
+   private void updateOutput(CueGroup cueGroup) {
++    if (observer != null) {
++      try {
++        observer.onCues(observerDisplayingStream, observerGeneration, cueGroup);
++      } catch (RuntimeException error) {
++        observerFailed(error);
++      }
++    }
+     if (outputHandler != null) {
+       outputHandler.obtainMessage(MSG_UPDATE_OUTPUT, cueGroup).sendToTarget();
+     } else {

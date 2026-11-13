@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GZ dialogInsetBg 行：黑 4% 底＋黑 6% 描边、圆角 10dp（粘贴框同底、圆角 14dp 另见布局内无法分设，此处行用 10dp） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#0A000000" />
+    <stroke android:width="1dp" android:color="#0F000000" />
+    <corners android:radius="10dp" />
+</shape>

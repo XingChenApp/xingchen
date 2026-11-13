@@ -1,0 +1,768 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <supports-screens
+        android:anyDensity="true"
+        android:largeScreens="true"
+        android:normalScreens="true"
+        android:resizeable="true"
+        android:smallScreens="true"
+        android:xlargeScreens="true" />
+
+    <application>
+
+        <!-- documentLaunchMode=never（2026-10-26 订正）：外部应用以 NEW_DOCUMENT 方式
+             打开本地视频/链接时，意图必须并回星辰既有任务。intoExisting 只在「已有任务的
+             根意图与本次意图全等」时才复用——主任务根意图是 MAIN、文件意图是 VIEW+URI，
+             永不相等，所以 intoExisting 在这条路上永远另开一张文档卡（1.4.46 真机仍分裂
+             的定罪点）。never 才是把文档意图按普通意图投进既有 affinity 任务的取值。 -->
+        <activity
+            android:name=".ui.activity.SplashActivity"
+            android:exported="true"
+            android:noHistory="true"
+            android:theme="@style/Theme.Splash">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.activity.HomeActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
+            android:documentLaunchMode="never"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:screenOrientation="fullUser"
+            android:theme="@style/Theme.App"
+            android:windowSoftInputMode="adjustPan">
+            <intent-filter>
+                <action android:name="android.intent.action.SEARCH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.searchable"
+                android:resource="@xml/searchable" />
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <!-- video/* 与 audio/* 已拆到 VideoActivity 的外部门（2026-10-27）：
+                     外部点本地音视频直达播放页、不再唤醒主任务；此处只留处理型
+                     意图（txt 导入、种子），本就该进主任务 -->
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="application/x-bittorrent" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="smb" />
+                <data android:scheme="rtmp" />
+                <data android:scheme="rtsp" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="ed2k" />
+                <data android:scheme="magnet" />
+                <data android:scheme="thunder" />
+                <data android:scheme="jianpian" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.activity.SearchActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser"
+            android:windowSoftInputMode="adjustPan" />
+
+        <activity
+            android:name=".ui.activity.FileActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.FolderActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.PlayerSettingsActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.DanmakuSettingsActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.activity.XingChenSettingsActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.SubtitleSettingsActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.DownloadActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+
+        <!-- 播放页新一套（Compose 空壳，地基）：与旧 Java 件同名，迷你条/通知的反射 Intent 零改动复活。
+             documentLaunchMode=never 与旧条目及 HomeActivity 同口径，不许改 taskAffinity/launchMode。 -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        <activity
+            android:name=".ui.activity.FeaturesActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.AdBlockActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.NodeManageActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.NodeListActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.SourcePolicyActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.TmdbActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.HealthActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.AiSettingsActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.AiAsrSettingsActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.AiProviderEditActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <!-- 规则页宿主：清单保持原版 RuleWindowActivity 式素颜（standard、无
+             taskAffinity）——开页走 ruleOpenBy=2 同任务压栈（startRule 无旗
+             裸启），永不开新任务/新窗口（账 hk-task-single-20261103 订正节）。 -->
+        <activity
+            android:name=".ui.hk.HkListActivity"
+            android:exported="false"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.hk.HkSearchActivity"
+            android:exported="false"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
+            android:screenOrientation="fullUser"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- documentLaunchMode=never：与 HomeActivity 同口径，外部 NEW_DOCUMENT 打开
+             规则文件时并回星辰既有任务，不另开卡。
+             launchMode 不设（standard）、不设 taskAffinity：
+             照 8.83 原版结构——原版 MainActivity（内含小程序列表）即 standard、规则页
+             RuleWindowActivity 亦 standard；规则页由 HkListActivity.startRule 以
+             ruleOpenBy=2 形态同任务压在本页之上（fix5 的独立任务窗口形态已整件
+             退役，账 hk-task-single-20261103 订正节），落点靠返回链逐层弹栈＋
+             backToHome 清栈口径，不需要 singleTask/CLEAR_TOP 这类清栈契约
+             （一修 CLEAR_TOP、二修 singleTask 早已退役）。 -->
+        <activity
+            android:name=".ui.activity.HkPageActivity"
+            android:documentLaunchMode="never"
+            android:exported="true"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser">
+            <!-- 规则文件"打开方式"（G53 照 8.83 ResolveIntentActivity 登记全形抄）：
+                 主口 F9 阶梯＝可解析后缀各 11 条，级数 0–7、9、10、11（官原串跳过
+                 8 级、尾条 11 级，逐串照抄不转义；G53 复核订正）；
+                 F2 式 mime 网与 F3 式纯 scheme 口负责路径不可见的递送（TG content://）；
+                 SEND 口照 F4（label 用星辰打开）。进门后一律走 handleOpenFileIntent 内容分发，
+                 非规则内容解析失败即提示关门（负例防误吞）。epub 已有本地书 MIME 口承接、
+                 改名 apk 不接，两件记名不入此口（账 hk-file-open-registration-gap-20261110）。 -->
+            <intent-filter android:label="用星辰打开">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*.json" />
+                <data android:pathPattern=".*..*.json" />
+                <data android:pathPattern=".*..*..*.json" />
+                <data android:pathPattern=".*..*..*..*.json" />
+                <data android:pathPattern=".*..*..*..*..*.json" />
+                <data android:pathPattern=".*..*..*..*..*..*.json" />
+                <data android:pathPattern=".*..*..*..*..*..*..*.json" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*.json" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*.json" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*.json" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*..*.json" />
+                <data android:pathPattern=".*.zip" />
+                <data android:pathPattern=".*..*.zip" />
+                <data android:pathPattern=".*..*..*.zip" />
+                <data android:pathPattern=".*..*..*..*.zip" />
+                <data android:pathPattern=".*..*..*..*..*.zip" />
+                <data android:pathPattern=".*..*..*..*..*..*.zip" />
+                <data android:pathPattern=".*..*..*..*..*..*..*.zip" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*.zip" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*.zip" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*.zip" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*..*.zip" />
+                <data android:pathPattern=".*.hkzip" />
+                <data android:pathPattern=".*..*.hkzip" />
+                <data android:pathPattern=".*..*..*.hkzip" />
+                <data android:pathPattern=".*..*..*..*.hkzip" />
+                <data android:pathPattern=".*..*..*..*..*.hkzip" />
+                <data android:pathPattern=".*..*..*..*..*..*.hkzip" />
+                <data android:pathPattern=".*..*..*..*..*..*..*.hkzip" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*.hkzip" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*.hkzip" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*.hkzip" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*..*.hkzip" />
+                <data android:pathPattern=".*.hkpkg" />
+                <data android:pathPattern=".*..*.hkpkg" />
+                <data android:pathPattern=".*..*..*.hkpkg" />
+                <data android:pathPattern=".*..*..*..*.hkpkg" />
+                <data android:pathPattern=".*..*..*..*..*.hkpkg" />
+                <data android:pathPattern=".*..*..*..*..*..*.hkpkg" />
+                <data android:pathPattern=".*..*..*..*..*..*..*.hkpkg" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*.hkpkg" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*.hkpkg" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*.hkpkg" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*..*.hkpkg" />
+                <data android:pathPattern=".*.txt" />
+                <data android:pathPattern=".*..*.txt" />
+                <data android:pathPattern=".*..*..*.txt" />
+                <data android:pathPattern=".*..*..*..*.txt" />
+                <data android:pathPattern=".*..*..*..*..*.txt" />
+                <data android:pathPattern=".*..*..*..*..*..*.txt" />
+                <data android:pathPattern=".*..*..*..*..*..*..*.txt" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*.txt" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*.txt" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*.txt" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*..*.txt" />
+                <data android:pathPattern=".*.js" />
+                <data android:pathPattern=".*..*.js" />
+                <data android:pathPattern=".*..*..*.js" />
+                <data android:pathPattern=".*..*..*..*.js" />
+                <data android:pathPattern=".*..*..*..*..*.js" />
+                <data android:pathPattern=".*..*..*..*..*..*.js" />
+                <data android:pathPattern=".*..*..*..*..*..*..*.js" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*.js" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*.js" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*.js" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*..*.js" />
+                <data android:pathPattern=".*.hiker" />
+                <data android:pathPattern=".*..*.hiker" />
+                <data android:pathPattern=".*..*..*.hiker" />
+                <data android:pathPattern=".*..*..*..*.hiker" />
+                <data android:pathPattern=".*..*..*..*..*.hiker" />
+                <data android:pathPattern=".*..*..*..*..*..*.hiker" />
+                <data android:pathPattern=".*..*..*..*..*..*..*.hiker" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*.hiker" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*.hiker" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*.hiker" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*..*.hiker" />
+                <data android:pathPattern=".*.hiker..bin" />
+                <data android:pathPattern=".*..*.hiker..bin" />
+                <data android:pathPattern=".*..*..*.hiker..bin" />
+                <data android:pathPattern=".*..*..*..*.hiker..bin" />
+                <data android:pathPattern=".*..*..*..*..*.hiker..bin" />
+                <data android:pathPattern=".*..*..*..*..*..*.hiker..bin" />
+                <data android:pathPattern=".*..*..*..*..*..*..*.hiker..bin" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*.hiker..bin" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*.hiker..bin" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*.hiker..bin" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*..*.hiker..bin" />
+                <data android:pathPattern=".*.rar" />
+                <data android:pathPattern=".*..*.rar" />
+                <data android:pathPattern=".*..*..*.rar" />
+                <data android:pathPattern=".*..*..*..*.rar" />
+                <data android:pathPattern=".*..*..*..*..*.rar" />
+                <data android:pathPattern=".*..*..*..*..*..*.rar" />
+                <data android:pathPattern=".*..*..*..*..*..*..*.rar" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*.rar" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*.rar" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*.rar" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*..*.rar" />
+                <data android:pathPattern=".*.7z" />
+                <data android:pathPattern=".*..*.7z" />
+                <data android:pathPattern=".*..*..*.7z" />
+                <data android:pathPattern=".*..*..*..*.7z" />
+                <data android:pathPattern=".*..*..*..*..*.7z" />
+                <data android:pathPattern=".*..*..*..*..*..*.7z" />
+                <data android:pathPattern=".*..*..*..*..*..*..*.7z" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*.7z" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*.7z" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*.7z" />
+                <data android:pathPattern=".*..*..*..*..*..*..*..*..*..*..*..*.7z" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+            </intent-filter>
+            <intent-filter android:label="用星辰打开">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            <!-- F22 式 scheme 口（环2 照官 ResolveIntentActivity F22 同形：
+                 VIEW＋DEFAULT＋BROWSABLE、scheme magnet/ed2k，进门走
+                 handleExternalUri 迅雷支）。ftp 照主会话定不补登记（记名
+                 缺口带走）；thunder/jianpian 是星辰主面 HomeActivity 的
+                 既有 scheme 口，不在此重复登记。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="magnet" />
+                <data android:scheme="ed2k" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.activity.HkRuleSearchActivity"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <!-- 海阔收藏页：对齐 8.83 CollectionListActivity（海阔侧自己的收藏家） -->
+        <activity
+            android:name=".ui.activity.HkFavoriteActivity"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <!-- 海阔播放历史页：只列海阔条目（与星辰首页播放历史分家，2026-10-23） -->
+        <activity
+            android:name=".ui.activity.HkHistoryActivity"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <!-- 阅读模块：漫画阅读器 / 小说阅读器 / 书架（干净阅读体验，不堆控件） -->
+        <activity
+            android:name=".ui.activity.ComicReaderActivity"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"
+            android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.activity.NovelReaderActivity"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"
+            android:screenOrientation="fullUser" />
+        <!-- 本地书：文件管理器"用星辰打开" epub/zip/cbz/pdf/mobi/cbr/cb7 的分发页（txt 走 HomeActivity 既有链，不动） -->
+        <activity
+            android:name=".localbook.LocalBookOpenActivity"
+            android:documentLaunchMode="never"
+            android:exported="true"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"
+            android:screenOrientation="fullUser">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/epub+zip" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/x-mobipocket-ebook" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-cbz" />
+                <data android:mimeType="application/x-cbr" />
+                <data android:mimeType="application/x-cb7" />
+                <data android:mimeType="application/x-zip-compressed" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".ui.activity.ReadingShelfActivity"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.activity.SearchPageActivity"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.activity.SearchTocActivity"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.activity.AllNovelsActivity"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.activity.LegadoActivity"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        
+
+        
+
+        
+
+
+        
+
+        <!-- 实验室：独立包 ui.lab -->
+        <activity
+            android:name=".ui.lab.LabHomeActivity"
+            android:theme="@style/Theme.XingChen.LabPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.lab.LabSettingActivity"
+            android:theme="@style/Theme.XingChen.LabPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.lab.LabEnvActivity"
+            android:theme="@style/Theme.XingChen.LabPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.lab.LabServiceActivity"
+            android:theme="@style/Theme.XingChen.LabPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.lab.LabLogActivity"
+            android:theme="@style/Theme.XingChen.LabPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.lab.LabPasteImportActivity"
+            android:theme="@style/Theme.XingChen.LabPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.lab.LabInstallActivity"
+            android:documentLaunchMode="never"
+            android:exported="true"
+            android:theme="@style/Theme.XingChen.LabPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser">
+            <!-- .lab 包文件打开方式：点开进安装确认（照 JSON 打开方式的落点） -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.lab" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".ui.lab.LabKeepAlive"
+            android:exported="false" />
+        <activity
+            android:name=".ui.lab.LabLiveOutputActivity"
+            android:theme="@style/Theme.XingChen.LabPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.lab.LabTerminalActivity"
+            android:theme="@style/Theme.XingChen.LabPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"
+            android:screenOrientation="fullUser"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".ui.activity.AudioBookActivity"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"
+            android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.activity.TtsReadActivity"
+            android:theme="@style/Theme.XingChen.HkPage"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+
+        <activity
+            android:name=".ui.activity.PanLoginActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.PikPakWebLoginActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"
+            android:screenOrientation="fullUser"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ui.activity.CloudDriveActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.UiSettingsActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.ConfigSourceActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+        <activity
+            android:name=".ui.activity.PluginActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <!-- .py/.js「打开方式」总门（ImportActivity）：外部点开脚本文件 → 静默登记进
+             插件管理并直接打开该源，成功零打扰、失败才提示。三份申报分工：
+             ① 按 MIME 接：文件管理器/TG 等按类型分发时命中（各家给脚本报的 MIME
+                不一，text/plain 是多数管理器对 .py/.js 的兜底报法，一并收）；
+             ② 按扩展名兜底：MIME 给成 octet-stream 等杂值、但路径带 .py/.js/.txt 时命中
+                （照 HkPageActivity/LabInstallActivity 先例，*/* 只与 pathPattern
+                组合出现、被扩展名钉死，不是裸 */* 全收）；txt 进门后走阅读
+                分发（书源/正文），见 ImportActivity 类头注；
+             ③ 分享路兜底：ACTION_SEND 带 EXTRA_STREAM，MIME 口径同 ①。
+             label 单独写「导入插件」，与 HomeActivity 的同名条目在系统名单里分得开。
+             documentLaunchMode=never 与其余外部门同口径：并回既有任务不另开卡。
+             主题必须用 Theme.XingChen.ImportGate（AppCompat 血统的透明样式）：
+             本类是 AppCompatActivity，挂平台 Translucent 主题会在 onPostCreate
+             抛 IllegalStateException（1.4.63 真机实证），不许改回平台主题。 -->
+        <activity
+            android:name=".ui.activity.ImportActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:documentLaunchMode="never"
+            android:exported="true"
+            android:label="导入插件"
+            android:screenOrientation="fullUser"
+            android:theme="@style/Theme.XingChen.ImportGate">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="text/x-python" />
+                <data android:mimeType="application/x-python" />
+                <data android:mimeType="text/javascript" />
+                <data android:mimeType="application/javascript" />
+                <data android:mimeType="application/x-javascript" />
+                <data android:mimeType="text/x-javascript" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\.py" />
+                <data android:pathPattern=".*\.PY" />
+                <data android:pathPattern=".*\.js" />
+                <data android:pathPattern=".*\.JS" />
+                <data android:pathPattern=".*\.txt" />
+                <data android:pathPattern=".*\.TXT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/x-python" />
+                <data android:mimeType="application/x-python" />
+                <data android:mimeType="text/javascript" />
+                <data android:mimeType="application/javascript" />
+                <data android:mimeType="application/x-javascript" />
+                <data android:mimeType="text/x-javascript" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.activity.HistoryActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.KeepActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+        <activity
+            android:name=".ui.activity.LiveActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|uiMode|orientation"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:parentActivityName=".ui.activity.HomeActivity"
+            android:screenOrientation="fullUser"
+            android:supportsPictureInPicture="true" />
+
+        <activity
+            android:name=".ui.activity.ScanActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="fullUser" />
+
+
+        
+
+        
+        
+        
+
+        
+        <!-- 短剧三签宿主条目已退役（2026-11-09 舞台并入根页）：
+             三签舞台长在 HomeActivity 内（宿主直属），
+             无独立 Activity 条目；横屏页登顶时整栈旋转由根页
+             configChanges 承接、Fragment 分发 onConfigurationChanged
+             与旧宿主同链。 -->
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+
+
+
+
+
+        <!-- 外部本地媒体直达门（2026-10-27）：文件管理器/相册等外部应用点开
+             content/file 的音视频直接投到本页，不再先把 HomeActivity 的主任务
+             整个拉到前台。独立 taskAffinity 与主任务分家（外部播完退出即回来源
+             应用）；documentLaunchMode=never 防 NEW_DOCUMENT 投递另根文档卡；
+             excludeFromRecents 让这张外部播放卡不进最近任务列表。应用内起播全
+             走显式意图、不带任何任务标志，落点与任务归属不受影响。
+             http/https 的 video/* 不随迁：那条 filter 兼浏览器「用星辰打开」
+             的推送入口（HomeActivity.checkType→VideoActivity.push 解析链，
+             含 .m3u 直播清单走 loadLive），且处理挂在配置加载回调门后，
+             迁走会断推送链，仍留 HomeActivity。
+             parentActivityName 保留不改：全仓无 NavUtils/TaskStackBuilder
+             合成父栈的代码，返回一律 finish 回来源应用，不依赖父页声明。 -->
+        <activity
+            android:name=".ui.activity.VideoActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|uiMode|orientation"
+            android:documentLaunchMode="never"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:parentActivityName=".ui.activity.HomeActivity"
+            android:screenOrientation="fullUser"
+            android:supportsPictureInPicture="true"
+            android:taskAffinity="com.XingChen.tv.external">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".receiver.ShortcutReceiver"
+            android:exported="false" />
+
+        <service
+            android:name=".service.DLNACastService"
+            android:exported="false" />
+
+    </application>
+</manifest>
+

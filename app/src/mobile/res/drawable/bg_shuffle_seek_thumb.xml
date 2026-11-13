@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 随心听页进度条拖柄：瓜子进度条无可见拖柄，透明占位只留触摸区 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#00000000" />
+    <size
+        android:width="12dp"
+        android:height="12dp" />
+</shape>
