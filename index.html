@@ -3,33 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>星辰朋友版 · 下载</title>
-<style>
-  body { margin:0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background:#f7f3ea; color:#2b2b2b; }
-  .wrap { max-width:520px; margin:0 auto; padding:48px 20px 40px; text-align:center; }
-  h1 { font-size:28px; margin:0 0 6px; }
-  .sub { color:#8a8171; font-size:14px; margin-bottom:32px; }
-  .card { background:#fff; border-radius:16px; padding:28px 22px; box-shadow:0 4px 24px rgba(120,90,0,.08); }
-  .ver { font-size:20px; font-weight:600; margin-bottom:4px; }
-  .meta { color:#8a8171; font-size:13px; margin-bottom:22px; }
-  a.btn { display:block; background:#f0a400; color:#fff; font-size:17px; font-weight:600;
-          padding:14px 0; border-radius:12px; text-decoration:none; }
-  a.btn:active { opacity:.85; }
-  .all { display:inline-block; margin-top:18px; color:#b97f00; font-size:14px; text-decoration:none; }
-  .foot { margin-top:30px; color:#b3ab9c; font-size:12px; line-height:1.7; }
-</style>
+<title>星辰 · 下载最新版</title>
+<script>
+fetch('https://api.github.com/repos/XingChenApp/xingchen/releases/latest')
+  .then(function (r) { return r.json(); })
+  .then(function (rel) {
+    var apk = (rel.assets || []).filter(function (a) { return /\.apk$/i.test(a.name); })[0];
+    if (apk) { location.replace(apk.browser_download_url); }
+    else { location.replace('https://github.com/XingChenApp/xingchen/releases'); }
+  })
+  .catch(function () {
+    location.replace('https://github.com/XingChenApp/xingchen/releases');
+  });
+</script>
 </head>
 <body>
-<div class="wrap">
-  <h1>星辰</h1>
-  <div class="sub">朋友版下载</div>
-  <div class="card">
-    <div class="ver">星辰朋友版 1.4.127</div>
-    <div class="meta">安卓 APK · 约 93 MB · 2026-11-13 发布</div>
-    <a class="btn" href="https://github.com/XingChenApp/xingchen/releases/download/v1.4.127/xingchen-arm64_v8a-1.4.127.apk">下载 APK</a>
-    <a class="all" href="https://github.com/XingChenApp/xingchen/releases">查看所有版本 →</a>
-  </div>
-  <div class="foot">本播放器为空壳播放器，不提供任何内容，仅供学习交流。<br>安装时如提示风险，选择继续安装即可。</div>
-</div>
+<p>正在获取最新版…如未自动跳转，点 <a href="https://github.com/XingChenApp/xingchen/releases">发布页</a> 下载。</p>
 </body>
 </html>
