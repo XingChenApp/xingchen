@@ -100,10 +100,10 @@ public class HeavyTaskUtil {
         if (pos <= 0) {
             return;
         }
-        postTaskToQueue(() -> lambda$savePlayerPos0$0(url, pos, force));
+        postTaskToQueue(() -> tx$savePlayerPos0$0(url, pos, force));
     }
 
-    private static void lambda$savePlayerPos0$0(String url, int pos, boolean force) {
+    private static void tx$savePlayerPos0$0(String url, int pos, boolean force) {
         try {
             PlayerPosHis his = LitePal.where("playUrl = ?", url).findFirst(PlayerPosHis.class);
             if (his != null) {
@@ -357,11 +357,11 @@ public class HeavyTaskUtil {
     public static void saveHistory(Activity activity, String type, String ruleBaseUrl, String url, String title) {
         if (url != null && url.startsWith("http")) {
             List<TabHistory> tabHistory = getTabHistory(activity);
-            executeNewTask(() -> lambda$saveHistory$1(type, ruleBaseUrl, url, title, activity, tabHistory));
+            executeNewTask(() -> tx$saveHistory$1(type, ruleBaseUrl, url, title, activity, tabHistory));
         }
     }
 
-    private static void lambda$saveHistory$1(String type, String ruleBaseUrl, String url, String title, Activity activity, List<TabHistory> tabHistory) {
+    private static void tx$saveHistory$1(String type, String ruleBaseUrl, String url, String title, Activity activity, List<TabHistory> tabHistory) {
         try {
             saveHisSync(type, ruleBaseUrl, url, title, null, null, null);
         } catch (Exception e) {
@@ -371,10 +371,10 @@ public class HeavyTaskUtil {
     }
 
     public static void saveHistory(String url, String title, ArticleListRule rule, Intent intent, String group, String picUrl) {
-        executeNewTask(() -> lambda$saveHistory$2(rule, intent, url, title, group, picUrl));
+        executeNewTask(() -> tx$saveHistory$2(rule, intent, url, title, group, picUrl));
     }
 
-    private static void lambda$saveHistory$2(ArticleListRule rule, Intent intent, String url, String title, String group, String picUrl) {
+    private static void tx$saveHistory$2(ArticleListRule rule, Intent intent, String url, String title, String group, String picUrl) {
         try {
             String params = buildRuleToParams(rule);
             boolean newWindow = intent.getBooleanExtra("newWindow", false);
@@ -386,10 +386,10 @@ public class HeavyTaskUtil {
     }
 
     public static void saveHistory(String url, String title, String params, String group, String picUrl) {
-        executeNewTask(() -> lambda$saveHistory$3(url, title, params, group, picUrl));
+        executeNewTask(() -> tx$saveHistory$3(url, title, params, group, picUrl));
     }
 
-    private static void lambda$saveHistory$3(String url, String title, String params, String group, String picUrl) {
+    private static void tx$saveHistory$3(String url, String title, String params, String group, String picUrl) {
         try {
             saveHisSync("二级列表", StringUtil.getHomeUrl(url), url, title, params, group, picUrl);
         } catch (Exception e) {
@@ -472,10 +472,10 @@ public class HeavyTaskUtil {
 
     public static void updateHistoryLastClick(String title, String url, String lastClick) {
         Log.d(TAG, "updateHistoryLastClick: " + lastClick);
-        postTaskToQueue(() -> lambda$updateHistoryLastClick$4(title, url, lastClick));
+        postTaskToQueue(() -> tx$updateHistoryLastClick$4(title, url, lastClick));
     }
 
-    private static void lambda$updateHistoryLastClick$4(String title, String url, String lastClick) {
+    private static void tx$updateHistoryLastClick$4(String title, String url, String lastClick) {
         ViewHistory history = findHistory(title, url);
         if (history != null) {
             history.setLastClick(lastClick);
@@ -485,10 +485,10 @@ public class HeavyTaskUtil {
     }
 
     public static void updateHistoryVideoUrl(String url, String videoUrl) {
-        executeNewTask(() -> lambda$updateHistoryVideoUrl$5(url, videoUrl));
+        executeNewTask(() -> tx$updateHistoryVideoUrl$5(url, videoUrl));
     }
 
-    private static void lambda$updateHistoryVideoUrl$5(String url, String videoUrl) {
+    private static void tx$updateHistoryVideoUrl$5(String url, String videoUrl) {
         List<ViewHistory> histories = null;
         try {
             histories = LitePal.where("url = ? and type = ?", url, "网页浏览").limit(1).find(ViewHistory.class);
@@ -616,10 +616,10 @@ public class HeavyTaskUtil {
 
     public static void saveTabHistory(Activity activity) {
         List<TabHistory> tabHistory = getTabHistory(activity);
-        executeNewTask(() -> lambda$saveTabHistory$6(activity, tabHistory));
+        executeNewTask(() -> tx$saveTabHistory$6(activity, tabHistory));
     }
 
-    private static void lambda$saveTabHistory$6(Activity activity, List<TabHistory> tabHistory) {
+    private static void tx$saveTabHistory$6(Activity activity, List<TabHistory> tabHistory) {
         PreferenceMgr.put(activity, "vip", "lastTab", JSON.toJSONString(tabHistory));
     }
 

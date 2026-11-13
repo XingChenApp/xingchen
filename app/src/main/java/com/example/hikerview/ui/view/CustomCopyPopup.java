@@ -47,13 +47,13 @@ public class CustomCopyPopup extends BottomPopupView {
         }
         TextView textView2 = (TextView) findViewById(R.id.code);
         this.codeBtn = textView2;
-        textView2.setOnClickListener(view -> lambda$onCreate$0());
+        textView2.setOnClickListener(view -> tx$onCreate$0());
         if (StringUtil.isNotEmpty(this.title) && StringUtil.isEmpty(this.header)) {
             this.textView.setText(Html.fromHtml(this.title));
         }
     }
 
-    private void lambda$onCreate$0() {
+    private void tx$onCreate$0() {
         boolean z = this.showCode;
         this.showCode = !z;
         if (!z) {
