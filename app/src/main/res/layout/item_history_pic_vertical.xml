@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 官 item_history_pic_vertical 重建。三处第三方视图替换（记名）：
+     BGABadgeRelativeLayout → RelativeLayout；SpinKitView → View；
+     StrokeTextView → TextView（描边字效不复刻）。 -->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/item_bg"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="10.0dip"
+    android:layout_marginBottom="8.0dip">
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/item_result_img_bg"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="8.0dip"
+        app:cardElevation="0.0dip">
+
+        <ImageView
+            android:id="@+id/item_reult_img"
+            android:layout_width="100.0dip"
+            android:layout_height="137.0dip"
+            android:scaleType="centerCrop"
+            android:src="@color/gray_rice" />
+    </androidx.cardview.widget.CardView>
+
+    <TextView
+        android:id="@+id/icon_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10.0dip"
+        android:layout_marginTop="10.0dip"
+        android:layout_marginEnd="10.0dip"
+        android:ellipsize="none"
+        android:ems="1"
+        android:gravity="center"
+        android:maxLength="4"
+        android:textColor="@color/blackText3"
+        android:textSize="18.0sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/item_ad_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/item_result_img_bg"
+        android:layout_marginTop="5.0dip"
+        android:maxLines="1"
+        android:textColor="@color/blackText"
+        android:textSize="14.0sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/item_history"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/item_ad_title"
+        android:layout_centerVertical="true"
+        android:maxLines="1"
+        android:textSize="12.0sp" />
+
+    <View
+        android:id="@+id/spin_kit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_marginStart="3.0dip"
+        android:layout_marginEnd="3.0dip"
+        android:padding="5.0dip"
+        android:visibility="invisible" />
+</RelativeLayout>

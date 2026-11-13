@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 照官 8.83 布局原样重建（apktool 官包 res） -->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bg"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="5.0dip"
+    android:background="@drawable/ripple_white"
+    android:paddingStart="5.0dip"
+    android:paddingTop="10.0dip"
+    android:paddingEnd="3.0dip"
+    android:paddingBottom="10.0dip">
+
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="24.0dip"
+        android:layout_height="24.0dip"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:src="@drawable/ic_arrow_right" />
+
+    <TextView
+        android:id="@+id/descView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_marginEnd="8.0dip"
+        android:layout_toStartOf="@id/imageView"
+        android:gravity="center_vertical"
+        android:maxLines="1"
+        android:minHeight="24.0dip"
+        android:textColor="@color/gray_text"
+        android:textSize="14.0sp" />
+
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_marginStart="8.0dip"
+        android:layout_marginEnd="8.0dip"
+        android:layout_toStartOf="@id/descView"
+        android:gravity="center_vertical"
+        android:maxLines="1"
+        android:minHeight="24.0dip"
+        android:textColor="@color/text"
+        android:textSize="16.0sp" />
+</RelativeLayout>

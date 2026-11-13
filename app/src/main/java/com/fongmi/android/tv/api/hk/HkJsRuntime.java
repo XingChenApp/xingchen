@@ -397,6 +397,14 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     }
     /** refreshPage 请求标记（JS 线程写，宿主线程读后清零）。 */
     private volatile boolean refreshRequested;
+    /**
+     * 干跑模式旗（选集污染干跑分类专用，账 playpage-episode-pollution-dig-20261111 §九）：
+     * 只在 evalLazyDry 的 submit 串行段内为 true，期间 fetchSync 对远程
+     * http(s) 一律回空串（本地 hiker://files 等内部协议照常），求值结束后
+     * 连同 varMap 快照还原一并复位。volatile 仅作跨线程可见性，串行由
+     * submit 单线程保证。
+     */
+    private volatile boolean dryRunMode;
     private volatile boolean refreshToTop;
     /** refreshPage 节流（照官方 canTouchUI 的 200ms）：上次发刷新事件的时间。 */
     private volatile long lastRefreshPageAt;
@@ -9690,37 +9698,45 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         return evalLazyInternal(jsCode, pageUrl, false);
     }
 
+    /**
+     * 鲜 scope 求值本体（须在 submit 串行段内调用）：装配鲜 scope、注入
+     * input 与 CALLBACK_KEY、求值并以 argStr 收形——evalLazyInternal
+     * 原内联段逐行抽出，与 evalLazyDry 共用，保证干跑与真跑同作用域同注入。
+     */
+    private String evalRawInFreshScope(String jsCode, String pageUrl) throws Exception {
+        // 环19 arm：lazy 在官形是独立一发 runScript，本发换鲜 scope。
+        scope = assembleFreshScope();
+        setContext(pageUrl);
+        // 入口口令/输入框：若有一次性 input 覆盖（用户输入的文本），优先使用；
+        // 否则按原逻辑用 pageUrl。读后清零，保证只生效一次。
+        String inputVal = nextInputOverride != null ? nextInputOverride : (pageUrl == null ? "" : pageUrl);
+        nextInputOverride = null;
+        ScriptableObject.putProperty(scope, "input", inputVal);
+        // 环20 A：CALLBACK_KEY 独立发补发——官每发 evalJS 无条件发新
+        // UUID 串行（JSEngine.smali:1025-1044，含 evalLazy 这形 runScript 独立
+        // 发），本发旧形只剩 assemble 预置的 Undefined 占位、规则脚本里
+        // typeof CALLBACK_KEY 恒 'undefined' 与官不符。只补发串行本身＋
+        // 根属性承载，不登记回查两表（登记是 parse 系带正文的三发的事，
+        // 官 evalJS 同形，见 dig2 件3 边界）。
+        String cbKey = genUuid();
+        ScriptableObject.putProperty(scope, "CALLBACK_KEY", cbKey);
+        Object r;
+        try {
+            r = evalJs(getMyCallbackKey(cbKey) + stripJsPrefix(jsCode));
+        } catch (Exception e) {
+            logEvalError("evalLazy", jsCode, e);
+            throw e;
+        }
+        // 同 eval()：用 argStr() 处理数字/布尔返回值
+        return argStr(r).trim();
+    }
+
     private String evalLazyInternal(String jsCode, String pageUrl, boolean drainOnEmpty) throws Exception {
         final HkRule boundRule = this.rule;
         return submit(() -> {
             if (boundRule != null) this.rule = boundRule;
             error = null;
-            // 环19 arm：lazy 在官形是独立一发 runScript，本发换鲜 scope。
-            scope = assembleFreshScope();
-            setContext(pageUrl);
-            // 入口口令/输入框：若有一次性 input 覆盖（用户输入的文本），优先使用；
-            // 否则按原逻辑用 pageUrl。读后清零，保证只生效一次。
-            String inputVal = nextInputOverride != null ? nextInputOverride : (pageUrl == null ? "" : pageUrl);
-            nextInputOverride = null;
-            ScriptableObject.putProperty(scope, "input", inputVal);
-            // 环20 A：CALLBACK_KEY 独立发补发——官每发 evalJS 无条件发新
-            // UUID 串行（JSEngine.smali:1025-1044，含 evalLazy 这形 runScript 独立
-            // 发），本发旧形只剩 assemble 预置的 Undefined 占位、规则脚本里
-            // typeof CALLBACK_KEY 恒 'undefined' 与官不符。只补发串行本身＋
-            // 根属性承载，不登记回查两表（登记是 parse 系带正文的三发的事，
-            // 官 evalJS 同形，见 dig2 件3 边界）。
-            String cbKey = genUuid();
-            ScriptableObject.putProperty(scope, "CALLBACK_KEY", cbKey);
-            Object r;
-            try {
-                r = evalJs(getMyCallbackKey(cbKey) + stripJsPrefix(jsCode));
-            } catch (Exception e) {
-                logEvalError("evalLazy", jsCode, e);
-                throw e;
-            }
-            // 同 eval()：用 argStr() 处理数字/布尔返回值
-            String s = argStr(r);
-            s = s.trim();
+            String s = evalRawInFreshScope(jsCode, pageUrl);
             if (s.isEmpty() || "undefined".equals(s) || "null".equals(s)) {
                 if (!drainOnEmpty) return "";
                 List<HkItem> items = drainResults();
@@ -9731,6 +9747,67 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             }
             return s;
         }).get(EVAL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    }
+
+    /** 干跑求值结果：返回值原文、期间是否请求 refreshPage、期间 setResult 新增条目的 url 列、求值是否抛错。 */
+    public static final class DryEvalResult {
+        public final String returnValue;
+        public final boolean refreshRequested;
+        public final List<String> resultUrls;
+        public final boolean error;
+
+        DryEvalResult(String returnValue, boolean refreshRequested, List<String> resultUrls, boolean error) {
+            this.returnValue = returnValue;
+            this.refreshRequested = refreshRequested;
+            this.resultUrls = resultUrls;
+            this.error = error;
+        }
+    }
+
+    /**
+     * 干跑求值（选集收编分类专用，账 playpage-episode-pollution-dig-20261111 §九）：
+     * 与 evalLazy 同作用域同注入，另加三件隔离——①干跑旗开（fetchSync 远程
+     * 回空、本地内部协议照常）；②varMap 快照/还原（putMyVar 等写不落真表，
+     * 不翻用户已选的排序/线路）；③results 只取增量（新增条目 url 取走后摘除，
+     * 旧表不动、不走 evalLazy 的 drain 兜底）。求值抛错不外抛，回 error=true，
+     * 分类层按不确定处理（保留条目、不误杀）。
+     */
+    public DryEvalResult evalLazyDry(String jsCode, String pageUrl) {
+        final HkRule boundRule = this.rule;
+        try {
+            return submit(() -> {
+                if (boundRule != null) this.rule = boundRule;
+                error = null;
+                Map<String, String> varSnapshot = new java.util.HashMap<>(varMap);
+                int resultBase = results.size();
+                refreshRequested = false;
+                dryRunMode = true;
+                String value = "";
+                boolean failed = false;
+                try {
+                    value = evalRawInFreshScope(jsCode, pageUrl);
+                } catch (Exception e) {
+                    failed = true;
+                } finally {
+                    dryRunMode = false;
+                }
+                boolean rr = refreshRequested;
+                refreshRequested = false;
+                List<String> urls = new ArrayList<>();
+                if (results.size() > resultBase) {
+                    for (int i = resultBase; i < results.size(); i++) {
+                        String u = results.get(i).getUrl();
+                        urls.add(u == null ? "" : u.trim());
+                    }
+                    results.subList(resultBase, results.size()).clear();
+                }
+                varMap.clear();
+                varMap.putAll(varSnapshot);
+                return new DryEvalResult(value, rr, urls, failed);
+            }).get(EVAL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            return new DryEvalResult("", false, java.util.Collections.emptyList(), true);
+        }
     }
 
     /** 带当前页规则的入口：先重绑再走原路（子页 lazy 求值的 MY_RULE 须为子页规则）。 */
@@ -10881,6 +10958,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         if (TextUtils.isEmpty(url)) return "";
         // hiker://empty 等非 http 协议直接返回空（由上层按形态分流）
         if (!url.startsWith("http://") && !url.startsWith("https://")) return "";
+        // 干跑分类（evalLazyDry 串行段内）：远程取数一律回空——动作型 lazy
+        // 全是纯串拼接、零网络即出结果；真集数 lazy 离了网络只会无果，
+        // 分类层按「不确定→保留」收，不会误剔（账 §九 非对称安全性）。
+        if (dryRunMode) return "";
         // UA 口径：不无条件补（8.83 裸 fetch 亦不补、无条件补移动 UA 的旧做法已撤），
         // 但规则自己声明了 ua 时按声明补——见下方注入段。
         boolean withHeaders = false;

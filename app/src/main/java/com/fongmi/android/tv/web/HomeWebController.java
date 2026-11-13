@@ -25,14 +25,12 @@ import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
 import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.utils.Json;
-import com.fongmi.android.tv.api.SiteApi;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.PluginKinds;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.impl.ParseCallback;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.setting.Setting;
-import com.fongmi.android.tv.ui.activity.VideoActivity;
 import com.fongmi.android.tv.ui.custom.CustomWebView;
 import com.fongmi.android.tv.utils.KeyUtil;
 import com.fongmi.android.tv.utils.Notify;
@@ -762,6 +760,22 @@ public class HomeWebController {
         return "{}";
     }
 
+    /**
+     * fm.play 的网页形态入口（桥 player.playUrl 形态分流的嗅探支）：页面显式
+     * 要播一个网页地址，真地址藏在页里——不起出站判据（judgeTakeover 是导航
+     * 接管的门，显式播放请求不归它管），直接起嗅探会话装载该页（装载与站点
+     * 取数同路：站点头＋桥带来的头、CustomWebView 按站认嗅探规则），拦出
+     * 直链后走内嵌形态起播。嗅探失败不放行导航、只记日志（同 fm.openUrl
+     * 口径）；忙/已销毁/无源时返回 false，调用方不许冒充已接。
+     */
+    boolean sniffPlay(String url, String title, String pic, String wall, String content, Map<String, String> headers) {
+        if (destroyed || site == null || TextUtils.isEmpty(url) || !(url.startsWith("http://") || url.startsWith("https://"))) {
+            SpiderDebug.log("webhome-takeover", "deny via=fm.playUrl reason=bad-target url=%s", url);
+            return false;
+        }
+        return startTakeover(url, "fm.playUrl", false, title, pic, wall, content, headers);
+    }
+
     private boolean judgeTakeover(String targetUrl, String from, String via) {
         if (destroyed || site == null) {
             denyTakeover(via, "no-site", targetUrl);
@@ -847,6 +861,10 @@ public class HomeWebController {
      * （window.open 路为真；fm.openUrl 路原路不是导航、为假，只记日志）。
      */
     private boolean startTakeover(String targetUrl, String via, boolean releaseOnError) {
+        return startTakeover(targetUrl, via, releaseOnError, null, null, null, null, null);
+    }
+
+    private boolean startTakeover(String targetUrl, String via, boolean releaseOnError, String title, String pic, String wall, String content, Map<String, String> extraHeaders) {
         final Site current;
         final int seq;
         final Map<String, String> headers;
@@ -860,6 +878,7 @@ public class HomeWebController {
             seq = ++takeoverSeq;
             current = site;
             headers = current.getHeader() == null ? new HashMap<>() : new HashMap<>(current.getHeader());
+            if (extraHeaders != null) headers.putAll(extraHeaders);
         }
         String siteKey = current.getKey();
         SpiderDebug.log("webhome-takeover", "takeover start via=%s site=%s url=%s", via, siteKey, targetUrl);
@@ -877,12 +896,17 @@ public class HomeWebController {
                             options.add("headers", App.gson().toJsonTree(sniffHeaders));
                             playUrl = bridge.resourceUrl(mediaUrl, options.toString());
                         }
-                        String title = current.getName();
                         SpiderDebug.log("webhome-takeover", "sniff ok site=%s media=%s", siteKey, mediaUrl);
-                        String playTitle = TextUtils.isEmpty(title) ? playUrl : title;
+                        String playTitle = !TextUtils.isEmpty(title) ? title : current.getName();
+                        if (TextUtils.isEmpty(playTitle)) playTitle = playUrl;
                         String startUrl = playUrl;
+                        String startTitle = playTitle;
                         App.post(() -> {
-                            if (!destroyed && seq == takeoverSeq) VideoActivity.start(activity, SiteApi.PUSH, startUrl, playTitle, null, null, null, null);
+                            if (destroyed || seq != takeoverSeq) return;
+                            // 嗅探回的直链走 HTML 源自有内嵌形态起播，不许再经
+                            // push_agent——「嗅探被搞成推送」的出处就是这一行。
+                            if (bridge != null) bridge.startDirectInline(startTitle, pic, wall, content, startUrl);
+                            else SpiderDebug.log("webhome-takeover", "sniff ok but bridge gone site=%s media=%s", siteKey, mediaUrl);
                         });
                     }
 

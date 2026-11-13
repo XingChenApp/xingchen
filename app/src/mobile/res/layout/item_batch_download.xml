@@ -1,37 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<!-- 与详情页选集网格格子（adapter_episode_grid）同款：48dp 高、shape_detail_episode 底
+     （activated＝品牌橙 #F0A400、未选近白）、黑字居中。选中态由宿主在绑定时 setActivated，
+     与勾选数组同源，不再另挂勾选框（原胶囊条＋勾选框形态他 2026-11-13 截图亲判看不出选中）。 -->
+<com.google.android.material.textview.MaterialTextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/name"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="4dp"
-    android:layout_marginBottom="4dp"
-    android:background="@drawable/xc_capsule_light"
-    android:gravity="center_vertical"
-    android:minHeight="48dp"
-    android:orientation="horizontal"
-    android:paddingStart="12dp"
-    android:paddingTop="8dp"
-    android:paddingEnd="12dp"
-    android:paddingBottom="8dp">
-
-    <androidx.appcompat.widget.AppCompatCheckBox
-        android:id="@+id/check"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:button="@drawable/xc_batch_check"
-        android:clickable="false"
-        android:focusable="false"
-        android:minWidth="0dp" />
-
-    <androidx.appcompat.widget.AppCompatTextView
-        android:id="@+id/name"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
-        android:layout_weight="1"
-        android:ellipsize="end"
-        android:maxLines="2"
-        android:textColor="#121417"
-        android:textSize="14sp" />
-
-</androidx.appcompat.widget.LinearLayoutCompat>
+    android:layout_height="48dp"
+    android:background="@drawable/shape_detail_episode"
+    android:ellipsize="start"
+    android:gravity="center"
+    android:singleLine="true"
+    android:textColor="@color/black"
+    android:textSize="15sp"
+    tools:text="20" />

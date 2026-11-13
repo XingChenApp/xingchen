@@ -119,6 +119,9 @@ public class VodActivity extends BaseActivity implements TypeAdapter.OnClickList
 
     private void setPager() {
         mBinding.pager.setAdapter(new PageAdapter(getSupportFragmentManager()));
+        // 页面常驻归翻页器本职（2026-11-13 布局结构修，同 mobile）：保留
+        // 页数覆盖全部分类，滑动不销毁、数据增删时子视图随框架装填同生同灭。
+        mBinding.pager.setOffscreenPageLimit(Math.max(1, mAdapter.getItemCount() - 1));
         mBinding.pager.setCurrentItem(getPosition());
         mBinding.recycler.setSelectedPosition(getPosition());
     }
@@ -207,8 +210,10 @@ public class VodActivity extends BaseActivity implements TypeAdapter.OnClickList
             return mAdapter.getItemCount();
         }
 
-        @Override
-        public void destroyItem(@NonNull ViewGroup container, int position, @NonNull Object object) {
-        }
+        // destroyItem 不再覆写成空（2026-11-13 布局结构修，与 mobile
+        // VodFragment 同型同修）：旧形让翻页器以为页已销毁、页的视图却
+        // 永不离场，子视图名单与数据名单永久对不上（朋友机 127 安卓 9
+        // 绘制撞空位崩的根）。回到 FragmentStatePagerAdapter 本职销毁；
+        // 页面常驻由 setPager 处的 offscreenPageLimit 覆盖全分类承担。
     }
 }

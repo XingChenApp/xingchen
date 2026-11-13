@@ -520,23 +520,40 @@ public class HomeActivity extends BaseActivity implements XcBottomBar.OnItemSele
         if (event.type() == ServerEvent.Type.SEARCH) SearchActivity.start(this, event.text());
     }
 
+    /**
+     * 活动型页签（直播/音乐/阅读/小程序/实验室）起页前先把根页切回
+     * 点播首页：这些页是独立 Activity、盖在根页上，从设置页点进去、
+     * 退出就原样落回设置页（他 2026-11-13 连环亲定的返回规矩：
+     * 哪个页签返回都落点播首页）。起页前先切，退出时底下已是首页，
+     * 不攒待办旗、不等 onResume 补。
+     */
+    private void resetRootBeforeTabLaunch() {
+        if (currentPosition != 0) change(0);
+    }
+
     @Override
     public boolean onItemSelected(int itemId) {
         setNavigationVisible(true);
         if (itemId == R.id.setting) return changeFragment(1);
         if (itemId == R.id.vod) return changeFragment(0);
-        if (itemId == R.id.live) return openLive();
+        if (itemId == R.id.live) {
+            resetRootBeforeTabLaunch();
+            return openLive();
+        }
         if (itemId == R.id.reading) {
+            resetRootBeforeTabLaunch();
             ReadingShelfActivity.start(this);
             overridePendingTransition(R.anim.xc_tab_fade_in, R.anim.xc_tab_fade_out);
             return true;
         }
         if (itemId == R.id.miniapp) {
+            resetRootBeforeTabLaunch();
             HkPageActivity.start(this);
             overridePendingTransition(R.anim.xc_tab_fade_in, R.anim.xc_tab_fade_out);
             return true;
         }
         if (itemId == R.id.lab) {
+            resetRootBeforeTabLaunch();
             LabHomeActivity.start(this);
             overridePendingTransition(R.anim.xc_tab_fade_in, R.anim.xc_tab_fade_out);
             return true;

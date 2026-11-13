@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 照官 8.83 drawable 原样（apktool 官包 res） -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/whiteblack">
+    <item android:drawable="@color/black_77" />
+</ripple>

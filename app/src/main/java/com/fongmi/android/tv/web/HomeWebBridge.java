@@ -1,6 +1,7 @@
 package com.fongmi.android.tv.web;
 
 import android.app.Activity;
+import android.net.Uri;
 import android.text.TextUtils;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
@@ -12,6 +13,7 @@ import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.bean.drive.DriveCheckRequest;
+import com.fongmi.android.tv.player.Source;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.service.DriveCheckService;
 import com.fongmi.android.tv.service.PlaybackService;
@@ -21,10 +23,12 @@ import com.fongmi.android.tv.ui.activity.SearchActivity;
 import com.fongmi.android.tv.ui.activity.VideoActivity;
 import com.fongmi.android.tv.utils.ImgUtil;
 import com.fongmi.android.tv.utils.Notify;
+import com.fongmi.android.tv.utils.Sniffer;
 import com.fongmi.android.tv.utils.Task;
 import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.utils.Json;
 import com.github.catvod.utils.Prefers;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import java.net.URLEncoder;
@@ -194,15 +198,69 @@ public class HomeWebBridge {
         String pic = Json.safeString(payload, "pic");
         String wall = wallPic(payload);
         String content = content(payload);
-        if (payload.has("headers") || "include".equals(Json.safeString(payload, "credentials"))) url = resourceUrl(url, payload.toString());
-        final String playUrl = url;
-        final String playTitle = TextUtils.isEmpty(title) ? playUrl : title;
+        // 形态分流（2026-11-13 潇洒哥定版）：判据看地址本身——经 /webResource
+        // 代理的址先剥壳看内包真地址，代理壳不是形态。
+        String target = unwrapResourceUrl(url);
+        if (isDirectForm(target)) {
+            // 直链形态：地址本身就是流（或内置协议），直连播放、不经嗅探。
+            // 带头/带凭证时仍经 /webResource 代理把头带给播放器（原口径），
+            // 但起播走 HTML 源自有内嵌形态，不再进 push_agent 的「推送」详情。
+            String direct = url;
+            if (payload.has("headers") || "include".equals(Json.safeString(payload, "credentials"))) direct = resourceUrl(url, payload.toString());
+            final String playTitle = TextUtils.isEmpty(title) ? direct : title;
+            SpiderDebug.log("webhome", "player.playUrl direct title=%s url=%s", playTitle, direct);
+            startDirectInline(playTitle, pic, wall, content, direct);
+            return "{}";
+        }
+        // 网页形态：真地址藏在网页里——起嗅探会话装载该页、拦出直链再播，
+        // 不许再把网页本身当播放地址直递播放器（「推送」形态的病根）。
+        Map<String, String> headers = HeaderPolicy.parse(payload.get("headers"));
+        SpiderDebug.log("webhome", "player.playUrl sniff title=%s url=%s", title, url);
+        controller.sniffPlay(url, title, pic, wall, content, headers);
+        return "{}";
+    }
+
+    /** 地址形态判据：已是流格式（Sniffer 规则）或内置协议（磁力/ed2k/webview 等 Source 认得的直达形态）＝直链，其余 http(s) 地址按网页形态走嗅探。 */
+    private static boolean isDirectForm(String url) {
+        if (TextUtils.isEmpty(url)) return false;
+        return Sniffer.isVideoFormat(url) || Source.isBuiltin(url);
+    }
+
+    /** /webResource 代理址剥壳：取其 url 参数为真地址；非代理址或取不到原样返回。 */
+    private static String unwrapResourceUrl(String url) {
+        if (TextUtils.isEmpty(url) || !url.contains("/webResource")) return url;
+        try {
+            String target = Uri.parse(url).getQueryParameter("url");
+            return TextUtils.isEmpty(target) ? url : target;
+        } catch (Throwable e) {
+            return url;
+        }
+    }
+
+    /**
+     * 直达起播（HTML 源自有形态，与 player.playVodInline 同形）：最终地址作一集
+     * mediaUrl 入内嵌仓后开详情——线路名走内嵌默认，集解析在仓内以 mediaUrl
+     * 直达、parse=0 不再嗅探。HTML 源的任何播放入口都不许再经 push_agent，
+     * 「推送」线路与名字在 HTML 源里整支摘除（2026-11-13 定版）。
+     */
+    void startDirectInline(String title, String pic, String wall, String content, String url) {
+        JsonObject payload = new JsonObject();
+        payload.addProperty("vod_name", TextUtils.isEmpty(title) ? url : title);
+        if (!TextUtils.isEmpty(title)) payload.addProperty("title", title);
+        if (!TextUtils.isEmpty(pic)) payload.addProperty("pic", pic);
+        JsonObject episode = new JsonObject();
+        if (!TextUtils.isEmpty(title)) episode.addProperty("name", title);
+        episode.addProperty("mediaUrl", url);
+        JsonArray episodes = new JsonArray();
+        episodes.add(episode);
+        payload.add("episodes", episodes);
+        String vodId = WebHomeInlineVodStore.put(payload, this::resolveInlineEpisode, currentSiteKey());
+        final String playTitle = TextUtils.isEmpty(title) ? vodId : title;
         final String playPic = pic;
         final String playWall = wall;
         final String playContent = content;
-        SpiderDebug.log("webhome", "player.playUrl title=%s url=%s", playTitle, playUrl);
-        App.post(() -> VideoActivity.start(activity, SiteApi.PUSH, playUrl, playTitle, playPic, null, playWall, playContent));
-        return "{}";
+        SpiderDebug.log("webhome", "player.startDirectInline title=%s id=%s url=%s", playTitle, vodId, url);
+        App.post(() -> VideoActivity.start(activity, WebHomeInlineVodStore.KEY, vodId, playTitle, playPic, null, playWall, playContent));
     }
 
     private String playVod(JsonObject payload) {

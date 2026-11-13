@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 照官 8.83 布局重建（apktool 官包 res）：代码钮上的 android:text
+     官引 @string/code，星辰同值串名为 hk_code，此处引 hk_code（无行为差异） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_round"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_round">
+
+        <ImageView
+            android:id="@+id/code"
+            android:layout_width="36.0dip"
+            android:layout_height="36.0dip"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="10.0dip"
+            android:padding="4.0dip"
+            android:src="@drawable/ic_notice_black"
+            android:text="@string/hk_code"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_toStartOf="@id/code"
+            android:ellipsize="end"
+            android:lines="1"
+            android:maxLines="1"
+            android:padding="15.0dip"
+            android:text="嗅探到的视频或者音乐"
+            android:textColor="#ff000000"
+            android:textSize="20.0sp" />
+    </RelativeLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="0.0dip"
+        android:layout_marginBottom="10.0dip"
+        android:layout_weight="1.0"
+        android:background="@drawable/shape_top_border"
+        android:padding="10.0dip" />
+</LinearLayout>

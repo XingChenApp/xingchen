@@ -199,6 +199,10 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     private void setAdapter(Result result) {
         if (mWeb != null && mWeb.isVisible()) return;
         mAdapter.addAll(mResult = result);
+        // 页面常驻归翻页器本职：保留页数覆盖全部分类，滑动时一页不销毁
+        // （与旧 destroyItem 空覆写的常驻效果同），数据增删时框架按本职
+        // 装填/销毁、子视图名单恒与数据一致（2026-11-13 布局结构修）。
+        mBinding.pager.setOffscreenPageLimit(Math.max(1, mAdapter.getItemCount() - 1));
         notifyPagerAdapter();
         setFabVisible(0);
         mBinding.typeMore.setVisibility(View.GONE);
@@ -507,7 +511,11 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         mBinding.homeWeb.setVisibility(View.GONE);
         updateToolbarMenu();
         clearPagerTypes();
-        mBinding.pager.setAdapter(new PageAdapter(getChildFragmentManager()));
+        // 不再每次刷新重建适配器（2026-11-13 布局结构修）：重建会把全部
+        // 子视图当场扯下、旧页又靠标签从 FragmentManager 里复活，增删全
+        // 压在绘制窗口上。适配器终身一个（setRecyclerView 建），刷新只
+        // 清数据＋落回第一页，新数据回来走同一适配器装填。
+        mBinding.pager.setCurrentItem(0, false);
         setFabVisible(0);
         mViewModel.homeContent(forceRefresh);
         // 首页预热：前台首屏加载已发出后，后台提前跑遍各源首页（每进程一次）。
@@ -982,8 +990,12 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
             return mAdapter.getItemCount();
         }
 
-        @Override
-        public void destroyItem(@NonNull ViewGroup container, int position, @NonNull Object object) {
-        }
+        // destroyItem 不再覆写成空（2026-11-13 布局结构修）：旧形让翻页器
+        // 以为页已销毁、页的视图却永不离场，子视图名单与数据名单永久对
+        // 不上——朋友机 127 在安卓 9 上绘制时撞上名单空位整 App 崩，根
+        // 就在此。回到 FragmentStatePagerAdapter 本职：销毁走框架事务、
+        // 在装填阶段离场；页面常驻改由 offscreenPageLimit 覆盖全分类来
+        // 承担（setAdapter(Result) 处按分类数设），滑动时不销毁、行为
+        // 与旧形一致，数据增删时子视图随数据同生同灭。
     }
 }

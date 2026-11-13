@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 照官 8.83 布局原样重建（apktool 官包 res）：Snackbar 内容根 -->
+<com.example.hikerview.ui.view.toast.ChefSnackbarView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content" />

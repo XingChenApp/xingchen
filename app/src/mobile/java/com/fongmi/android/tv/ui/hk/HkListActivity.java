@@ -2105,6 +2105,16 @@ public class HkListActivity extends AppCompatActivity
     }
 
     /**
+     * 插件 JS 直调开页接缝：官 AutoImportHelper.lambda$couldCloudImport$2 的
+     * hiker://page/ 支经 PageParser.goPageByPageUrl 以当前规则组页开页；
+     * 星辰等价路即本页 openPageUrl（本页当前规则、无条目语境 position=-1，
+     * 参数与标题取空——插件拼的 page 地址自带 ?rule= 指名子页）。
+     */
+    public void openPageUrlFromJs(String pageUrl) {
+        openPageUrl(rule, pageUrl, -1);
+    }
+
+    /**
      * 照原版 FilmListActivity.onActivityResult 的宿主分支：请求码 2 子页回传 refreshPage → 本页刷新；
      * 0x961 扫码结果 → dealQRContent；0x4e16 文件编辑保存 → 逐个求值登记的回调 JS。
      * Fragment 自有请求码（0x2382/0x2383/0x2385）由 super 分发，不在此处理。

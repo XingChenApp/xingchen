@@ -158,6 +158,12 @@
 # R8 不保名会把类/方法改名或整类裁掉、类路径解析当场落空。整类保名。
 -keep class com.example.hikerview.utils.FileUtil { *; }
 
+# 聚阅插件本体类整批（2026-11-13，账 juyue-hikerpop-gap）：hikerPop.js 按
+# 全名直调 com.example.hikerview.** 的弹窗/工具/模型/枚举，无 Java 侧静态
+# 引用，R8 不保名 JS 侧类路径解析落空（与上 FileUtil 同病）。整域保名。
+-keep class com.example.hikerview.** { *; }
+-keep class com.annimon.stream.function.Consumer { *; }
+
 # 海阔模型：Gson 按字段名序列化/反序列化（MY_RULE、hiker://page 规则体），字段名不能改
 -keep class com.fongmi.android.tv.api.hk.HkRule { *; }
 -keep class com.fongmi.android.tv.api.hk.HkPageRule { *; }

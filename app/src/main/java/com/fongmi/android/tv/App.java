@@ -155,6 +155,10 @@ public class App extends Application implements Application.ActivityLifecycleCal
         AdBlock.refresh(this);
         DanmakuSearchListFocusFixer.start();
         registerActivityLifecycleCallbacks(this);
+        // 8.83 本体 ActivityManager 同批登记：聚阅插件（hikerPop.js）经
+        // ActivityManager.getInstance().getCurrentActivity() 取当前页，
+        // 栈靠这份登记喂（类在主源集 com.example.hikerview.ui）。
+        registerActivityLifecycleCallbacks(com.example.hikerview.ui.ActivityManager.getInstance());
         // 上游 App 同位置：启动即登记运行时包安装／卸载广播，RuntimeModule.refresh()
         // 靠它感知外置包变化；ModuleViewModel 各自的接收器只跟自己那块模块。
         RuntimeReceiver.register(this);

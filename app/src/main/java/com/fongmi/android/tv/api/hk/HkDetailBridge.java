@@ -35,19 +35,15 @@ public class HkDetailBridge {
         site.setName(rule.getTitle());
         vod.setSite(site);
         // 8.83 原版：从原始条目构建选集（按 line 分组，不再用预分类的 Line 模型）
-        // 第一遍：资格判定＋按线路收集候选（保序）。判定收口 HkEpisodeQualifier，
-        // 与 HkPageActivity 两份收集器共用同一判定：旧口径只按 url 形态
-        // （http／@lazyRule=／js:）扫入，详情页的动作项、跨源搜索入口、
-        // 线路/排序钮、封面头卡形态与真集数相同、整页混进选集
-        // （钉根账 playpage-episode-pollution-dig-20261111）；新判定按
-        // col_type 角色＋url 自带的点击形态声明过关，头卡/图片/动作/
-        // 导航一律不收。磁力/电驴/迅雷三形在判定内放行（点后走星辰播放器
-        // 迅雷引擎，用户拍板：海阔磁力走星辰，不维持原版）；ftp:// 不在
-        // 选集放行之列（放行口径见 HkRouter.isP2pPlayLink 的播放门）。
+        // 磁力/电驴/迅雷三形在段收编内放行（点后走星辰播放器迅雷引擎，
+        // 用户拍板：海阔磁力走星辰，不维持原版）；ftp:// 不在放行之列
+        // （放行口径见 HkRouter.isP2pPlayLink 的播放门）。
+        // 第一遍换官形结构（账 §十）：集数只从 col_type 连续段里收（段外
+        // 条目结构上进不来），段内再以干跑 ACTION 标复核（无锚场景的实测
+        // 兜底，账 §九）——旧「整页扫＋资格判定五关」整段摘除。
         java.util.Map<String, List<HkDetailItem>> byLine = new java.util.LinkedHashMap<>();
-        for (HkDetailItem di : detail.getRawItems()) {
-            String url = di.getUrl() == null ? "" : di.getUrl().trim();
-            if (!HkEpisodeQualifier.isEpisode(di.getColType(), url, di.getPic())) continue;
+        for (HkDetailItem di : HkChapters.collectEpisodeRuns(detail.getRawItems())) {
+            if (di.getDryVerdict() == HkEpisodeDryClassifier.Verdict.ACTION) continue;
             String lineName = di.getLine() == null || di.getLine().isEmpty() ? "默认" : di.getLine();
             byLine.computeIfAbsent(lineName, k -> new ArrayList<>()).add(di);
         }

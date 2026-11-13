@@ -1,0 +1,301 @@
+package com.example.hikerview;
+
+/**
+ * 海阔本体 R 垫片：官方 App 的生成 R 在 com.example.hikerviewg 包下，
+ * 规则/插件（如聚阅 hikerPop.js）与本体类按 com.example.hikerview.R 引用。
+ * 本类以同名同结构把字段转发到星辰生成 R 中同名资源（布局/图片等资源
+ * 按官方原名在星辰 res 中重建），使插件的静态字段读取与动态索引
+ * （R.id["color" + i + "_bg"]）都得到真实资源 id。
+ * 字段随本体类移植进度逐批补齐，缺名即编译不过，不许留假值。
+ */
+public final class R {
+
+    private R() {
+    }
+
+    public static final class layout {
+        public static final int view_color_pop = com.fongmi.android.tv.R.layout.view_color_pop;
+        public static final int view_custom_copy_text = com.fongmi.android.tv.R.layout.view_custom_copy_text;
+        public static final int view_msg_bottom_pop = com.fongmi.android.tv.R.layout.view_msg_bottom_pop;
+        public static final int pop_confirm_popup = com.fongmi.android.tv.R.layout.pop_confirm_popup;
+        public static final int item_rect_radius = com.fongmi.android.tv.R.layout.item_rect_radius;
+        public static final int item_rect_radius_dark = com.fongmi.android.tv.R.layout.item_rect_radius_dark;
+        public static final int item_rect_radius2 = com.fongmi.android.tv.R.layout.item_rect_radius2;
+        public static final int item_rect_radius2_dark = com.fongmi.android.tv.R.layout.item_rect_radius2_dark;
+        public static final int pop_input_popup = com.fongmi.android.tv.R.layout.pop_input_popup;
+        public static final int pop_custom_center_recycler_view = com.fongmi.android.tv.R.layout.pop_custom_center_recycler_view;
+        public static final int pop_custom_center_recycler_view_dark = com.fongmi.android.tv.R.layout.pop_custom_center_recycler_view_dark;
+        public static final int view_setting_menu_popup = com.fongmi.android.tv.R.layout.view_setting_menu_popup;
+        public static final int item_setting_more = com.fongmi.android.tv.R.layout.item_setting_more;
+        public static final int item_line_card = com.fongmi.android.tv.R.layout.item_line_card;
+        public static final int item_file_detail = com.fongmi.android.tv.R.layout.item_file_detail;
+        public static final int pop_bookmark_folder = com.fongmi.android.tv.R.layout.pop_bookmark_folder;
+        public static final int item_bookmark_folder = com.fongmi.android.tv.R.layout.item_bookmark_folder;
+        public static final int pop_xiu_tan_result = com.fongmi.android.tv.R.layout.pop_xiu_tan_result;
+        public static final int layout_snackbar_chef = com.fongmi.android.tv.R.layout.layout_snackbar_chef;
+        public static final int pop_open_message = com.fongmi.android.tv.R.layout.pop_open_message;
+        public static final int popup_center_list_item = com.fongmi.android.tv.R.layout.popup_center_list_item;
+        public static final int activit_ad_list = com.fongmi.android.tv.R.layout.activit_ad_list;
+        public static final int item_txt = com.fongmi.android.tv.R.layout.item_txt;
+        public static final int item_txt_title = com.fongmi.android.tv.R.layout.item_txt_title;
+        public static final int item_history_pic = com.fongmi.android.tv.R.layout.item_history_pic;
+        public static final int item_history_pic_vertical = com.fongmi.android.tv.R.layout.item_history_pic_vertical;
+    }
+
+    public static final class id {
+        public static final int color1 = com.fongmi.android.tv.R.id.color1;
+        public static final int color2 = com.fongmi.android.tv.R.id.color2;
+        public static final int color3 = com.fongmi.android.tv.R.id.color3;
+        public static final int color4 = com.fongmi.android.tv.R.id.color4;
+        public static final int color5 = com.fongmi.android.tv.R.id.color5;
+        public static final int color6 = com.fongmi.android.tv.R.id.color6;
+        public static final int color7 = com.fongmi.android.tv.R.id.color7;
+        public static final int color8 = com.fongmi.android.tv.R.id.color8;
+        public static final int color1_bg = com.fongmi.android.tv.R.id.color1_bg;
+        public static final int color2_bg = com.fongmi.android.tv.R.id.color2_bg;
+        public static final int color3_bg = com.fongmi.android.tv.R.id.color3_bg;
+        public static final int color4_bg = com.fongmi.android.tv.R.id.color4_bg;
+        public static final int color5_bg = com.fongmi.android.tv.R.id.color5_bg;
+        public static final int color6_bg = com.fongmi.android.tv.R.id.color6_bg;
+        public static final int color7_bg = com.fongmi.android.tv.R.id.color7_bg;
+        public static final int color8_bg = com.fongmi.android.tv.R.id.color8_bg;
+        public static final int code = com.fongmi.android.tv.R.id.code;
+        public static final int btn_ok = com.fongmi.android.tv.R.id.btn_ok;
+        public static final int btn_cancel = com.fongmi.android.tv.R.id.btn_cancel;
+        public static final int title = com.fongmi.android.tv.R.id.title;
+        public static final int movie_one_title = com.fongmi.android.tv.R.id.movie_one_title;
+        public static final int btn_show = com.fongmi.android.tv.R.id.btn_show;
+        public static final int msg_text = com.fongmi.android.tv.R.id.msg_text;
+        public static final int dismiss = com.fongmi.android.tv.R.id.dismiss;
+        public static final int edit_title = com.fongmi.android.tv.R.id.edit_title;
+        public static final int tv_cancel = com.fongmi.android.tv.R.id.tv_cancel;
+        public static final int tv_confirm = com.fongmi.android.tv.R.id.tv_confirm;
+        public static final int item_rect_text = com.fongmi.android.tv.R.id.item_rect_text;
+        public static final int edit_url = com.fongmi.android.tv.R.id.edit_url;
+        public static final int title_bg = com.fongmi.android.tv.R.id.title_bg;
+        public static final int url_bg = com.fongmi.android.tv.R.id.url_bg;
+        public static final int recyclerView = com.fongmi.android.tv.R.id.recyclerView;
+        public static final int menu_icon = com.fongmi.android.tv.R.id.menu_icon;
+        public static final int textView = com.fongmi.android.tv.R.id.textView;
+        public static final int descView = com.fongmi.android.tv.R.id.descView;
+        public static final int imageView = com.fongmi.android.tv.R.id.imageView;
+        public static final int bg = com.fongmi.android.tv.R.id.bg;
+        public static final int item_bg = com.fongmi.android.tv.R.id.item_bg;
+        public static final int item_icon = com.fongmi.android.tv.R.id.item_icon;
+        public static final int item_title = com.fongmi.android.tv.R.id.item_title;
+        public static final int custom_tag = com.fongmi.android.tv.R.id.custom_tag;
+        public static final int item_ad_bg = com.fongmi.android.tv.R.id.item_ad_bg;
+        public static final int item_ad_title = com.fongmi.android.tv.R.id.item_ad_title;
+        public static final int item_ad_url = com.fongmi.android.tv.R.id.item_ad_url;
+        public static final int item_result_img_bg = com.fongmi.android.tv.R.id.item_result_img_bg;
+        public static final int item_reult_img = com.fongmi.android.tv.R.id.item_reult_img;
+        public static final int item_history = com.fongmi.android.tv.R.id.item_history;
+        public static final int item_status = com.fongmi.android.tv.R.id.item_status;
+        public static final int item_video_card = com.fongmi.android.tv.R.id.item_video_card;
+        public static final int item_video = com.fongmi.android.tv.R.id.item_video;
+        public static final int spin_kit = com.fongmi.android.tv.R.id.spin_kit;
+        public static final int icon_text = com.fongmi.android.tv.R.id.icon_text;
+        public static final int ad_list_window = com.fongmi.android.tv.R.id.ad_list_window;
+        public static final int ad_list_bg = com.fongmi.android.tv.R.id.ad_list_bg;
+        public static final int ad_list_add = com.fongmi.android.tv.R.id.ad_list_add;
+        public static final int ad_list_share = com.fongmi.android.tv.R.id.ad_list_share;
+        public static final int ad_list_title_text = com.fongmi.android.tv.R.id.ad_list_title_text;
+        public static final int ad_list_recycler_view = com.fongmi.android.tv.R.id.ad_list_recycler_view;
+    }
+
+    public static final class drawable {
+        public static final int ic_arrow_right = com.fongmi.android.tv.R.drawable.ic_arrow_right;
+        public static final int icon_rect = com.fongmi.android.tv.R.drawable.icon_rect;
+        public static final int icon_rect_fill2 = com.fongmi.android.tv.R.drawable.icon_rect_fill2;
+        public static final int shape_dialog_cardbg = com.fongmi.android.tv.R.drawable.shape_dialog_cardbg;
+        public static final int account_home = com.fongmi.android.tv.R.drawable.account_home;
+        public static final int add_green = com.fongmi.android.tv.R.drawable.add_green;
+        public static final int backup_cloud = com.fongmi.android.tv.R.drawable.backup_cloud;
+        public static final int bbs = com.fongmi.android.tv.R.drawable.bbs;
+        public static final int bookmark_green = com.fongmi.android.tv.R.drawable.bookmark_green;
+        public static final int card_bg = com.fongmi.android.tv.R.drawable.card_bg;
+        public static final int cover = com.fongmi.android.tv.R.drawable.cover;
+        public static final int delete = com.fongmi.android.tv.R.drawable.delete;
+        public static final int douban = com.fongmi.android.tv.R.drawable.douban;
+        public static final int edit_black = com.fongmi.android.tv.R.drawable.edit_black;
+        public static final int his_green = com.fongmi.android.tv.R.drawable.his_green;
+        public static final int home_bg = com.fongmi.android.tv.R.drawable.home_bg;
+        public static final int home_block = com.fongmi.android.tv.R.drawable.home_block;
+        public static final int home_bookmark = com.fongmi.android.tv.R.drawable.home_bookmark;
+        public static final int home_bookmark2 = com.fongmi.android.tv.R.drawable.home_bookmark2;
+        public static final int home_code = com.fongmi.android.tv.R.drawable.home_code;
+        public static final int home_collection = com.fongmi.android.tv.R.drawable.home_collection;
+        public static final int home_download = com.fongmi.android.tv.R.drawable.home_download;
+        public static final int home_history = com.fongmi.android.tv.R.drawable.home_history;
+        public static final int home_history2 = com.fongmi.android.tv.R.drawable.home_history2;
+        public static final int home_home = com.fongmi.android.tv.R.drawable.home_home;
+        public static final int home_icon_add = com.fongmi.android.tv.R.drawable.home_icon_add;
+        public static final int home_icon_bookmark = com.fongmi.android.tv.R.drawable.home_icon_bookmark;
+        public static final int home_icon_bookmark_group = com.fongmi.android.tv.R.drawable.home_icon_bookmark_group;
+        public static final int home_icon_code = com.fongmi.android.tv.R.drawable.home_icon_code;
+        public static final int home_icon_edit = com.fongmi.android.tv.R.drawable.home_icon_edit;
+        public static final int home_icon_fold = com.fongmi.android.tv.R.drawable.home_icon_fold;
+        public static final int home_icon_item = com.fongmi.android.tv.R.drawable.home_icon_item;
+        public static final int home_late = com.fongmi.android.tv.R.drawable.home_late;
+        public static final int home_pic1 = com.fongmi.android.tv.R.drawable.home_pic1;
+        public static final int home_pic2 = com.fongmi.android.tv.R.drawable.home_pic2;
+        public static final int home_pic3 = com.fongmi.android.tv.R.drawable.home_pic3;
+        public static final int home_pic4 = com.fongmi.android.tv.R.drawable.home_pic4;
+        public static final int home_setting = com.fongmi.android.tv.R.drawable.home_setting;
+        public static final int home_tools = com.fongmi.android.tv.R.drawable.home_tools;
+        public static final int home_ua = com.fongmi.android.tv.R.drawable.home_ua;
+        public static final int home_video = com.fongmi.android.tv.R.drawable.home_video;
+        public static final int ic_bookmark_folder = com.fongmi.android.tv.R.drawable.ic_bookmark_folder;
+        public static final int ic_bookmark_url = com.fongmi.android.tv.R.drawable.ic_bookmark_url;
+        public static final int ic_main_nav_search = com.fongmi.android.tv.R.drawable.ic_main_nav_search;
+        public static final int icon1 = com.fongmi.android.tv.R.drawable.icon1;
+        public static final int icon2 = com.fongmi.android.tv.R.drawable.icon2;
+        public static final int icon3 = com.fongmi.android.tv.R.drawable.icon3;
+        public static final int icon4 = com.fongmi.android.tv.R.drawable.icon4;
+        public static final int icon_360 = com.fongmi.android.tv.R.drawable.icon_360;
+        public static final int icon_account = com.fongmi.android.tv.R.drawable.icon_account;
+        public static final int icon_add2 = com.fongmi.android.tv.R.drawable.icon_add2;
+        public static final int icon_ai = com.fongmi.android.tv.R.drawable.icon_ai;
+        public static final int icon_ai_big = com.fongmi.android.tv.R.drawable.icon_ai_big;
+        public static final int icon_app3 = com.fongmi.android.tv.R.drawable.icon_app3;
+        public static final int icon_baidu = com.fongmi.android.tv.R.drawable.icon_baidu;
+        public static final int icon_baidu_ai = com.fongmi.android.tv.R.drawable.icon_baidu_ai;
+        public static final int icon_bing = com.fongmi.android.tv.R.drawable.icon_bing;
+        public static final int icon_bookmark_add = com.fongmi.android.tv.R.drawable.icon_bookmark_add;
+        public static final int icon_bottom = com.fongmi.android.tv.R.drawable.icon_bottom;
+        public static final int icon_browser_bookmark = com.fongmi.android.tv.R.drawable.icon_browser_bookmark;
+        public static final int icon_browser_history = com.fongmi.android.tv.R.drawable.icon_browser_history;
+        public static final int icon_class = com.fongmi.android.tv.R.drawable.icon_class;
+        public static final int icon_clock = com.fongmi.android.tv.R.drawable.icon_clock;
+        public static final int icon_close1 = com.fongmi.android.tv.R.drawable.icon_close1;
+        public static final int icon_close2 = com.fongmi.android.tv.R.drawable.icon_close2;
+        public static final int icon_close_2_fill = com.fongmi.android.tv.R.drawable.icon_close_2_fill;
+        public static final int icon_cloud6 = com.fongmi.android.tv.R.drawable.icon_cloud6;
+        public static final int icon_code_view = com.fongmi.android.tv.R.drawable.icon_code_view;
+        public static final int icon_del = com.fongmi.android.tv.R.drawable.icon_del;
+        public static final int icon_del6 = com.fongmi.android.tv.R.drawable.icon_del6;
+        public static final int icon_dev = com.fongmi.android.tv.R.drawable.icon_dev;
+        public static final int icon_domain_config = com.fongmi.android.tv.R.drawable.icon_domain_config;
+        public static final int icon_down5 = com.fongmi.android.tv.R.drawable.icon_down5;
+        public static final int icon_download = com.fongmi.android.tv.R.drawable.icon_download;
+        public static final int icon_download6 = com.fongmi.android.tv.R.drawable.icon_download6;
+        public static final int icon_duck = com.fongmi.android.tv.R.drawable.icon_duck;
+        public static final int icon_edit6 = com.fongmi.android.tv.R.drawable.icon_edit6;
+        public static final int icon_felo = com.fongmi.android.tv.R.drawable.icon_felo;
+        public static final int icon_filter = com.fongmi.android.tv.R.drawable.icon_filter;
+        public static final int icon_find = com.fongmi.android.tv.R.drawable.icon_find;
+        public static final int icon_fire = com.fongmi.android.tv.R.drawable.icon_fire;
+        public static final int icon_folder3 = com.fongmi.android.tv.R.drawable.icon_folder3;
+        public static final int icon_foot = com.fongmi.android.tv.R.drawable.icon_foot;
+        public static final int icon_fsou = com.fongmi.android.tv.R.drawable.icon_fsou;
+        public static final int icon_good6 = com.fongmi.android.tv.R.drawable.icon_good6;
+        public static final int icon_google = com.fongmi.android.tv.R.drawable.icon_google;
+        public static final int icon_his = com.fongmi.android.tv.R.drawable.icon_his;
+        public static final int icon_hot = com.fongmi.android.tv.R.drawable.icon_hot;
+        public static final int icon_iask = com.fongmi.android.tv.R.drawable.icon_iask;
+        public static final int icon_info = com.fongmi.android.tv.R.drawable.icon_info;
+        public static final int icon_info_fill = com.fongmi.android.tv.R.drawable.icon_info_fill;
+        public static final int icon_isou = com.fongmi.android.tv.R.drawable.icon_isou;
+        public static final int icon_kfind = com.fongmi.android.tv.R.drawable.icon_kfind;
+        public static final int icon_kuake = com.fongmi.android.tv.R.drawable.icon_kuake;
+        public static final int icon_left5 = com.fongmi.android.tv.R.drawable.icon_left5;
+        public static final int icon_left6 = com.fongmi.android.tv.R.drawable.icon_left6;
+        public static final int icon_like = com.fongmi.android.tv.R.drawable.icon_like;
+        public static final int icon_like_fill = com.fongmi.android.tv.R.drawable.icon_like_fill;
+        public static final int icon_mark_ad = com.fongmi.android.tv.R.drawable.icon_mark_ad;
+        public static final int icon_menu2 = com.fongmi.android.tv.R.drawable.icon_menu2;
+        public static final int icon_menu6 = com.fongmi.android.tv.R.drawable.icon_menu6;
+        public static final int icon_meta = com.fongmi.android.tv.R.drawable.icon_meta;
+        public static final int icon_music3 = com.fongmi.android.tv.R.drawable.icon_music3;
+        public static final int icon_my = com.fongmi.android.tv.R.drawable.icon_my;
+        public static final int icon_my_fill = com.fongmi.android.tv.R.drawable.icon_my_fill;
+        public static final int icon_nami_logo = com.fongmi.android.tv.R.drawable.icon_nami_logo;
+        public static final int icon_offline = com.fongmi.android.tv.R.drawable.icon_offline;
+        public static final int icon_phind = com.fongmi.android.tv.R.drawable.icon_phind;
+        public static final int icon_pic3 = com.fongmi.android.tv.R.drawable.icon_pic3;
+        public static final int icon_plugin = com.fongmi.android.tv.R.drawable.icon_plugin;
+        public static final int icon_pure = com.fongmi.android.tv.R.drawable.icon_pure;
+        public static final int icon_rect_fill = com.fongmi.android.tv.R.drawable.icon_rect_fill;
+        public static final int icon_rect_selected = com.fongmi.android.tv.R.drawable.icon_rect_selected;
+        public static final int icon_refresh = com.fongmi.android.tv.R.drawable.icon_refresh;
+        public static final int icon_right5 = com.fongmi.android.tv.R.drawable.icon_right5;
+        public static final int icon_right6 = com.fongmi.android.tv.R.drawable.icon_right6;
+        public static final int icon_save = com.fongmi.android.tv.R.drawable.icon_save;
+        public static final int icon_search5 = com.fongmi.android.tv.R.drawable.icon_search5;
+        public static final int icon_search6 = com.fongmi.android.tv.R.drawable.icon_search6;
+        public static final int icon_sel = com.fongmi.android.tv.R.drawable.icon_sel;
+        public static final int icon_sel5 = com.fongmi.android.tv.R.drawable.icon_sel5;
+        public static final int icon_sel_fill = com.fongmi.android.tv.R.drawable.icon_sel_fill;
+        public static final int icon_select = com.fongmi.android.tv.R.drawable.icon_select;
+        public static final int icon_select_fill = com.fongmi.android.tv.R.drawable.icon_select_fill;
+        public static final int icon_setting5 = com.fongmi.android.tv.R.drawable.icon_setting5;
+        public static final int icon_setting6 = com.fongmi.android.tv.R.drawable.icon_setting6;
+        public static final int icon_share5 = com.fongmi.android.tv.R.drawable.icon_share5;
+        public static final int icon_share_green = com.fongmi.android.tv.R.drawable.icon_share_green;
+        public static final int icon_shenma = com.fongmi.android.tv.R.drawable.icon_shenma;
+        public static final int icon_sougou = com.fongmi.android.tv.R.drawable.icon_sougou;
+        public static final int icon_star = com.fongmi.android.tv.R.drawable.icon_star;
+        public static final int icon_star_fill = com.fongmi.android.tv.R.drawable.icon_star_fill;
+        public static final int icon_star_fill_green = com.fongmi.android.tv.R.drawable.icon_star_fill_green;
+        public static final int icon_star_fill_red = com.fongmi.android.tv.R.drawable.icon_star_fill_red;
+        public static final int icon_thinkany = com.fongmi.android.tv.R.drawable.icon_thinkany;
+        public static final int icon_time6 = com.fongmi.android.tv.R.drawable.icon_time6;
+        public static final int icon_top = com.fongmi.android.tv.R.drawable.icon_top;
+        public static final int icon_toutiao = com.fongmi.android.tv.R.drawable.icon_toutiao;
+        public static final int icon_trans = com.fongmi.android.tv.R.drawable.icon_trans;
+        public static final int icon_txt2 = com.fongmi.android.tv.R.drawable.icon_txt2;
+        public static final int icon_ua = com.fongmi.android.tv.R.drawable.icon_ua;
+        public static final int icon_unknown = com.fongmi.android.tv.R.drawable.icon_unknown;
+        public static final int icon_video2 = com.fongmi.android.tv.R.drawable.icon_video2;
+        public static final int icon_weibo = com.fongmi.android.tv.R.drawable.icon_weibo;
+        public static final int icon_weixin = com.fongmi.android.tv.R.drawable.icon_weixin;
+        public static final int icon_wuzhui = com.fongmi.android.tv.R.drawable.icon_wuzhui;
+        public static final int icon_xiutan = com.fongmi.android.tv.R.drawable.icon_xiutan;
+        public static final int icon_yandex = com.fongmi.android.tv.R.drawable.icon_yandex;
+        public static final int icon_yep = com.fongmi.android.tv.R.drawable.icon_yep;
+        public static final int icon_zhihu = com.fongmi.android.tv.R.drawable.icon_zhihu;
+        public static final int icon_zhihu_ai = com.fongmi.android.tv.R.drawable.icon_zhihu_ai;
+        public static final int icon_zhiwang = com.fongmi.android.tv.R.drawable.icon_zhiwang;
+        public static final int icon_zip2 = com.fongmi.android.tv.R.drawable.icon_zip2;
+        public static final int logo = com.fongmi.android.tv.R.drawable.logo;
+        public static final int main_menu_backup = com.fongmi.android.tv.R.drawable.main_menu_backup;
+        public static final int menu_back2 = com.fongmi.android.tv.R.drawable.menu_back2;
+        public static final int menu_backup2 = com.fongmi.android.tv.R.drawable.menu_backup2;
+        public static final int menu_book2 = com.fongmi.android.tv.R.drawable.menu_book2;
+        public static final int menu_clear2 = com.fongmi.android.tv.R.drawable.menu_clear2;
+        public static final int menu_new2 = com.fongmi.android.tv.R.drawable.menu_new2;
+        public static final int menu_now2 = com.fongmi.android.tv.R.drawable.menu_now2;
+        public static final int menu_rules2 = com.fongmi.android.tv.R.drawable.menu_rules2;
+        public static final int menu_search2 = com.fongmi.android.tv.R.drawable.menu_search2;
+        public static final int mv = com.fongmi.android.tv.R.drawable.mv;
+        public static final int nothing = com.fongmi.android.tv.R.drawable.nothing;
+        public static final int rule_type_all = com.fongmi.android.tv.R.drawable.rule_type_all;
+        public static final int rule_type_audio = com.fongmi.android.tv.R.drawable.rule_type_audio;
+        public static final int rule_type_comics = com.fongmi.android.tv.R.drawable.rule_type_comics;
+        public static final int rule_type_live = com.fongmi.android.tv.R.drawable.rule_type_live;
+        public static final int rule_type_news = com.fongmi.android.tv.R.drawable.rule_type_news;
+        public static final int rule_type_other = com.fongmi.android.tv.R.drawable.rule_type_other;
+        public static final int rule_type_pic = com.fongmi.android.tv.R.drawable.rule_type_pic;
+        public static final int rule_type_read = com.fongmi.android.tv.R.drawable.rule_type_read;
+        public static final int rule_type_tool = com.fongmi.android.tv.R.drawable.rule_type_tool;
+        public static final int rule_type_video = com.fongmi.android.tv.R.drawable.rule_type_video;
+        public static final int setting_green = com.fongmi.android.tv.R.drawable.setting_green;
+        public static final int switch_source = com.fongmi.android.tv.R.drawable.switch_source;
+        public static final int tree1 = com.fongmi.android.tv.R.drawable.tree1;
+        public static final int tree2 = com.fongmi.android.tv.R.drawable.tree2;
+        public static final int tree3 = com.fongmi.android.tv.R.drawable.tree3;
+        public static final int tree4 = com.fongmi.android.tv.R.drawable.tree4;
+    }
+
+    public static final class color {
+        public static final int greenAction = com.fongmi.android.tv.R.color.greenAction;
+        public static final int black_666 = com.fongmi.android.tv.R.color.black_666;
+        public static final int white = com.fongmi.android.tv.R.color.white;
+        public static final int redAction = com.fongmi.android.tv.R.color.redAction;
+        public static final int blackText = com.fongmi.android.tv.R.color.blackText;
+        public static final int dark_edit = com.fongmi.android.tv.R.color.dark_edit;
+    }
+
+    public static final class string {
+    }
+}

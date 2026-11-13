@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 照官 8.83 布局原样重建（apktool 官包 res） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/result_bg"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/gray_rice_deep"
+    android:orientation="vertical">
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="10.0dip"
+        android:layout_marginBottom="15.0dip"
+        android:background="@drawable/shape_corners_rice_deep_bottom" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="10.0dip"
+        android:background="@drawable/shape_corners_rice_deep_top" />
+</LinearLayout>

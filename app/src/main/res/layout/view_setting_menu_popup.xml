@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 照官 8.83 布局重建（apktool 官包 res）：设置菜单/文件详情底部弹窗共用 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_round_gray"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10.0dip"
+            android:layout_marginBottom="10.0dip"
+            android:paddingTop="5.0dip"
+            android:paddingBottom="5.0dip">
+
+            <TextView
+                android:id="@+id/textView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="15.0dip"
+                android:layout_marginEnd="15.0dip"
+                android:ellipsize="end"
+                android:gravity="center_vertical"
+                android:lines="1"
+                android:maxLines="1"
+                android:text="设置"
+                android:textColor="@color/black_third"
+                android:textSize="20.0sp" />
+        </RelativeLayout>
+    </RelativeLayout>
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="15.0dip"
+        android:layout_marginTop="15.0dip"
+        android:layout_marginEnd="15.0dip"
+        android:layout_marginBottom="10.0dip"
+        app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="10.0dip"
+        app:cardElevation="0.0dip">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="10.0dip"
+            android:paddingBottom="10.0dip" />
+    </androidx.cardview.widget.CardView>
+</LinearLayout>

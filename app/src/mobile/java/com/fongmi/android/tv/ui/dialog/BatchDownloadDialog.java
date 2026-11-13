@@ -13,13 +13,14 @@ import android.view.Window;
 import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.bean.Episode;
 import com.fongmi.android.tv.databinding.DialogBatchDownloadBinding;
 import com.fongmi.android.tv.databinding.ItemBatchDownloadBinding;
+import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
 import com.fongmi.android.tv.utils.ResUtil;
 
 import java.util.ArrayList;
@@ -29,8 +30,10 @@ import java.util.Set;
 
 /**
  * 批量下载勾选窗（点播详情页多集时点「下载」弹出）。
- * 本体浅面毛玻璃口径：浅底圆角卡（xc_dialog_light）＋深字，勾选框与钮走同族样式；
- * 无返回箭头，系统返回／点外关闭。打开瞬间快照当前线路选集，弹窗内不换线路、不切集。
+ * 本体浅面毛玻璃口径：做实浅底圆角卡＋深字；集条目与详情页选集网格同款格子
+ * （activated＝品牌橙、未选近白，落在列表托底上），选中态只认勾选数组一处、格子与
+ * 计数与全选钮全由它推导；无返回箭头，系统返回／点外关闭。打开瞬间快照当前线路
+ * 选集，弹窗内不换线路、不切集。
  */
 public class BatchDownloadDialog extends Dialog {
 
@@ -70,7 +73,13 @@ public class BatchDownloadDialog extends Dialog {
         }
         binding.subtitle.setText(vodName);
         adapter = new BatchAdapter();
-        binding.recycler.setLayoutManager(new LinearLayoutManager(getContext()));
+        // 与详情页选集网格同一套网格口径：列数照 EpisodeGridLayoutPolicy 的值（竖屏 4、
+        // 横屏/平板 6，该类是 activity 包私有、这里照值复刻）、间距 8dp 同 SpaceItemDecoration 口径
+        boolean land = getContext().getResources().getConfiguration().orientation
+                == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+        int span = land || ResUtil.isPad() ? 6 : 4;
+        binding.recycler.setLayoutManager(new GridLayoutManager(getContext(), span));
+        binding.recycler.addItemDecoration(new SpaceItemDecoration(span, 8));
         binding.recycler.setAdapter(adapter);
         binding.checkAll.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (syncingCheckAll) return;
@@ -135,8 +144,12 @@ public class BatchDownloadDialog extends Dialog {
         if (binding == null || adapter == null) return;
         int count = adapter.selectedCount();
         binding.selectedCount.setText("已选 " + count + " / " + episodes.size() + " 集");
+        // 全选钮自己的态也只从这份计数推：满选＝勾亮＋文案「取消全选」，未满（含部分选）
+        // ＝不勾＋文案「全选」——和格子亮不亮、计数多少同源同帧，不各走各的
+        boolean all = count == episodes.size() && count > 0;
         syncingCheckAll = true;
-        binding.checkAll.setChecked(count == episodes.size() && count > 0);
+        binding.checkAll.setChecked(all);
+        binding.checkAll.setText(all ? "取消全选" : "全选");
         syncingCheckAll = false;
         binding.btnStart.setEnabled(count > 0);
         binding.btnStart.setAlpha(count > 0 ? 1f : 0.45f);
@@ -190,12 +203,14 @@ public class BatchDownloadDialog extends Dialog {
         public void onBindViewHolder(@NonNull Holder holder, int position) {
             Episode episode = episodes.get(position);
             holder.binding.name.setText(episode == null ? "" : episode.getDisplayName());
-            holder.binding.check.setChecked(checked[position]);
-            holder.binding.getRoot().setOnClickListener(v -> {
+            // 格子选中态只从勾选数组推导（activated 驱动 shape_detail_episode 的品牌橙底），
+            // 每次绑定都重推——滚动复用不串态
+            holder.binding.name.setActivated(checked[position]);
+            holder.binding.name.setOnClickListener(v -> {
                 int pos = holder.getBindingAdapterPosition();
                 if (pos == RecyclerView.NO_POSITION) return;
                 checked[pos] = !checked[pos];
-                holder.binding.check.setChecked(checked[pos]);
+                notifyItemChanged(pos);
                 refreshState();
             });
         }

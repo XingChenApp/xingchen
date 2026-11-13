@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 照官 8.83 drawable 原样（apktool 官包 res） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#ffe2e2e2" />
+    <corners android:radius="99.0dip" />
+</shape>

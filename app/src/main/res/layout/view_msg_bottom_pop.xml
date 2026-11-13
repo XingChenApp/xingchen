@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 照官 8.83 布局原样重建（apktool 官包 res）：底部消息弹窗 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom">
+
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="15.0dip"
+        android:layout_marginEnd="15.0dip"
+        android:layout_marginBottom="50.0dip"
+        android:background="@drawable/bg_round2"
+        android:paddingEnd="5.0dip"
+        android:paddingBottom="16.0dip">
+
+        <TextView
+            android:id="@+id/msg_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="5.0dip"
+            android:gravity="center"
+            android:maxLines="3"
+            android:padding="10.0dip"
+            android:text="规则执行过程中出现错误"
+            android:textColor="@color/black"
+            android:textSize="16.0sp" />
+
+        <TextView
+            android:id="@+id/dismiss"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_below="@id/msg_text"
+            android:layout_marginStart="10.0dip"
+            android:layout_marginEnd="5.0dip"
+            android:background="@drawable/rect_button_gray"
+            android:paddingHorizontal="14.0dip"
+            android:paddingVertical="8.0dip"
+            android:text="忽略"
+            android:textColor="@color/black"
+            android:textSize="13.0sp" />
+
+        <TextView
+            android:id="@+id/btn_show"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/msg_text"
+            android:layout_marginStart="10.0dip"
+            android:layout_toStartOf="@id/dismiss"
+            android:background="@drawable/rect_button_gray"
+            android:paddingHorizontal="14.0dip"
+            android:paddingVertical="8.0dip"
+            android:text="查看详情"
+            android:textColor="@color/black"
+            android:textSize="13.0sp" />
+    </RelativeLayout>
+</FrameLayout>

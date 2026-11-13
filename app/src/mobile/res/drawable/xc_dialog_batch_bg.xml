@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 批量下载面专用卡底：与 xc_dialog_light 同族（浅面毛玻璃、16dp 圆角），但底色做实到
+     #EFFFFFFF——原 #B3FFFFFF 压在详情页选集网格上透得太厉害、整面糊成一团（2026-11-13 他截图亲判）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#EFFFFFFF" />
+    <corners android:radius="16dp" />
+    <stroke android:width="1dp" android:color="#40FFFFFF" />
+</shape>

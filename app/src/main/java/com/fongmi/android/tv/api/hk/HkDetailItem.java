@@ -13,6 +13,8 @@ public class HkDetailItem {
     private String desc = "";
     private String line = "";
     private String colType = "";
+    /** 干跑分类结论（HkRouter.detail 收编时由 HkEpisodeDryClassifier 写入；null=未分类）。 */
+    private HkEpisodeDryClassifier.Verdict dryVerdict;
 
     public String getTitle() {
         return title;
@@ -60,6 +62,14 @@ public class HkDetailItem {
 
     public void setColType(String colType) {
         this.colType = colType == null ? "" : colType;
+    }
+
+    public HkEpisodeDryClassifier.Verdict getDryVerdict() {
+        return dryVerdict;
+    }
+
+    public void setDryVerdict(HkEpisodeDryClassifier.Verdict dryVerdict) {
+        this.dryVerdict = dryVerdict;
     }
 
     /** 海报卡/纯展示项：无可播链接。 */

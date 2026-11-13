@@ -215,6 +215,7 @@ public class HkRouter {
                     }
                     detail.setPageUrl(pageUrl);
                     detail.setRawItems(jsItems);
+                    classifyDetailItems(detail);
                     return detail;
                 }
                 u = pageUrl;
@@ -264,7 +265,34 @@ public class HkRouter {
         } catch (Throwable e) {
             Logger.t(TAG).d("detail failed: %s", e.getMessage());
         }
+        classifyDetailItems(detail);
         return detail;
+    }
+
+    /**
+     * 收编干跑分类（账 playpage-episode-pollution-dig-20261111 §九/§十）：
+     * 对段收编候选（可播形态＋未被四排除，门与 HkChapters 段口径同）中的
+     * JS 型解析条目逐条干跑求值判类，结论记到条目瞬态字段；toVod 段内
+     * 读标剔 ACTION。分类只写标不删条目——详情页本体渲染仍用全量
+     * rawItems，动作条目在详情页可点、只是不进选集。干跑在引擎串行队列
+     * 内逐条跑（远程 fetch 回空、纯本地求值），量级＝候选条目数。
+     */
+    private void classifyDetailItems(HkDetail detail) {
+        try {
+            if (detail == null || detail.getRawItems() == null) return;
+            String pageUrl = detail.getPageUrl() == null ? "" : detail.getPageUrl();
+            for (HkDetailItem di : detail.getRawItems()) {
+                String u = di.getUrl() == null ? "" : di.getUrl().trim();
+                // 打标门与 toVod 段收编候选同口径（账 §十）：可播形态＋未被
+                // 四排除＋JS 型 lazy 才值得干跑；其余条目不会进选集、不必验。
+                if (!HkChapters.isPlayForm(u) || HkChapters.isExcluded(di.getColType(), u)) continue;
+                if (!HkEpisodeDryClassifier.isJsLazy(u)) continue;
+                di.setDryVerdict(HkEpisodeDryClassifier.classifyLazyItem(
+                        engine.getJsRuntime(), u, pageUrl));
+            }
+        } catch (Throwable e) {
+            Logger.t(TAG).d("classifyDetailItems failed: %s", e.getMessage());
+        }
     }
 
     /**

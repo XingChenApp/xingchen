@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 照官 8.83 布局原样重建（apktool 官包 res）：居中/底部列表弹窗共用（暗） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_round_radius_10_dark2"
+    android:orientation="vertical"
+    android:paddingBottom="16.0dip">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="0.0dip"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_weight="1.0"
+            android:ellipsize="end"
+            android:lines="1"
+            android:maxLines="1"
+            android:padding="15.0dip"
+            android:text="嗅探到的视频或者音乐"
+            android:textColor="@color/white"
+            android:textSize="20.0sp" />
+
+        <ImageView
+            android:id="@+id/menu_icon"
+            android:layout_width="32.0dip"
+            android:layout_height="32.0dip"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="10.0dip"
+            android:padding="4.0dip"
+            android:src="@drawable/home_left_menu"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="0.0dip"
+        android:layout_weight="1.0"
+        android:padding="10.0dip" />
+</LinearLayout>

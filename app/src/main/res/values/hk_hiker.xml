@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海阔本体移植配套值：全部照官 8.83 colors.xml/strings.xml 原值 -->
+<resources>
+    <color name="blackText">#ff222222</color>
+    <color name="greenAction">#ff109d58</color>
+    <color name="tabText2">#ff888888</color>
+    <color name="icon_color1">#ffb7acf8</color>
+    <color name="icon_color2">#ff717171</color>
+    <color name="icon_color3">#ff62a6fb</color>
+    <color name="icon_color4">#fff48fb1</color>
+    <color name="icon_color5">#fff7a97b</color>
+    <color name="icon_color6">#ff00bcd4</color>
+    <color name="icon_color7">#ff8bc34a</color>
+    <color name="icon_color8">#ff99a5cd</color>
+    <color name="redAction">#ffed424b</color>
+    <color name="black_77">#773e3e40</color>
+    <color name="gray_rice">#fff5f5f5</color>
+    <color name="grey_black">#ffdfdfdf</color>
+    <color name="whiteblack">#99999999</color>
+    <string name="hk_code">&lt;/></string>
+    <!-- 官值补（设置菜单批）：black_third/gray_rice_deep/gray_text/text -->
+    <color name="black_third">#ff333333</color>
+    <color name="gray_rice_deep">#fff2f2f2</color>
+    <color name="gray_text">#ff848484</color>
+    <color name="text">#ff222222</color>
+    <color name="line_border">#60999999</color>
+    <color name="dark_edit">#ff333333</color>
+    <color name="colorAccent">#ff109d58</color>
+    <item name="custom_tag" type="id" />
+    <color name="badge_color_background">#ffe9363f</color>
+    <color name="blackText3">#ff444444</color>
+    <color name="gray_text2">#ffa4a4a4</color>
+</resources>

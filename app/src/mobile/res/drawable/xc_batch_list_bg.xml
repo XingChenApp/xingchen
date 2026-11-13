@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 批量下载面列表区托底：不透明浅灰，让选集同款格子（未选 #80FFFFFF 近白）落在上面看得清、
+     选中品牌橙跳得出来；底下页面透不进列表区。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#EFF1F4" />
+    <corners android:radius="12dp" />
+</shape>

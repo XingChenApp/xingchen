@@ -61,6 +61,7 @@ import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.SiteApi;
 import com.fongmi.android.tv.api.hk.HkDetail;
 import com.fongmi.android.tv.api.hk.HkDetailItem;
+import com.fongmi.android.tv.api.hk.HkChapters;
 import com.fongmi.android.tv.api.hk.HkEpisodeQualifier;
 import com.fongmi.android.tv.api.hk.HkErrorUtil;
 import com.fongmi.android.tv.api.hk.HkFavoriteStore;
@@ -5073,7 +5074,7 @@ public class HkPageActivity extends BaseActivity {
         return out;
     }
 
-    /** 详情头型 col_type：已有头部条目时不再合成。口径唯一实现在 HkEpisodeQualifier（选集资格共用）。 */
+    /** 详情头型 col_type：已有头部条目时不再合成。口径唯一实现在 HkEpisodeQualifier。 */
     private boolean isHeaderColType(String colType) {
         return HkEpisodeQualifier.isHeaderColType(colType);
     }
@@ -5093,32 +5094,28 @@ public class HkPageActivity extends BaseActivity {
                 }
             } catch (Throwable ignored) {
             }
-            // 8.83 getChapters：按被点条目的 BaseExtra.cls 分组只收同组，播放器内切集不出组。
-            // 集数资格走 HkEpisodeQualifier 共用判定（与桥 HkDetailBridge 同一判定）：
-            // 旧口径只按 url 形态（http／@lazyRule=／js:）收、头卡靠 colType 含
-            // "header" 字样剔（真头卡是 movie_1 系、一个都剔不中），动作项/跨源
-            // 搜索入口/排序钮/封面链整页混进选集（钉根账
-            // playpage-episode-pollution-dig-20261111）；新判定按 col_type 角色＋
-            // url 点击形态声明过关，被点条目本身恒收（它已经过点击分流）。
-            String clickedCls = it.getExtra("cls");
-            org.json.JSONArray arr = new org.json.JSONArray();
-            int selIdx = 0;
-            int idx = 0;
-            for (HkItem di : detailItems) {
-                String du = di.getUrl() == null ? "" : di.getUrl().trim();
-                boolean isClicked = (di == it);
-                if (!isClicked) {
-                    if (!clickedCls.isEmpty() && !clickedCls.equals(di.getExtra("cls"))) continue;
-                    if (!HkEpisodeQualifier.isEpisode(di.getColType(), du, di.getPic())) continue;
+            // 8.83 getChapters 官形（HkChapters 移植，账 §十）：以被点条目为锚
+            // 只收相邻同 col_type 连续段（或 cls 含 playlist 的同组），段外条目
+            // 结构上进不来——旧「整页扫＋逐条资格判定」必然拉进别的区块、
+            // 只能不断加判定堵漏（他点名「遇一个补一个」），整段换官形。
+            int clickedPos = -1;
+            for (int i = 0; i < detailItems.size(); i++) {
+                if (detailItems.get(i) == it) {
+                    clickedPos = i;
+                    break;
                 }
+            }
+            HkChapters.Collected chapters = HkChapters.collect(detailItems, clickedPos);
+            org.json.JSONArray arr = new org.json.JSONArray();
+            int selIdx = Math.max(0, chapters.selectedIndex);
+            for (HkItem di : chapters.items) {
+                String du = di.getUrl() == null ? "" : di.getUrl().trim();
                 try {
                     org.json.JSONObject o = new org.json.JSONObject();
                     o.put("name", stripHtml(di.getTitle()));
                     o.put("url", du);
                     o.put("pic", di.getPic() == null ? "" : di.getPic());
                     arr.put(o);
-                    if (di == it) selIdx = idx;
-                    idx++;
                 } catch (Throwable ignored) {
                 }
             }
@@ -5161,28 +5158,25 @@ public class HkPageActivity extends BaseActivity {
                 if (!play.getUrl().isEmpty()) playUrl = play.getUrl();
             } catch (Throwable ignored) {
             }
-            // 8.83 getChapters 同口径（同 playDetailEpisode）：按被点条目的 cls 只收同组；
-            // 集数资格同走 HkEpisodeQualifier 共用判定（理由见 playDetailEpisode 注），
-            // 被点条目本身恒收。
-            String clickedCls = it.getExtra("cls");
-            org.json.JSONArray arr = new org.json.JSONArray();
-            int selIdx = 0;
-            int idx = 0;
-            for (HkItem di : snapshot) {
-                String du = di.getUrl() == null ? "" : di.getUrl().trim();
-                boolean isClicked = (di == it);
-                if (!isClicked) {
-                    if (!clickedCls.isEmpty() && !clickedCls.equals(di.getExtra("cls"))) continue;
-                    if (!HkEpisodeQualifier.isEpisode(di.getColType(), du, di.getPic())) continue;
+            // 8.83 getChapters 官形（同 playDetailEpisode，HkChapters 移植，账 §十）。
+            int clickedPos = -1;
+            for (int i = 0; i < snapshot.size(); i++) {
+                if (snapshot.get(i) == it) {
+                    clickedPos = i;
+                    break;
                 }
+            }
+            HkChapters.Collected chapters = HkChapters.collect(snapshot, clickedPos);
+            org.json.JSONArray arr = new org.json.JSONArray();
+            int selIdx = Math.max(0, chapters.selectedIndex);
+            for (HkItem di : chapters.items) {
+                String du = di.getUrl() == null ? "" : di.getUrl().trim();
                 try {
                     org.json.JSONObject o = new org.json.JSONObject();
                     o.put("name", stripHtml(di.getTitle()));
                     o.put("url", du);
                     o.put("pic", di.getPic() == null ? "" : di.getPic());
                     arr.put(o);
-                    if (di == it) selIdx = idx;
-                    idx++;
                 } catch (Throwable ignored) {
                 }
             }

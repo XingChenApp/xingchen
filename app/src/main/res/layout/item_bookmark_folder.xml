@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 照官 8.83 布局原样重建（apktool 官包 res） -->
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/item_bg"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="5.0dip"
+    android:layout_marginEnd="5.0dip"
+    android:layout_marginBottom="10.0dip"
+    app:cardBackgroundColor="@color/white"
+    app:cardCornerRadius="8.0dip"
+    app:cardElevation="0.0dip">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="44.0dip">
+
+        <ImageView
+            android:id="@+id/item_icon"
+            android:layout_width="20.0dip"
+            android:layout_height="20.0dip"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="8.0dip"
+            android:layout_marginEnd="3.0dip"
+            android:scaleType="centerCrop" />
+
+        <TextView
+            android:id="@+id/item_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_toEndOf="@id/item_icon"
+            android:gravity="center_vertical"
+            android:lines="1"
+            android:maxLines="1"
+            android:minHeight="32.0dip"
+            android:paddingStart="5.0dip"
+            android:paddingEnd="5.0dip"
+            android:textColor="@color/blackText" />
+    </RelativeLayout>
+</androidx.cardview.widget.CardView>

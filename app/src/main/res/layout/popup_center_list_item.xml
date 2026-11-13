@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 照官 8.83 布局原样重建（官包内嵌 XPopup 的条目布局；XPopup 2.9.0
+     的 CenterListPopupView 按 tv_text/iv_image/check_view 三个 id 绑，
+     与官布局 id 逐字对得上，故以应用资源同名落，DialogUtil 引用不变） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?android:selectableItemBackground"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="18.0dip"
+        android:paddingTop="12.0dip"
+        android:paddingEnd="18.0dip"
+        android:paddingBottom="12.0dip">
+
+        <ImageView
+            android:id="@+id/iv_image"
+            android:layout_width="22.0dip"
+            android:layout_height="22.0dip"
+            android:layout_marginEnd="6.0dip" />
+
+        <TextView
+            android:id="@+id/tv_text"
+            android:layout_width="0.0dip"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.0"
+            android:ellipsize="end"
+            android:lines="1"
+            android:textColor="@color/_xpopup_title_color"
+            android:textSize="16.5sp" />
+
+        <com.lxj.xpopup.widget.CheckView
+            android:id="@+id/check_view"
+            android:layout_width="30.0dip"
+            android:layout_height="30.0dip"
+            android:layout_gravity="center_vertical" />
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 照官 8.83 布局原样重建（apktool 官包 res）：长按自由复制弹窗 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_round"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_round">
+
+        <TextView
+            android:id="@+id/code"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:paddingStart="15.0dip"
+            android:paddingEnd="15.0dip"
+            android:text="@string/hk_code"
+            android:textColor="@color/black_666"
+            android:textSize="18.0sp" />
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_toStartOf="@id/code"
+            android:ellipsize="end"
+            android:lines="1"
+            android:maxLines="1"
+            android:padding="15.0dip"
+            android:text="长按自由复制"
+            android:textColor="#ff000000"
+            android:textSize="20.0sp" />
+    </RelativeLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/movie_one_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5.0dip"
+            android:layout_marginEnd="5.0dip"
+            android:clickable="true"
+            android:ellipsize="end"
+            android:enabled="true"
+            android:focusable="true"
+            android:lineSpacingExtra="10.0dip"
+            android:longClickable="true"
+            android:paddingStart="4.0dip"
+            android:paddingTop="10.0dip"
+            android:paddingEnd="4.0dip"
+            android:paddingBottom="10.0dip"
+            android:textColor="@color/blackText"
+            android:textIsSelectable="true"
+            android:textSize="15.0sp" />
+    </ScrollView>
+</LinearLayout>

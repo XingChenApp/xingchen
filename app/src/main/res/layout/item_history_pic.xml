@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 官 item_history_pic 重建。两处第三方视图替换（记名）：
+     BGABadgeRelativeLayout → RelativeLayout（角标绘制不复刻，JS 流程不设角标）；
+     SpinKitView → View（保留 spin_kit 占位，无加载动画）。 -->
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/item_ad_bg"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="10.0dip"
+    android:layout_marginTop="10.0dip"
+    android:layout_marginEnd="10.0dip"
+    app:cardCornerRadius="8.0dip"
+    app:cardElevation="0.0dip">
+
+    <RelativeLayout
+        android:id="@+id/item_bg"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/ripple_white">
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/item_result_img_bg"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8.0dip"
+            android:layout_marginTop="8.0dip"
+            android:layout_marginEnd="5.0dip"
+            android:layout_marginBottom="8.0dip"
+            app:cardCornerRadius="8.0dip"
+            app:cardElevation="0.0dip">
+
+            <ImageView
+                android:id="@+id/item_reult_img"
+                android:layout_width="70.0dip"
+                android:layout_height="96.0dip"
+                android:background="@drawable/ripple_white"
+                android:scaleType="centerCrop"
+                android:src="@color/gray_rice" />
+        </androidx.cardview.widget.CardView>
+
+        <RelativeLayout
+            android:id="@+id/title_bg"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignTop="@id/item_result_img_bg"
+            android:layout_toEndOf="@id/item_result_img_bg"
+            android:minHeight="96.0dip"
+            android:padding="5.0dip">
+
+            <TextView
+                android:id="@+id/item_ad_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="5.0dip"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/blackText"
+                android:textSize="16.5sp" />
+
+            <TextView
+                android:id="@+id/item_ad_url"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/item_ad_title"
+                android:layout_centerVertical="true"
+                android:ellipsize="end"
+                android:maxLines="1" />
+
+            <TextView
+                android:id="@+id/item_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/item_ad_url"
+                android:layout_centerVertical="true"
+                android:ellipsize="end"
+                android:maxLines="1" />
+
+            <TextView
+                android:id="@+id/item_history"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/item_status"
+                android:layout_centerVertical="true"
+                android:ellipsize="end"
+                android:maxLines="1" />
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/item_video_card"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_alignParentBottom="true"
+                android:visibility="gone"
+                app:cardCornerRadius="8.0dip"
+                app:cardElevation="0.0dip">
+
+                <TextView
+                    android:id="@+id/item_video"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:lines="1"
+                    android:maxLines="1"
+                    android:paddingStart="5.0dip"
+                    android:paddingTop="3.0dip"
+                    android:paddingEnd="5.0dip"
+                    android:paddingBottom="3.0dip" />
+            </androidx.cardview.widget.CardView>
+        </RelativeLayout>
+
+        <View
+            android:id="@+id/spin_kit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:layout_marginStart="10.0dip"
+            android:layout_marginEnd="10.0dip"
+            android:layout_toStartOf="@id/title_bg"
+            android:padding="10.0dip"
+            android:visibility="invisible" />
+    </RelativeLayout>
+</androidx.cardview.widget.CardView>

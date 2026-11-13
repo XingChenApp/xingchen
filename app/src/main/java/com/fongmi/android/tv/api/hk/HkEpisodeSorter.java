@@ -30,12 +30,11 @@ import java.util.Map;
  *    保护不动，不拿标题文案猜）；
  * 4. 带规则标记的条目（@lazyRule= / js: / magnet: / ed2k: / thunder:)
  *    是引擎解析型入口，永远保留，不参与聚类剔除。此「保留」只对已过
- *    HkEpisodeQualifier 资格判定的候选成立（即时动作型 lazy 已在判定层
- *    出局），不是对整页解析型条目的无条件放行。
+ *    段收编（HkChapters 连续段＋干跑 ACTION 复核，账 §十）的候选成立，
+ *    不是对整页解析型条目的无条件放行。
  *
- * 输入 urls 是已通过选集资格判定（HkEpisodeQualifier：头卡/图片/动作/导航
- * 已剔）的同一线路候选，保序；本类的聚类/编号门只在过关候选内整理，
- * 不再充当整页扫入的过滤层（钉根账 playpage-episode-pollution-dig-20261111）。
+ * 输入 urls 是段收编后的同一线路候选，保序；本类的聚类/编号门只在
+ * 候选内整理，不再充当整页扫入的过滤层（钉根账 playpage-episode-pollution-dig-20261111）。
  * 返回与输入等长的 keep 标记。
  */
 public final class HkEpisodeSorter {
