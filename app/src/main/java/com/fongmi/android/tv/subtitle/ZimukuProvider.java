@@ -2,6 +2,7 @@ package com.fongmi.android.tv.subtitle;
 
 import android.net.Uri;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.fongmi.android.tv.setting.SubtitleSetting;
 import com.github.catvod.net.OkHttp;
@@ -19,6 +20,7 @@ import java.util.regex.Pattern;
  */
 public class ZimukuProvider implements SubtitleProvider {
 
+    private static final String TAG = "ZimukuProvider";
     private static final String BASE = "https://zimuku.org";
     private static final String BASE_FALLBACK = "http://www.zimuku.la";
 
@@ -111,7 +113,9 @@ public class ZimukuProvider implements SubtitleProvider {
                 String dl = d.group(1);
                 return dl.startsWith("http") ? dl : base + dl;
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 失败留痕；空串是既有失败值，上层据此回 null 并提示下载失败。
+            Log.w(TAG, "resolveDownloadUrl failed", t);
         }
         return "";
     }

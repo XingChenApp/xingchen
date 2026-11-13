@@ -118,6 +118,12 @@ public class Nano extends NanoHTTPD {
             if (path.isEmpty()) path = INDEX;
             if ("m".equals(path)) path = "manage.html";
             InputStream is = Asset.open(path);
+            // Asset.open 打不开是返回 null、不抛错：不判空就会拿着空流回
+            // 200＋按扩展名编的 mime＋空体，不存在的文件也装成功（播放列表的
+            // 相对分段名落到这里时，播放器把两千多个空包当真分段吞下判废）。
+            // 判空把下面本就有的 NOT_FOUND 分支接活：文件不存在就诚实回 404，
+            // 拿真资源的路径形态一字不动。
+            if (is == null) return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_HTML, null, 0);
             return newFixedLengthResponse(Response.Status.OK, getMimeTypeForFile(path), is, -1);
         } catch (Exception e) {
             return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_HTML, null, 0);

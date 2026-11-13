@@ -345,7 +345,8 @@ public final class HomePrewarm {
             List<Site> cs = null;
             try {
                 cs = VodConfig.get().getSites();
-            } catch (Throwable ignored) {
+            } catch (Throwable e) {
+                com.github.catvod.crawler.SpiderDebug.log("prewarm", "config sites read failed, continue with plugin sites only: " + e.getMessage());
             }
             configSites = cs == null ? new ArrayList<Site>() : cs;
         }

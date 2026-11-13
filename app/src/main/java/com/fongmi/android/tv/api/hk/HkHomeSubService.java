@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
+import android.util.Log;
 import android.widget.Toast;
 
 import com.fongmi.android.tv.App;
@@ -54,6 +55,7 @@ public class HkHomeSubService {
     private static final String PREFS_SUBSCRIBE = "hk_subscribe";
     private static final String KEY_SUB_SILENCE = "homeRuleSubSilence";
     private static final long DAY_MS = 0x5265c00L;
+    private static final String TAG = "HkHomeSubService";
     private static final Gson GSON = new Gson();
     private static final Type LIST_TYPE = TypeToken.getParameterized(List.class, HkSubscribeRecord.class).getType();
     private static final Type HISTORY_LIST_TYPE = TypeToken.getParameterized(List.class, HkSubscribeHistory.class).getType();
@@ -207,29 +209,71 @@ public class HkHomeSubService {
         return new File(HkJsRuntime.getFilePath("hiker://files/rules/cache/sub_history.txt"));
     }
 
+    /**
+     * 账本读失败标（路径获取失败/读解析失败）：置位期间 saveHistories
+     * 拒绝整表覆盖，防「读不出按空表 → 写回把原账本抹掉」（批 residual）。
+     */
+    private static volatile boolean historiesUnreadable = false;
+
     /** 官 getHistories 转写：文件不存在/为空回空表，余 parseArray 读。 */
     public static List<HkSubscribeHistory> getHistories() {
+        File f;
         try {
-            File f = historyFile();
-            if (!f.exists()) return new ArrayList<>();
+            f = historyFile();
+        } catch (Throwable t) {
+            // 路径都拿不到与「没有历史」不许同形：置读失败标，saveHistories
+            // 据此拒绝覆盖，账本原文件不被空表写回抹掉。
+            historiesUnreadable = true;
+            Log.e(TAG, "订阅历史账本路径获取失败", t);
+            return new ArrayList<>();
+        }
+        if (!f.exists()) {
+            historiesUnreadable = false;
+            return new ArrayList<>();
+        }
+        try {
             String json = new String(Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8);
-            if (json == null || json.trim().isEmpty()) return new ArrayList<>();
+            if (json == null || json.trim().isEmpty()) {
+                historiesUnreadable = false;
+                return new ArrayList<>();
+            }
             List<HkSubscribeHistory> list = GSON.fromJson(json, HISTORY_LIST_TYPE);
+            historiesUnreadable = false;
             return list != null ? list : new ArrayList<>();
         } catch (Throwable t) {
+            // 文件在盘上但读/解析失败 != 真空：先把坏账本备份成 .bad 再回空
+            // （批 fix349）；备份成功＝原数据已保全，后续写新表不算抹数据；
+            // 备份也失败才置读失败标，saveHistories 据此拒绝整表覆盖（批 residual）。
+            Log.e(TAG, "订阅历史账本读取失败，已备份坏文件", t);
+            boolean backedUp = false;
+            try {
+                File bad = new File(f.getParentFile(), f.getName() + ".bad");
+                Files.copy(f.toPath(), bad.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                backedUp = true;
+            } catch (Throwable ignored) {
+            }
+            historiesUnreadable = !backedUp;
             return new ArrayList<>();
         }
     }
 
     /** 官 saveHistories 转写：整表 JSON 写账本文件。 */
-    public static void saveHistories(List<HkSubscribeHistory> histories) {
+    public static boolean saveHistories(List<HkSubscribeHistory> histories) {
+        if (historiesUnreadable) {
+            // 上次读账本失败（路径/解析）时按空表组装出的新表不许覆写原账本。
+            Log.e(TAG, "订阅历史账本此前读取失败，拒绝整表覆盖保存");
+            return false;
+        }
         try {
             File f = historyFile();
             File parent = f.getParentFile();
             if (parent != null && !parent.exists()) parent.mkdirs();
             String json = GSON.toJson(histories != null ? histories : new ArrayList<>());
             Files.write(f.toPath(), json.getBytes(StandardCharsets.UTF_8));
-        } catch (Throwable ignored) {
+            return true;
+        } catch (Throwable t) {
+            Log.e(TAG, "订阅历史账本写入失败", t);
+            return false;
         }
     }
 
@@ -453,24 +497,30 @@ public class HkHomeSubService {
                     h.setVersion(joVersion);
                 }
                 if (existing.getVersion() >= joVersion) continue;
-                changed++;
                 // 保留旧 group 后覆盖：group 写回 JO 对象再落盘，其余字段照 JO。
                 obj.addProperty("group", existing.getGroup());
                 HkRule merged = GSON.fromJson(obj, HkRule.class);
                 try {
                     env.saveRule(merged, obj.toString());
                     installed.put(title, merged);
-                } catch (Throwable ignored) {
+                    changed++;
+                } catch (Throwable t) {
+                    // 保存失败不许计入变更数：记日志并 toast 让用户感知（批 fix349）。
+                    Log.e(TAG, "订阅更新保存规则失败：" + title, t);
+                    env.toast("规则保存失败：" + title);
                 }
             } else {
                 if (record.isOnlyUpdate()) continue;
                 HkSubscribeHistory h = histories.get(title);
                 if (h != null && h.getVersion() >= joVersion) continue;
-                changed++;
                 try {
                     env.saveRule(jo, obj.toString());
                     installed.put(title, jo);
-                } catch (Throwable ignored) {
+                    changed++;
+                } catch (Throwable t) {
+                    Log.e(TAG, "订阅新增保存规则失败：" + title, t);
+                    env.toast("规则保存失败：" + title);
+                    continue;
                 }
                 if (h == null) {
                     histories.put(title, new HkSubscribeHistory(title, joVersion, record.getTitle()));
@@ -557,13 +607,18 @@ public class HkHomeSubService {
         }
     }
 
-    public static void setSubSilence(boolean silence) {
+    /** @return 是否真存上；失败回 false 并留痕，不许开关静默变回去（批 residual）。 */
+    public static boolean setSubSilence(boolean silence) {
         try {
             Context c = ctx();
-            if (c == null) return;
-            c.getSharedPreferences(PREFS_SUBSCRIBE, Context.MODE_PRIVATE)
-                    .edit().putBoolean(KEY_SUB_SILENCE, silence).apply();
-        } catch (Throwable ignored) {
+            if (c == null) return false;
+            boolean ok = c.getSharedPreferences(PREFS_SUBSCRIBE, Context.MODE_PRIVATE)
+                    .edit().putBoolean(KEY_SUB_SILENCE, silence).commit();
+            if (!ok) Log.e(TAG, "订阅静默设置保存失败：commit 返回 false");
+            return ok;
+        } catch (Throwable t) {
+            Log.e(TAG, "订阅静默设置保存失败", t);
+            return false;
         }
     }
 }

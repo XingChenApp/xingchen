@@ -27,6 +27,12 @@ viewpager2 = "1.1.0"
 constraintlayout = "2.1.4"
 webkit = "1.16.0"
 
+coroutines = "1.6.1"
+litepal = "2.0.0"
+statusBarCompat = "0.7"
+notchScreenTool = "0.0.1"
+subsamplingScaleImageView = "3.10.0"
+
 androidGifDrawable = "1.2.31"
 androidautosize = "1.2.1"
 brotli = "0.1.2"
@@ -95,6 +101,11 @@ compose-ui = { group = "androidx.compose.ui", name = "ui" }
 compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
 compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+litepal = { group = "org.litepal.android", name = "core", version.ref = "litepal" }
+statusbar-compat = { group = "com.githang", name = "status-bar-compat", version.ref = "statusBarCompat" }
+notch-screen-tool = { group = "com.github.smarxpan", name = "NotchScreenTool", version.ref = "notchScreenTool" }
+subsampling-scale-image-view-androidx = { group = "com.davemorrissey.labs", name = "subsampling-scale-image-view-androidx", version.ref = "subsamplingScaleImageView" }
 
 android-gif-drawable = { group = "pl.droidsonroids.gif", name = "android-gif-drawable", version.ref = "androidGifDrawable" }
 androidautosize = { group = "com.github.JessYanCoding", name = "AndroidAutoSize", version.ref = "androidautosize" }

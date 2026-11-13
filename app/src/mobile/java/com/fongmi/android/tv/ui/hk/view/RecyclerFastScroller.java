@@ -56,6 +56,7 @@ public class RecyclerFastScroller extends FrameLayout {
     private final Runnable mHide;
     private int mHideDelay;
     private boolean mHideOverride;
+    private boolean mScrollBroken;
     private boolean mHidingEnabled;
     private int mMaxScrollHandleHeight;
     private int mMinScrollHandleHeight;
@@ -384,11 +385,19 @@ public class RecyclerFastScroller extends FrameLayout {
     }
 
     void updateRvScroll(int dy) {
+        if (mScrollBroken) return;
         if (mRecyclerView != null && mHandle != null) {
             try {
                 mRecyclerView.scrollBy(0, dy);
             } catch (Throwable t) {
-                t.printStackTrace();
+                // 滚动失败不再静默拖不动（残项处置 2026-11-14）：留痕并摘掉
+                // 快滚条（把手禁用＋隐藏），用户看得出快滚已失效、列表本体
+                // 仍可正常手滑；不逐次重试、不逐次刷屏。
+                mScrollBroken = true;
+                Log.e("RecyclerFastScroller", "updateRvScroll scrollBy 失败，快滚条已停用", t);
+                if (mHandle != null) mHandle.setEnabled(false);
+                mHideOverride = true;
+                setTranslationX((float) mHiddenTranslationX);
             }
         }
     }

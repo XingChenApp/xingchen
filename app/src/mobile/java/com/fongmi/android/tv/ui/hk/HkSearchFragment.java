@@ -391,7 +391,10 @@ public class HkSearchFragment extends Fragment implements HkSearchModel.Callback
                 default:
                     break;
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            // 条目变更事件处理失败不再静默停在旧状态（残项处置 2026-11-14）。
+            Log.e(TAG, "onItemModify failed", e);
+            HkRouteBlocker.toastShortBottom(getContext(), "条目更新失败，列表可能未同步");
         }
     }
 
@@ -489,7 +492,14 @@ public class HkSearchFragment extends Fragment implements HkSearchModel.Callback
                 progressView1.setVisibility(View.INVISIBLE);
             }
         } catch (Exception e) {
-            Log.e(TAG, "hk error", e);
+            // 加载圈显隐失败（多为动画启动失败）不再静默（残项处置 2026-11-14）：
+            // 退到只设可见性把指示状态落对，动画那部分失败留痕可查。
+            Log.e(TAG, "loading 指示动画失败，退到仅设可见性：show=" + show, e);
+            try {
+                progressView1.setVisibility(show ? View.VISIBLE : View.INVISIBLE);
+            } catch (Exception e2) {
+                Log.e(TAG, "loading 指示可见性设置失败：show=" + show, e2);
+            }
         }
     }
 
@@ -506,7 +516,10 @@ public class HkSearchFragment extends Fragment implements HkSearchModel.Callback
             String json = new Gson().toJson(list);
             activity.runOnUiThread(() -> bindArrayOnUi(list, json, smode));
         } catch (Exception e) {
-            Log.e(TAG, "hk error", e);
+            // 结果落表失败不再静默停在空白/加载态（残项处置 2026-11-14）：
+            // 走本页既有 error 失败出口（灭圈、置失败状态、收刷新）。
+            Log.e(TAG, "bindArrayToView 搜索结果落表失败", e);
+            error("解析失败", "搜索结果处理失败：" + e, "500", e);
         }
     }
 

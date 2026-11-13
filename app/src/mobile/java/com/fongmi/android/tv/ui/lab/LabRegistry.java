@@ -107,6 +107,13 @@ public final class LabRegistry {
         return n;
     }
 
+    /** load 之外的实验室失败（如开机自启整轮没跑完）也借这个口给首页弹一次；
+     * 已有未读提示时不覆盖，先到的先给人看 */
+    public static synchronized void postLoadNotice(String s) {
+        if (s == null || s.isEmpty()) return;
+        if (loadNotice == null || loadNotice.isEmpty()) loadNotice = s;
+    }
+
     private static LabRegistry cache;
 
     private LabRegistry() {

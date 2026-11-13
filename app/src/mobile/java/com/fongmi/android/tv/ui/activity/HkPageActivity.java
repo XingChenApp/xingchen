@@ -198,6 +198,9 @@ public class HkPageActivity extends BaseActivity {
     /** 自定义分组（本地 prefs，不改 rule.json）：有序分组名 / 标题→分组覆盖 / 自定义顺序（null=未自定义） */
     private final List<String> customGroups = new ArrayList<>();
     private final Map<String, String> ruleGroupMap = new HashMap<>();
+    // 分组存档解析失败标记：置位时保存口拒绝覆盖 prefs 原文（防按空分组把用户自建分组冲掉）
+    private boolean customGroupsLoadFailed;
+    private boolean ruleGroupsLoadFailed;
     private List<String> customOrder = null;
     private ItemTouchHelper ruleTouchHelper;
     // 编辑模式拖拽到分组 pills：拖拽状态（排序快照用于投放分组时回滚换位）
@@ -813,15 +816,15 @@ public class HkPageActivity extends BaseActivity {
             // 同一口令只提示一次
             SharedPreferences sp = getSharedPreferences(PREFS, MODE_PRIVATE);
             if (code.equals(sp.getString(KEY_LAST_CLIP, ""))) return;
-            sp.edit().putString(KEY_LAST_CLIP, code).apply();
             new HkDialogs(this)
                     .setTitle("检测到云口令")
                     .setMessage("剪贴板中有海阔云口令，是否立即导入？\n\n" + code)
                     .setPositiveButton("导入", (d, w) -> importByCloudCode(code))
                     .setNegativeButton("取消", null)
                     .show();
+            sp.edit().putString(KEY_LAST_CLIP, code).apply();
         } catch (Exception e) {
-            e.printStackTrace();
+            android.util.Log.e("HkPage", "checkClipboardForCloudCode failed", e);
         }
     }
 
@@ -1284,24 +1287,36 @@ public class HkPageActivity extends BaseActivity {
     }
 
     private void loadCustomRuleData() {
-        customGroups.clear();
-        ruleGroupMap.clear();
+        // 先解析到临时表、成功才换入：解析失败不许按空分组覆盖用户自建分组，
+        // 置失败标记让保存口拒绝回写（存档原文留在 prefs 里不丢），并用本页既有 toast 显形。
         try {
             JSONArray arr = new JSONArray(getPrefs().getString(KEY_CUSTOM_GROUPS, "[]"));
+            List<String> parsedGroups = new ArrayList<>();
             for (int i = 0; i < arr.length(); i++) {
                 String g = arr.optString(i);
-                if (!TextUtils.isEmpty(g) && !customGroups.contains(g)) customGroups.add(g);
+                if (!TextUtils.isEmpty(g) && !parsedGroups.contains(g)) parsedGroups.add(g);
             }
-        } catch (Exception ignored) {
+            customGroups.clear();
+            customGroups.addAll(parsedGroups);
+            customGroupsLoadFailed = false;
+        } catch (Exception e) {
+            customGroupsLoadFailed = true;
+            ToastUtil.show(this, "自定义分组读取失败", android.widget.Toast.LENGTH_SHORT);
         }
         try {
             JSONObject obj = new JSONObject(getPrefs().getString(KEY_RULE_GROUPS, "{}"));
+            Map<String, String> parsedMap = new HashMap<>();
             Iterator<String> keys = obj.keys();
             while (keys.hasNext()) {
                 String k = keys.next();
-                ruleGroupMap.put(k, obj.optString(k, ""));
+                parsedMap.put(k, obj.optString(k, ""));
             }
-        } catch (Exception ignored) {
+            ruleGroupMap.clear();
+            ruleGroupMap.putAll(parsedMap);
+            ruleGroupsLoadFailed = false;
+        } catch (Exception e) {
+            ruleGroupsLoadFailed = true;
+            ToastUtil.show(this, "规则分组读取失败", android.widget.Toast.LENGTH_SHORT);
         }
         customOrder = null;
         try {
@@ -1317,15 +1332,24 @@ public class HkPageActivity extends BaseActivity {
     }
 
     private void saveCustomGroups() {
+        if (customGroupsLoadFailed) {
+            ToastUtil.show(this, "分组读取失败，本次修改无法保存", android.widget.Toast.LENGTH_SHORT);
+            return;
+        }
         getPrefs().edit().putString(KEY_CUSTOM_GROUPS, new JSONArray(customGroups).toString()).apply();
     }
 
     private void saveRuleGroupMap() {
+        if (ruleGroupsLoadFailed) {
+            ToastUtil.show(this, "分组读取失败，本次修改无法保存", android.widget.Toast.LENGTH_SHORT);
+            return;
+        }
         try {
             JSONObject obj = new JSONObject();
             for (Map.Entry<String, String> e : ruleGroupMap.entrySet()) obj.put(e.getKey(), e.getValue());
             getPrefs().edit().putString(KEY_RULE_GROUPS, obj.toString()).apply();
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            ToastUtil.show(this, "规则分组保存失败", android.widget.Toast.LENGTH_SHORT);
         }
     }
 
@@ -3290,7 +3314,8 @@ public class HkPageActivity extends BaseActivity {
                         share.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(out));
                         startActivity(Intent.createChooser(share, "分享规则文件"));
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        android.util.Log.e("HkPage", "export share failed", e);
+                        Notify.show("文件已导出，但分享打开失败");
                     }
                 });
             } catch (Exception e) {
@@ -3313,7 +3338,8 @@ public class HkPageActivity extends BaseActivity {
                         share.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(out));
                         startActivity(Intent.createChooser(share, "分享规则包"));
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        android.util.Log.e("HkPage", "export share failed", e);
+                        Notify.show("文件已导出，但分享打开失败");
                     }
                 });
             } catch (Exception e) {
@@ -3336,7 +3362,8 @@ public class HkPageActivity extends BaseActivity {
                         share.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(out));
                         startActivity(Intent.createChooser(share, "分享规则包"));
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        android.util.Log.e("HkPage", "export share failed", e);
+                        Notify.show("文件已导出，但分享打开失败");
                     }
                 });
             } catch (Exception e) {
@@ -3778,6 +3805,7 @@ public class HkPageActivity extends BaseActivity {
 
     /** 表单式编辑小程序（按 8.83 ArticleListRuleEditActivity）：四个可折叠分区，保存写回 rule.json。 */
     private void showRuleFormEditor(HkRule rule) {
+        if (isFinishing() || isDestroyed()) return;
         final JSONObject obj;
         try {
             String raw = HkRuleManager.get().loadRuleJson(rule.getTitle());
@@ -4886,6 +4914,7 @@ public class HkPageActivity extends BaseActivity {
      * pics=漫画图片列表 / x5=webview规则 / web=网页 / image=图片查看 / magnet=分享。
      */
     private void handleDealUrl(String kind, String url, HkItem item) {
+        if (isFinishing() || isDestroyed()) return;
         if (TextUtils.isEmpty(url)) return;
         try {
             switch (kind) {
@@ -5090,13 +5119,17 @@ public class HkPageActivity extends BaseActivity {
     private void playDetailEpisode(HkItem it, String url) {
         new Thread(() -> {
             String playUrl = url;
+            boolean parseFailed = false;
             try {
                 if (url.contains("@lazyRule=") || url.contains("@rule=") || url.startsWith("js:")) {
                     HkPlay play = getRouter().play(url, it.getExtra());
                     if (!play.getUrl().isEmpty()) playUrl = play.getUrl();
                 }
-            } catch (Throwable ignored) {
+            } catch (Throwable e) {
+                // 解析抛错不许拿未解析的原串顶替播放地址：置空走下方既有「解析失败」提示
+                parseFailed = true;
             }
+            if (parseFailed) playUrl = "";
             // 8.83 getChapters 官形（HkChapters 移植，账 §十）：以被点条目为锚
             // 只收相邻同 col_type 连续段（或 cls 含 playlist 的同组），段外条目
             // 结构上进不来——旧「整页扫＋逐条资格判定」必然拉进别的区块、
@@ -5156,11 +5189,14 @@ public class HkPageActivity extends BaseActivity {
         final List<HkItem> snapshot = new ArrayList<>(videos);
         new Thread(() -> {
             String playUrl = url;
+            boolean parseFailed = false;
             try {
                 HkPlay play = getRouter().play(url, it.getExtra());
                 if (!play.getUrl().isEmpty()) playUrl = play.getUrl();
-            } catch (Throwable ignored) {
+            } catch (Throwable e) {
+                parseFailed = true;
             }
+            if (parseFailed) playUrl = "";
             // 8.83 getChapters 官形（同 playDetailEpisode，HkChapters 移植，账 §十）。
             int clickedPos = -1;
             for (int i = 0; i < snapshot.size(); i++) {
@@ -5585,7 +5621,9 @@ public class HkPageActivity extends BaseActivity {
                         url.substring("base64://".length()).trim(), 2)).trim();
                 url = decoded;
                 it.setUrl(decoded);
-            } catch (Throwable ignored) {
+            } catch (Throwable e) {
+                ToastUtil.show(this, "链接解码失败，规则有误！", android.widget.Toast.LENGTH_SHORT);
+                return;
             }
         }
         if (handleActionUrl(url, it)) return;
@@ -5677,13 +5715,16 @@ public class HkPageActivity extends BaseActivity {
     private void playContentDirect(HkItem it, String url) {
         new Thread(() -> {
             String playUrl = url;
+            boolean parseFailed = false;
             try {
                 if (url.contains("@lazyRule=") || url.contains("@rule=") || url.startsWith("js:")) {
                     HkPlay play = getRouter().play(url, it.getExtra());
                     if (!play.getUrl().isEmpty()) playUrl = play.getUrl();
                 }
-            } catch (Throwable ignored) {
+            } catch (Throwable e) {
+                parseFailed = true;
             }
+            if (parseFailed) playUrl = "";
             final String pu = playUrl;
             App.post(() -> {
                 if (TextUtils.isEmpty(pu)) {
@@ -5704,7 +5745,9 @@ public class HkPageActivity extends BaseActivity {
                             pu, it.getTitle(), it.getTitle(),
                             it.getPic() == null ? "" : it.getPic(),
                             arr.toString(), 0);
-                } catch (Throwable ignored) {
+                } catch (Throwable e) {
+                    ToastUtil.show(HkPageActivity.this, "无法播放此链接",
+                            android.widget.Toast.LENGTH_SHORT);
                 }
             });
         }).start();
@@ -6165,6 +6208,7 @@ public class HkPageActivity extends BaseActivity {
      * </ul>
      */
     private boolean handleActionUrl(String url, HkItem it) {
+        if (isFinishing() || isDestroyed()) return true;
         try {
             if (url.startsWith("toast://")) {
                 ToastUtil.show(this, url.substring(8), android.widget.Toast.LENGTH_SHORT);
@@ -6245,13 +6289,19 @@ public class HkPageActivity extends BaseActivity {
                 final String code = js;
                 new Thread(() -> {
                     String target = "";
+                    String evalErr = null;
                     try {
                         target = getRouter().getEngine().getJsRuntime().evalLazy(code, "");
-                    } catch (Throwable ignored) {
+                    } catch (Throwable e) {
+                        evalErr = e.getMessage() == null || e.getMessage().isEmpty()
+                                ? "执行失败" : e.getMessage();
                     }
                     final String t = target == null ? "" : target.trim();
+                    final String fe = evalErr;
                     App.post(() -> {
-                        if (t.startsWith("http")) showWebViewDialog(t);
+                        if (fe != null) {
+                            ToastUtil.show(this, "执行失败：" + fe, android.widget.Toast.LENGTH_SHORT);
+                        } else if (t.startsWith("http")) showWebViewDialog(t);
                         else if (!t.isEmpty())
                             ToastUtil.show(this, t, android.widget.Toast.LENGTH_SHORT);
                     });
@@ -6521,14 +6571,16 @@ public class HkPageActivity extends BaseActivity {
                     }
                 });
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable e) {
+            ToastUtil.show(this, "打开网页失败", android.widget.Toast.LENGTH_SHORT);
         }
         holder.setLazyRuleConsumer(u -> {
             try {
                 HkItem nav = new HkItem();
                 nav.setUrl(u);
                 onContentItemClick(nav);
-            } catch (Throwable ignored) {
+            } catch (Throwable e) {
+                ToastUtil.show(HkPageActivity.this, "无法打开链接", android.widget.Toast.LENGTH_SHORT);
             }
         });
         holder.setBridgeOpenHandler(new HkWebkitHolder.BridgeOpenHandler() {
@@ -6539,7 +6591,8 @@ public class HkPageActivity extends BaseActivity {
                     nav.setTitle(title);
                     nav.setUrl(url);
                     onContentItemClick(nav);
-                } catch (Throwable ignored) {
+                } catch (Throwable e) {
+                    ToastUtil.show(HkPageActivity.this, "无法打开链接", android.widget.Toast.LENGTH_SHORT);
                 }
             }
 
@@ -6565,7 +6618,8 @@ public class HkPageActivity extends BaseActivity {
                     if (!TextUtils.isEmpty(extraJson)) nav.setExtra(extraJson);
                     if (!TextUtils.isEmpty(pages)) nav.setPages(pages);
                     onContentItemClick(nav);
-                } catch (Throwable ignored) {
+                } catch (Throwable e) {
+                    ToastUtil.show(HkPageActivity.this, "无法打开链接", android.widget.Toast.LENGTH_SHORT);
                 }
             }
         });
@@ -6577,7 +6631,8 @@ public class HkPageActivity extends BaseActivity {
                 urls.add(url);
                 try {
                     new HkDetailBridge().showImageViewer(urls, 0, null, null);
-                } catch (Throwable ignored) {
+                } catch (Throwable e) {
+                    ToastUtil.show(HkPageActivity.this, "图片打开失败", android.widget.Toast.LENGTH_SHORT);
                 }
             }
 
@@ -6590,7 +6645,8 @@ public class HkPageActivity extends BaseActivity {
                     req.pics = new java.util.ArrayList<>(urls);
                     req.url = pageUrl;
                     new HkDetailBridge().openPictureList(HkPageActivity.this, req);
-                } catch (Throwable ignored) {
+                } catch (Throwable e) {
+                    ToastUtil.show(HkPageActivity.this, "图片打开失败", android.widget.Toast.LENGTH_SHORT);
                 }
             }
         });
@@ -6599,7 +6655,8 @@ public class HkPageActivity extends BaseActivity {
             public void playVideo(String title, String url) {
                 try {
                     new HkDetailBridge().startPlayerSingle(HkPageActivity.this, title, url);
-                } catch (Throwable ignored) {
+                } catch (Throwable e) {
+                    ToastUtil.show(HkPageActivity.this, "无法播放此链接", android.widget.Toast.LENGTH_SHORT);
                 }
             }
 
@@ -6621,7 +6678,8 @@ public class HkPageActivity extends BaseActivity {
                         chapters.add(ch);
                     }
                     new HkDetailBridge().startPlayerChapters(HkPageActivity.this, chapters, null, null, null);
-                } catch (Throwable ignored) {
+                } catch (Throwable e) {
+                    ToastUtil.show(HkPageActivity.this, "无法播放此链接", android.widget.Toast.LENGTH_SHORT);
                 }
             }
         });
@@ -6634,6 +6692,7 @@ public class HkPageActivity extends BaseActivity {
 
     /** WebView 弹窗全承载版：WebView 由 HkWebViewHolder/HkWebkitHolder 创建（全桥＋loadAllJs＋extra/ua/js 透传），关窗销毁 holder。 */
     private void showWebViewDialog(String url, HkItem item) {
+        if (isFinishing() || isDestroyed()) return;
         try {
             HkWebViewHolder holder = new HkWebViewHolder();
             wireWebHolder(holder);
@@ -7829,7 +7888,8 @@ public class HkPageActivity extends BaseActivity {
             new Thread(() -> {
                 try {
                     getRouter().evalTab(tabUrl);
-                } catch (Throwable ignored) {
+                } catch (Throwable e) {
+                    ToastUtil.show(HkPageActivity.this, "页签切换失败", android.widget.Toast.LENGTH_SHORT);
                 }
             }).start();
         }
@@ -7965,7 +8025,11 @@ public class HkPageActivity extends BaseActivity {
                         String key = h.input.getText() == null ? "" : h.input.getText().toString();
                         try {
                             getRouter().getEngine().getJsRuntime().setNextInputOverride(key);
-                        } catch (Throwable ignored) {
+                        } catch (Throwable e) {
+                            // 输入没注入成功不许照常点进去：规则收不到输入只会静默无反应
+                            ToastUtil.show(HkPageActivity.this, "输入传递失败，请重试",
+                                    android.widget.Toast.LENGTH_SHORT);
+                            return true;
                         }
                         onContentItemClick(item);
                     }

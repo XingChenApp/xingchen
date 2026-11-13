@@ -11,7 +11,9 @@ import androidx.cardview.widget.CardView;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.hikerview.R;
+import com.example.hikerview.model.ViewCollection;
 import com.example.hikerview.utils.DisplayUtil;
+import com.example.hikerview.utils.StringUtil;
 
 import java.util.List;
 
@@ -32,7 +34,10 @@ import java.util.List;
  * ③MyDividerItem 官只有 (Context) 构造，插件 JS 以无参构造调用，
  * 星辰补无参构造（context 为空时 getLeftRight 回 0）；
  * ④getLeftRight 的基类官为 ui.view.BaseDividerItem（未移植），
- * 星辰直承 RecyclerView.ItemDecoration。
+ * 星辰直承 RecyclerView.ItemDecoration；
+ * ⑤isWebViewGroup/setWebViewGroup 已照官落（官字段/两法仅布尔存取）；
+ * ⑥getItemViewType 已由①团解锁落码（官 ViewCollection 模型已转写在位，
+ * list 元素照官强转取 getPicUrl；本类 list 仍为 List<?> 插件面签名、记名）。
  */
 public class CollectionListAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
@@ -46,12 +51,26 @@ public class CollectionListAdapter extends RecyclerView.Adapter<RecyclerView.Vie
 
     private final Context context;
     private final List<?> list;
+    private boolean isWebViewGroup;
     private boolean useGrid;
     private OnItemClickListener onItemClickListener;
+
+    /** 官三型常量（CollectionListAdapter.smali 构造 .line 47-49）：noPicType=1、picType=2、gridType=3。 */
+    private final int noPicType = 1;
+    private final int picType = 2;
+    private final int gridType = 3;
 
     public CollectionListAdapter(Context context, List<?> list) {
         this.context = context;
         this.list = list;
+    }
+
+    public final boolean isWebViewGroup() {
+        return this.isWebViewGroup;
+    }
+
+    public final void setWebViewGroup(boolean z) {
+        this.isWebViewGroup = z;
     }
 
     public final boolean getUseGrid() {
@@ -78,6 +97,23 @@ public class CollectionListAdapter extends RecyclerView.Adapter<RecyclerView.Vie
         }
         return new RuleHolder(LayoutInflater.from(this.context)
                 .inflate(R.layout.item_history_pic, parent, false));
+    }
+
+    /**
+     * 官 getItemViewType（CollectionListAdapter.smali .line 95-101）逐字转写（①团解锁，
+     * 官 ViewCollection 模型已落位）：非网页组且 useGrid 回 gridType；picUrl 非空且
+     * 以 "http" 开头回 picType；其余回 noPicType。list 为空的失败形态照官（checkNotNull 后 NPE）。
+     */
+    @Override
+    public int getItemViewType(int position) {
+        String picUrl = ((ViewCollection) this.list.get(position)).getPicUrl();
+        if (!this.isWebViewGroup && this.useGrid) {
+            return this.gridType;
+        }
+        if (!StringUtil.isEmpty(picUrl) && picUrl.startsWith("http")) {
+            return this.picType;
+        }
+        return this.noPicType;
     }
 
     @Override

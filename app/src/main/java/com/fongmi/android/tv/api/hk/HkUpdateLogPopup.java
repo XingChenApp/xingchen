@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.Dialog;
 import android.graphics.Color;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -114,7 +115,15 @@ public class HkUpdateLogPopup {
                 }
                 if (!TextUtils.isEmpty(log.title) || !log.records.isEmpty()) logs.add(log);
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 解析失败不许静默回空（弹窗会整个不弹）：记日志；一条都没解出时
+            // 把原文作一条记录兜底展示，用户至少看得到内容（批 fix349）。
+            Log.e("HkUpdateLogPopup", "更新日志解析失败", t);
+            if (logs.isEmpty()) {
+                VersionLog fallback = new VersionLog();
+                fallback.records.add(jsonData);
+                logs.add(fallback);
+            }
         }
         return logs;
     }

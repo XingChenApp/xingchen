@@ -54,8 +54,8 @@ android {
         applicationId "com.XingChen.tv"
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
-        versionCode 212
-        versionName "1.4.129"
+        versionCode 213
+        versionName "1.4.130"
         buildConfigField "String", "BUILD_TIME", "\"${buildTime}\""
         buildConfigField "String", "BUILD_TAG", "\"${releaseTag}\""
         buildConfigField "String", "GIT_REVISION", "\"${gitRevision}\""
@@ -185,6 +185,36 @@ dependencies {
     // XPopup（官包内嵌同库，2.9.0 的 API 面已逐项对过 AAR）、模型走 fastjson。
     implementation "com.github.li-xiaojun:XPopup:2.9.0"
     implementation "com.alibaba:fastjson:1.2.83"
+    // 海阔缺口·外部小库批（2026-11-14，版本均按官包 8.83 内嵌件核）：
+    // githang 状态栏库：官 BuildConfig VERSION_NAME 0.7 / VERSION_CODE 71
+    // （smali_classes2/com/githang/statusbar/BuildConfig.smali），供
+    // utils.StatusBarCompatUtil 与 MyStatusBarUtil.setColor 两法；原 jcenter
+    // 坐标，库本体零第三方运行时依赖（官 smali 外部引用仅 android.*/java.*）。
+    implementation libs.statusbar.compat
+    // notchlib：官包内嵌 com.smarx.notchlib（BuildConfig VERSION_NAME 1.0），
+    // 无 Maven 中央仓坐标，作者官方分发为 JitPack
+    // com.github.smarxpan:NotchScreenTool:0.0.1（其 README 坐标，类名/方法名
+    // 与官包逐名同），供 utils.ScreenUtil.setDisplayInNotch；零第三方依赖。
+    implementation libs.notch.screen.tool
+    // 协程：官包 original/META-INF/kotlinx_coroutines_{core,android}.version
+    // 均 1.6.1。本批先引作前置件；HeavyTaskUtil 的 cancel/launch 另卡
+    // ThreadTool 返回型（清单外）与官 model/LitePal，未在本批解锁。
+    // 传递件 kotlinx-coroutines-core-jvm、kotlin-stdlib 均为中央仓常规件。
+    implementation libs.kotlinx.coroutines.android
+    // LitePal：官包内嵌同库（org.litepal，Application.onCreate 里 LitePal.initialize＋getDatabase()
+    // .disableWriteAheadLogging() 照官）。官包元数据只有库 BuildConfig 的 VERSION_NAME="1.0"
+    // 占位号、核不到真实发布号，故用与其 API 面（LitePalSupport/FluentQuery/@Column）相容的
+    // 稳定版 2.0.0 记名（①团）。litepal.xml 本树已有且与官逐字同（dbname=hiker、version=54、14 映射）。
+    implementation libs.litepal
+    // SubsamplingScaleImageView：官包内嵌同库（com.davemorrissey.labs.subscaleview，
+    // 官包 BuildConfig 指纹 APPLICATION_ID=com.davemorrissey.labs.subscaleview、
+    // VERSION_NAME="1.0" 与发布件 subsampling-scale-image-view-androidx:3.10.0
+    // 逐字合；官 SubsamplingScaleImageView 引 androidx 版 ExifInterface，故引
+    // androidx 变体）。海阔查看器面 MyImageViewerPopupView 的原图控件
+    // （PopImageLoaderNoView.buildBigImageView），潇洒哥 2026-11-14 亲裁引此库。
+    // 传递闭包仅 androidx.appcompat/annotation/exifinterface，前两者树内已有更高版、
+    // exifinterface 随本件传递声明到（非另引第二件），账见 hk-img-fill-20261114.md。
+    implementation libs.subsampling.scale.image.view.androidx
     implementation "io.github.scwang90:refresh-header-classics:2.0.5"
     implementation "io.github.scwang90:refresh-footer-classics:2.0.5"
     // sherpa-onnx: compileOnly，运行时通过插件动态加载，不打包进 APK

@@ -423,7 +423,11 @@ public class SourceScriptsDialog extends Dialog {
                             jo.put("username", a);
                             jo.put("password", p);
                             json = jo.toString();
-                        } catch (Exception e) { e.printStackTrace(); }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            ToastUtil.show(ctx, "保存失败，账号密码未能写入配置", Toast.LENGTH_SHORT);
+                            return;
+                        }
                     }
                 }
                 // D-04 接线（定稿：登录完成处直接调 Java 入口，不走 runner.py 路）：
@@ -437,18 +441,23 @@ public class SourceScriptsDialog extends Dialog {
                 // 并立即重拉首页。ext 没变时不触发，避免无意义地杀蜘蛛重建。
                 String before = PyExtConfig.load(ctx, key);
                 PyExtConfig.save(ctx, key, json);
+                boolean refreshFailed = false;
                 if (!before.equals(json)) {
                     try {
                         com.fongmi.android.tv.api.SiteApi.refreshHomeAfterLogin(key);
                     } catch (Throwable ignored) {
+                        refreshFailed = true;
                     }
                 }
-                ToastUtil.show(ctx, "已保存", Toast.LENGTH_SHORT);
+                ToastUtil.show(ctx, refreshFailed ? "已保存，但首页刷新失败，回到首页手动刷新一下" : "已保存", Toast.LENGTH_SHORT);
                 dialog.dismiss();
             });
 
             dialog.show();
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+            ToastUtil.show(getContext(), "配置弹窗打开失败，请重试", Toast.LENGTH_SHORT);
+        }
     }
 
 

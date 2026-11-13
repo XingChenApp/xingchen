@@ -5477,7 +5477,12 @@ public class PlayerManager implements ParseCallback {
             // restart 直启路不经 rebuildPlayer，副字幕重放照 rebuildPlayer 口径补上。
             try {
                 if (lastSecondarySubtitleTrack != null) engine.setSecondarySubtitleTrack(lastSecondarySubtitleTrack);
-            } catch (Throwable ignored) {
+            } catch (Throwable error) {
+                // 副字幕没恢复不许无声：照本方法外层失败同款写进播放追踪，查日志能定位。
+                PlaybackTrace.log("mpv-hls-variant", playbackTrace.current(),
+                        "action=%s secondarySubtitleRestore=failed errorType=%s",
+                        decision.action().label(),
+                        error.getClass().getSimpleName());
             }
             App.post(runnable, Constant.TIMEOUT_PLAY);
             return true;

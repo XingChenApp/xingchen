@@ -180,7 +180,12 @@ public class LegadoPipeline {
                 String cs = charsetOverride != null ? charsetOverride : "UTF-8";
                 String b = new String(spec.opt.body, cs);
                 spec.opt.body = renderVars(b, vars).getBytes(cs);
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                // 渲染/转码失败不许带着未渲染原文继续发请求（服务端收到错数据、
+                // 书源静默失败无提示）——按源级错抛回管线调用方明示（349 摘兜底）。
+                throw new LegadoException("请求体变量渲染失败（charset="
+                        + (charsetOverride != null ? charsetOverride : "UTF-8")
+                        + "）: " + t.getMessage());
             }
         }
         return spec;

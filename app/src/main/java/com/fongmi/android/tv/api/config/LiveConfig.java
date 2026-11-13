@@ -138,16 +138,18 @@ public class LiveConfig extends BaseConfig {
     }
 
     @Override
-    public synchronized void ensureLoaded() {
+    public synchronized boolean ensureLoaded() {
         try {
-            if (isLoaded()) return;
-            super.ensureLoaded();
+            if (isLoaded()) return true;
+            boolean ok = super.ensureLoaded();
             // ensureLoaded 是惰性补全钩子，任意访问方（含后台）都可能触发，不是用户点开这个直播：
             // 走静默解析，PY 直播源失败只落强制日志，不弹「PY加载失败」。直播页前台打开仍走 LiveApi.parse。
             LiveApi.parseQuiet(getHome());
             LiveApi.parseXml(getHome());
+            return ok;
         } catch (Throwable e) {
-            e.printStackTrace();
+            android.util.Log.e(TAG, "ensureLoaded failed", e);
+            return false;
         }
     }
 

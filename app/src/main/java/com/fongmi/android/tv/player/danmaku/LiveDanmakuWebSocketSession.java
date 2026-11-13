@@ -249,6 +249,14 @@ public final class LiveDanmakuWebSocketSession {
         try {
             frames = hooks.onOpenFrames();
         } catch (Throwable error) {
+            // 进房帧发不出去这条连接就是死的：不许停在 OPEN 假活，走既有终止／重连路，
+            // 状态变化会报给上层，重连时钩子原样重跑。
+            String failedUrl;
+            synchronized (this) {
+                failedUrl = targetUrl;
+            }
+            if (failedUrl == null) return;
+            handleTermination(socket, callbackGeneration, failedUrl, -1, "open_frames_failed:" + errorName(error), true);
             return;
         }
         if (frames == null) return;

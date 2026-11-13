@@ -21,25 +21,30 @@ public class ClearKey {
     public static ClearKey objectFrom(String str) throws Exception {
         ClearKey item = App.gson().fromJson(str, ClearKey.class);
         if (item.keys == null) throw new Exception();
-        retype(item, str);
+        // 定型失败按本方法既有约定抛给调用方（LiveParser 落回 ClearKey.get
+        // 重组、MediaItemFactory 判 false），不许把未定型 keys 静默交出去。
+        if (!retype(item, str)) throw new Exception("ClearKey retype failed");
         return item;
     }
 
     /**
      * 定型修复（体检类2 回扫补齐）：keys 是 List&lt;Keys&gt;，整包反射读靠类文件 Signature
      * 保型，签名失效时元素退化成 LinkedTreeMap，DRM 消费点强转必崩。这里用程序化构造的
-     * 参数化类型（不读类文件签名）按 JSON 树重读 keys 覆盖；修复自守，读失败保持反射
-     * 结果不动，解析结果一字不变。
+     * 参数化类型（不读类文件签名）按 JSON 树重读 keys 覆盖。回 true 表示已定型或
+     * 本来就没有 keys 数组可定型；重读失败回 false，由 objectFrom 抛给调用方区分。
      */
-    private static void retype(ClearKey item, String str) {
+    private static boolean retype(ClearKey item, String str) {
         try {
             com.google.gson.JsonElement tree = com.google.gson.JsonParser.parseString(str);
-            if (tree == null || !tree.isJsonObject()) return;
+            if (tree == null || !tree.isJsonObject()) return true;
             com.google.gson.JsonElement keys = tree.getAsJsonObject().get("keys");
-            if (keys == null || !keys.isJsonArray()) return;
+            if (keys == null || !keys.isJsonArray()) return true;
             java.util.List<Keys> typed = App.gson().fromJson(keys, com.google.gson.reflect.TypeToken.getParameterized(java.util.List.class, Keys.class).getType());
-            if (typed != null) item.keys = typed;
-        } catch (Exception ignored) {
+            if (typed == null) return false;
+            item.keys = typed;
+            return true;
+        } catch (Exception e) {
+            return false;
         }
     }
 

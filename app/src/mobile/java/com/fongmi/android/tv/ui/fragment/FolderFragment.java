@@ -58,7 +58,9 @@ public class FolderFragment extends BaseFragment {
         try {
             TypeFragment child = getChild();
             if (child != null) child.checkCoverChanged();
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            android.util.Log.e("FolderFragment", "checkCoverChanged failed", e);
+        }
     }
 
     @Override

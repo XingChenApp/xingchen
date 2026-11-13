@@ -72,6 +72,8 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
     private boolean released;
     /** 迷你条会话（与 TtsReadActivity 共用一套条）。 */
     private ListenSession miniSession;
+    /** 进度保存失败提示的节流时间戳（349：失败要可感知，但不许刷屏）。 */
+    private long lastProgressFailToastAt;
     private static final String MINI_ID = "audiobook";
 
     public static void start(Activity activity, String sessionId) {
@@ -209,7 +211,10 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
                 try {
                     if (svc.player().isPlaying()) svc.player().pause();
                     else svc.player().play();
-                } catch (Throwable ignored) {
+                } catch (Throwable t) {
+                    // 迷你条上点了没反应是最坏的失败：必须让用户知道没切换成（349）
+                    ToastUtil.show(svc, "播放切换失败，请打开听书页重试",
+                            Toast.LENGTH_SHORT);
                 }
             }
 
@@ -253,7 +258,10 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
                     } else {
                         AudioBookActivity.start((Activity) ctx, LegadoAudio.put(snap));
                     }
-                } catch (Throwable ignored) {
+                } catch (Throwable t) {
+                    // 点迷你条回页面没反应必须明示，并给一条能走通的路（349）
+                    ToastUtil.show(ctx, "听书页打开失败，请从书架重新打开",
+                            Toast.LENGTH_SHORT);
                 }
             }
         });
@@ -297,7 +305,11 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
             r.position = Math.max(0, pos);
             r.updatedAt = System.currentTimeMillis();
             ReadingStore.save(r);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 落盘没成：旧记录还在盘上没被覆盖，但必须让用户知道这次没存上（349）。
+            // 保存本身的失败另由 ReadingStore 的写失败提示承接，这里兜的是组装段。
+            ToastUtil.show(ctx, "听书进度没存上，下次可能从旧位置开始",
+                    Toast.LENGTH_LONG);
         }
     }
 
@@ -1034,7 +1046,16 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
             r.position = mService == null ? 0 : (int) player().getPosition();
             r.updatedAt = System.currentTimeMillis();
             ReadingStore.save(r);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 进度没存上必须可感知（349）：旧记录仍在盘上、不会被半成品覆盖；
+            // 本方法调用点多，提示节流 60 秒防刷屏。保存本身的失败另由
+            // ReadingStore 的写失败提示承接，这里兜的是组装/取位置段。
+            long now = System.currentTimeMillis();
+            if (now - lastProgressFailToastAt >= 60_000L) {
+                lastProgressFailToastAt = now;
+                ToastUtil.show(this, "听书进度没存上，下次可能从旧位置开始",
+                        Toast.LENGTH_LONG);
+            }
         }
     }
 

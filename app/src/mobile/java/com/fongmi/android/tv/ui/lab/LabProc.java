@@ -135,7 +135,8 @@ public final class LabProc {
         return new File(LabPaths.pids(c), "state.json");
     }
 
-    public static synchronized void track(Context c, String key, int pid, String logPath) {
+    /** 进程登记：成败回传调用方——登记不上等于进程失管（面板停不掉、重启恢复不了），不许静默 */
+    public static synchronized boolean track(Context c, String key, int pid, String logPath) {
         try {
             Map<String, JSONObject> state = load(c);
             JSONObject e = new JSONObject();
@@ -143,11 +144,14 @@ public final class LabProc {
             e.put("start", startTime(pid));
             e.put("log", logPath);
             state.put(key, e);
-            save(c, state);
+            if (!save(c, state)) return false;
             File pf = new File(LabPaths.pids(c), keyFile(key));
             pf.getParentFile().mkdirs();
             writeFile(pf, String.valueOf(pid));
-        } catch (Exception ignored) {
+            return true;
+        } catch (Exception e) {
+            android.util.Log.e("LabProc", "进程状态登记失败 key=" + key, e);
+            return false;
         }
     }
 
@@ -231,14 +235,18 @@ public final class LabProc {
         return map;
     }
 
-    private static void save(Context c, Map<String, JSONObject> state) {
+    /** 状态落盘：成败回传（track 据此判登记是否成立），失败本身留痕 */
+    private static boolean save(Context c, Map<String, JSONObject> state) {
         try {
             JSONObject o = new JSONObject();
             for (Map.Entry<String, JSONObject> e : state.entrySet()) o.put(e.getKey(), e.getValue());
             File f = stateFile(c);
             f.getParentFile().mkdirs();
             writeFile(f, o.toString());
-        } catch (Exception ignored) {
+            return true;
+        } catch (Exception e) {
+            android.util.Log.e("LabProc", "实验室状态文件保存失败", e);
+            return false;
         }
     }
 

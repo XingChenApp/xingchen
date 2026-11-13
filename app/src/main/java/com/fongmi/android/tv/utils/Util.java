@@ -99,13 +99,17 @@ public class Util {
         return clipData.getItemAt(0).getText();
     }
 
-    public static void copy(String text) {
+    public static boolean copy(String text) {
         try {
             ClipboardManager manager = (ClipboardManager) App.get().getSystemService(Context.CLIPBOARD_SERVICE);
             manager.setPrimaryClip(ClipData.newPlainText("", text));
             Notify.show(R.string.copied);
+            return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            // 复制失败不许静默让用户粘到旧内容：错误级留痕＋失败提示，与成功提示区分。
+            android.util.Log.e("Util", "copy to clipboard failed", e);
+            Notify.show("Copy failed");
+            return false;
         }
     }
 

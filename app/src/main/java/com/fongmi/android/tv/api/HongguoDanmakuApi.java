@@ -578,6 +578,10 @@ public class HongguoDanmakuApi {
             }
             return new Window(items, next, more, info.optString("cursor"));
         } catch (Exception e) {
+            // 解析异常与回验不过同路：null＝本窗失败，collectWindows 据此
+            // 停在已得部分且不记完成；此前异常路无日志、与回验拒绝分不开，
+            // 补记原因（异常类名）供定案。
+            log("window parse failed vid=%s err=%s", vid, e.getClass().getSimpleName());
             return null;
         }
     }
@@ -609,6 +613,10 @@ public class HongguoDanmakuApi {
             }
             return file.length() > 0 ? file : null;
         } catch (Throwable t) {
+            // 写盘失败：null 让 writeItem/加载方按「本窗未落盘」处置（不挂载、
+            // 不落完成标记、下次带种子重拉），此前静默无痕、与真空集分不开，
+            // 补记原因供定案。
+            log("xml write failed vid=%s err=%s", vid, t.getClass().getSimpleName());
             return null;
         }
     }

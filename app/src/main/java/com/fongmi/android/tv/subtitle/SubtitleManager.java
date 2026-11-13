@@ -3,6 +3,7 @@ package com.fongmi.android.tv.subtitle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.bean.Sub;
@@ -28,6 +29,7 @@ import java.util.zip.ZipFile;
  */
 public class SubtitleManager {
 
+    private static final String TAG = "SubtitleManager";
     private static final ExecutorService EXECUTOR = Executors.newCachedThreadPool();
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
@@ -81,8 +83,11 @@ public class SubtitleManager {
     /** 下载并应用到指定播放器（player 为 null 时只下载不应用） */
     public static void downloadAndApply(SubtitleInfo info, PlayerManager player, DownloadCallback callback) {
         download(info, file -> {
-            if (file != null) applyToPlayer(player, file);
-            if (callback != null) callback.onDone(file);
+            // 应用失败不许冒充成功：回 null，调用方（字幕弹窗）据既有约定
+            // 提示下载失败；player 为 null 是「只下载不应用」，文件照常交付。
+            File result = file;
+            if (file != null && player != null && !applyToPlayer(player, file)) result = null;
+            if (callback != null) callback.onDone(result);
         });
     }
 
@@ -113,15 +118,22 @@ public class SubtitleManager {
         });
     }
 
-    /** 把本地字幕文件应用到播放器（Exo/MPV 通用），player 为 null 时跳过 */
-    public static void applyToPlayer(PlayerManager player, File file) {
+    /**
+     * 把本地字幕文件应用到播放器（Exo/MPV 通用）。
+     * 返回是否真的挂上：player/file 为 null 或挂载抛错都是 false，
+     * 调用方据此区分成败，不再把「下好了但没挂上」静默当成功。
+     * （本方法此前无外部调用方，只有本类 downloadAndApply/autoMatch 两处。）
+     */
+    public static boolean applyToPlayer(PlayerManager player, File file) {
+        if (player == null || file == null) return false;
         try {
-            if (player != null && file != null) {
-                player.setSub(Sub.from(file.getAbsolutePath()));
-                // 记录当前外挂字幕，供 AI 翻译使用
-                com.fongmi.android.tv.ai.AiSubtitleTranslator.setCurrentSubFile(file);
-            }
-        } catch (Throwable ignored) {
+            player.setSub(Sub.from(file.getAbsolutePath()));
+            // 记录当前外挂字幕，供 AI 翻译使用
+            com.fongmi.android.tv.ai.AiSubtitleTranslator.setCurrentSubFile(file);
+            return true;
+        } catch (Throwable t) {
+            Log.w(TAG, "applyToPlayer failed", t);
+            return false;
         }
     }
 
@@ -149,7 +161,10 @@ public class SubtitleManager {
             File out = new File(dir, "sub_" + System.currentTimeMillis() + "." + ext);
             if (tmp.renameTo(out)) return out;
             return tmp;
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // null 是既有失败值：手动下载走弹窗提示、自动匹配据此放弃本次；
+            // 补留痕，让「为什么没字幕」在日志里查得到。
+            Log.w(TAG, "downloadSync failed", t);
             return null;
         }
     }
@@ -173,7 +188,11 @@ public class SubtitleManager {
             if (url.startsWith("zimuku://detail")) {
                 return ZimukuProvider.resolveDownloadUrl(url);
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 解析失败不许把伪地址（assrt:// / zimuku://detail 等）当真地址
+            // 交回：回空串这个既有失败值，downloadSync 据此回 null 并提示。
+            Log.w(TAG, "resolveRealUrl failed", t);
+            return "";
         }
         return url;
     }

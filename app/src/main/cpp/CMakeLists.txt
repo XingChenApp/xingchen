@@ -50,4 +50,3 @@ target_link_libraries(exo_dovi_renderer PRIVATE
         ${vulkan-lib}
         ${dl-lib}
         ${m-lib})
-

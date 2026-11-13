@@ -175,47 +175,47 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
             if (mBinding.textPlayerSub != null) {
                 mBinding.textPlayerSub.setText(kernel + " · " + decode + " · " + speedStr);
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) { android.util.Log.e("SettingFragment", "refresh player subtitle failed", e); }
         // UI subtitles - isolated
         try {
             android.content.SharedPreferences sp = requireActivity().getSharedPreferences("xingchen", android.content.Context.MODE_PRIVATE);
-            int size = 2;
-            try { size = com.fongmi.android.tv.setting.PlayerSetting.getSize(); } catch (Exception e) { e.printStackTrace(); }
+            int size = -1;
+            try { size = com.fongmi.android.tv.setting.PlayerSetting.getSize(); } catch (Exception e) { android.util.Log.e("SettingFragment", "read cover size failed", e); }
             String sizeStr = size == 0 ? "小" : size == 3 ? "特大" : size == 2 ? "大" : "中";
             String orient = sp.getString("cover_orient", "portrait");
             String orientStr = "landscape".equals(orient) ? "横屏" : "竖屏";
-            if (mBinding.textAppearanceSub != null) {
+            if (size >= 0 && mBinding.textAppearanceSub != null) {
                 mBinding.textAppearanceSub.setText(sizeStr + "封面 · " + orientStr);
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) { android.util.Log.e("SettingFragment", "refresh appearance subtitle failed", e); }
         // Plugin subtitles - isolated
         try {
             java.io.File pyDir = new java.io.File(requireActivity().getFilesDir(), "plugins/py");
             java.io.File jsDir = new java.io.File(requireActivity().getFilesDir(), "plugins/js");
             java.io.File htmlDir = new java.io.File(requireActivity().getFilesDir(), "plugins/html");
-            int pyCount = 0, jsCount = 0, htmlCount = 0;
+            int pyCount = -1, jsCount = -1, htmlCount = -1;
             try {
                 java.io.File[] pyFiles = pyDir.exists() ? pyDir.listFiles((d, n) -> n.endsWith(".py")) : null;
-                if (pyFiles != null) pyCount = pyFiles.length;
-            } catch (Exception e) { e.printStackTrace(); }
+                pyCount = pyFiles != null ? pyFiles.length : 0;
+            } catch (Exception e) { android.util.Log.e("SettingFragment", "count py plugins failed", e); }
             try {
                 java.io.File[] jsFiles = jsDir.exists() ? jsDir.listFiles((d, n) -> n.endsWith(".js")) : null;
-                if (jsFiles != null) jsCount = jsFiles.length;
-            } catch (Exception e) { e.printStackTrace(); }
+                jsCount = jsFiles != null ? jsFiles.length : 0;
+            } catch (Exception e) { android.util.Log.e("SettingFragment", "count js plugins failed", e); }
             try {
                 java.io.File[] htmlFiles = htmlDir.exists() ? htmlDir.listFiles((d, n) -> n.endsWith(".html")) : null;
-                if (htmlFiles != null) htmlCount = htmlFiles.length;
-            } catch (Exception e) { e.printStackTrace(); }
-            if (mBinding.textPluginSub != null) {
+                htmlCount = htmlFiles != null ? htmlFiles.length : 0;
+            } catch (Exception e) { android.util.Log.e("SettingFragment", "count html plugins failed", e); }
+            if (pyCount >= 0 && jsCount >= 0 && htmlCount >= 0 && mBinding.textPluginSub != null) {
                 mBinding.textPluginSub.setText("PY " + pyCount + " · JS " + jsCount + " · HTML " + htmlCount);
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) { android.util.Log.e("SettingFragment", "refresh plugin subtitle failed", e); }
         // XingChen version subtitle - isolated
         try {
             if (mBinding.textXingchenSub != null) {
                 mBinding.textXingchenSub.setText(AppVersion.fullName());
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) { android.util.Log.e("SettingFragment", "refresh version subtitle failed", e); }
         // Download subtitle - isolated：接 DownloadManager 现成任务表（DownloadActivity 同源），
         // onResume 时 updateSubtitles 重跑，进出下载页后数字会刷新。任务表只在进程内（重启后清空），与下载页口径一致。
         try {
@@ -239,14 +239,14 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
                 else if (completed > 0) mBinding.textDownloadSub.setText("已完成 " + completed + " 个" + (failed > 0 ? "，失败 " + failed + " 个" : ""));
                 else mBinding.textDownloadSub.setText("下载失败 " + failed + " 个");
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) { android.util.Log.e("SettingFragment", "refresh download subtitle failed", e); }
         // Features subtitle - TMDB 配置态（与布局缺省文案同口径）
         try {
             if (mBinding.textFeaturesSub != null) {
                 String key = com.fongmi.android.tv.ui.activity.TmdbActivity.getApiKey(requireContext());
                 mBinding.textFeaturesSub.setText(key == null || key.isEmpty() ? "TMDB 未配置" : "TMDB 已配置");
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) { android.util.Log.e("SettingFragment", "refresh tmdb subtitle failed", e); }
         // Lab subtitle：里面几个服务、几个运行中（原健康检测文案随入口一起换掉）
         try {
             if (mBinding.textHealthSub != null) {
@@ -262,7 +262,7 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
             if (mBinding.textHealthTime != null) {
                 mBinding.textHealthTime.setText("");
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) { android.util.Log.e("SettingFragment", "refresh lab subtitle failed", e); }
     }
 
 }

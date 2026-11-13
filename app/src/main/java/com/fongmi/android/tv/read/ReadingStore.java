@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.text.TextUtils;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.utils.ToastUtil;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -88,23 +89,81 @@ public class ReadingStore {
         return App.get().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    private static List<Record> readAll() {
+    // ---- 失败不再静默（349 阅读组）：解析失败≠名单为空 ----
+    /** 上次成功读到的名单：解析失败时回这份，不许拿空表冒充真名单再写回去冲掉原数据。 */
+    private static List<Record> lastGood;
+    /** 解析失败且从未成功读到过：盘上原文可能还在，写回必须拒绝（见 writeAll）。 */
+    private static boolean readDegraded;
+    private static volatile String lastReadError;
+    private static volatile String lastWriteError;
+    private static long lastFailToastAt;
+
+    public static String lastReadError() {
+        return lastReadError;
+    }
+
+    public static String lastWriteError() {
+        return lastWriteError;
+    }
+
+    /** 失败提示（节流 60 秒：存进度高频调用，失败持续时不许刷屏，但第一次必须让用户看见）。 */
+    private static void noteFailure(String msg) {
+        long now = System.currentTimeMillis();
+        if (now - lastFailToastAt < 60_000L) return;
+        lastFailToastAt = now;
         try {
-            String json = prefs().getString(KEY_RECORDS, "");
-            if (TextUtils.isEmpty(json)) return new ArrayList<>();
-            // R8 关卡：必须 TypeToken，否则读回 LinkedTreeMap
-            List<Record> list = new Gson().fromJson(json, new TypeToken<List<Record>>() {
-            }.getType());
-            return list == null ? new ArrayList<>() : list;
+            ToastUtil.show(App.get(), msg, android.widget.Toast.LENGTH_LONG);
         } catch (Throwable ignored) {
-            return new ArrayList<>();
         }
     }
 
-    private static void writeAll(List<Record> list) {
+    private static List<Record> readAll() {
         try {
-            prefs().edit().putString(KEY_RECORDS, new Gson().toJson(list)).apply();
-        } catch (Throwable ignored) {
+            String json = prefs().getString(KEY_RECORDS, "");
+            if (TextUtils.isEmpty(json)) {
+                lastGood = new ArrayList<>();
+                readDegraded = false;
+                lastReadError = null;
+                return new ArrayList<>();
+            }
+            // R8 关卡：必须 TypeToken，否则读回 LinkedTreeMap
+            List<Record> list = new Gson().fromJson(json, new TypeToken<List<Record>>() {
+            }.getType());
+            list = list == null ? new ArrayList<>() : list;
+            lastGood = new ArrayList<>(list);
+            readDegraded = false;
+            lastReadError = null;
+            return list;
+        } catch (Throwable t) {
+            lastReadError = t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage();
+            readDegraded = lastGood == null;
+            noteFailure("阅读记录读取失败，原来的记录还在，已先按上次名单显示");
+            return lastGood == null ? new ArrayList<>() : new ArrayList<>(lastGood);
+        }
+    }
+
+    /** @return 是否真落盘；失败时旧值原样留在盘上，并已提示用户。 */
+    private static boolean writeAll(List<Record> list) {
+        if (readDegraded) {
+            lastWriteError = "原记录解析失败，拒绝用空表覆盖";
+            noteFailure("阅读记录保存失败：原数据读取异常，已保留原数据不覆盖");
+            return false;
+        }
+        try {
+            String json = new Gson().toJson(list);
+            // apply() 异步落盘、失败无从知道；commit() 才验得到（349 补结构）
+            if (!prefs().edit().putString(KEY_RECORDS, json).commit()) {
+                lastWriteError = "写入返回失败";
+                noteFailure("阅读记录保存失败，刚才的进度可能没存上");
+                return false;
+            }
+            lastWriteError = null;
+            lastGood = new ArrayList<>(list);
+            return true;
+        } catch (Throwable t) {
+            lastWriteError = t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage();
+            noteFailure("阅读记录保存失败，刚才的进度可能没存上");
+            return false;
         }
     }
 

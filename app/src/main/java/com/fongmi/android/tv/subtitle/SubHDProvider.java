@@ -2,6 +2,7 @@ package com.fongmi.android.tv.subtitle;
 
 import android.net.Uri;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.fongmi.android.tv.setting.SubtitleSetting;
 import com.github.catvod.net.OkHttp;
@@ -20,6 +21,7 @@ import java.util.regex.Pattern;
  */
 public class SubHDProvider implements SubtitleProvider {
 
+    private static final String TAG = "SubHDProvider";
     private static final String BASE = "https://subhd.tv";
 
     // 结果条目：找详情页链接 + 标题 + 语言/格式描述
@@ -83,7 +85,10 @@ public class SubHDProvider implements SubtitleProvider {
                 } catch (Throwable ignored) {
                 }
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 搜索失败留痕；返回已解析到的部分，空列表与「真没搜到」靠错误级日志区分
+            // （Provider 接口只有 List 返回、无失败通道，调用方 SubtitleManager 聚合各源结果）。
+            Log.e(TAG, "search failed query=" + query + " partial=" + result.size(), t);
         }
         return result;
     }
@@ -121,7 +126,9 @@ public class SubHDProvider implements SubtitleProvider {
             // 兜底：页面内直接的下载链接
             Matcher dm = Pattern.compile("href=\"(https?://[^\"']+\\.(?:srt|ass|ssa|zip))\"").matcher(html);
             if (dm.find()) return dm.group(1);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 失败留痕；空串是既有失败值，上层据此回 null 并提示下载失败。
+            Log.w(TAG, "resolveDownloadUrl failed", t);
         }
         return "";
     }

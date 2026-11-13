@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.bean;
 
+import android.util.Log;
+
 import com.fongmi.android.tv.App;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
@@ -17,6 +19,7 @@ import okhttp3.HttpUrl;
 
 public class Web {
 
+    private static final String TAG = "Web";
     @SerializedName("url")
     private String url;
     @SerializedName("mode")
@@ -30,6 +33,9 @@ public class Web {
             if (web != null) retype(web, json);
             return web != null && web.isValid() ? web : null;
         } catch (JsonParseException e) {
+            // null 是既有失败值且调用方能区分（openWeb 回 false 后弹
+            // error_file_open、initView 据 null 关页）；补留痕区分坏配置与无配置。
+            Log.w(TAG, "objectFrom parse failed", e);
             return null;
         }
     }

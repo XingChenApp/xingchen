@@ -55,6 +55,8 @@ import java.util.List;
 
 public class CollectFragment extends BaseFragment implements MenuProvider, CollectAdapter.OnClickListener, SearchAdapter.OnClickListener, CustomScroller.Callback, ActionResult.Host {
 
+    /** 本轮建站失败的本地脚本数：失败不许静默缺席，setSites 收尾统一报一次。 */
+    private int siteCreateFailures;
     private static final int GRID_ITEM_MARGIN_DP = 4;
     private static final int GRID_TOP_PADDING_DP = 8;
     /** 首页搜索里 115 网盘结果的虚拟源 key（分组名「115网盘」，点击走网盘自己的路，不进站点详情）。 */
@@ -247,6 +249,10 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
             }
         }
         SiteHealthStore.sortSites(mSites);
+        if (siteCreateFailures > 0) {
+            ToastUtil.show(requireContext(), siteCreateFailures + " 个本地源读取失败，未出现在搜索列表中", android.widget.Toast.LENGTH_SHORT);
+            siteCreateFailures = 0;
+        }
     }
 
     private Site createPySite(String baseName) {
@@ -267,6 +273,7 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
             VodConfig.get().registerDynamicSite(site);
             return site;
         } catch (Exception e) {
+            siteCreateFailures++;
             return null;
         }
     }
@@ -290,6 +297,7 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
             VodConfig.get().registerDynamicSite(site);
             return site;
         } catch (Exception e) {
+            siteCreateFailures++;
             return null;
         }
     }

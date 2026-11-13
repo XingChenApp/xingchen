@@ -2,6 +2,7 @@ package com.fongmi.android.tv.utils;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.bean.Vod;
@@ -23,6 +24,7 @@ import java.util.Set;
  */
 public class AdBlock {
 
+    private static final String TAG = "AdBlock";
     private static final String LEGACY_PREFS = "xingchen";
     private static final String LEGACY_KEY_ENABLED = "xingchen.adblock_enabled";
     private static final String LEGACY_KEY_KEYWORDS = "xingchen.adblock_keywords";
@@ -39,9 +41,11 @@ public class AdBlock {
                 if (k != null && !k.trim().isEmpty()) clean.add(k.trim());
             }
             keywords = clean;
-        } catch (Exception ignored) {
-        } finally {
             loaded = true;
+        } catch (Exception e) {
+            // 加载失败：保留上次名单、不置 loaded，下次 ensureLoaded 重试——
+            // 不许把「这次没读出来」静默当成「名单本来就是空的」。
+            Log.w(TAG, "refresh failed, keep previous keywords and retry next time", e);
         }
     }
 
@@ -56,21 +60,35 @@ public class AdBlock {
                     if (k != null && !k.trim().isEmpty()) com.fongmi.android.tv.setting.Setting.addAdblockKeyword(k.trim());
                 }
             }
-            prefs.edit().remove(LEGACY_KEY_ENABLED).remove(LEGACY_KEY_KEYWORDS).apply();
-        } catch (Exception ignored) {
+            // 写后回读校验（照 PanAuth cookie 迁移同口径）：旧词全部真进了
+            // 统一名单才清旧键；没进全就保留旧键，下次 refresh 重试迁移，
+            // 不许迁移半途失败把老关键词静默丢掉。
+            boolean migrated = true;
+            if (legacy != null) {
+                List<String> now = com.fongmi.android.tv.setting.Setting.getAdblockKeywords();
+                for (String k : legacy) {
+                    if (k != null && !k.trim().isEmpty() && !now.contains(k.trim())) {
+                        migrated = false;
+                        break;
+                    }
+                }
+            }
+            if (migrated) {
+                prefs.edit().remove(LEGACY_KEY_ENABLED).remove(LEGACY_KEY_KEYWORDS).apply();
+            } else {
+                Log.w(TAG, "migrateLegacy verify failed, keep legacy keys");
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "migrateLegacy failed, keep legacy keys", e);
         }
     }
 
     private static void ensureLoaded() {
-        if (!loaded) {
-            try {
-                App app = App.get();
-                if (app != null) refresh(app);
-                else loaded = true;
-            } catch (Exception ignored) {
-                loaded = true;
-            }
-        }
+        if (loaded) return;
+        App app = App.get();
+        if (app != null) refresh(app);
+        // App 未就绪或 refresh 失败都保持 loaded=false，下次调用重试，
+        // 不再在这里替失败置真、把空名单当已加载。
     }
 
     public static boolean isEnabled() {

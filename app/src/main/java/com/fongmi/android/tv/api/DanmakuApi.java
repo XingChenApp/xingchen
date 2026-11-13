@@ -136,7 +136,10 @@ public class DanmakuApi {
                     } else {
                         if (SpiderDebug.isEnabled()) SpiderDebug.log("danmaku", "auto search no confident match for name=%s episode=%s", reqName, reqEpisode);
                     }
-                } catch (Exception ignored) {
+                } catch (Exception e) {
+                    SpiderDebug.log("danmaku", "auto search parse failed name=%s episode=%s error=%s", reqName, reqEpisode, e.getMessage());
+                    // SpiderDebug 受调试开关门控，关着时这条失败无痕、与「无匹配」不可区分：补常开错误级留痕。
+                    android.util.Log.e(TAG, "auto search parse failed name=" + reqName + " episode=" + reqEpisode, e);
                 }
             }
         });

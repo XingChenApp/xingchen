@@ -41,6 +41,8 @@ public class HealthActivity extends BaseActivity {
     private final List<SiteItem> items = new ArrayList<>();
     // Dynamically created PY sites scanned from plugins/py/ (not in VodConfig)
     private final Map<String, Site> dynamicSites = new LinkedHashMap<>();
+    /** 本轮收集里建站失败的 PY 脚本数：失败不许静默缺项，收集完统一报一次。 */
+    private int pySiteFailures;
     private volatile boolean testing = false;
 
     public static void start(Activity activity) {
@@ -75,6 +77,7 @@ public class HealthActivity extends BaseActivity {
     private void collectSites() {
         items.clear();
         dynamicSites.clear();
+        pySiteFailures = 0;
         try {
             Map<String, Site> allSites = new LinkedHashMap<>();
             for (Site site : VodConfig.get().getSites()) {
@@ -107,7 +110,10 @@ public class HealthActivity extends BaseActivity {
                     }
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+            Notify.show("站点收集失败，列表可能不完整");
+        }
+        if (pySiteFailures > 0) Notify.show(pySiteFailures + " 个 PY 源读取失败，未出现在列表中");
     }
 
     private Site createPySite(String baseName) {
@@ -124,6 +130,7 @@ public class HealthActivity extends BaseActivity {
             site.setJar("");
             return site;
         } catch (Exception e) {
+            pySiteFailures++;
             return null;
         }
     }
@@ -173,7 +180,7 @@ public class HealthActivity extends BaseActivity {
                 done++;
                 final int progress = done;
                 runOnUiThread(() -> {
-                    adapter.notifyDataSetChanged();
+                    adapter.notifyItemChanged(progress - 1);
                     updateSummary();
                     binding.btnRetest.setText("检测中 " + progress + "/" + items.size());
                 });
@@ -268,7 +275,10 @@ public class HealthActivity extends BaseActivity {
                     .putLong("health_time", System.currentTimeMillis())
                     .putString("health_results", results.toString())
                     .apply();
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Notify.show("检测结果保存失败，下次进入需重新检测");
+        }
     }
 
     static class SiteItem {

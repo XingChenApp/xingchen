@@ -1,6 +1,7 @@
 package com.fongmi.android.tv.api.config;
 
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.api.CatSource;
@@ -350,14 +351,20 @@ public class VodConfig extends BaseConfig {
     private static final String KEY_PENDING_IMPORT = "pending_home_key";
     private volatile String pendingImportKey;
 
-    /** 导入成功且 setHome 已落到当前 home 后登记待开目标（调用方负责核对 home key）。 */
-    public void markImportedHome(String key) {
-        if (TextUtils.isEmpty(key)) return;
+    /** 导入成功且 setHome 已落到当前 home 后登记待开目标（调用方负责核对 home key）。
+     *  @return 持久化是否成功；失败时内存标记仍在（本进程内可消费），但进程被杀后会丢。 */
+    public boolean markImportedHome(String key) {
+        if (TextUtils.isEmpty(key)) return false;
         pendingImportKey = key;
         try {
-            App.get().getSharedPreferences(IMPORT_PREFS, android.content.Context.MODE_PRIVATE)
-                    .edit().putString(KEY_PENDING_IMPORT, key).apply();
-        } catch (Throwable ignored) {
+            // commit 同步落盘回成败：apply 的异步写失败无从感知，标记会静默丢失。
+            boolean ok = App.get().getSharedPreferences(IMPORT_PREFS, android.content.Context.MODE_PRIVATE)
+                    .edit().putString(KEY_PENDING_IMPORT, key).commit();
+            if (!ok) Log.e(TAG, "markImportedHome persist failed key=" + key);
+            return ok;
+        } catch (Throwable t) {
+            Log.e(TAG, "markImportedHome persist failed", t);
+            return false;
         }
     }
 
@@ -367,7 +374,9 @@ public class VodConfig extends BaseConfig {
         try {
             pendingImportKey = App.get().getSharedPreferences(IMPORT_PREFS, android.content.Context.MODE_PRIVATE)
                     .getString(KEY_PENDING_IMPORT, null);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 读失败与「本来没有待开标记」要区分：错误级留痕，返回值仍为当前内存值。
+            Log.e(TAG, "pendingImportedHome read failed", t);
         }
         return pendingImportKey;
     }

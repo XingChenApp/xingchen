@@ -565,7 +565,11 @@ public class HkHttp {
                 reseedAutoDomain();
                 loadEffectiveAutoDns(text);
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 维护失败时已生效名单保持不动（loadEffectiveAutoDns 先垫内置快照），
+            // 失败走本文件既有 hk 诊断日志留痕，不许在后台线程里无痕死掉。
+            com.github.catvod.crawler.SpiderDebug.log("hk", "autoDns maintain failed: %s: %s",
+                    t.getClass().getSimpleName(), String.valueOf(t.getMessage()));
         }
     }
 
@@ -759,15 +763,22 @@ public class HkHttp {
      * 应用 DoH 设置到海阔客户端（对应 8.83 MoreSettingOfficer.loadDns）。
      * 8.83 默认"智能"不设置 DNS（走系统）；星辰"系统"同理传空。
      */
-    public static void applyDoh(Context context) {
+    /**
+     * @return 是否应用成功；中途失败回 false 并留痕，旧 DNS 保持不动，
+     *         不许新设置静默没生效（批 residual；原 void 签名唯一调用方
+     *         XingChenDoh.applyToClients 不消费返回值，改 boolean 不影响它）。
+     */
+    public static boolean applyDoh(Context context) {
         try {
             Doh d = XingChenDoh.currentDoh(context);
-            if (d == null) {
-                hkDoh = null;
-            } else {
+            // 先在本地把新值建完再一次性换入：中途抛错时 hkDoh/client
+            // 保持旧态，不留半应用状态。
+            DnsOverHttps newDoh = null;
+            if (d != null) {
                 HttpUrl url = HttpUrl.parse(d.getUrl());
-                hkDoh = url == null ? null : new DnsOverHttps.Builder().client(new OkHttpClient()).url(url).bootstrapDnsHosts(d.getHosts()).build();
+                newDoh = url == null ? null : new DnsOverHttps.Builder().client(new OkHttpClient()).url(url).bootstrapDnsHosts(d.getHosts()).build();
             }
+            hkDoh = newDoh;
             // 重建 client 使新 DNS 生效
             synchronized (HkHttp.class) {
                 client = null;
@@ -778,8 +789,11 @@ public class HkHttp {
             // 逐图自动 DNS 不再插手），名单维护每进程只实跑一次。
             dnsAuto = hkDoh == null;
             initAutoDns(context);
+            return true;
         } catch (Throwable t) {
-            t.printStackTrace();
+            com.github.catvod.crawler.SpiderDebug.log("hk", "applyDoh failed: %s: %s",
+                    t.getClass().getSimpleName(), String.valueOf(t.getMessage()));
+            return false;
         }
     }
 
@@ -906,10 +920,10 @@ public class HkHttp {
                         b.addInterceptor((okhttp3.Interceptor) inst);
                     } catch (Throwable ignored) {
                     }
-                    try {
-                        b.cookieJar(HkCookieJar.get(App.get()));
-                    } catch (Throwable ignored) {
-                    }
+                    // 不吞：CookieJar 装不上还照常 build 并缓存，等于全站请求终身
+                    // 无 Cookie 且无任何报错；让异常穿出 client()，由取数链的失败
+                    // 回调感知，且 client 不缓存、后续调用可重试装配。
+                    b.cookieJar(HkCookieJar.get(App.get()));
                     // 按源定向：与图片 client 同套选择器链
                     b.proxySelector(SourceGate.wrapSelector(GlobalProxy.wrapSelector(java.net.ProxySelector.getDefault())));
                     client = b.build();

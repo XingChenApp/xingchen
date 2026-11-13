@@ -109,6 +109,8 @@ public final class HkHomeParser {
             }
             elements.addAll(HkCommonParser.selectElements(scope, chain[chain.length - 1]));
             int index = 0;
+            int itemFailed = 0;
+            Exception itemLastError = null;
             for (Element el : elements) {
                 String tailRule = "";
                 String[] fr = fullRule.split("==>");
@@ -159,9 +161,22 @@ public final class HkHomeParser {
                     }
                     if (canAdd(item.getTitle())) out.add(item);
                 } catch (Exception e) {
-                    Log.e(TAG, "hk error", e);
+                    itemFailed++;
+                    itemLastError = e;
+                    Log.e(TAG, "首页单条解析失败（下标 " + index + "）", e);
                 }
                 index++;
+            }
+            if (itemFailed > 0) {
+                // 单条失败不再静默消失（残项处置 2026-11-14）：部分失败经既有
+                // 引擎日志通道报数；全部失败走既有 error 回调，不发空成功表。
+                if (errorLogger != null) errorLogger.accept(
+                        "findList 单条解析失败 " + itemFailed + "/" + elements.size(), rule);
+                if (out.isEmpty()) {
+                    callback.error("解析失败", "全部 " + itemFailed + " 条解析失败："
+                            + itemLastError, "404", itemLastError);
+                    return;
+                }
             }
             callback.bindArrayToView(key, out);
         } catch (Exception e) {

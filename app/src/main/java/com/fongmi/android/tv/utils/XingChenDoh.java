@@ -3,6 +3,7 @@ package com.fongmi.android.tv.utils;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.fongmi.android.tv.setting.Setting;
 import com.github.catvod.bean.Doh;
@@ -17,6 +18,7 @@ import com.github.catvod.net.OkHttp;
  */
 public class XingChenDoh {
 
+    private static final String TAG = "XingChenDoh";
     private static final String LEGACY_KEY = "xingchen.doh_provider";
     public static final String[] NAMES = {"系统", "腾讯", "阿里", "360"};
     private static final String[] URLS = {"", "https://doh.pub/dns-query", "https://dns.alidns.com/dns-query", "https://doh.360.cn/dns-query"};
@@ -35,11 +37,19 @@ public class XingChenDoh {
             SharedPreferences prefs = context.getSharedPreferences("xingchen", Context.MODE_PRIVATE);
             if (!prefs.contains(LEGACY_KEY)) return;
             int legacy = prefs.getInt(LEGACY_KEY, 0);
-            prefs.edit().remove(LEGACY_KEY).apply();
             if (legacy > 0 && legacy < URLS.length && TextUtils.isEmpty(Setting.getDoh())) {
-                Setting.putDoh(builtin(legacy).toString());
+                // 先写新值并回读校验，全等才删旧键（旧代码先删旧键再写，
+                // 写失败旧设置就丢了）；不一致保留旧键待下次重试。
+                String value = builtin(legacy).toString();
+                Setting.putDoh(value);
+                if (!value.equals(Setting.getDoh())) {
+                    Log.w(TAG, "migrateLegacy verify failed, keep legacy key");
+                    return;
+                }
             }
-        } catch (Exception ignored) {
+            prefs.edit().remove(LEGACY_KEY).apply();
+        } catch (Exception e) {
+            Log.w(TAG, "migrateLegacy failed, keep legacy key", e);
         }
     }
 
@@ -65,7 +75,9 @@ public class XingChenDoh {
         return currentDoh(context);
     }
 
-    public static void apply(Context context) {
+    /** @return 主客户端与海阔客户端是否都已应用；任一失败回 false（设置值已存，但网络侧可能仍走旧 DNS）。 */
+    public static boolean apply(Context context) {
+        boolean ok = true;
         try {
             Doh doh = currentDoh(context);
             if (doh == null) {
@@ -76,14 +88,17 @@ public class XingChenDoh {
             }
             // 注意：不要在这里 resetClients，会把封面搞没（1.1.8 教训）
         } catch (Throwable t) {
-            t.printStackTrace();
+            android.util.Log.e("XingChenDoh", "apply DoH to main client failed, still on old DNS", t);
+            ok = false;
         }
         // 同步应用到海阔客户端（8.83 loadDns 逻辑）
         try {
             com.fongmi.android.tv.api.hk.HkHttp.applyDoh(context);
         } catch (Throwable t) {
-            t.printStackTrace();
+            android.util.Log.e("XingChenDoh", "apply DoH to hk client failed, hk still on old DNS", t);
+            ok = false;
         }
+        return ok;
     }
 
     public static void setIndex(Context context, int index) {

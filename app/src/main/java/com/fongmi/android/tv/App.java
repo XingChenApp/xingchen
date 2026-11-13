@@ -118,6 +118,13 @@ public class App extends Application implements Application.ActivityLifecycleCal
         // 口径与 startBackgroundServices 的注释一致：非主进程什么都不起，
         // 只留 Application 本体供系统在该进程拉起页面（崩溃页/恢复页）。
         if (!PlaybackRecoveryMonitor.isMainProcess(this)) return;
+        // 海阔 LitePal 存储层照官接法（①团记名）：官 ui.Application.onCreate:130-131 为
+        // LitePal.initialize(context) 后 LitePal.getDatabase().disableWriteAheadLogging()，
+        // 官 Application 继承的是 android.app.Application（非 LitePalApplication）；
+        // 咱家等价接进本类 onCreate 主进程守卫之后、其余初始化之前（记名接点）。
+        // 配置走 assets/litepal.xml（本树已有且与官逐字同：dbname=hiker、version=54、14 映射）。
+        org.litepal.LitePal.initialize(this);
+        org.litepal.LitePal.getDatabase().disableWriteAheadLogging();
         // 实验室自启抢在已选配置首读之前：配置首读在 HomeActivity.initConfig，
         // 比这里晚得多；已选配置若是实验室服务的本地回环地址（如样本服务
         // http://127.0.0.1:<分配端口>/），服务没拉起来首读必然连不上、每次冷启
@@ -131,8 +138,8 @@ public class App extends Application implements Application.ActivityLifecycleCal
                     .invoke(null, this);
         } catch (Throwable ignored) {
         }
-        try { com.xingchen.tv.theme.ThemeManager.init(this); } catch (Exception e) {}
-        try { com.fongmi.android.tv.ai.AiActivityTracker.init(this); } catch (Exception e) {}
+        try { com.xingchen.tv.theme.ThemeManager.init(this); } catch (Exception e) { SpiderDebug.log("startup", "ThemeManager init failed error=%s", e.getMessage()); SpiderDebug.log("startup", e); android.util.Log.e("App", "ThemeManager init failed, theme features unavailable this session", e); }
+        try { com.fongmi.android.tv.ai.AiActivityTracker.init(this); } catch (Exception e) { SpiderDebug.log("startup", "AiActivityTracker init failed error=%s", e.getMessage()); SpiderDebug.log("startup", e); android.util.Log.e("App", "AiActivityTracker init failed, AI activity tracking unavailable this session", e); }
         PlaybackMemoryMonitor.process().initialize(this);
         PlaybackSystemConditionMonitor.process().initialize(this);
         Setting.applyLanguage();
@@ -160,9 +167,11 @@ public class App extends Application implements Application.ActivityLifecycleCal
         try {
             com.fongmi.android.tv.api.loader.BaseLoader.get()
                     .watchPyPlugins(new java.io.File(getFilesDir(), "plugins/py"));
+        } catch (Throwable e) { SpiderDebug.log("startup", "watch py plugins failed error=%s", e.getMessage()); SpiderDebug.log("startup", e); android.util.Log.e("App", "watchPyPlugins failed, PY plugin changes will not be auto-detected this session", e); }
+        try {
             com.fongmi.android.tv.api.loader.BaseLoader.get()
                     .watchJsPlugins(new java.io.File(getFilesDir(), "plugins/js"));
-        } catch (Throwable ignored) {}
+        } catch (Throwable e) { SpiderDebug.log("startup", "watch js plugins failed error=%s", e.getMessage()); SpiderDebug.log("startup", e); android.util.Log.e("App", "watchJsPlugins failed, JS plugin changes will not be auto-detected this session", e); }
         // 后台服务全家只许主进程起：崩溃页进程（:error_activity）此前无守卫，
         // 会在崩溃页进程里再起一整套（本地服务/RemoteAgent/节点内核/Python 预热），
         // 主进程崩后残留占位，重新拉起时播放全线对着残留状态假死、须强退才恢复。

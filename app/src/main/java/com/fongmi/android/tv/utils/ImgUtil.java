@@ -51,7 +51,8 @@ public class ImgUtil {
         try {
             Glide.with(view).load(UrlUtil.convert(VodConfig.get().getConfig().getLogo())).circleCrop().override(Target.SIZE_ORIGINAL, Target.SIZE_ORIGINAL).error(R.drawable.ic_logo).into(view);
         } catch (Throwable e) {
-            e.printStackTrace();
+            Logger.t(TAG).e(e, "logo load build failed");
+            view.setImageResource(R.drawable.ic_logo);
         }
     }
 
@@ -65,7 +66,8 @@ public class ImgUtil {
         try {
             Glide.with(App.get()).asBitmap().load(getUrl(url)).override(ResUtil.dp2px(sizeDp), ResUtil.dp2px(sizeDp)).error(R.drawable.artwork).into(target);
         } catch (Throwable e) {
-            e.printStackTrace();
+            Logger.t(TAG).e(e, "bitmap load build failed url=%s", url);
+            target.onLoadFailed(androidx.core.content.ContextCompat.getDrawable(App.get(), R.drawable.artwork));
         }
     }
 
@@ -75,7 +77,8 @@ public class ImgUtil {
             // 忽略过渡的目标行为不变。
             Glide.with(context).load(getUrl(url)).override(ResUtil.getScreenWidth(), ResUtil.getScreenHeight()).error(R.drawable.artwork).transition(DrawableTransitionOptions.withCrossFade(200)).into(target);
         } catch (Throwable e) {
-            e.printStackTrace();
+            Logger.t(TAG).e(e, "drawable load build failed url=%s", url);
+            target.onLoadFailed(androidx.core.content.ContextCompat.getDrawable(context, R.drawable.artwork));
         }
     }
 
@@ -83,7 +86,8 @@ public class ImgUtil {
         try {
             Glide.with(context).load(getUrl(url)).override(width, height).error(R.drawable.artwork).transition(DrawableTransitionOptions.withCrossFade(200)).into(target);
         } catch (Throwable e) {
-            e.printStackTrace();
+            Logger.t(TAG).e(e, "drawable load build failed url=%s", url);
+            target.onLoadFailed(androidx.core.content.ContextCompat.getDrawable(context, R.drawable.artwork));
         }
     }
 
@@ -182,7 +186,8 @@ public class ImgUtil {
             if (vod) builder.centerCrop().into(view);
             else builder.fitCenter().into(view);
         } catch (Throwable e) {
-            e.printStackTrace();
+            Logger.t(TAG).e(e, "load build failed url=%s", url);
+            view.setImageDrawable(getTextDrawable(text, vod));
         }
     }
 
@@ -200,7 +205,8 @@ public class ImgUtil {
         else try {
             Glide.with(view).load(getUrl(url)).listener(getListener(text, url, view, true)).placeholder(getTextDrawable(text, true)).transition(DrawableTransitionOptions.withCrossFade(200)).circleCrop().into(view);
         } catch (Throwable e) {
-            e.printStackTrace();
+            Logger.t(TAG).e(e, "loadCircleFade build failed url=%s", url);
+            view.setImageDrawable(getTextDrawable(text, true));
         }
     }
 
@@ -213,7 +219,8 @@ public class ImgUtil {
             // 回收行会短暂残留上一行的旧图（失败口径仍走透明，不变）。
             Glide.with(view).load(getUrl(url, ruleUrl)).listener(getListener(text, url, view, true)).placeholder(getTextDrawable(text, true)).circleCrop().into(view);
         } catch (Throwable e) {
-            e.printStackTrace();
+            Logger.t(TAG).e(e, "loadCircle build failed url=%s", url);
+            view.setImageDrawable(getTextDrawable(text, true));
         }
     }
 
@@ -237,7 +244,8 @@ public class ImgUtil {
             builder.transform(new CenterCrop(), new GranularRoundedCorners(r, r, 0, 0));
             builder.into(view);
         } catch (Throwable e) {
-            e.printStackTrace();
+            Logger.t(TAG).e(e, "loadTopRounded build failed url=%s", url);
+            view.setImageDrawable(getTextDrawable(text, true));
         }
     }
 
@@ -255,7 +263,8 @@ public class ImgUtil {
             builder.transform(new CenterCrop(), new RoundedCorners(r));
             builder.into(view);
         } catch (Throwable e) {
-            e.printStackTrace();
+            Logger.t(TAG).e(e, "loadRounded build failed url=%s", url);
+            view.setImageDrawable(getTextDrawable(text, true));
         }
     }
 
@@ -270,7 +279,8 @@ public class ImgUtil {
             builder.transform(new CenterCrop(), new RoundedCorners(r));
             builder.into(view);
         } catch (Throwable e) {
-            e.printStackTrace();
+            Logger.t(TAG).e(e, "loadRounded16 build failed url=%s", url);
+            view.setImageDrawable(getTextDrawable(text, true));
         }
     }
 
@@ -286,7 +296,8 @@ public class ImgUtil {
             builder.transform(new CenterCrop(), new RoundedCorners(r));
             builder.into(view);
         } catch (Throwable e) {
-            e.printStackTrace();
+            Logger.t(TAG).e(e, "loadRounded16Fade build failed url=%s", url);
+            view.setImageDrawable(getTextDrawable(text, true));
         }
     }
 
@@ -301,7 +312,8 @@ public class ImgUtil {
             builder.transform(new CenterCrop(), new RoundedCorners(r));
             builder.into(view);
         } catch (Throwable e) {
-            e.printStackTrace();
+            Logger.t(TAG).e(e, "loadRounded10 build failed url=%s", url);
+            view.setImageDrawable(getTextDrawable(text, true));
         }
     }
 
@@ -478,7 +490,8 @@ public class ImgUtil {
                 try {
                     return new ColorDrawable(Color.parseColor(picUrl));
                 } catch (Throwable t) {
-                    Logger.t(TAG).d("parseColor failed: %s", picUrl);
+                    Logger.t(TAG).e(t, "parseColor failed, treat as no image: %s", picUrl);
+                    return null;
                 }
             }
             String url = UrlUtil.convert(picUrl);
@@ -547,7 +560,7 @@ public class ImgUtil {
                                 builder.addHeader(UrlUtil.fixHeader(k), o.optString(k, ""));
                             }
                         } catch (Throwable t) {
-                            Logger.t(TAG).d("parse @Headers= failed");
+                            Logger.t(TAG).e(t, "parse @Headers= failed, headers dropped url=%s", picUrl);
                         }
                     }
                 }
@@ -564,7 +577,7 @@ public class ImgUtil {
                         builder.addHeader(k, o.optString(k, ""));
                     }
                 } catch (Throwable t) {
-                    Logger.t(TAG).d("parse @headers= failed");
+                    Logger.t(TAG).e(t, "parse @headers= failed, headers dropped url=%s", picUrl);
                 }
             }
             // @Cookie=（8.83 line 139-145）
@@ -614,7 +627,7 @@ public class ImgUtil {
             if (!TextUtils.isEmpty(refererHeader)) builder.addHeader(HttpHeaders.REFERER, refererHeader);
             return TextUtils.isEmpty(url) ? null : new GlideUrl(url, builder.build());
         } catch (Throwable t) {
-            Logger.t(TAG).d("getUrl failed: %s", t.getMessage());
+            Logger.t(TAG).e(t, "getUrl failed picUrl=%s", picUrl);
             return null;
         }
     }

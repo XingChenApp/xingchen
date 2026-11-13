@@ -141,6 +141,8 @@ public class ShieldWebViewDialog extends BaseAlertDialog {
         try {
             cookie = cm.getCookie(actualUrl);
         } catch (Throwable ignored) {
+            Notify.show("Cookie 读取失败，请重试");
+            return;
         }
         if (TextUtils.isEmpty(cookie)) {
             Notify.show("还没拿到 Cookie，请先完成页面上的验证");

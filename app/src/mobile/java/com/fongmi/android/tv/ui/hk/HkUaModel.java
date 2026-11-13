@@ -2,6 +2,7 @@ package com.fongmi.android.tv.ui.hk;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.api.hk.HkUaEnum;
@@ -65,24 +66,43 @@ public final class HkUaModel {
         }
     }
 
-    /** 官 UAModel.updateUa 转写。 */
-    public static void updateUa(String url, String ua) {
-        if (url == null || url.isEmpty()) return;
+    /**
+     * 官 UAModel.updateUa 转写。
+     * 处置订正（2026-11-14）：改回 boolean 报落盘成败并写后回读校验——此前
+     * 只记日志，重启后该域 UA 静默丢失、调用方无从知道。回 false 时内存
+     * 缓存仍已更新、本会话仍生效，既有调用方忽略返回值不影响行为。
+     */
+    public static boolean updateUa(String url, String ua) {
+        if (url == null || url.isEmpty()) return false;
         String dom = HkStringUtil.getDom(url);
         UA_MAP.put(dom, ua);
         SharedPreferences sp = sp();
-        if (sp == null) return;
+        if (sp == null) {
+            Log.e("HkUaModel", "分域名 UA 保存失败（存档不可用）：" + dom);
+            return false;
+        }
         try {
+            boolean removed = false;
             if (sp.contains(dom)) {
                 if (ua == null || ua.isEmpty()) {
                     sp.edit().remove(dom).apply();
+                    removed = true;
                 } else {
                     sp.edit().putString(dom, ua).apply();
                 }
             } else if (ua != null && !ua.isEmpty()) {
                 sp.edit().putString(dom, ua).apply();
+            } else {
+                removed = true;
             }
-        } catch (Throwable ignored) {
+            // 写后回读：apply 已同步更新内存映射，回读不一致即落盘链失败。
+            String back = sp.getString(dom, null);
+            boolean ok = removed ? back == null : ua.equals(back);
+            if (!ok) Log.e("HkUaModel", "分域名 UA 保存回读不一致：" + dom);
+            return ok;
+        } catch (Throwable t) {
+            Log.e("HkUaModel", "分域名 UA 保存失败：" + dom, t);
+            return false;
         }
     }
 

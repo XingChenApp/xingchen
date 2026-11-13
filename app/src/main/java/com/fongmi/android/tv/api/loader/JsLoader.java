@@ -69,7 +69,12 @@ public class JsLoader {
             if (f.isAbsolute()) pathKeys.computeIfAbsent(f.getAbsolutePath(), k -> ConcurrentHashMap.newKeySet()).add(key);
             String name = f.getName();
             if (name != null && !name.isEmpty()) pathKeys.computeIfAbsent(name, k -> ConcurrentHashMap.newKeySet()).add(key);
-        } catch (Throwable ignored) {
+        } catch (Throwable e) {
+            // 别名登记失败还照常交蜘蛛，等于该源的文件变更静默不触发重载。
+            // 登记是 init 的一部分：失败上抛，getSpider 按初始化失败收口
+            // （destroy＋SpiderNull、下次重试），不递出监听残缺的蜘蛛。
+            SpiderDebug.log("jsloader", "recordPath failed key=%s api=%s error=%s", key, api, e.getMessage());
+            throw new IllegalStateException("recordPath failed api=" + api, e);
         }
     }
 
@@ -124,15 +129,25 @@ public class JsLoader {
                 public void onEvent(int event, String path) {
                     SpiderDebug.log("jsloader", "watch event=%s path=%s", event, path);
                     if (path == null || !(path.toLowerCase().endsWith(".js") || path.toLowerCase().endsWith(".wv"))) return;
+                    // 失效与首页刷新拆开：失效失败只记日志，不许连坐掉刷新事件
+                    // （旧写法同 try 时失效一抛，刷新永不发出、旧蜘蛛与旧首页一起留）。
                     try {
                         invalidateScript(path);
+                    } catch (Throwable e) {
+                        SpiderDebug.log("jsloader", "invalidate on watch event failed path=%s error=%s", path, e.getMessage());
+                    }
+                    try {
                         RefreshEvent.home();
-                    } catch (Throwable ignored) {
+                    } catch (Throwable e) {
+                        SpiderDebug.log("jsloader", "home refresh on watch event failed path=%s error=%s", path, e.getMessage());
                     }
                 }
             };
             watcher.startWatching();
-        } catch (Throwable ignored) {}
+        } catch (Throwable e) {
+            SpiderDebug.log("jsloader", "watchPlugins start failed dir=%s error=%s", dir, e.getMessage());
+            watcher = null;
+        }
     }
 
     private static class SpiderLoadFailed extends RuntimeException {
@@ -171,9 +186,13 @@ public class JsLoader {
             String content = Module.get().fetch(api);
             if (content == null || content.isEmpty()) return false;
             return DrpySpider.isEngineContent(content) || DrpySpider.isBareRule(content);
-        } catch (Throwable ignored) {
+        } catch (Throwable e) {
+            // 取不到内容判不了通道：不许默认当非 drpy 送错加载路。上抛让
+            // getSpider 按初始化失败收口（SpiderNull、下次重试），失败与
+            // 「本来就是普通源」从此可区分。
+            SpiderDebug.log("jsloader", "fetch for engine detect failed api=%s error=%s", api, e.getMessage());
+            throw new IllegalStateException("engine detect fetch failed api=" + api, e);
         }
-        return false;
     }
 
     public Spider getSpider(String key, String api, String ext, String jar) {

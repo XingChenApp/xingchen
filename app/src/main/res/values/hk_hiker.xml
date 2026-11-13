@@ -29,4 +29,6 @@
     <color name="badge_color_background">#ffe9363f</color>
     <color name="blackText3">#ff444444</color>
     <color name="gray_text2">#ffa4a4a4</color>
+    <string name="version_check_url">http://gh.haikuoshijie.cn/https://github.com/qiusunshine/hiker-rules/blob/master/versions.json</string>
+    <string name="version_check_url2">https://ghproxy.com/https://raw.githubusercontent.com/qiusunshine/hiker-rules/master/versions.json</string>
 </resources>

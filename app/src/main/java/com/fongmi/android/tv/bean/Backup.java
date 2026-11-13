@@ -100,7 +100,12 @@ public class Backup {
         try {
             Gson gson = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LAZILY_PARSED_NUMBER).create();
             Backup backup = gson.fromJson(json, Backup.class);
-            if (backup != null) retype(gson, backup, json);
+            // 定型失败与解析失败同口径：回 null 让调用方中止恢复，不许拿
+            // 未定型（LinkedTreeMap）数据去 restore 逐表回填。
+            if (backup != null && !retype(gson, backup, json)) {
+                Log.w(TAG, "objectFrom retype failed");
+                return null;
+            }
             return backup;
         } catch (Exception e) {
             Log.w(TAG, "objectFrom parse failed", e);
@@ -113,12 +118,13 @@ public class Backup {
      * Signature 保型，签名失效时元素退化成 LinkedTreeMap，restore() 在 try 外逐表按
      * 元素类型回填必崩。这里用程序化构造的参数化类型（不读类文件签名）、且用与主读
      * 同一个 Gson 实例（保 LAZILY_PARSED_NUMBER 数字口径不变）按 JSON 树逐字段重读
-     * 覆盖，live 元素再走 Live 自身的定型修复；修复自守、读失败保持反射结果不动。
-     * prefers 是 Map&lt;String, ?&gt;，值类型本就是 Object、消费端按 instanceof 分发，
-     * 不受签名失效影响，不在此列。
+     * 覆盖，live 元素再走 Live 自身的定型修复；逐字段读失败（readList）保持反射
+     * 结果不动，但整树解析或 Live 定型这类整体失败回 false，由 objectFrom 按
+     * 解析失败口径回 null 中止恢复。prefers 是 Map&lt;String, ?&gt;，值类型本就是
+     * Object、消费端按 instanceof 分发，不受签名失效影响，不在此列。
      */
-    private static void retype(Gson gson, Backup backup, String json) {
-        if (json == null) return;
+    private static boolean retype(Gson gson, Backup backup, String json) {
+        if (json == null) return true;
         try {
             JsonElement tree = JsonParser.parseString(json);
             if (tree == null || !tree.isJsonObject()) return;
@@ -131,7 +137,9 @@ public class Backup {
                 JsonElement member = object.get("live");
                 if (member != null && member.isJsonArray()) {
                     JsonArray array = member.getAsJsonArray();
-                    for (int i = 0; i < live.size() && i < array.size(); i++) Live.retype(live.get(i), array.get(i));
+                    for (int i = 0; i < live.size() && i < array.size(); i++) {
+                        if (!Live.retype(live.get(i), array.get(i))) return false;
+                    }
                 }
             }
             List<Keep> keep = readList(gson, object, "keep", Keep.class);
@@ -146,7 +154,10 @@ public class Backup {
             if (device != null) backup.device = device;
             List<PlaybackDeleteTombstone> tombstone = readList(gson, object, "playbackDeleteTombstone", PlaybackDeleteTombstone.class);
             if (tombstone != null) backup.playbackDeleteTombstone = tombstone;
-        } catch (Exception ignored) {
+            return true;
+        } catch (Exception e) {
+            Log.w(TAG, "retype failed", e);
+            return false;
         }
     }
 

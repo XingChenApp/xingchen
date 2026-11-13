@@ -3,6 +3,7 @@ package com.fongmi.android.tv.server.process;
 import android.text.TextUtils;
 
 import com.fongmi.android.tv.server.Nano;
+import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.server.impl.Process;
 import com.fongmi.android.tv.web.CookieBridge;
 import com.fongmi.android.tv.web.HeaderPolicy;
@@ -10,13 +11,18 @@ import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.net.SourceGate;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import fi.iki.elonen.NanoHTTPD;
 import fi.iki.elonen.NanoHTTPD.IHTTPSession;
 import fi.iki.elonen.NanoHTTPD.Response;
 import okhttp3.Headers;
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -57,7 +63,9 @@ public class WebResourceGateway implements Process {
             String target = params.get("url");
             if (!isAllowed(target)) return cors(Nano.error(Response.Status.BAD_REQUEST, "Unsupported url"), session);
             Map<String, String> headers = HeaderPolicy.withDefaultUa(HeaderPolicy.parse(params.get("headers")));
-            copyRange(session, headers);
+            // 列表不转发 Range：列表要整份拿回来改写（见 playlist 支），带 Range
+            // 只会取回一段残片、改不动；分段与其它资源的 Range 照旧透传。
+            if (!M3u8.isPlaylistUrl(target)) copyRange(session, headers);
             Request.Builder builder = new Request.Builder().url(target).headers(HeaderPolicy.of(headers));
             CookieBridge.apply(builder.build().url(), builder, "include".equals(params.get("credentials")), HeaderPolicy.hasCookie(headers));
             builder.method(getMethod(session), getBody(session, builder.build().headers(), files));
@@ -67,7 +75,7 @@ public class WebResourceGateway implements Process {
             response = OkHttp.client().newCall(request).execute();
             SpiderDebug.log("web-resource", "%s %s -> %s in %sms", request.method(), request.url(), response.code(), System.currentTimeMillis() - start);
             CookieBridge.set(target, response.headers());
-            return cors(toResponse(response), session);
+            return cors(toResponse(session, response), session);
         } catch (Throwable e) {
             if (response != null) response.close();
             SpiderDebug.log("web-resource", e);
@@ -99,13 +107,66 @@ public class WebResourceGateway implements Process {
         return RequestBody.create(body == null ? "" : body, type);
     }
 
-    private Response toResponse(okhttp3.Response response) {
+    private Response toResponse(IHTTPSession session, okhttp3.Response response) throws IOException {
+        if (response.body() != null && M3u8.isPlaylist(response.request().url().toString(), response.body().contentType())) return playlist(session, response);
         InputStream stream = response.body().byteStream();
         String type = getContentType(response);
         Response.Status status = Response.Status.lookup(response.code());
         Response result = NanoHTTPD.newChunkedResponse(status == null ? Response.Status.OK : status, type, stream);
-        for (String name : response.headers().names()) if (copyHeader(name)) for (String value : response.headers(name)) result.addHeader(name, value);
+        copyHeaders(response, result);
         return result;
+    }
+
+    /**
+     * 列表支：列表只透传不改写时，分段行是相对名，播放器只能以本机
+     * /webResource 址为基址解析——相对名全落到本机根路径上、拿回假成功空体，
+     * 整表分段全废（2026-11-14 鉴黄师案：2,060 个空分段被判 malformed）。
+     * 这里把列表整份读回，用 M3u8 的同一套改写把每个地址先按上游列表址
+     * 解析成绝对址、再包回 /webResource（头、凭证、源归属随原请求参数原样
+     * 带下），分段与子列表回网关时与列表同头、同归属、同路取真数据。
+     * 正文不是列表的（上游错误页等）按原状态与原正文回，不吞上游状态。
+     */
+    private Response playlist(IHTTPSession session, okhttp3.Response response) throws IOException {
+        Map<String, String> params = session.getParms();
+        byte[] raw = response.body().bytes();
+        Response.Status status = Response.Status.lookup(response.code());
+        if (status == null) status = Response.Status.OK;
+        String text = new String(raw, StandardCharsets.UTF_8);
+        if (M3u8.looksLikePlaylist(text)) {
+            HttpUrl base = response.request().url();
+            String rewritten = M3u8.rewrite(base, text, target -> wrapSegment(params, target));
+            byte[] bytes = rewritten.getBytes(StandardCharsets.UTF_8);
+            SpiderDebug.log("web-resource", "playlist rewritten base=%s bytes=%s->%s", base, raw.length, bytes.length);
+            Response result = NanoHTTPD.newFixedLengthResponse(status, "application/vnd.apple.mpegurl; charset=utf-8", new ByteArrayInputStream(bytes), bytes.length);
+            copyHeaders(response, result);
+            return result;
+        }
+        Response result = NanoHTTPD.newFixedLengthResponse(status, getContentType(response), new ByteArrayInputStream(raw), raw.length);
+        copyHeaders(response, result);
+        return result;
+    }
+
+    /** 分段/子列表/密钥地址包回网关：与列表请求同一套参数（头、凭证、源归属），取数路一字不变。 */
+    private String wrapSegment(Map<String, String> params, String target) {
+        StringBuilder builder = new StringBuilder(Server.get().getAddress("/webResource?url=")).append(encode(target));
+        String headers = params.get("headers");
+        if (headers != null) builder.append("&headers=").append(encode(headers));
+        if ("include".equals(params.get("credentials"))) builder.append("&credentials=include");
+        String kind = params.get("kind");
+        if (kind != null && !kind.isEmpty()) {
+            builder.append("&kind=").append(encode(kind));
+            String id = params.get("id");
+            builder.append("&id=").append(encode(id == null ? "" : id));
+        }
+        return builder.toString();
+    }
+
+    private String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private void copyHeaders(okhttp3.Response response, Response result) {
+        for (String name : response.headers().names()) if (copyHeader(name)) for (String value : response.headers(name)) result.addHeader(name, value);
     }
 
     private String getContentType(okhttp3.Response response) {

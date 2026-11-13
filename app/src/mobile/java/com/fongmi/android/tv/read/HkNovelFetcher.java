@@ -24,8 +24,9 @@ import java.util.concurrent.TimeUnit;
  * rich_text / text_* 行的 title 拼纯文本，喂文字阅读器。
  * <p>
  * 断了会怎样：规则未安装 / 取页失败 / 解析无正文行 → 返回空串，阅读器显示
- * "正文抓取失败"，不崩。js: 规则依赖引擎绑定（海阔页打开过即绑定），未绑定
- * 时同样走失败分支。
+ * "正文抓取失败"，不崩；章节解析器报错或超时未回调 → 返回 null 作失败信号
+ * （与空章节的空串区分，既有调用方按空处理、终态不变）。js: 规则依赖引擎
+ * 绑定（海阔页打开过即绑定），未绑定时同样走失败分支。
  */
 public class HkNovelFetcher {
 
@@ -56,6 +57,10 @@ public class HkNovelFetcher {
                 return "";
             }
             List<HkItem> items = parseItems(chapterUrl, rule, html);
+            // 解析失败回 null 与「章节本身无正文行」的空列表区分：失败时回 null
+            // 作失败信号（既有调用方按 TextUtils.isEmpty 处理、终态不变），
+            // 不许拿空列表冒充空章节（残项处置 2026-11-14）。
+            if (items == null) return null;
             String text = extractText(items);
             SpiderDebug.log("reading", "novel fetch rule=%s items=%d chars=%d",
                     ruleTitle, items.size(), text.length());
@@ -66,26 +71,36 @@ public class HkNovelFetcher {
         }
     }
 
+    /** 解析成功回条目表（可为空表＝章节无正文行）；解析失败/超时未回调回 null 作失败信号。 */
     private static List<HkItem> parseItems(String chapterUrl, HkRule rule, String html) {
         List<HkItem> out = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(1);
+        boolean[] failed = {false};
+        boolean[] bound = {false};
         try {
             HkHomeParser.findList("novel", chapterUrl, rule, rule.getFindRule(), html, 1,
                     new HashMap<>(), new HkHomeParser.Callback() {
                         @Override
                         public void bindArrayToView(String key, List<HkItem> list) {
                             if (list != null) out.addAll(list);
+                            bound[0] = true;
                             latch.countDown();
                         }
 
                         @Override
                         public void error(String title, String msg, String code, Exception e) {
+                            SpiderDebug.log("reading", "novel parse error: %s",
+                                    e == null ? msg : e.getMessage());
+                            failed[0] = true;
                             latch.countDown();
                         }
                     });
             latch.await(30, TimeUnit.SECONDS);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            SpiderDebug.log("reading", "novel parseItems failed: %s", t.getMessage());
+            return null;
         }
+        if (failed[0] || !bound[0]) return null;
         return out;
     }
 

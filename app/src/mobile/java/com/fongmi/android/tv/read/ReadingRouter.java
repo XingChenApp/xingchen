@@ -55,8 +55,17 @@ public class ReadingRouter {
         if (!(context instanceof Activity)) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             context.startActivity(intent);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 点了没反应是最坏的失败：必须让用户知道没打开成（349 阅读组）
+            ToastUtil.show(context, "书架打开失败，请重试", Toast.LENGTH_SHORT);
         }
+    }
+
+    private static String shortMsg(Throwable t) {
+        if (t == null) return "";
+        String m = t.getMessage();
+        if (m == null || m.isEmpty()) m = t.getClass().getSimpleName();
+        return m.length() > 40 ? m.substring(0, 40) : m;
     }
 
     /**
@@ -149,13 +158,17 @@ public class ReadingRouter {
         final String playFlag = r.playFlag;
         new Thread(() -> {
             java.util.List<ReadingSession.Chapter> chapters = new java.util.ArrayList<>();
+            String err = "";
             try {
                 com.fongmi.android.tv.bean.Result res =
                         com.fongmi.android.tv.api.SiteApi.detailContent(siteKey, detailId);
                 chapters = pickDetailChapters(res, playFlag);
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                // 失败原因要带到回退提示里，不许只剩「拉取失败」四个字无从查起
+                err = shortMsg(t);
             }
             final java.util.List<ReadingSession.Chapter> table = chapters;
+            final String fErr = err;
             // context 未必是 Activity（语音"继续读"），用主线程 Handler 回调
             new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                 if (table.size() > 1) {
@@ -177,7 +190,8 @@ public class ReadingRouter {
                     openReading(context, s);
                 } else {
                     if (!TextUtils.isEmpty(r.content)) s.text = r.content;
-                    ToastUtil.show(context, "目录拉取失败，只读当前章", Toast.LENGTH_SHORT);
+                    ToastUtil.show(context, "目录拉取失败，只读当前章"
+                            + (fErr.isEmpty() ? "" : "：" + fErr), Toast.LENGTH_SHORT);
                     openReading(context, s);
                 }
             });
@@ -195,13 +209,16 @@ public class ReadingRouter {
         final String playFlag = r.playFlag;
         new Thread(() -> {
             java.util.List<ReadingSession.Chapter> chapters = new java.util.ArrayList<>();
+            String err = "";
             try {
                 com.fongmi.android.tv.bean.Result res =
                         com.fongmi.android.tv.api.SiteApi.detailContent(siteKey, detailId);
                 chapters = pickDetailChapters(res, playFlag);
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                err = shortMsg(t);
             }
             final java.util.List<ReadingSession.Chapter> table = chapters;
+            final String fErr = err;
             new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                 if (table.size() > 1) {
                     int idx = com.fongmi.android.tv.read.NovelChapterTable.resolveIndex(
@@ -211,6 +228,10 @@ public class ReadingRouter {
                     s.chapterUrl = s.currentChapter().url;
                     s.detailId = detailId;
                     s.playFlag = playFlag == null ? "" : playFlag;
+                } else {
+                    // 与小说同口径：回退单章必须明示，不许静默打开一个切不了章的会话
+                    ToastUtil.show(context, "目录拉取失败，只读当前章"
+                            + (fErr.isEmpty() ? "" : "：" + fErr), Toast.LENGTH_SHORT);
                 }
                 if (r.position > 0) openReadingWithStartPage(context, s, r.position);
                 else openReading(context, s);
@@ -227,10 +248,13 @@ public class ReadingRouter {
         ToastUtil.show(context, "正在拉取目录…", Toast.LENGTH_SHORT);
         new Thread(() -> {
             java.util.List<ReadingSession.Chapter> table = new java.util.ArrayList<>();
+            String err = "";
             try {
                 com.fongmi.android.tv.legado.LegadoSource src =
                         com.fongmi.android.tv.legado.LegadoStore.get(r.legadoKey);
-                if (src != null) {
+                if (src == null) {
+                    err = "书源已不存在";
+                } else {
                     com.fongmi.android.tv.legado.LegadoPipeline pipe =
                             new com.fongmi.android.tv.legado.LegadoPipeline(src);
                     com.fongmi.android.tv.legado.LegadoPipeline.BookInfo info =
@@ -243,9 +267,11 @@ public class ReadingRouter {
                         }
                     }
                 }
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                err = shortMsg(t);
             }
             final java.util.List<ReadingSession.Chapter> chapters = table;
+            final String fErr = err;
             new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                 if (chapters.size() > 1) {
                     int idx = com.fongmi.android.tv.read.NovelChapterTable.resolveIndex(
@@ -253,6 +279,10 @@ public class ReadingRouter {
                     s.chapters = new java.util.ArrayList<>(chapters);
                     s.chapterIndex = idx;
                     s.chapterUrl = s.currentChapter().url;
+                } else {
+                    // 与小说同口径：回退单章必须明示＋带原因
+                    ToastUtil.show(context, "目录拉取失败，只读当前章"
+                            + (fErr.isEmpty() ? "" : "：" + fErr), Toast.LENGTH_SHORT);
                 }
                 if (s.kind == ReadingSession.Kind.COMIC && r.position > 0) {
                     openReadingWithStartPage(context, s, r.position);
@@ -263,37 +293,39 @@ public class ReadingRouter {
         }).start();
     }
 
-    /** 从详情结果取章节表：优先记录时的线路，找不到用第一个有选集的线路。 */
+    /**
+     * 从详情结果取章节表：优先记录时的线路，找不到用第一个有选集的线路。
+     * 不许自己吞异常回空表（349 阅读组摘兜底）：组装失败抛回 fetchNovelChapters/
+     * fetchComicChapters 的失败记录，调用方回退单章时能带上真原因，而不是把
+     * 「组装炸了」和「本来就没选集」混成同一个空表。
+     */
     private static java.util.List<ReadingSession.Chapter> pickDetailChapters(
             com.fongmi.android.tv.bean.Result res, String playFlag) {
         java.util.List<ReadingSession.Chapter> out = new java.util.ArrayList<>();
-        try {
-            if (res == null) return out;
-            com.fongmi.android.tv.bean.Vod vod = res.getVod();
-            if (vod == null) return out;
-            vod.setFlags();
-            java.util.List<com.fongmi.android.tv.bean.Flag> flags = vod.getFlags();
-            java.util.List<com.fongmi.android.tv.bean.Episode> eps = null;
-            if (!TextUtils.isEmpty(playFlag)) {
-                for (com.fongmi.android.tv.bean.Flag f : flags) {
-                    if (f != null && playFlag.equals(f.getFlag())
-                            && f.getEpisodes() != null && !f.getEpisodes().isEmpty()) {
-                        eps = f.getEpisodes();
-                        break;
-                    }
+        if (res == null) return out;
+        com.fongmi.android.tv.bean.Vod vod = res.getVod();
+        if (vod == null) return out;
+        vod.setFlags();
+        java.util.List<com.fongmi.android.tv.bean.Flag> flags = vod.getFlags();
+        java.util.List<com.fongmi.android.tv.bean.Episode> eps = null;
+        if (!TextUtils.isEmpty(playFlag)) {
+            for (com.fongmi.android.tv.bean.Flag f : flags) {
+                if (f != null && playFlag.equals(f.getFlag())
+                        && f.getEpisodes() != null && !f.getEpisodes().isEmpty()) {
+                    eps = f.getEpisodes();
+                    break;
                 }
             }
-            if (eps == null) {
-                for (com.fongmi.android.tv.bean.Flag f : flags) {
-                    if (f != null && f.getEpisodes() != null && !f.getEpisodes().isEmpty()) {
-                        eps = f.getEpisodes();
-                        break;
-                    }
-                }
-            }
-            if (eps != null) out = ReadingDetailDivert.toChapters(eps);
-        } catch (Throwable ignored) {
         }
+        if (eps == null) {
+            for (com.fongmi.android.tv.bean.Flag f : flags) {
+                if (f != null && f.getEpisodes() != null && !f.getEpisodes().isEmpty()) {
+                    eps = f.getEpisodes();
+                    break;
+                }
+            }
+        }
+        if (eps != null) out = ReadingDetailDivert.toChapters(eps);
         return out;
     }
 

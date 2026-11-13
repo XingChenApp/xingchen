@@ -81,7 +81,9 @@ public class HkCookieJar implements CookieJar {
         memory.clear();
         try {
             prefs.edit().clear().apply();
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 内存已清、持久化没清成：下次启动旧 Cookie 会复活，失败必须留痕可查，不许无痕。
+            android.util.Log.e("HkCookieJar", "clear persisted cookies failed", t);
         }
     }
 
@@ -91,7 +93,8 @@ public class HkCookieJar implements CookieJar {
         memory.remove(host);
         try {
             prefs.edit().remove(host).apply();
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            android.util.Log.e("HkCookieJar", "clearHost persisted cookies failed host=" + host, t);
         }
     }
 
@@ -106,7 +109,9 @@ public class HkCookieJar implements CookieJar {
                         .append(c.httpOnly()).append("\t").append(c.hostOnly());
             }
             prefs.edit().putString(host, sb.toString()).apply();
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            // 内存里仍有效、仅跨重启丢失；CookieJar 接口无抛错通道，失败走 logcat 留痕。
+            android.util.Log.e("HkCookieJar", "persist cookies failed host=" + host, e);
         }
     }
 
@@ -128,7 +133,9 @@ public class HkCookieJar implements CookieJar {
                 if (Boolean.parseBoolean(p[6])) b.httpOnly();
                 list.add(b.build());
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            // 损坏数据只回已解析出的部分（不整表丢弃），失败留痕便于定位是哪家站的存档坏了。
+            android.util.Log.e("HkCookieJar", "restore cookies failed host=" + host, e);
         }
         return list;
     }

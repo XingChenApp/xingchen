@@ -71,7 +71,10 @@ public class HkErrorUtil {
                 try {
                     BottomErrorDialog dialog = BottomErrorDialog.newInstance(title, ruleTitle, errorMsg, throwable);
                     dialog.show(fa.getSupportFragmentManager(), "hk_error_bottom");
-                } catch (Throwable ignored) {
+                } catch (Throwable showFailed) {
+                    // 本函数就是错误提示的出口：弹窗出不来时错误不能跟着一起消失，
+                    // 退到本域既有的 ToastUtil 提示形，把标题与描述直接给用户看。
+                    ToastUtil.show(activity, title + (TextUtils.isEmpty(errorMsg) ? "" : "：" + errorMsg), Toast.LENGTH_LONG);
                 }
             });
         } catch (Throwable ignored) {

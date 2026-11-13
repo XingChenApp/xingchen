@@ -25,6 +25,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -310,7 +311,11 @@ public class CustomCspSetting {
     public static void copyPage(File source, String id) {
         ensureFileAccess();
         File file = file(id, "index.html");
-        Path.copy(source, file);
+        try {
+            Path.copy(source, file);
+        } catch (IOException e) {
+            throw new IllegalStateException(App.get().getString(R.string.setting_custom_csp_save_failed, file.getAbsolutePath()), e);
+        }
         if (!source.exists() || !file.exists() || !Arrays.equals(Path.readToByte(source), Path.readToByte(file))) throw new IllegalStateException(App.get().getString(R.string.setting_custom_csp_save_failed, file.getAbsolutePath()));
     }
 
@@ -321,21 +326,33 @@ public class CustomCspSetting {
         try {
             if (!source.getCanonicalPath().equals(file.getCanonicalPath())) Path.copy(source, file);
         } catch (Exception e) {
-            Path.copy(source, file);
+            try {
+                Path.copy(source, file);
+            } catch (IOException retry) {
+                throw new IllegalStateException(App.get().getString(R.string.setting_custom_csp_save_failed, file.getAbsolutePath()), retry);
+            }
         }
         if (!file.exists() || !Arrays.equals(Path.readToByte(source), Path.readToByte(file))) throw new IllegalStateException(App.get().getString(R.string.setting_custom_csp_save_failed, file.getAbsolutePath()));
         return localUrl(id, source.getName());
     }
 
-    public static void deleteFiles(String id) {
-        if (TextUtils.isEmpty(id)) return;
+    public static boolean deleteFiles(String id) {
+        if (TextUtils.isEmpty(id)) return false;
         try {
             File root = dir().getCanonicalFile();
             File target = new File(root, id).getCanonicalFile();
-            if (!isInside(root, target)) return;
+            if (!isInside(root, target)) return false;
             Path.clear(target);
+            // 写后回读验证：Path.clear 不报成败，登记已删但文件还留盘时同 id 重建会串回旧数据。
+            if (target.exists()) {
+                android.util.Log.e("CustomCspSetting", "delete files incomplete, target still exists id=" + id);
+                return false;
+            }
+            return true;
         } catch (Throwable e) {
             SpiderDebug.log("custom-csp", "delete files failed id=%s error=%s", id, e.toString());
+            android.util.Log.e("CustomCspSetting", "delete files failed id=" + id, e);
+            return false;
         }
     }
 

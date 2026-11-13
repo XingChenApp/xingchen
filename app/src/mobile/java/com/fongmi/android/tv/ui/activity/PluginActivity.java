@@ -222,7 +222,8 @@ public class PluginActivity extends BaseActivity {
                 else dead.incrementAndGet();
                 int finished = done.incrementAndGet();
                 runOnUiThread(() -> {
-                    adapter.notifyDataSetChanged();
+                    int idx = plugins.indexOf(p);
+                    if (idx >= 0) adapter.notifyItemChanged(idx);
                     if (finished == all.size()) {
                         testing = false;
                         testingPaths.clear();
@@ -369,6 +370,7 @@ public class PluginActivity extends BaseActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 1001 && resultCode == RESULT_OK && data != null) {
             List<String> imported = new ArrayList<>();
+            boolean importFailed = false;
             try {
                 if (data.getClipData() != null) {
                     int count = data.getClipData().getItemCount();
@@ -382,6 +384,7 @@ public class PluginActivity extends BaseActivity {
                 }
             } catch (Exception e) {
                 e.printStackTrace();
+                importFailed = true;
             }
             // 同一脚本的缀号变体一并清掉（与打开方式导入同口径，只留正名一份，
             // fix168-pyimport2）；删掉的路径并进失效名单，免得旧蜘蛛还认得它
@@ -394,6 +397,7 @@ public class PluginActivity extends BaseActivity {
             }
             invalidateFiles(imported);
             loadPlugins();
+            if (importFailed) ToastUtil.show(this, "导入未全部完成，有插件拷贝失败未导入", Toast.LENGTH_SHORT);
         }
     }
 

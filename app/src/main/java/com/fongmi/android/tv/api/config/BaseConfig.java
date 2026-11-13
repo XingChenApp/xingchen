@@ -51,16 +51,19 @@ abstract class BaseConfig {
     protected void onLoadSuccess() {
     }
 
-    public synchronized void ensureLoaded() {
+    /** @return 是否已加载就绪；失败回 false，调用方能区分「没配」与「加载失败」，且 isLoaded 仍为假、下次调用自动重试。 */
+    public synchronized boolean ensureLoaded() {
         try {
-            if (isLoaded()) return;
+            if (isLoaded()) return true;
             beforeLoad();
             if (config == null) config = defaultConfig();
             Server.get().start();
             load(config);
             onLoadSuccess();
+            return true;
         } catch (Throwable e) {
-            e.printStackTrace();
+            android.util.Log.e(getTag(), "ensureLoaded failed", e);
+            return false;
         }
     }
 

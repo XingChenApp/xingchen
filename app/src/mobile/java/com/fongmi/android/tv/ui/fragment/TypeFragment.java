@@ -323,8 +323,8 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
             // 先 resume 的碎片不再把变更吞掉，其余页签也能各自刷新到新样式。
             long gen = readCoverGen();
             if (gen != mCoverGen) {
-                mCoverGen = gen;
                 refreshCoverStyle();
+                mCoverGen = gen;
             }
         } catch (Exception e) { e.printStackTrace(); }
     }

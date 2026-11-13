@@ -3,6 +3,7 @@ package com.fongmi.android.tv.tts;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.fongmi.android.tv.App;
 
@@ -116,7 +117,13 @@ public class EdgeVoiceCatalog {
                 v.portrait = portraitFor(locale, v.gender);
                 byId.put(shortName, v);
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 解析失败：byId 已预置内置名单，返回值保底不空——失败不许把
+            // 既有名单按空覆盖；此前静默吞掉与「远程无新增」分不开，补记日志。
+            try {
+                Log.w("EdgeVoiceCatalog", "远程音色列表解析失败，保留内置名单", t);
+            } catch (Throwable ignored) {
+            }
         }
         return new ArrayList<>(byId.values());
     }

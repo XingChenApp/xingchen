@@ -29,7 +29,11 @@ public final class LabBoot {
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             try {
                 boot(c);
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                // 整轮自启没跑完不许静默：留痕 + 借注册表的首页提示口弹一次给人看
+                android.util.Log.e("LabBoot", "实验室开机自启没跑完", e);
+                LabRegistry.postLoadNotice("实验室开机自启没跑完："
+                        + (e.getMessage() == null ? "未知原因" : e.getMessage()));
             }
         }, 3000);
     }
@@ -50,7 +54,11 @@ public final class LabBoot {
         new Thread(() -> {
             try {
                 boot(c);
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                // 同 schedule 口径：整轮自启没跑完要留痕并让实验室首页弹给人看
+                android.util.Log.e("LabBoot", "实验室开机自启没跑完", e);
+                LabRegistry.postLoadNotice("实验室开机自启没跑完："
+                        + (e.getMessage() == null ? "未知原因" : e.getMessage()));
             }
         }).start();
     }

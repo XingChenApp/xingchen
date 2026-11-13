@@ -356,12 +356,16 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     private void onMoreActions() {
         try {
             com.fongmi.android.tv.ui.dialog.SourceScriptsDialog dialog = new com.fongmi.android.tv.ui.dialog.SourceScriptsDialog(requireActivity(), (file, kind) -> {
-                try { onScriptSelected(file, kind); } catch (Exception e) { e.printStackTrace(); }
+                try { onScriptSelected(file, kind); } catch (Exception e) {
+                    e.printStackTrace();
+                    Notify.show("打开脚本失败，请重试");
+                }
             });
             dialog.setCurrentFile(getCurrentScriptFile());
             dialog.show();
         } catch (Exception e) {
             e.printStackTrace();
+            Notify.show("源脚本弹窗打开失败");
         }
     }
 
@@ -388,12 +392,16 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         else if (item.getItemId() == R.id.more_actions) {
             try {
                 com.fongmi.android.tv.ui.dialog.SourceScriptsDialog dialog = new com.fongmi.android.tv.ui.dialog.SourceScriptsDialog(requireActivity(), (file, kind) -> {
-                    try { onScriptSelected(file, kind); } catch (Exception e) { e.printStackTrace(); }
+                    try { onScriptSelected(file, kind); } catch (Exception e) {
+                        e.printStackTrace();
+                        Notify.show("打开脚本失败，请重试");
+                    }
                 });
                 dialog.setCurrentFile(getCurrentScriptFile());
                 dialog.show();
             } catch (Exception e) {
                 e.printStackTrace();
+                Notify.show("源脚本弹窗打开失败");
             }
         }
         else return false;
@@ -790,7 +798,9 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
             try {
                 FolderFragment f = getFragment();
                 if (f != null) f.checkCoverChanged();
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {
+                android.util.Log.e("VodFragment", "checkCoverChanged failed", e);
+            }
         }
     }
 
@@ -808,6 +818,10 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
             VodConfig.get().clearImportedHome();
             if (!homeAlreadyLoading) refreshHome();
         } catch (Throwable ignored) {
+            // 导入待开没消费成不许静默：明示用户手动切到该源（标记若还在，
+            // 下次回前台／切回首页还会再消费一次）。
+            android.content.Context ctx = getContext();
+            if (ctx != null) ToastUtil.show(ctx, "导入的源自动打开失败，请手动切换到该源", android.widget.Toast.LENGTH_SHORT);
         }
     }
 

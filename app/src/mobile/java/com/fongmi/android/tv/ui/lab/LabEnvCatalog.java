@@ -63,7 +63,9 @@ public final class LabEnvCatalog {
 
     private static synchronized Map<String, EnvEntry> all(Context c) {
         if (cache != null) return cache;
-        cache = new HashMap<>();
+        // 先装进本地表，读全了才进缓存：解析失败不许按空表缓存住——
+        // 否则一次失败整个进程期目录恒空、全部环境静默消失且再不重试
+        Map<String, EnvEntry> loaded = new HashMap<>();
         try (InputStream in = c.getAssets().open("lab_env_catalog.json")) {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             byte[] buf = new byte[8192];
@@ -100,12 +102,18 @@ public final class LabEnvCatalog {
                             if (!TextUtils.isEmpty(dl.url)) entry.downloads.add(dl);
                         }
                     }
-                    if (!TextUtils.isEmpty(entry.id)) cache.put(entry.id, entry);
+                    if (!TextUtils.isEmpty(entry.id)) loaded.put(entry.id, entry);
                 }
             }
-        } catch (Exception ignored) {
+            cache = loaded;
+        } catch (java.io.FileNotFoundException e) {
+            // 目录文件还没生成＝真·空目录（类头注的回退旧地址口径），缓存住不反复开资产
+            cache = loaded;
+        } catch (Exception e) {
+            // 文件在但读不出/解析坏了：与真空区分——留痕、本次按空回、不进缓存，下次调用重试
+            android.util.Log.e("LabEnvCatalog", "环境目录读取/解析失败，本次按空目录返回且不缓存", e);
         }
-        return cache;
+        return cache != null ? cache : loaded;
     }
 
     public static EnvEntry entry(Context c, String id) {

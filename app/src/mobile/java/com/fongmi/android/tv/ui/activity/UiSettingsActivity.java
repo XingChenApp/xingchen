@@ -11,6 +11,7 @@ import com.fongmi.android.tv.R;
 import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.ActivityUiSettingsBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.utils.Notify;
 import com.xingchen.tv.theme.ThemeManager;
 import com.xingchen.tv.theme.XingChenTheme;
 
@@ -132,7 +133,9 @@ public class UiSettingsActivity extends BaseActivity {
                 theme.save(this);
                 com.xingchen.tv.theme.ThemeManager.get().setTheme(theme);
                 com.xingchen.tv.theme.ThemeManager.get().apply(this);
-            } catch (Exception e) {}
+            } catch (Exception e) {
+                Notify.show("壁纸模糊设置保存失败，未生效");
+            }
         });
         updateWallpaperUI();
         updateThumbnails();
@@ -161,7 +164,9 @@ public class UiSettingsActivity extends BaseActivity {
         try {
             com.xingchen.tv.theme.ThemeManager.get().setTheme(theme);
             com.xingchen.tv.theme.ThemeManager.get().apply(this);
-        } catch (Exception e) {}
+        } catch (Exception e) {
+            Notify.show("主题已保存，但应用失败，重新进入本页后生效");
+        }
         updateWallpaperUI();
         updateThumbnails();
     }
@@ -202,6 +207,7 @@ public class UiSettingsActivity extends BaseActivity {
                 runOnUiThread(() -> setWallpaper(XingChenTheme.WP_URL, outFile.getAbsolutePath()));
             } catch (Exception e) {
                 e.printStackTrace();
+                runOnUiThread(() -> Notify.show("网络壁纸下载失败，未换上"));
             }
         }).start();
     }
@@ -223,6 +229,7 @@ public class UiSettingsActivity extends BaseActivity {
                 setWallpaper(XingChenTheme.WP_LOCAL, outFile.getAbsolutePath());
             } catch (Exception e) {
                 e.printStackTrace();
+                Notify.show("本地壁纸保存失败，未换上");
             }
         }
     }

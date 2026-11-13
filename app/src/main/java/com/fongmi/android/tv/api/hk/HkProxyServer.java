@@ -66,13 +66,17 @@ public class HkProxyServer extends NanoHTTPD {
      * 全局只允许一个存活实例，不留僵尸端口。
      */
     private static void migrateAndDestroy(HkProxyServer old, HkProxyServer now) {
+        // 先迁后毁：此前先毁旧实例，destroy 抛错会连迁移一起吞掉、代理 JS 与
+        // 求值器无痕丢失；现在迁移先落新实例，销毁失败单独走 hkproxy 诊断日志。
+        String js = old.getProxyJS();
+        HkJsRuntime rt = old.getEvaluator();
+        if (now.getProxyJS() == null && js != null) now.setProxyJS(js);
+        if (now.getEvaluator() == null && rt != null) now.setEvaluator(rt);
         try {
-            String js = old.getProxyJS();
-            HkJsRuntime rt = old.getEvaluator();
             old.destroyServer();
-            if (now.getProxyJS() == null && js != null) now.setProxyJS(js);
-            if (now.getEvaluator() == null && rt != null) now.setEvaluator(rt);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            com.github.catvod.crawler.SpiderDebug.log("hkproxy", "migrate destroy old failed: %s: %s",
+                    t.getClass().getSimpleName(), String.valueOf(t.getMessage()));
         }
     }
 
@@ -358,11 +362,24 @@ public class HkProxyServer extends NanoHTTPD {
     private Response proxyResultMapResponse(Map<String, Object> map) {
         Response.Status status = Response.Status.OK;
         if (map.containsKey("statusCode")) {
-            try {
-                int code = ((Number) map.get("statusCode")).intValue();
+            // 规则回包的 statusCode 可能是数字也可能是数字字符串：字符串此前
+            // 强转 Number 必抛、被吞成默认 200，错误状态码无痕变成功。现在两形
+            // 都认；真认不出走 hkproxy 诊断日志留痕，再回默认 200。
+            Object rawCode = map.get("statusCode");
+            Integer code = null;
+            if (rawCode instanceof Number) {
+                code = ((Number) rawCode).intValue();
+            } else if (rawCode != null) {
+                try {
+                    code = Integer.parseInt(String.valueOf(rawCode).trim());
+                } catch (Throwable parseFailed) {
+                    com.github.catvod.crawler.SpiderDebug.log("hkproxy", "bad statusCode=%s (%s)",
+                            String.valueOf(rawCode), parseFailed.getClass().getSimpleName());
+                }
+            }
+            if (code != null) {
                 Response.Status mapped = Response.Status.lookup(code);
                 if (mapped != null) status = mapped;
-            } catch (Throwable ignored) {
             }
         }
         Map<String, Object> hm = null;

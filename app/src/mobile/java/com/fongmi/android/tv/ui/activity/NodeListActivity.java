@@ -144,7 +144,12 @@ public class NodeListActivity extends BaseActivity {
                 if (ms >= 0) ok.incrementAndGet();
                 int finished = done.incrementAndGet();
                 runOnUiThread(() -> {
-                    adapter.notifyDataSetChanged();
+                    for (int i = 0; i < adapter.data.size(); i++) {
+                        if (adapter.data.get(i).id.equals(n.id)) {
+                            adapter.notifyItemChanged(i);
+                            break;
+                        }
+                    }
                     if (finished == all.size()) {
                         testing = false;
                         Notify.show("测速完成：可用 " + ok.get() + " 个，超时 "

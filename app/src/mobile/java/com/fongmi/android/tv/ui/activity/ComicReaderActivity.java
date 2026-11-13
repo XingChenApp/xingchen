@@ -855,6 +855,10 @@ public class ComicReaderActivity extends AppCompatActivity {
             // 合并写：整条覆盖会抹掉建会话时写入的 bookUrl 等追更字段（R1）
             ReadingStore.saveMerged(r);
         } catch (Throwable ignored) {
+            // 没存上：旧进度记录未被覆盖（合并写未完成）；清掉节流戳，下一次
+            // 存进度（切章／退页）立即重试，并明示用户这一次没存上。
+            lastSaveAt = 0;
+            ToastUtil.show(this, "阅读进度保存失败", Toast.LENGTH_SHORT);
         }
     }
 

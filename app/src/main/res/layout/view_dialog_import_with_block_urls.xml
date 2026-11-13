@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 官布局 view_dialog_import_with_block_urls 照官新建（官源 res/layout/view_dialog_import_with_block_urls.xml，③团 showWithAdUrlsDialog 建面）。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="10.0dip"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/import_rule_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="10.0dip"
+        android:text="剪贴板检测到搜索引擎规则，是否立即导入？"
+        android:textColor="@color/black"
+        android:textSize="16.0sp" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="44.0dip"
+        android:layout_marginStart="10.0dip"
+        android:layout_marginEnd="10.0dip"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/import_rule_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="28.0dip"
+            android:layout_marginEnd="10.0dip"
+            android:background="@drawable/button_layer_green"
+            android:paddingStart="5.0dip"
+            android:paddingEnd="5.0dip"
+            android:text="同时导入广告拦截规则"
+            android:textColor="@color/black_666" />
+
+        <Button
+            android:id="@+id/not_import_rule_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="28.0dip"
+            android:layout_marginEnd="10.0dip"
+            android:background="@drawable/button_layer"
+            android:ellipsize="end"
+            android:lines="1"
+            android:maxLines="1"
+            android:paddingStart="5.0dip"
+            android:paddingEnd="5.0dip"
+            android:text="不导入拦截规则"
+            android:textColor="@color/black_666" />
+    </LinearLayout>
+</LinearLayout>

@@ -94,18 +94,30 @@ public final class RemoteStore {
         }
     }
 
-    public static synchronized void save(RemoteStoreFile store) {
+    public static synchronized boolean save(RemoteStoreFile store) {
         cache = ensure(store);
         String json = persistJson(cache);
         Prefers.put(KEY_STORE, json);
-        if (!Setting.hasFileAccess()) return;
+        if (!Setting.hasFileAccess()) return true;
+        File target = file();
         try {
-            File target = file();
             File tmp = new File(target.getParentFile(), target.getName() + ".tmp");
             Path.write(tmp, json.getBytes(StandardCharsets.UTF_8));
             if (!tmp.renameTo(target)) Path.move(tmp, target);
+            // 写后回读校验：加载时文件优先于 Prefers 且会反向覆盖，写坏/写一半的文件
+            // 会在重启后把刚保存的配置静默盖回旧值——回读不等即判失败。
+            if (!json.equals(Path.read(target))) throw new java.io.IOException("profile file verify mismatch");
+            return true;
         } catch (Throwable e) {
             log("save profile file failed error=%s", e.getMessage());
+            android.util.Log.e("RemoteStore", "save profile file failed, removing stale file so reload falls back to Prefers", e);
+            // 旧文件留盘会在下次 reload 时盖掉 Prefers 里的新值：删掉它，让回载走 Prefers。
+            try {
+                Path.clear(target);
+            } catch (Throwable clearError) {
+                android.util.Log.e("RemoteStore", "remove stale profile file failed", clearError);
+            }
+            return false;
         }
     }
 
@@ -494,7 +506,10 @@ public final class RemoteStore {
             try {
                 List<RemoteBindGrant> typed = App.gson().fromJson(grants, TypeToken.getParameterized(List.class, RemoteBindGrant.class).getType());
                 if (typed != null) profile.pendingBindGrants = typed;
-            } catch (Throwable ignored) {
+            } catch (Throwable e) {
+                // 定型失败不许留未定型的授权表：下游多处按 RemoteBindGrant 强类型迭代，留着会在别处 ClassCastException 把整店拖垮；只摘这一组并留痕，其余定型结果不动
+                SpiderDebug.log("remote", "retype pendingBindGrants failed error=%s, drop untyped grants", e.getMessage());
+                profile.pendingBindGrants = new ArrayList<>();
             }
         }
         JsonElement groups = object.get("groups");

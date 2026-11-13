@@ -137,8 +137,12 @@ public class HkM3u8ClearUtil {
     /**
      * 从 JSON 保存规则（对应 8.83 saveByJSON）。
      * 空 JSON 则清空规则。
+     *
+     * @return 是否保存成功；解析失败时内存规则保持旧版、不落盘，回 false
+     *         报失败，不许规则方以为已保存生效（批 residual；原 void 签名
+     *         无任何调用方消费返回值，改 boolean 不影响既有调用点）。
      */
-    public static void saveByJSON(String json) {
+    public static boolean saveByJSON(String json) {
         try {
             if (TextUtils.isEmpty(json)) {
                 rules.clear();
@@ -148,8 +152,10 @@ public class HkM3u8ClearUtil {
                 rules = list != null ? list : new ArrayList<HkM3u8ClearAdRule>();
             }
             persistAsync();
+            return true;
         } catch (Throwable e) {
             Log.e(TAG, "saveByJSON failed", e);
+            return false;
         }
     }
 
@@ -161,23 +167,47 @@ public class HkM3u8ClearUtil {
         }
     }
 
+    /** 规则文件在盘上但读/解析失败（与「文件不存在/真空」可区分，批 residual）。 */
+    private static volatile boolean rulesLoadFailed = false;
+
+    public static boolean isRulesLoadFailed() {
+        return rulesLoadFailed;
+    }
+
     /** 从文件加载规则（8.83 initRules/loadSub 的本地部分）。 */
     public static void initRules() {
         EXEC.execute(() -> {
+            File f = rulesFile();
+            if (f == null || !f.exists()) return;
+            String json = readFile(f);
+            if (json == null) {
+                // 文件存在却读不出：不许与「不存在」同形按空表收——置失败标、
+                // 坏文件备份为 .bad，后续 persist 覆盖原文件也不丢原始数据。
+                rulesLoadFailed = true;
+                Log.e(TAG, "initRules: rules file unreadable, backed up: " + f.getPath());
+                backupBadFile(f);
+                return;
+            }
+            if (TextUtils.isEmpty(json)) return;
             try {
-                File f = rulesFile();
-                if (f != null && f.exists()) {
-                    String json = readFile(f);
-                    if (!TextUtils.isEmpty(json)) {
-                        List<HkM3u8ClearAdRule> list = GSON.fromJson(json,
-                                TypeToken.getParameterized(List.class, HkM3u8ClearAdRule.class).getType());
-                        if (list != null) rules = list;
-                    }
-                }
+                List<HkM3u8ClearAdRule> list = GSON.fromJson(json,
+                        TypeToken.getParameterized(List.class, HkM3u8ClearAdRule.class).getType());
+                if (list != null) rules = list;
             } catch (Throwable e) {
-                Log.e(TAG, "initRules failed", e);
+                rulesLoadFailed = true;
+                Log.e(TAG, "initRules: rules file parse failed, backed up: " + f.getPath(), e);
+                backupBadFile(f);
             }
         });
+    }
+
+    private static void backupBadFile(File f) {
+        try {
+            File bad = new File(f.getParentFile(), f.getName() + ".bad");
+            byte[] data = java.nio.file.Files.readAllBytes(f.toPath());
+            java.nio.file.Files.write(bad.toPath(), data);
+        } catch (Throwable ignored) {
+        }
     }
 
     private static void persistAsync() {
@@ -185,7 +215,15 @@ public class HkM3u8ClearUtil {
         EXEC.execute(() -> {
             try {
                 File f = rulesFile();
-                if (f != null) writeFile(f, json);
+                if (f == null) {
+                    Log.e(TAG, "persist rules failed: rules file path unavailable");
+                    return;
+                }
+                // writeFile 失败回 false 必须在此显形：此前 writeFile 自吞，
+                // 这条 persist 失败日志永远触发不到（批 residual）。
+                if (!writeFile(f, json)) {
+                    Log.e(TAG, "persist rules failed: write failed: " + f.getPath());
+                }
             } catch (Throwable e) {
                 Log.e(TAG, "persist rules failed", e);
             }
@@ -212,11 +250,14 @@ public class HkM3u8ClearUtil {
             }
             return new String(data, "UTF-8");
         } catch (Throwable e) {
+            // 调用方（initRules）只认 null=无内容，读失败与文件不存在从此可区分。
+            Log.e(TAG, "readFile failed: " + f.getPath(), e);
             return null;
         }
     }
 
-    private static void writeFile(File f, String content) {
+    /** @return 是否写成；失败回 false 交 persistAsync 显形（批 residual）。 */
+    private static boolean writeFile(File f, String content) {
         try {
             java.io.FileWriter fw = new java.io.FileWriter(f);
             try {
@@ -224,7 +265,12 @@ public class HkM3u8ClearUtil {
             } finally {
                 fw.close();
             }
-        } catch (Throwable ignored) {
+            return true;
+        } catch (Throwable e) {
+            // 此前在此吞掉，persistAsync 的「persist rules failed」日志永远触发不到；
+            // 按本文件既有 Log.e 形留痕，规则落盘失败可查。
+            Log.e(TAG, "writeFile failed: " + f.getPath(), e);
+            return false;
         }
     }
 
@@ -315,7 +361,10 @@ public class HkM3u8ClearUtil {
                 }
             }
         } catch (Throwable e) {
-            Log.e(TAG, "getProxyContent failed", e);
+            // "" 是与调用方（HkDlanController/HkJsRuntime）约定的失败/无匹配
+            // 同值，两处都据此回落原 URL 播放；失败必须带 URL 留痕，与
+            // 「无规则匹配」（无此日志）可区分（批 residual）。
+            Log.e(TAG, "getProxyContent failed url=" + url, e);
         }
         return "";
     }

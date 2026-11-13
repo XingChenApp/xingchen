@@ -115,7 +115,12 @@ public class PanAuth {
                     if (!cookie.isEmpty()) return cookie;
                 }
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 文件在却读不出/解析不了，与「本来就没有 cookie」要区分：
+            // 按本文件既有 panauth 留痕口径记一笔，返回值仍是空串（未登录语义）。
+            // SpiderDebug 受调试开关门控，再补一条常开错误级留痕保证可区分。
+            SpiderDebug.log("panauth", "115_cookie.json read/parse failed error=%s", t.getMessage());
+            android.util.Log.e("PanAuth", "115_cookie.json exists but read/parse failed, treating as logged out", t);
         }
         return "";
     }

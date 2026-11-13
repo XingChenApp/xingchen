@@ -56,15 +56,17 @@ public class SourceSelectDialog extends Dialog {
     }
 
     private void applyVodExtOverrides(Context context) {
-        try {
-            for (Site site : allSites) {
-                if (site == null || site.getKey() == null) continue;
+        for (Site site : allSites) {
+            if (site == null || site.getKey() == null) continue;
+            try {
                 String saved = VodExtConfig.load(context, site.getKey());
                 if (saved != null && !saved.isEmpty()) {
                     site.setExt(saved);
                 }
+            } catch (Exception e) {
+                android.util.Log.e("SourceSelectDialog", "apply ext failed key=" + site.getKey(), e);
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        }
     }
 
     @Override
@@ -247,19 +249,30 @@ public class SourceSelectDialog extends Dialog {
                             jo.put("username", a);
                             jo.put("password", p);
                             json = jo.toString();
-                        } catch (Exception e) { e.printStackTrace(); }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            ToastUtil.show(ctx, "保存失败，账号密码未能写入配置", Toast.LENGTH_SHORT);
+                            return;
+                        }
                     }
                 }
                 VodExtConfig.save(ctx, key, json);
+                boolean extFailed = false;
                 try {
                     site.setExt(json);
-                } catch (Exception e) { e.printStackTrace(); }
-                ToastUtil.show(ctx, "已保存", Toast.LENGTH_SHORT);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    extFailed = true;
+                }
+                ToastUtil.show(ctx, extFailed ? "已保存，但本次会话未能应用，重新进源后生效" : "已保存", Toast.LENGTH_SHORT);
                 dialog.dismiss();
             });
 
             dialog.show();
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+            ToastUtil.show(getContext(), "配置弹窗打开失败，请重试", Toast.LENGTH_SHORT);
+        }
     }
 
     private void updateLayoutManager() {
@@ -326,6 +339,7 @@ public class SourceSelectDialog extends Dialog {
             }
         } catch (Exception e) {
             e.printStackTrace();
+            ToastUtil.show(getContext(), "源列表刷新失败，仍显示旧数据", Toast.LENGTH_SHORT);
         }
     }
 

@@ -4,6 +4,7 @@ import com.github.catvod.runtime.ThunderRuntime;
 import com.github.catvod.utils.Path;
 
 import java.io.File;
+import java.io.IOException;
 
 // 上游原文口径：GetTaskId 实现 ThunderRuntime.Task（RuntimeEntry 以 Task
 // 类型转发）。file:// 构造沿用本树 Path.copy 写法，不改上游 saveFile 用的
@@ -22,7 +23,12 @@ public class GetTaskId implements ThunderRuntime.Task {
     public GetTaskId(String url, File savePath) {
         File file = new File(url.substring(7));
         File dest = new File(savePath, file.getName());
-        Path.copy(file, dest);
+        try {
+            Path.copy(file, dest);
+        } catch (IOException e) {
+            // 与 XLTaskHelper 建任务失败同口径：拷贝没成不许装作本地文件已就位
+            throw new IllegalStateException("迅雷本地文件拷贝失败:" + file.getAbsolutePath(), e);
+        }
         this.mFileName = file.getName();
         this.mSavePath = savePath;
         this.mRealUrl = url;

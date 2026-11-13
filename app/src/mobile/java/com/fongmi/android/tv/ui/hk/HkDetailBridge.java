@@ -126,7 +126,9 @@ public class HkDetailBridge implements HkArticleFragment.DetailBridge {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 context.startActivity(intent);
             } catch (Exception e) {
-                Log.e(TAG, "hk error", e);
+                // 系统浏览器兜底也失败不再静默（残项处置 2026-11-14）。
+                Log.e(TAG, "goWeb 系统浏览器打开失败：" + url, e);
+                HkRouteBlocker.toastShortBottom(context, "打开页面失败");
             }
         }
 
@@ -473,7 +475,9 @@ public class HkDetailBridge implements HkArticleFragment.DetailBridge {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             context.startActivity(Intent.createChooser(intent, null));
         } catch (Exception e) {
-            Log.e(TAG, "hk error", e);
+            // 系统选择器拉起失败不再静默（残项处置 2026-11-14）。
+            Log.e(TAG, "findChooserToDeal 打开链接失败：" + url, e);
+            HkRouteBlocker.toastShortBottom(context, "无法打开链接");
         }
     }
 
@@ -527,8 +531,8 @@ public class HkDetailBridge implements HkArticleFragment.DetailBridge {
     public void showCopyPopup(String text) {
         Activity activity = activityProvider == null ? null : activityProvider.get();
         if (activity == null) {
-            copyToClipboardForce(App.get(), text);
-            HkRouteBlocker.toastShortBottom(App.get(), "已复制到剪贴板");
+            boolean ok = copyToClipboardForce(App.get(), text);
+            HkRouteBlocker.toastShortBottom(App.get(), ok ? "已复制到剪贴板" : "复制失败");
             return;
         }
         TextView content = new TextView(activity);
@@ -538,7 +542,11 @@ public class HkDetailBridge implements HkArticleFragment.DetailBridge {
         content.setPadding(pad, pad / 2, pad, 0);
         new HkDialogs(activity)
                 .setView(content)
-                .setPositiveButton("复制", (d, w) -> copyToClipboardForce(activity, text))
+                .setPositiveButton("复制", (d, w) -> {
+                    if (!copyToClipboardForce(activity, text)) {
+                        HkRouteBlocker.toastShortBottom(activity, "复制失败");
+                    }
+                })
                 .setNegativeButton("取消", null)
                 .show();
     }
@@ -670,6 +678,10 @@ public class HkDetailBridge implements HkArticleFragment.DetailBridge {
         if (body.startsWith("{") && body.endsWith("}")
                 && (body.contains("\"js\"") || body.contains("'js'"))) {
             extra = InputExtra.parseJson(body);
+            if (extra.parseFailed) {
+                HkRouteBlocker.toastShortBottom(activity, "输入参数解析失败");
+                return;
+            }
         } else {
             String[] parts = body.split("\\.js:");
             InputExtra parsed = new InputExtra();
@@ -742,10 +754,14 @@ public class HkDetailBridge implements HkArticleFragment.DetailBridge {
         String body = HkStringUtil.replaceOnceIgnoreCase(url, "copy://", "");
         String[] parts = body.split("\\.js:");
         if (parts.length < 2) {
-            copyToClipboardForce(activity, body);
+            if (!copyToClipboardForce(activity, body)) {
+                HkRouteBlocker.toastShortBottom(activity, "复制失败");
+            }
             return;
         }
-        copyToClipboardForce(activity, parts[0]);
+        if (!copyToClipboardForce(activity, parts[0])) {
+            HkRouteBlocker.toastShortBottom(activity, "复制失败");
+        }
         String js = parts[1];
         String input = parts[0];
         BG.execute(() -> {
@@ -851,8 +867,11 @@ public class HkDetailBridge implements HkArticleFragment.DetailBridge {
             SpiderDebug.log("hk", "listInput eval done resultHead=%s refresh=%s", head, rt.isRefreshRequested());
             return result;
         } catch (Exception e) {
-            Log.e(TAG, "hk error", e);
+            // 求值失败不再回 null 与无结果同形静默（残项处置 2026-11-14）：
+            // 仍回 null 走原分发收口，但经既有 toast 形态显形。
+            Log.e(TAG, "evalRuleJs 规则求值失败", e);
             SpiderDebug.log("hk", "listInput eval error: %s", String.valueOf(e));
+            HkRouteBlocker.toastShortBottom(App.get(), "规则执行失败");
             return null;
         }
     }
@@ -868,20 +887,40 @@ public class HkDetailBridge implements HkArticleFragment.DetailBridge {
                     if (cs != null) text = cs.toString();
                 }
             } catch (Exception e) {
-                Log.e(TAG, "hk error", e);
+                // 读取失败不再以空串冒充剪贴板为空（残项处置 2026-11-14）。
+                Log.e(TAG, "getClipboardText 剪贴板读取失败", e);
+                HkRouteBlocker.toastShortBottom(context, "剪贴板读取失败");
             }
             consumer.accept(text);
         }, delayMs);
     }
 
-    /** 照 ClipboardUtil.copyToClipboardForce：直接写主剪贴板。 */
-    static void copyToClipboardForce(Context context, String text) {
-        if (context == null) return;
+    /**
+     * 照 ClipboardUtil.copyToClipboardForce：直接写主剪贴板。
+     * 处置订正（2026-11-14）：改回 boolean 报成败并写后回读校验——此前失败
+     * 被吞，用户粘到的还是旧内容、调用方还照报「已复制」。
+     */
+    static boolean copyToClipboardForce(Context context, String text) {
+        if (context == null) return false;
         try {
             ClipboardManager cm = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
-            if (cm != null) cm.setPrimaryClip(ClipData.newPlainText(null, text));
+            if (cm == null) return false;
+            cm.setPrimaryClip(ClipData.newPlainText(null, text));
+            // 写后回读：剪贴板可读且内容对不上即判失败（不可读时以写入无异常为准）。
+            try {
+                if (cm.getPrimaryClip() != null && cm.getPrimaryClip().getItemCount() > 0) {
+                    CharSequence back = cm.getPrimaryClip().getItemAt(0).getText();
+                    if (back != null && !back.toString().equals(text == null ? "" : text)) {
+                        Log.e(TAG, "copyToClipboardForce 回读不一致");
+                        return false;
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+            return true;
         } catch (Exception e) {
-            Log.e(TAG, "hk error", e);
+            Log.e(TAG, "copyToClipboardForce 复制失败", e);
+            return false;
         }
     }
 
@@ -914,7 +953,15 @@ public class HkDetailBridge implements HkArticleFragment.DetailBridge {
         public String hint;
         public String js;
         public String value;
+        /** 解析失败旗（残项处置 2026-11-14）：与「无配置」的全空字段区分。 */
+        public boolean parseFailed;
 
+        /**
+         * 解析失败置 parseFailed 旗（残项处置 2026-11-14）：此前失败与无配置
+         * 同为全空字段，输入弹窗静默缺提示词与联动脚本。本类另一消费方
+         * HkPageActivity.handleListInput 在簇外不判 null，故不回 null、
+         * 以旗区分；簇内 dealInput 已按旗拦截提示。
+         */
         public static InputExtra parseJson(String body) {
             InputExtra extra = new InputExtra();
             try {
@@ -923,7 +970,8 @@ public class HkDetailBridge implements HkArticleFragment.DetailBridge {
                 extra.js = jsonStr(obj, "js");
                 extra.value = jsonStr(obj, "value");
             } catch (Exception e) {
-                Log.e(TAG, "hk error", e);
+                Log.e(TAG, "InputExtra.parseJson 解析失败", e);
+                extra.parseFailed = true;
             }
             return extra;
         }

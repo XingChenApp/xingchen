@@ -196,7 +196,14 @@ public class TmdbApi {
                 String json = sp.getString("data", null);
                 Type type = new TypeToken<LinkedHashMap<String, TmdbInfo>>() {
                 }.getType();
-                LinkedHashMap<String, TmdbInfo> map = TextUtils.isEmpty(json) ? new LinkedHashMap<>() : App.gson().fromJson(json, type);
+                LinkedHashMap<String, TmdbInfo> map;
+                try {
+                    map = TextUtils.isEmpty(json) ? new LinkedHashMap<>() : App.gson().fromJson(json, type);
+                } catch (Exception parseError) {
+                    // 缓存已损坏：旧写法整笔吞掉、新查到的信息永远存不下；缓存是可再生数据，弃损坏缓存从空表重建并留痕，不动其他数据
+                    android.util.Log.e("TmdbApi", "cached data corrupted, rebuild cache", parseError);
+                    map = new LinkedHashMap<>();
+                }
                 if (map == null) map = new LinkedHashMap<>();
                 map.put(title, info);
                 while (map.size() > MAX_CACHE) {
@@ -212,7 +219,8 @@ public class TmdbApi {
                     map.remove(oldest);
                 }
                 sp.edit().putString("data", App.gson().toJson(map)).apply();
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                android.util.Log.e("TmdbApi", "persist cache failed", e);
             }
         });
     }

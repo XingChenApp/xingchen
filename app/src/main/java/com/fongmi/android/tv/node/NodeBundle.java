@@ -753,9 +753,9 @@ public final class NodeBundle {
             else if (bundlePublished) deleteQuietly(bundleTarget);
             if (configBackup != null) restored &= restore(configBackup, configTarget);
             else if (configPublished) deleteQuietly(configTarget);
-            restoreText(stamp, oldStamp, oldStampText);
-            restoreText(configStamp, oldConfigStamp, oldConfigStampText);
-            restoreText(sourceStamp, oldSourceStamp, oldSourceStampText);
+            restored &= restoreText(stamp, oldStamp, oldStampText);
+            restored &= restoreText(configStamp, oldConfigStamp, oldConfigStampText);
+            restored &= restoreText(sourceStamp, oldSourceStamp, oldSourceStampText);
             // 回滚不完整时磁盘可能是「新 index.js + 旧 config」的混合态，而 stamp 已被恢复成旧值。
             // 删掉来源键把缓存标记为不可信，强制下次重新准备，而不是让 isCached 把混合态当有效缓存。
             if (!restored) {
@@ -1038,12 +1038,20 @@ public final class NodeBundle {
         }
     }
 
-    private static void restoreText(File target, boolean existed, String text) {
+    /** @return 是否成功恢复；失败必须计入 rollback 的 restored 结果，不许静默与 bundle 状态不一致。 */
+    private static boolean restoreText(File target, boolean existed, String text) {
         try {
             if (existed) writeAtomic(target, text);
-            else deleteQuietly(target);
+            else {
+                deleteQuietly(target);
+                // deleteQuietly 不报成败：回读验证，戳还留盘即判恢复失败。
+                if (target.exists()) return false;
+            }
+            return true;
         } catch (Exception e) {
             SpiderDebug.log("node", e);
+            android.util.Log.e("NodeBundle", "restore stamp failed target=" + target.getAbsolutePath(), e);
+            return false;
         }
     }
 

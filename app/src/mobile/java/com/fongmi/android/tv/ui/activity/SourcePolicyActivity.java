@@ -20,6 +20,7 @@ import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.clash.SourceProxyPolicy;
 import com.fongmi.android.tv.databinding.ActivitySourcePolicyBinding;
 import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.utils.Notify;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +36,8 @@ public class SourcePolicyActivity extends BaseActivity {
     private int countVod;
     private int countHk;
     private int countBook;
+    /** 插件目录枚举失败只报一次（三组共用一处提示，不连弹）。 */
+    private boolean pluginEnumFailed;
 
     public static void start(Activity activity) {
         activity.startActivity(new Intent(activity, SourcePolicyActivity.class));
@@ -214,6 +217,11 @@ public class SourcePolicyActivity extends BaseActivity {
                 }
             }
         } catch (Throwable ignored) {
+            // 插件目录读不到时该组只剩配置站点、动态源整组缺席：明示一次，不许静默缺项。
+            if (!pluginEnumFailed) {
+                pluginEnumFailed = true;
+                Notify.show("插件文件读取失败，列表可能不完整");
+            }
         }
         for (java.util.Map.Entry<String, String> e : entries.entrySet()) {
             addRow(group, e.getValue(), kind, e.getKey());

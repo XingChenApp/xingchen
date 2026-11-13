@@ -113,6 +113,8 @@ public final class HkSearchParser {
                 scope = HkCommonParser.getTrueElement(chain[i], scope);
             }
             Elements elements = HkCommonParser.selectElements(scope, chain[chain.length - 1]);
+            int itemFailed = 0;
+            Exception itemLastError = null;
             for (Element el : elements) {
                 SearchResult item = new SearchResult();
                 try {
@@ -165,7 +167,20 @@ public final class HkSearchParser {
                     item.setType("video");
                     list.add(item);
                 } catch (Exception e) {
-                    Log.e(TAG, "hk error", e);
+                    itemFailed++;
+                    itemLastError = e;
+                    Log.e(TAG, "搜索结果单条解析失败（第 " + (list.size() + itemFailed) + " 条）", e);
+                }
+            }
+            if (itemFailed > 0) {
+                // 单条失败不再静默消失（残项处置 2026-11-14）：部分失败经既有
+                // 引擎日志通道报数；全部失败走既有 showErr 错误回调，不发空成功表。
+                BiConsumer<String, HkRule> logger = errorLogger;
+                if (logger != null) logger.accept(
+                        "findList 单条解析失败 " + itemFailed + "/" + elements.size(), rule);
+                if (list.isEmpty()) {
+                    callBackError(callback, "搜索结果解析失败：" + itemLastError);
+                    return;
                 }
             }
         } catch (Exception e) {

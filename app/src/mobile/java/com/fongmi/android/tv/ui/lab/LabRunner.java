@@ -330,11 +330,14 @@ public final class LabRunner {
         applyEnv(c, pkgId, builder.environment());
         Process p = builder.start();
         RUNNING.put(key, p);
-        try {
-            STDIN.put(key, p.getOutputStream());
-        } catch (Exception ignored) {
+        // 输入通道登记不许吞：失败让它抛到 startTerminal 的 throws 出口（终端页会提示起不来），
+        // 吞掉等于终端开着却永远输不进命令
+        STDIN.put(key, p.getOutputStream());
+        if (!LabProc.track(c, key, LabProc.pidOf(p), LabProc.logFile(c, key).getAbsolutePath())) {
+            // 状态登记不上＝进程失管：按既有停止口收掉，再抛给终端页，不许装作开成了
+            stopKey(c, key);
+            throw new Exception("进程状态登记失败，终端没开成，重新进一次试试");
         }
-        LabProc.track(c, key, LabProc.pidOf(p), LabProc.logFile(c, key).getAbsolutePath());
         LabKeepAlive.refresh(c);
         return p;
     }
@@ -618,10 +621,9 @@ public final class LabRunner {
         String nodeNote = applyNodeProxy(c, pkgId, builder.environment());
         Process process = builder.start();
         RUNNING.put(key, process);
-        try {
-            STDIN.put(key, process.getOutputStream());
-        } catch (Exception ignored) {
-        }
+        // 输入通道登记不许吞：失败让它抛到 runShell 的 throws 出口（start/startCommand
+        // 统一收进 ERRORS 并通知 listener），吞掉等于进程在跑但终端永远敲不进命令
+        STDIN.put(key, process.getOutputStream());
         // 进程已确认起跑：通知 UI 把「启动中…」翻回「运行中」。
         // （onExit 只在进程退出时才来，常驻服务等不到它。）
         if (listener != null) listener.onStarted();
@@ -630,7 +632,14 @@ public final class LabRunner {
             appendFile(log, nodeNote + "\n");
         }
         ERRORS.remove(key);
-        LabProc.track(c, key, LabProc.pidOf(process), log.getAbsolutePath());
+        if (!LabProc.track(c, key, LabProc.pidOf(process), log.getAbsolutePath())) {
+            // 状态登记不上＝进程失管：进程已在 RUNNING、本次会话照常管，但要进运行
+            // 记录与 ERRORS 给人看，不许静默当登记上了
+            String trackNote = "[状态登记失败：这个进程重启后恢复不了，运行状态可能对不上]\n";
+            appendLog(key, trackNote);
+            appendFile(log, trackNote);
+            ERRORS.put(key, "进程状态登记失败，重启后恢复不了");
+        }
         LabKeepAlive.refresh(c);
         if (nodeBundle) watchNodePort(c, pkgId, key, process);
         pump(c, key, process, log, listener);
@@ -911,7 +920,12 @@ public final class LabRunner {
                     LabLiveOutputActivity.LiveBus.emit(key, s);
                     if (listener != null) listener.onOutput(s);
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                // 输出读断不许静默：写进运行记录、日志文件与实时总线，断点看得见
+                String note = "\n[输出读取中断：" + (e.getMessage() == null ? "未知原因" : e.getMessage()) + "]\n";
+                appendLog(key, note);
+                appendFile(log, note);
+                LabLiveOutputActivity.LiveBus.emit(key, note);
             }
             int code = -1;
             try {

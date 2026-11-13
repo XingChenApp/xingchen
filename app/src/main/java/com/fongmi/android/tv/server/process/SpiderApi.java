@@ -35,12 +35,16 @@ public class SpiderApi implements Process {
                 input.addProperty(entry.getKey(), entry.getValue());
             }
             String post = files.get("postData");
-            if (post != null && !post.isEmpty()) {
+            if (post != null && !post.isEmpty() && post.trim().startsWith("{")) {
+                // 请求体自称 JSON 却解析失败：不许按空参数往下跑（结果静默不对），直接回错误给调用方。
+                // 非 JSON 的 postData 是表单体，参数已在 session.getParms() 里，不走这条、不受影响。
+                JsonObject body;
                 try {
-                    JsonObject body = JsonParser.parseString(post).getAsJsonObject();
-                    for (String key : body.keySet()) input.add(key, body.get(key));
-                } catch (Exception ignored) {
+                    body = JsonParser.parseString(post).getAsJsonObject();
+                } catch (Exception e) {
+                    return json(error("请求体 JSON 解析失败: " + e.getMessage()));
                 }
+                for (String key : body.keySet()) input.add(key, body.get(key));
             }
             JsonObject result = url.startsWith("/spider/config") ? config(input) : execute(input);
             return json(result);

@@ -118,7 +118,8 @@ public class HkSearchModel {
         // 按最终 host 查表落空、搜索首发又绕回直连（与列表路同口径补登）。
         try {
             ReadingProxyGate.recordUrl(requestUrl, "hk", engine.getTitle());
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            Log.e(TAG, "recordUrl final request failed", t);
         }
         HkHttpParser.parseSearchUrlForHtml(keyword, requestUrl, new HkHttpParser.OnSearchCallBack() {
             @Override

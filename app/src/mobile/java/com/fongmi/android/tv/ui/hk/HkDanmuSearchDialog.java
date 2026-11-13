@@ -610,7 +610,10 @@ public final class HkDanmuSearchDialog extends DialogFragment {
             }
             return null;
         } catch (Exception e) {
+            // 取规则失败不再与「不匹配」同回 null 静默（残项处置 2026-11-14）：
+            // 仍回 null 走原分流，但经本弹窗既有 toast 形态显形。
             Log.e(TAG, "currentArticleListRule", e);
+            toastBottom("当前弹幕规则读取失败");
             return null;
         }
     }

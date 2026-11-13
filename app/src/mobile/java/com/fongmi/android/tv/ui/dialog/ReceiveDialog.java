@@ -54,6 +54,7 @@ public class ReceiveDialog extends BaseBottomSheetDialog {
                 History history = History.objectFrom(args.getString("history"));
                 if (config != null && device != null && history != null) event = new CastEvent(config, device, history);
             } catch (Exception ignored) {
+                Notify.show("投屏数据解析失败，无法显示");
             }
         }
         return event;

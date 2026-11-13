@@ -635,6 +635,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             activity.startActivity(intent);
         } catch (Exception e) {
             e.printStackTrace();
+            Notify.show("导入播放失败，文件内容无法解析");
         }
     }
 
@@ -665,6 +666,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             activity.startActivity(intent);
         } catch (Exception e) {
             e.printStackTrace();
+            Notify.show("本地视频打开失败");
         }
     }
 
@@ -1872,7 +1874,8 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             vod.setFlags(flags);
             setDetail(vod);
         } catch (Throwable e) {
-            e.printStackTrace();
+            SpiderDebug.log("video-flow", "direct episodes parse failed error=%s", e.getMessage());
+            Notify.show("选集数据解析失败，请返回重新打开");
         }
     }
 
@@ -6361,7 +6364,12 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         try {
             com.fongmi.android.tv.utils.Util.showSystemUI(this);
         } catch (Exception e) {
-            e.printStackTrace();
+            SpiderDebug.log("video-flow", "showSystemUI on exitFullscreen failed error=%s", e.getMessage());
+            try {
+                getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN);
+            } catch (Throwable t) {
+                SpiderDebug.log("video-flow", "clear FLAG_FULLSCREEN fallback failed error=%s", t.getMessage());
+            }
         }
         // 尺寸过渡口径与进全屏对称：横屏沿用原条件；竖屏全屏退出（当前竖屏＋竖屏内容）补上，
         // 视频框恢复嵌入尺寸时不再瞬跳。

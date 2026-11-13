@@ -160,6 +160,7 @@ public class ConfigSourceActivity extends BaseActivity {
             }
         } catch (Exception e) {
             e.printStackTrace();
+            com.fongmi.android.tv.utils.Notify.show("历史列表刷新失败");
         }
     }
 

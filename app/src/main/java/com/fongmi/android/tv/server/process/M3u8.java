@@ -15,6 +15,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -103,15 +104,25 @@ public class M3u8 implements Process {
     }
 
     private String rewrite(HttpUrl base, String text) {
+        return rewrite(base, text, this::proxy);
+    }
+
+    /**
+     * 列表改写本体：非 # 行与 URI="…" 属性里的地址先按列表自身地址解析成
+     * 绝对址，再交给 wrapper 包成本地取数址。本件包回 /m3u8；带头播放链
+     * （WebResourceGateway）包回 /webResource、把头与源归属原样带下去。
+     * 同一份改写、两种包法，不许各写一份。
+     */
+    static String rewrite(HttpUrl base, String text, Function<String, String> wrapper) {
         String[] lines = text.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
         StringBuilder output = new StringBuilder(text.length() + 512);
         for (int i = 0; i < lines.length; i++) {
             String line = lines[i];
             String trimmed = line.trim();
             if (!trimmed.isEmpty() && !trimmed.startsWith("#")) {
-                line = proxy(resolve(base, trimmed));
+                line = wrapper.apply(resolve(base, trimmed));
             } else if (trimmed.startsWith("#") && trimmed.contains("URI=\"")) {
-                line = rewriteUriAttributes(base, line);
+                line = rewriteUriAttributes(base, line, wrapper);
             }
             output.append(line);
             if (i + 1 < lines.length) output.append('\n');
@@ -119,18 +130,18 @@ public class M3u8 implements Process {
         return output.toString();
     }
 
-    private String rewriteUriAttributes(HttpUrl base, String line) {
+    private static String rewriteUriAttributes(HttpUrl base, String line, Function<String, String> wrapper) {
         Matcher matcher = URI_ATTR.matcher(line);
         StringBuffer output = new StringBuffer();
         while (matcher.find()) {
-            String replacement = "URI=\"" + proxy(resolve(base, matcher.group(1))) + "\"";
+            String replacement = "URI=\"" + wrapper.apply(resolve(base, matcher.group(1))) + "\"";
             matcher.appendReplacement(output, Matcher.quoteReplacement(replacement));
         }
         matcher.appendTail(output);
         return output.toString();
     }
 
-    private String resolve(HttpUrl base, String value) {
+    private static String resolve(HttpUrl base, String value) {
         HttpUrl resolved = base.resolve(value);
         return resolved == null ? value : resolved.toString();
     }
@@ -139,16 +150,21 @@ public class M3u8 implements Process {
         return "http://127.0.0.1:9978/m3u8?url=" + URLEncoder.encode(target, StandardCharsets.UTF_8);
     }
 
-    private boolean isPlaylist(String url, MediaType type) {
+    static boolean isPlaylist(String url, MediaType type) {
         String mime = type == null ? "" : type.toString().toLowerCase(Locale.US);
         if (mime.contains("mpegurl") || mime.contains("m3u8")) return true;
+        return isPlaylistUrl(url);
+    }
+
+    static boolean isPlaylistUrl(String url) {
+        if (TextUtils.isEmpty(url)) return false;
         String lower = url.toLowerCase(Locale.US);
         int query = lower.indexOf('?');
         if (query >= 0) lower = lower.substring(0, query);
         return lower.endsWith(".m3u8") || lower.endsWith(".m3u");
     }
 
-    private boolean looksLikePlaylist(String text) {
+    static boolean looksLikePlaylist(String text) {
         return !TextUtils.isEmpty(text) && text.trim().startsWith("#EXTM3U");
     }
 

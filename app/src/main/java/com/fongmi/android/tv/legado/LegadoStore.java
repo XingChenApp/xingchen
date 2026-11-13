@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.utils.ToastUtil;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -65,7 +66,12 @@ public class LegadoStore {
                 if (hs.startsWith("{")) {
                     try {
                         headerMap = context.deserialize(JsonParser.parseString(hs), HEADER_MAP_TYPE);
-                    } catch (Throwable ignored) {
+                    } catch (Throwable t) {
+                        // 自称 JSON（{ 开头）却解不开：不许摘掉 header 假装没事继续跑
+                        // （请求会缺头静默失败）——整源按解析失败处置：导入侧计跳过、
+                        // 存量侧跳过该源，失败有明确去路（349 阅读组摘兜底）。
+                        throw new com.google.gson.JsonParseException(
+                                "header 不是合法 JSON: " + t.getMessage());
                     }
                 }
                 o.remove("header");
@@ -89,19 +95,68 @@ public class LegadoStore {
         return App.get().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    public static synchronized List<Entry> all() {
-        String raw = prefs().getString(KEY, "[]");
+    // ---- 失败不再静默（349 阅读组）：解析失败≠书源名单为空 ----
+    /** 上次成功读到的名单：解析失败时回这份，不许拿空表冒充真名单再写回去冲掉全部书源。 */
+    private static List<Entry> lastGood;
+    /** 解析失败且从未成功读到过：盘上原文可能还在，写回必须拒绝（见 saveAll）。 */
+    private static boolean readDegraded;
+    private static volatile String lastReadError;
+    private static volatile String lastWriteError;
+    private static long lastFailToastAt;
+
+    public static String lastReadError() {
+        return lastReadError;
+    }
+
+    public static String lastWriteError() {
+        return lastWriteError;
+    }
+
+    private static void noteFailure(String msg) {
+        long now = System.currentTimeMillis();
+        if (now - lastFailToastAt < 60_000L) return;
+        lastFailToastAt = now;
         try {
-            List<Entry> list = GSON.fromJson(raw, LIST_TYPE);
-            return list == null ? new ArrayList<>() : list;
-        } catch (Throwable t) {
-            return new ArrayList<>();
+            ToastUtil.show(App.get(), msg, android.widget.Toast.LENGTH_LONG);
+        } catch (Throwable ignored) {
         }
     }
 
-    private static synchronized void saveAll(List<Entry> list) {
+    public static synchronized List<Entry> all() {
+        String raw = prefs().getString(KEY, "[]");
+        if (raw == null || raw.isEmpty() || "[]".equals(raw.trim())) {
+            lastGood = new ArrayList<>();
+            readDegraded = false;
+            lastReadError = null;
+            return new ArrayList<>();
+        }
+        try {
+            List<Entry> list = GSON.fromJson(raw, LIST_TYPE);
+            list = list == null ? new ArrayList<>() : list;
+            lastGood = new ArrayList<>(list);
+            readDegraded = false;
+            lastReadError = null;
+            return list;
+        } catch (Throwable t) {
+            lastReadError = t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage();
+            readDegraded = lastGood == null;
+            noteFailure("书源名单读取失败，原来的书源还在，已先按上次名单显示");
+            return lastGood == null ? new ArrayList<>() : new ArrayList<>(lastGood);
+        }
+    }
+
+    /** @return 是否已写回；名单处于解析失败保留态时拒绝覆盖并记错。 */
+    private static synchronized boolean saveAll(List<Entry> list) {
+        if (readDegraded) {
+            lastWriteError = "原书源名单解析失败，拒绝用空表覆盖";
+            noteFailure("书源保存失败：原名单读取异常，已保留原名单不覆盖");
+            return false;
+        }
         for (Entry e : list) e.parsed = null;
         prefs().edit().putString(KEY, GSON.toJson(list, LIST_TYPE)).apply();
+        lastWriteError = null;
+        lastGood = new ArrayList<>(list);
+        return true;
     }
 
     /** 去掉 BOM 头（部分编辑器/网站导出的文件带）。 */
@@ -247,7 +302,10 @@ public class LegadoStore {
                 added++;
             }
         }
-        saveAll(list);
+        if (!saveAll(list)) {
+            // 名单保留态下拒绝覆盖：不许报「进了 N 个」假成功，失败回调用方明示
+            throw new LegadoException("书源已解析但保存失败：原书源名单读取异常，已保留原名单未动");
+        }
         if (srcs.size() == 1 && pr.skipped == 0) return srcs.get(0).tag();
         int total = added + replaced;
         String msg = "进了 " + total + " 个";

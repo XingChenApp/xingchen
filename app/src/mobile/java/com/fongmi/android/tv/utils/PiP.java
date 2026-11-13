@@ -69,7 +69,7 @@ public class PiP {
             setAutoEnter();
             activity.setPictureInPictureParams(builder.build());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.github.catvod.crawler.SpiderDebug.log("pip", "update sourceRect failed error=%s", e.getMessage());
         }
     }
 
@@ -80,7 +80,7 @@ public class PiP {
             setAutoEnter();
             activity.setPictureInPictureParams(builder.build());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.github.catvod.crawler.SpiderDebug.log("pip", "update aspectRatio failed error=%s", e.getMessage());
         }
     }
 
@@ -94,11 +94,12 @@ public class PiP {
             setAutoEnter();
             activity.setPictureInPictureParams(builder.setActions(actions).build());
         } catch (Exception e) {
-            e.printStackTrace();
+            com.github.catvod.crawler.SpiderDebug.log("pip", "update actions failed error=%s", e.getMessage());
         }
     }
 
     public void setAudioMode(Activity activity, boolean audioMode) {
+        boolean prev = this.audioMode;
         try {
             if (noPiP()) return;
             this.audioMode = audioMode;
@@ -106,7 +107,8 @@ public class PiP {
             setAutoEnter();
             activity.setPictureInPictureParams(builder.build());
         } catch (Exception e) {
-            e.printStackTrace();
+            this.audioMode = prev;
+            com.github.catvod.crawler.SpiderDebug.log("pip", "setAudioMode failed error=%s", e.getMessage());
         }
     }
 

@@ -73,7 +73,8 @@ public class Drive115 implements CloudDrive {
         try {
             String c = com.fongmi.android.tv.utils.PanAuth.get115Cookie();
             if (c != null && !c.isEmpty()) setCookie(c);
-        } catch (Throwable ignored) {
+        } catch (Throwable e) {
+            android.util.Log.e("Drive115", "restore 115 cookie failed, treat as logged out", e);
         }
     }
 

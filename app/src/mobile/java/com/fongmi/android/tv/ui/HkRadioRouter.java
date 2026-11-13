@@ -139,7 +139,13 @@ public class HkRadioRouter {
             album.sourceName = ruleTitle;
             album.title = name == null || name.isEmpty() ? ruleTitle : name;
             album.coverUrl = pic == null ? "" : pic;
-            fillChapters(album, line, episodesJson);
+            boolean chaptersOk = fillChapters(album, line, episodesJson);
+            if (!chaptersOk) {
+                // 章节解析失败不再静默只剩部分/单集（残项处置 2026-11-14）：
+                // 专辑照常以已得章节＋被点一集起播，但失败必须显形。
+                com.fongmi.android.tv.utils.ToastUtil.show(activity,
+                        "电台章节解析失败，章节可能不完整", android.widget.Toast.LENGTH_SHORT);
+            }
             if (album.chapters.isEmpty()) {
                 album.chapters.add(new LegadoAudio.Chapter(
                         episodeName == null || episodeName.isEmpty()
@@ -227,14 +233,15 @@ public class HkRadioRouter {
         }
     }
 
-    private static void fillChapters(LegadoAudio.AudioAlbum album, String line,
-                                     String episodesJson) {        if (episodesJson == null || episodesJson.isEmpty()) return;
+    /** 回 true＝无章节数据或解析完成；回 false＝解析失败（专辑可能只有部分章节）。 */
+    private static boolean fillChapters(LegadoAudio.AudioAlbum album, String line,
+                                     String episodesJson) {        if (episodesJson == null || episodesJson.isEmpty()) return true;
         try {
             String json = episodesJson.trim();
             if (json.startsWith("{")) {
                 org.json.JSONObject root = new org.json.JSONObject(json);
                 org.json.JSONArray flagArr = root.optJSONArray("flags");
-                if (flagArr == null) return;
+                if (flagArr == null) return true;
                 org.json.JSONObject chosen = null;
                 org.json.JSONObject first = null;
                 for (int fi = 0; fi < flagArr.length(); fi++) {
@@ -249,7 +256,7 @@ public class HkRadioRouter {
                     }
                 }
                 if (chosen == null) chosen = first;
-                if (chosen == null) return;
+                if (chosen == null) return true;
                 if (album.hkLine.isEmpty()) {
                     album.hkLine = chosen.optString("name", "");
                 }
@@ -262,7 +269,7 @@ public class HkRadioRouter {
                     album.chapters.add(new LegadoAudio.Chapter(
                             o.optString("name", ""), url));
                 }
-                return;
+                return true;
             }
             org.json.JSONArray arr = new org.json.JSONArray(json);
             for (int i = 0; i < arr.length(); i++) {
@@ -272,7 +279,10 @@ public class HkRadioRouter {
                 if (url.isEmpty()) continue;
                 album.chapters.add(new LegadoAudio.Chapter(o.optString("name", ""), url));
             }
-        } catch (Throwable ignored) {
+            return true;
+        } catch (Throwable t) {
+            SpiderDebug.log("hk", "fillChapters parse failed err=%s", t.toString());
+            return false;
         }
     }
 }

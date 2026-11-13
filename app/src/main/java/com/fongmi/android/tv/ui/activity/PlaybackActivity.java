@@ -970,7 +970,12 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
             if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-lifecycle", "resume on return after background pause %s", lifecycleState());
             if (mController != null) mController.play();
             else player().play();
-        } catch (Throwable ignored) {
+        } catch (Throwable error) {
+            // 播放没真发出去就不算消费标记：原样还回去，下一次回前台／服务重连再试，
+            // 不许停在暂停态无声无息（旧写法标记先销、失败即丢，用户只能手动点播放）。
+            resumeOnReturn = true;
+            resumeOnReturnUrl = url;
+            if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-lifecycle", "resume on return failed, flag restored %s", error.getClass().getSimpleName());
         }
     }
 

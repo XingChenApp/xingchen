@@ -213,14 +213,20 @@ public class HkHttpHelper {
         return sb.toString();
     }
 
-    /** 8.83 HttpHelper.getContentLength(Headers) 原样移植（smali:2909-2950）。 */
-    private static long getContentLength(Headers headers) {
+    /**
+     * 8.83 HttpHelper.getContentLength(Headers) 原样移植（smali:2909-2950）。
+     * 订正（批 residual）：头在却解析不了不许按 0（未知长度）回——那会让
+     * CharsetStringConvert 的超大体积守卫静默失效；改为抛 IOException，
+     * 唯一调用方 convertResponse 本就 throws、其上层把异常记进
+     * fetchResponse.error 走既有失败路。无头/空头仍回 0。
+     */
+    private static long getContentLength(Headers headers) throws IOException {
         String v = headers.get("Content-Length");
         if (v != null && !v.isEmpty()) {
             try {
                 return Long.parseLong(v);
             } catch (Throwable t) {
-                Logger.e(t.toString());
+                throw new IOException("invalid Content-Length header: " + v);
             }
         }
         return 0;
@@ -329,11 +335,10 @@ public class HkHttpHelper {
                 }
                 if (isEmpty(charset)) {
                     if (body != null) {
-                        try {
-                            return body.string();
-                        } catch (IOException e) {
-                            Logger.e(e.toString());
-                        }
+                        // 读体 IOException 不许吞成空串（与空响应成功同形）：
+                        // 本方法 throws Throwable，上层 onResponse 把异常记进
+                        // fetchResponse.error，fetch 层按失败消费（批 residual）。
+                        return body.string();
                     }
                     return "";
                 }

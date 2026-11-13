@@ -104,16 +104,14 @@ public class AutoLogin115 {
         }
     }
 
-    private static okhttp3.RequestBody formBody(String json) {
+    private static okhttp3.RequestBody formBody(String json) throws Exception {
         androidx.collection.ArrayMap<String, String> form = new androidx.collection.ArrayMap<>();
         if (!TextUtils.isEmpty(json)) {
-            try {
-                JSONObject o = new JSONObject(json);
-                for (java.util.Iterator<String> it = o.keys(); it.hasNext(); ) {
-                    String k = it.next();
-                    form.put(k, o.optString(k, ""));
-                }
-            } catch (Exception ignored) {
+            // 解析失败不许按空表单静默提交残缺请求：抛给 executeOnce（已 throws Exception），调用方拿到明确失败
+            JSONObject o = new JSONObject(json);
+            for (java.util.Iterator<String> it = o.keys(); it.hasNext(); ) {
+                String k = it.next();
+                form.put(k, o.optString(k, ""));
             }
         }
         return OkHttp.toBody(form);

@@ -269,19 +269,17 @@ public class Path {
         clear(in);
     }
 
-    public static void copy(File in, File out) {
-        try {
-            copy(new FileInputStream(in), out);
-        } catch (IOException ignored) {
-        }
+    // copy 失败必须抛给调用方（与 move/writeAtomically 同口径）：move 靠它判成败，
+    // 抛错时 clear(in) 不执行，源文件不会在没搬成时被删。
+    public static void copy(File in, File out) throws IOException {
+        copy(new FileInputStream(in), out);
     }
 
-    public static void copy(InputStream in, File out) {
+    public static void copy(InputStream in, File out) throws IOException {
         try (InputStream input = in; FileOutputStream output = new FileOutputStream(create(out))) {
             int read;
             byte[] buffer = new byte[16384];
             while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
-        } catch (IOException ignored) {
         }
     }
 

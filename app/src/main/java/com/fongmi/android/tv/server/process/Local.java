@@ -67,7 +67,13 @@ public class Local implements Process {
             String fn = params.get(k);
             File temp = new File(files.get(k));
             if (fn.toLowerCase().endsWith(".zip")) FileUtil.zipDecompress(temp, Path.root(path));
-            else Path.copy(temp, Path.root(path, fn));
+            else {
+                try {
+                    Path.copy(temp, Path.root(path, fn));
+                } catch (IOException e) {
+                    return Nano.error(e.getMessage());
+                }
+            }
         }
         return Nano.ok();
     }

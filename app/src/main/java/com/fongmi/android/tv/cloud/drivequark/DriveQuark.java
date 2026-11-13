@@ -79,7 +79,8 @@ public class DriveQuark implements CloudDrive {
         try {
             String c = com.fongmi.android.tv.utils.PanAuth.getQuarkCookie();
             if (c != null && !c.isEmpty()) setCookie(c);
-        } catch (Throwable ignored) {
+        } catch (Throwable e) {
+            com.github.catvod.crawler.SpiderDebug.log("panacct", "quark restore cookie failed error=%s", e.getMessage());
         }
     }
 

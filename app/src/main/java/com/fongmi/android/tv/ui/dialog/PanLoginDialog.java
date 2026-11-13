@@ -264,12 +264,18 @@ public class PanLoginDialog extends BaseAlertDialog {
 
     private void onDone() {
         String cookie = "";
+        boolean readFailed = false;
         try {
             CookieManager cm = CookieManager.getInstance();
             String c1 = cm.getCookie("https://" + cookieDomain + "/");
             String c2 = cm.getCookie("." + cookieDomain);
             cookie = !TextUtils.isEmpty(c1) ? c1 : (!TextUtils.isEmpty(c2) ? c2 : "");
         } catch (Throwable ignored) {
+            readFailed = true;
+        }
+        if (readFailed) {
+            Notify.show("登录 Cookie 读取失败，请重试");
+            return;
         }
         if (TextUtils.isEmpty(cookie)) {
             Notify.show("未检测到登录 Cookie，请先在页面内完成登录");

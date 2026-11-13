@@ -2,15 +2,20 @@ package com.fongmi.android.tv.ui.activity;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.databinding.ActivityXingchenSettingsBinding;
 import com.fongmi.android.tv.impl.Callback;
+import com.fongmi.android.tv.patch.PatchInstaller;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.AboutDialog;
 import com.fongmi.android.tv.ui.dialog.ChoiceDialog;
+import com.fongmi.android.tv.ui.dialog.PatchDialog;
 import com.fongmi.android.tv.utils.AppVersion;
 import com.fongmi.android.tv.utils.FileUtil;
 import com.fongmi.android.tv.utils.Notify;
@@ -26,6 +31,8 @@ public class XingChenSettingsActivity extends BaseActivity {
 
     private ActivityXingchenSettingsBinding binding;
 
+    private final ActivityResultLauncher<String[]> patchLauncher = registerForActivityResult(new ActivityResultContracts.OpenDocument(), this::onPatchPicked);
+
     public static void start(Activity activity) {
         activity.startActivity(new Intent(activity, XingChenSettingsActivity.class));
     }
@@ -40,6 +47,9 @@ public class XingChenSettingsActivity extends BaseActivity {
     protected void initView(Bundle savedInstanceState) {
         binding.tvVersionSub.setText(AppVersion.fullName());
         binding.cardVersion.setOnClickListener(v -> AboutDialog.show(this));
+        // 补丁更新：纯本地拼包（不联网、不查版），点入口选补丁文件才动。
+        PatchInstaller.cleanStale(this);
+        binding.cardPatch.setOnClickListener(v -> patchLauncher.launch(new String[]{"application/octet-stream"}));
         updateDohSub();
         binding.cardDoh.setOnClickListener(v -> ChoiceDialog.showSingle(getSupportFragmentManager(), "DoH", XingChenDoh.NAMES, XingChenDoh.getIndex(this), which -> {
             XingChenDoh.setIndex(this, which);
@@ -55,6 +65,11 @@ public class XingChenSettingsActivity extends BaseActivity {
         }));
         binding.cardBackup.setOnClickListener(v -> doBackup());
         binding.tvRestore.setOnClickListener(v -> doRestore());
+    }
+
+    private void onPatchPicked(Uri uri) {
+        if (uri == null) return;
+        PatchDialog.show(this, uri);
     }
 
     private void updateDohSub() {

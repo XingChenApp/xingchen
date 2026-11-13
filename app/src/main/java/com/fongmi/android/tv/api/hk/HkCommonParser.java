@@ -105,7 +105,9 @@ public class HkCommonParser {
             try {
                 elements.addAll(selectElementsWithoutOr(element, r));
             } catch (Exception e) {
-                e.printStackTrace();
+                // || 并集的段级隔离不变（其余段照常入集），但失败段必须
+                // 带段原文留痕，与「该段本就无匹配」可区分（批 residual）。
+                Log.e(TAG, "selectElements segment failed: " + r + " (in rule: " + rule + ")", e);
             }
         }
         return elements;

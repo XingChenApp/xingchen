@@ -152,7 +152,8 @@ public final class LabCustomCommands {
         save(c, pkgId, all);
     }
 
-    private static synchronized void save(Context c, String pkgId, List<CustomCommand> all) {
+    /** 写盘成败回传调用方（add/update/remove）：失败留痕，不许静默当存上了 */
+    private static synchronized boolean save(Context c, String pkgId, List<CustomCommand> all) {
         try {
             File f = customFile(c, pkgId);
             if (f.getParentFile() != null) f.getParentFile().mkdirs();
@@ -160,7 +161,10 @@ public final class LabCustomCommands {
                  OutputStreamWriter w = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
                 new Gson().toJson(all, w);
             }
-        } catch (Exception ignored) {
+            return true;
+        } catch (Exception e) {
+            android.util.Log.e("LabCustomCommands", "custom.json 保存失败 pkg=" + pkgId, e);
+            return false;
         }
     }
 
@@ -199,8 +203,8 @@ public final class LabCustomCommands {
         return out;
     }
 
-    /** 包设置值写 */
-    public static synchronized void saveSettings(Context c, String pkgId, Map<String, String> values) {
+    /** 包设置值写：成败回传调用方，失败留痕，不许静默当存上了 */
+    public static synchronized boolean saveSettings(Context c, String pkgId, Map<String, String> values) {
         try {
             File f = settingsFile(c, pkgId);
             if (f.getParentFile() != null) f.getParentFile().mkdirs();
@@ -208,7 +212,10 @@ public final class LabCustomCommands {
                  OutputStreamWriter w = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
                 new Gson().toJson(values == null ? new HashMap<String, String>() : values, w);
             }
-        } catch (Exception ignored) {
+            return true;
+        } catch (Exception e) {
+            android.util.Log.e("LabCustomCommands", "settings.json 保存失败 pkg=" + pkgId, e);
+            return false;
         }
     }
 

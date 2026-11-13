@@ -225,16 +225,21 @@ public class LabTerminalActivity extends AppCompatActivity {
             copy = new java.util.ArrayList<>(pendingWrites);
             pendingWrites.clear();
         }
+        boolean failed = false;
         for (byte[] b : copy) {
             try {
                 LabRunner.writeStdin(runKey, b);
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                failed = true;
             }
         }
+        // 排队输入没写进去要在终端页出声，不许静默丢
+        if (failed) runOnUiThread(() -> append("[排队输入写入失败，shell 可能已经退出了]\n"));
     }
 
     private void pump(Process p) {
         new Thread(() -> {
+            final String[] readErr = new String[1];
             try (BufferedReader br = new BufferedReader(new InputStreamReader(
                     p.getInputStream(), StandardCharsets.UTF_8))) {
                 char[] cbuf = new char[4096];
@@ -243,12 +248,17 @@ public class LabTerminalActivity extends AppCompatActivity {
                     final String s = new String(cbuf, 0, n);
                     runOnUiThread(() -> append(s));
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                readErr[0] = e.getMessage() == null ? "未知原因" : e.getMessage();
             }
             // 只清自己这一代的进程引用：新 shell 已接管时，旧 pump 退出不许把新进程置空
             if (process == p) {
                 process = null;
-                runOnUiThread(() -> append("\n[shell 退出了，输命令会自动重开]\n"));
+                runOnUiThread(() -> {
+                    // 输出是读断的（不是正常退完）要与正常退出分开说清
+                    if (readErr[0] != null) append("[输出读取中断：" + readErr[0] + "]\n");
+                    append("\n[shell 退出了，输命令会自动重开]\n");
+                });
             }
         }).start();
     }
@@ -337,7 +347,9 @@ public class LabTerminalActivity extends AppCompatActivity {
                 }
                 startShell();
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            // 与 runInput 同口径：写不进去要在终端页出声，不许静默丢按键
+            append("[写入失败]\n");
         }
     }
 

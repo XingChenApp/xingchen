@@ -1,5 +1,6 @@
 package com.fongmi.android.tv.api;
 
+import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.net.OkHttp;
 
 import org.json.JSONArray;
@@ -25,7 +26,9 @@ import okhttp3.Response;
 /**
  * 红果评论壳子抓取器：详情/播放侧只认本类吐出的评论结构，不碰 fqnovel 字段名。
  * 走壳子全局 OkHttp 直连（境内服务），不挂任何源归属标记、不登记任何认领表（设计红线）。
- * 全部方法同步执行、失败返回 null（静默降级），绝不抛异常进播放链。
+ * 全部方法同步执行，绝不抛异常进播放链。失败返回 null 是失败信号、与
+ * 「真没有」的空 Page 分开：调用方据 null 亮失败态/重试（评论面各口
+ * 已分开呈现），不许把 null 当空集；失败原因经 log() 记下供定案。
  * 接口形态逐字段照 hongguo-comments-shell-design.md §1（双证锁定），签名见 FqCommentSigner。
  */
 public class HongguoCommentApi {
@@ -36,6 +39,14 @@ public class HongguoCommentApi {
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
     private static volatile OkHttpClient client;
+
+    /** 失败打点（与 HongguoDanmakuApi 同口径）：只记日志、绝不影响行为——日志通道自身出问题也吞掉，不许日志反过来打断取数。 */
+    private static void log(String msg, Object... args) {
+        try {
+            SpiderDebug.log("hongguo-comment", msg, args);
+        } catch (Throwable ignored) {
+        }
+    }
 
     public static class Comment {
         public final String id;
@@ -244,6 +255,7 @@ public class HongguoCommentApi {
                     episodePayload(seriesId, vid, cur, null), 4, 18, slot);
             return parseList(result, seriesId, vid, cur, false);
         } catch (Exception e) {
+            log("episodeComments failed vid=%s err=%s", vid, e.getClass().getSimpleName());
             return null;
         }
     }
@@ -263,6 +275,7 @@ public class HongguoCommentApi {
                     episodePayload(seriesId, vid, "", insertId), 4, 18, slot);
             return parseList(result, seriesId, vid, "", false);
         } catch (Exception e) {
+            log("episodeCommentsInserted failed vid=%s err=%s", vid, e.getClass().getSimpleName());
             return null;
         }
     }
@@ -297,6 +310,7 @@ public class HongguoCommentApi {
                     seriesPayload(seriesId, cur, null), 1, 34, slot);
             return parseList(result, seriesId, seriesId, cur, true);
         } catch (Exception e) {
+            log("seriesComments failed series=%s err=%s", seriesId, e.getClass().getSimpleName());
             return null;
         }
     }
@@ -311,6 +325,7 @@ public class HongguoCommentApi {
                     seriesPayload(seriesId, "", insertId), 1, 34, slot);
             return parseList(result, seriesId, seriesId, "", true);
         } catch (Exception e) {
+            log("seriesCommentsInserted failed series=%s err=%s", seriesId, e.getClass().getSimpleName());
             return null;
         }
     }
@@ -359,6 +374,7 @@ public class HongguoCommentApi {
             JSONObject result = post("comment/list/" + postId, payload, 0, 0, slot);
             return parsePostList(result, postId, cur);
         } catch (Exception e) {
+            log("postComments failed post=%s err=%s", postId, e.getClass().getSimpleName());
             return null;
         }
     }
@@ -427,6 +443,7 @@ public class HongguoCommentApi {
                     episodeRepliesPayload(seriesId, vid, commentId, cur, null), 504, 18, slot);
             return parseReplies(result, seriesId, vid, cur);
         } catch (Exception e) {
+            log("episodeReplies failed comment=%s err=%s", commentId, e.getClass().getSimpleName());
             return null;
         }
     }
@@ -445,6 +462,7 @@ public class HongguoCommentApi {
                     episodeRepliesPayload(seriesId, vid, commentId, "", insertId), 504, 18, slot);
             return parseReplies(result, seriesId, vid, "");
         } catch (Exception e) {
+            log("episodeRepliesInserted failed comment=%s err=%s", commentId, e.getClass().getSimpleName());
             return null;
         }
     }
@@ -479,6 +497,7 @@ public class HongguoCommentApi {
                     seriesRepliesPayload(seriesId, commentId, cur, null), 501, 34, slot);
             return parseReplies(result, seriesId, seriesId, cur);
         } catch (Exception e) {
+            log("seriesReplies failed comment=%s err=%s", commentId, e.getClass().getSimpleName());
             return null;
         }
     }
@@ -493,6 +512,7 @@ public class HongguoCommentApi {
                     seriesRepliesPayload(seriesId, commentId, "", insertId), 501, 34, slot);
             return parseReplies(result, seriesId, seriesId, "");
         } catch (Exception e) {
+            log("seriesRepliesInserted failed comment=%s err=%s", commentId, e.getClass().getSimpleName());
             return null;
         }
     }

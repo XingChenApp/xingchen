@@ -59,6 +59,9 @@ public final class CatWebview {
             Notify.show(R.string.cat_web_external);
         } catch (Throwable e) {
             SpiderDebug.log("cat-msg", e);
+            // 内嵌与系统浏览器两路都失败：这是最后一层，不许再静默——用既有失败文案明示用户。
+            android.util.Log.e("CatWebview", "open external failed url=" + url, e);
+            Notify.show(App.get().getString(R.string.cat_web_failed, url));
         }
     }
 }

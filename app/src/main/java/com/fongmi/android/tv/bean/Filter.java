@@ -9,6 +9,7 @@ import com.github.catvod.utils.Trans;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
 
@@ -41,23 +42,30 @@ public class Filter implements Parcelable {
 
     public static Filter objectFrom(JsonElement element) {
         Filter item = App.gson().fromJson(element, Filter.class);
-        retype(item, element);
+        // 定型失败抛 JsonParseException：唯一入口 FilterAdapter 按既有约定
+        // 只丢这一条筛选，不许把未定型 value 静默交给下游强转。
+        if (!retype(item, element)) throw new JsonParseException("Filter retype failed");
         return item;
     }
 
     /**
      * 定型修复（体检类2）：value 是 List&lt;Value&gt;，整包反射读靠类文件 Signature 保型，
      * 签名失效时元素退化成 LinkedTreeMap、下游按 Value 消费即崩。这里用程序化构造的
-     * 参数化类型（不读类文件签名）按 JSON 树重读 value 覆盖；读失败保持反射结果不动。
+     * 参数化类型（不读类文件签名）按 JSON 树重读 value 覆盖。回 true 表示已定型或
+     * 没有 value 数组可定型；重读失败回 false（Class.retype 等直接调用方忽略返回值、
+     * 行为不变，objectFrom 据此抛错区分）。
      */
-    static void retype(Filter item, JsonElement element) {
-        if (item == null || element == null || !element.isJsonObject()) return;
+    static boolean retype(Filter item, JsonElement element) {
+        if (item == null || element == null || !element.isJsonObject()) return true;
         JsonElement value = element.getAsJsonObject().get("value");
-        if (value == null || !value.isJsonArray()) return;
+        if (value == null || !value.isJsonArray()) return true;
         try {
             List<Value> values = App.gson().fromJson(value, TypeToken.getParameterized(List.class, Value.class).getType());
-            if (values != null) item.value = values;
-        } catch (Exception ignored) {
+            if (values == null) return false;
+            item.value = values;
+            return true;
+        } catch (Exception e) {
+            return false;
         }
     }
 

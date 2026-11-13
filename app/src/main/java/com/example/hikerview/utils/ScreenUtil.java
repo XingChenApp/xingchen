@@ -16,11 +16,15 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
+import com.smarx.notchlib.NotchScreenManager;
+
 /**
  * 照官 8.83 本体移植（jadx 官包源）：屏幕尺寸/状态栏工具，全量照官。
- * 唯一未落：setDisplayInNotch —— 依赖官包内嵌的 notchlib
- * （com.smarx.notchlib.NotchScreenManager）与 PreferenceMgr，
- * 星辰未引入该库，记名待补。
+ * setDisplayInNotch 已于 2026-11-14 外部小库批照官落：notchlib 经
+ * JitPack 引 com.github.smarxpan:NotchScreenTool:0.0.1（官包内嵌版
+ * com.smarx.notchlib，BuildConfig VERSION_NAME 1.0）；
+ * PreferenceMgr.getBoolean 不另立类，按 SettingConfig 批先例直连
+ * "share_data" 文件读 "useNotch"（默认 true，照官）。
  */
 public class ScreenUtil {
 
@@ -163,6 +167,13 @@ public class ScreenUtil {
             window.getDecorView().setSystemUiVisibility(5638);
         } else {
             window.getDecorView().setSystemUiVisibility(i);
+        }
+    }
+
+    /** 官 setDisplayInNotch（ScreenUtil.smali，.line 254-256）：useNotch 为真才调 notchlib。 */
+    public static void setDisplayInNotch(Activity activity) {
+        if (activity.getSharedPreferences("share_data", Context.MODE_PRIVATE).getBoolean("useNotch", true)) {
+            NotchScreenManager.getInstance().setDisplayInNotch(activity);
         }
     }
 

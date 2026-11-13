@@ -2,6 +2,7 @@ package com.fongmi.android.tv.subtitle;
 
 import android.net.Uri;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.setting.SubtitleSetting;
@@ -24,6 +25,7 @@ import java.util.regex.Pattern;
  */
 public class ShooterProvider implements SubtitleProvider {
 
+    private static final String TAG = "ShooterProvider";
     private static final String API = "https://api.assrt.net";
     private static final Pattern URL_HARVEST = Pattern.compile(
             "\"(https?://[^\"']+\\.(?:srt|ass|ssa|vtt|zip|rar|7z)[^\"']*)\"");
@@ -95,7 +97,10 @@ public class ShooterProvider implements SubtitleProvider {
             if (TextUtils.isEmpty(body)) return "";
             Matcher m = URL_HARVEST.matcher(body);
             if (m.find()) return m.group(1).replace("\\/", "/");
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 失败留痕；空串是既有失败值，SubtitleManager 据此回 null、
+            // 字幕弹窗提示下载失败，不与真实地址混淆。
+            Log.w(TAG, "resolveDownloadUrl failed", t);
         }
         return "";
     }

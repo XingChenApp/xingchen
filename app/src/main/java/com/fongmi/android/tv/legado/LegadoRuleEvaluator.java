@@ -78,7 +78,10 @@ public class LegadoRuleEvaluator {
                 Object node = t.startsWith("{") ? new JSONObject(t) : new JSONArray(t);
                 ctx.root = new JsonSel(node);
                 return ctx;
-            } catch (Throwable ignored) {
+            } catch (Throwable th) {
+                // 响应自称 JSON 却解不开：不许退回 Jsoup 当 HTML 解析再让后续规则
+                // 全部取空（书源静默没内容）——按源级错抛回管线明示（349 摘兜底）。
+                throw new LegadoException("响应是 JSON 形态但解析失败: " + th.getMessage());
             }
         }
         Document doc = Jsoup.parse(ctx.rawText, ctx.baseUrl);

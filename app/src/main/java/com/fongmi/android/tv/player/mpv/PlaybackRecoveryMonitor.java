@@ -119,16 +119,18 @@ public final class PlaybackRecoveryMonitor {
 
     public void onHeartbeat() {
         if (!prompted) return;
-        disarm("responsive-again");
-        prompted = false;
+        // disarm 写盘失败不许销标记：磁盘上请求仍 armed，下一次心跳继续重试解除，
+        // 不让看门狗按旧心跳误判触发恢复动作。
+        if (disarm("responsive-again")) prompted = false;
     }
 
     public void close() {
         if (prompted) disarm("watchdog-stopped");
     }
 
-    private void disarm(String status) {
-        if (token == null) return;
+    /** @return 是否已确认解除（无请求/已不 armed 也算）；写盘失败回 false，调用方保留状态待重试。 */
+    private boolean disarm(String status) {
+        if (token == null) return true;
         // Only watchdog threads write the request. Serialize old/new watchdogs
         // and cross-process readers, including AtomicFile's legacy .bak path.
         try (RandomAccessFile lockFile = lockFile(context);
@@ -139,8 +141,10 @@ public final class PlaybackRecoveryMonitor {
                         current.heartbeatMs(), false, status, current.trace()));
                 PlaybackTrace.log("mpv-recovery", current.trace(), "recovery disarmed: %s", status);
             }
+            return true;
         } catch (IOException | RuntimeException error) {
-            Log.w("MpvRecovery", "cannot disarm recovery request", error);
+            Log.e("MpvRecovery", "cannot disarm recovery request, still armed on disk status=" + status, error);
+            return false;
         }
     }
 

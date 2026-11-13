@@ -1,6 +1,7 @@
 package com.fongmi.android.tv.api.hk.util;
 
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.api.hk.HkFavoriteStore;
@@ -317,7 +318,13 @@ public final class HkHikerRuleUtil {
             is.close();
             String code = bos.toString("UTF-8");
             return TextUtils.isEmpty(code) ? null : code;
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 内置资源读失败与「资源为空」要可区分：回 null 契约（官形）不变，
+            // 留痕除 Log.e 外再走本域 hk 文件诊断通道（SpiderDebug）——只进
+            // logcat 的话用户发来的日志里看不见、定不了案（批 fix349＋residual）。
+            Log.e("HkHikerRuleUtil", "内置规则资源读取失败：" + assetPath, t);
+            com.github.catvod.crawler.SpiderDebug.log("hk", "asset read failed path=%s err=%s",
+                    assetPath, String.valueOf(t));
             return null;
         }
     }

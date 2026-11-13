@@ -84,6 +84,7 @@ public class CatSource {
             NodeBundle.discardIfOrphaned(App.get(), url);
         } catch (Throwable e) {
             SpiderDebug.log("cat-source", "discard orphaned bundle failed url=%s err=%s", url, e.toString());
+            android.util.Log.e("CatSource", "discard orphaned bundle failed, residue may remain on disk url=" + url, e);
         }
     }
 

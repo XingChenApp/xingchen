@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.text.TextUtils;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.utils.ToastUtil;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -39,22 +40,79 @@ public class ReadingBookmarkStore {
         return App.get().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    private static List<Mark> readAll() {
+    // ---- 失败不再静默（349 阅读组）：与 ReadingStore 同结构 ----
+    /** 上次成功读到的书签：解析失败时回这份，不许拿空表冒充真名单再写回去冲掉原数据。 */
+    private static List<Mark> lastGood;
+    /** 解析失败且从未成功读到过：盘上原文可能还在，写回必须拒绝。 */
+    private static boolean readDegraded;
+    private static volatile String lastReadError;
+    private static volatile String lastWriteError;
+    private static long lastFailToastAt;
+
+    public static String lastReadError() {
+        return lastReadError;
+    }
+
+    public static String lastWriteError() {
+        return lastWriteError;
+    }
+
+    private static void noteFailure(String msg) {
+        long now = System.currentTimeMillis();
+        if (now - lastFailToastAt < 60_000L) return;
+        lastFailToastAt = now;
         try {
-            String json = prefs().getString(KEY_MARKS, "");
-            if (TextUtils.isEmpty(json)) return new ArrayList<>();
-            List<Mark> list = new Gson().fromJson(json, new TypeToken<List<Mark>>() {
-            }.getType());
-            return list == null ? new ArrayList<>() : list;
+            ToastUtil.show(App.get(), msg, android.widget.Toast.LENGTH_LONG);
         } catch (Throwable ignored) {
-            return new ArrayList<>();
         }
     }
 
-    private static void writeAll(List<Mark> list) {
+    private static List<Mark> readAll() {
         try {
-            prefs().edit().putString(KEY_MARKS, new Gson().toJson(list)).apply();
-        } catch (Throwable ignored) {
+            String json = prefs().getString(KEY_MARKS, "");
+            if (TextUtils.isEmpty(json)) {
+                lastGood = new ArrayList<>();
+                readDegraded = false;
+                lastReadError = null;
+                return new ArrayList<>();
+            }
+            List<Mark> list = new Gson().fromJson(json, new TypeToken<List<Mark>>() {
+            }.getType());
+            list = list == null ? new ArrayList<>() : list;
+            lastGood = new ArrayList<>(list);
+            readDegraded = false;
+            lastReadError = null;
+            return list;
+        } catch (Throwable t) {
+            lastReadError = t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage();
+            readDegraded = lastGood == null;
+            noteFailure("书签读取失败，原来的书签还在，已先按上次名单显示");
+            return lastGood == null ? new ArrayList<>() : new ArrayList<>(lastGood);
+        }
+    }
+
+    /** @return 是否真落盘；失败时旧值原样留在盘上，并已提示用户。 */
+    private static boolean writeAll(List<Mark> list) {
+        if (readDegraded) {
+            lastWriteError = "原书签解析失败，拒绝用空表覆盖";
+            noteFailure("书签保存失败：原数据读取异常，已保留原数据不覆盖");
+            return false;
+        }
+        try {
+            String json = new Gson().toJson(list);
+            // apply() 异步落盘、失败无从知道；commit() 才验得到（349 补结构）
+            if (!prefs().edit().putString(KEY_MARKS, json).commit()) {
+                lastWriteError = "写入返回失败";
+                noteFailure("书签保存失败，刚加的书签可能没存上");
+                return false;
+            }
+            lastWriteError = null;
+            lastGood = new ArrayList<>(list);
+            return true;
+        } catch (Throwable t) {
+            lastWriteError = t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage();
+            noteFailure("书签保存失败，刚加的书签可能没存上");
+            return false;
         }
     }
 

@@ -229,13 +229,16 @@ public class PlayUrlBuilder115 {
         String origin = "";
         try {
             origin = drive.videoOriginUrl(pc);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            // 取链异常与「接口本来没给原画」（回空）必须可区分：回空无此日志，
+            // 抛错以带 pickcode 的 Log.e 留痕，清单缺原画时能定位是失败不是没档。
+            Log.e(TAG, "原画 origin 取链失败 pc=" + pc + ": " + e.getMessage());
         }
         if (TextUtils.isEmpty(origin)) {
             try {
                 origin = getDownUrlCached(pc, forceRefresh);
             } catch (Exception e) {
-                Log.d(TAG, "原画取链失败: " + e.getMessage());
+                Log.e(TAG, "原画取链失败 pc=" + pc + ": " + e.getMessage());
             }
         }
         int originIndex = -1;
@@ -281,7 +284,9 @@ public class PlayUrlBuilder115 {
                     raw.add(new RawEntry("转码", m3u8, true));
                 }
             } catch (Exception e) {
-                Log.d(TAG, "转码构造兜底失败: " + e.getMessage());
+                // 同原画口径：构造异常以带 pickcode 的 Log.e 留痕，与「接口本无
+                // 转码档」（tiers 为空且地址回空、无此日志）可区分。
+                Log.e(TAG, "转码构造兜底失败 pc=" + pc + ": " + e.getMessage());
             }
         }
 

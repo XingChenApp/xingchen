@@ -157,6 +157,7 @@ public class ConfigHistoryDialog extends DialogFragment {
             ConfigDialog.create().vod().show(this);
         } catch (Exception e) {
             e.printStackTrace();
+            Notify.show("添加线路弹窗打开失败");
         }
     }
 
@@ -169,6 +170,7 @@ public class ConfigHistoryDialog extends DialogFragment {
             ConfigDialog.create().vod().edit(config).show(this);
         } catch (Exception e) {
             e.printStackTrace();
+            Notify.show("编辑线路弹窗打开失败");
         }
     }
 

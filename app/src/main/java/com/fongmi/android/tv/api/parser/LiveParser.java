@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.api.parser;
 
+import android.util.Log;
+
 import androidx.media3.common.MimeTypes;
 
 import com.fongmi.android.tv.bean.Catchup;
@@ -49,7 +51,9 @@ public class LiveParser {
                 return parts[1].replace("\"", "");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            // 提取失败与「属性不存在」同回空串、调用方无从区分且无失败通道
+            // 可接，以带原文与关键字的 Log.e 把失败从真缺失里区分出来。
+            Log.e("LiveParser", "extract failed keywords=" + String.join(",", keywords) + " line=" + line, e);
         }
         return "";
     }
@@ -304,7 +308,9 @@ public class LiveParser {
             try {
                 header.put("Cookie", line.split("(?i)cookie=")[1].trim().replace("\"", ""));
             } catch (Exception e) {
-                e.printStackTrace();
+                // Cookie 头缺失与「配置没给 Cookie」同形、无调用方通道可接，
+                // 以带原文的 Log.e 区分。
+                Log.e("LiveParser", "cookie parse failed, line=" + line, e);
             }
         }
 
@@ -355,7 +361,9 @@ public class LiveParser {
                 if (line.contains("#EXTHTTP:")) header.putAll(Json.toMap(Json.parse(line.split("#EXTHTTP:")[1].trim())));
                 if (line.contains("header=")) header.putAll(Json.toMap(Json.parse(line.split("header=")[1].trim())));
             } catch (Exception e) {
-                e.printStackTrace();
+                // 请求头缺失与「配置没给请求头」同形、无调用方通道可接，
+                // 以带原文的 Log.e 区分。
+                Log.e("LiveParser", "header parse failed, line=" + line, e);
             }
         }
 
@@ -365,7 +373,9 @@ public class LiveParser {
                 else if (line.contains("|")) for (String text : line.split("\\|")) headers(text);
                 else headers(header, line.trim().split("&"));
             } catch (Exception e) {
-                e.printStackTrace();
+                // 请求头缺失与「配置没给请求头」同形、无调用方通道可接，
+                // 以带原文的 Log.e 区分。
+                Log.e("LiveParser", "headers parse failed, line=" + line, e);
             }
         }
 
@@ -374,7 +384,9 @@ public class LiveParser {
                 if (line.contains("|")) for (String text : line.split("\\|")) drmHeaders(text);
                 else headers(drmHeader, line.trim().split("&"));
             } catch (Exception e) {
-                e.printStackTrace();
+                // DRM 头缺失与「配置没给 DRM 头」同形、无调用方通道可接，
+                // 以带原文的 Log.e 区分（DRM 流播不了时可据此定位）。
+                Log.e("LiveParser", "drmHeaders parse failed, line=" + line, e);
             }
         }
 
@@ -394,7 +406,9 @@ public class LiveParser {
             try {
                 forceKey = Boolean.parseBoolean(line.split("forceKey=")[1].trim());
             } catch (Exception e) {
-                e.printStackTrace();
+                // 解析失败时 forceKey 保持旧值/默认值，与「配置没写 forceKey」在
+                // 结果上同形、无任何调用方通道可接，只能以带原文的 Log.e 区分。
+                Log.e("LiveParser", "forceKey parse failed, keeping previous value, line=" + line, e);
             }
         }
 

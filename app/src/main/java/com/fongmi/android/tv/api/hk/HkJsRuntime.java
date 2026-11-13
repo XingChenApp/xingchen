@@ -2134,7 +2134,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // initRequire/CryptoJS/RequireUtils 嫁接/Hikerurl 任一评入失败或资产
         // 缺失都直接抛出，不许静默缺 requirejs 或 $ 继续跑本发。
         initRequire(rhinoCx, fresh);
-        try { installJavaAdapterShim(fresh); } catch (Throwable t) { Logger.t(TAG).d("JavaAdapterShim fresh: " + t.getMessage()); }
+        installJavaAdapterShim(fresh);
         // CALLBACK_KEY 先声明为 Undefined（无键缺省），arm 时以真键覆写——
         // 包装函数的 callbackKey 覆写读定义 scope 的此名（官每发同体）。
         ScriptableObject.putProperty(fresh, "CALLBACK_KEY", Context.getUndefinedValue());
@@ -2212,11 +2212,13 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                         }
                         fireTimerCallback(cb, cbArgs, regScope);
                     } catch (Throwable t) {
-                        Logger.t(TAG).d("timer fire failed: " + t.getMessage());
+                        Logger.t(TAG).e(t, "timer fire failed");
+                        hkToast("定时器回调执行失败");
                     }
                     return null;
                 });
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                Logger.t(TAG).e(t, "timer submit failed");
             }
         };
         try {
@@ -2489,11 +2491,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     if (!skipParam || !"param".equals(key)) {
                         val = argsNativeObjectAdjust(val, skipParam, depth + 1, visiting);
                     }
-                    try {
-                        map.put(key + "", val);
-                    } catch (Throwable e) {
-                        Logger.t(TAG).e(e, "argsNativeObjectAdjust put failed");
-                    }
+                    map.put(key + "", val);
                 }
                 return map;
             } finally {
@@ -2847,7 +2845,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     ScriptableObject.putProperty(item, key, str);
                     ScriptableObject.putProperty(items, id, item);
                     // 原文：writeFile(this.file, JSON.stringify(items))
-                    writeFileContent(resolveHikerPath(file), jsStringify(items));
+                    if (!writeFileContent(resolveHikerPath(file), jsStringify(items))) throw new RuntimeException("writeFile failed");
                 } catch (Throwable e) {
                     logImpl(new Object[]{"juItem.set失败>" + e.getMessage()});
                 }
@@ -2906,7 +2904,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                         if (ScriptableObject.hasProperty(item, key)) {
                             ScriptableObject.deleteProperty(item, key);
                             ScriptableObject.putProperty(items, id, item);
-                            writeFileContent(resolveHikerPath(file), jsStringify(items));
+                            if (!writeFileContent(resolveHikerPath(file), jsStringify(items))) throw new RuntimeException("writeFile failed");
                         }
                     }
                 } catch (Throwable e) {
@@ -2944,7 +2942,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     if (id2 == null || id2.isEmpty()) return null;
                     Scriptable items = juStoreItems(file);
                     ScriptableObject.deleteProperty(items, id2);
-                    writeFileContent(resolveHikerPath(file), jsStringify(items));
+                    if (!writeFileContent(resolveHikerPath(file), jsStringify(items))) throw new RuntimeException("writeFile failed");
                 } catch (Throwable e) {
                     logImpl(new Object[]{"juItem.clearAll失败>" + e.getMessage()});
                 }
@@ -3154,7 +3152,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         }
     }
 
-    /** loadJavaInstance dex 段的 so 拷贝（失败静默，官 FileUtil.copy 同位尽力形）。 */
+    /** loadJavaInstance dex 段的 so 拷贝（官 FileUtil.copy 同位尽力形；
+     * 失败不抛、但记错误日志，不再静默——后续 loadClass 失败的 toast 是另一层）。 */
     private static void copyFileQuiet(File src, File dst) {
         try {
             File parent = dst.getParentFile();
@@ -3162,6 +3161,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             java.nio.file.Files.copy(src.toPath(), dst.toPath(),
                     java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         } catch (Throwable ignored) {
+            Logger.t(TAG).e(ignored, "copyFileQuiet failed src=%s dst=%s", src, dst);
         }
     }
 
@@ -3756,7 +3756,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     ScriptableObject.putProperty(sort, key, jksort);
                 }
                 // 原文：writeFile(sortfile, JSON.stringify(sort))
-                writeFileContent(resolveHikerPath(JUYUE_SORTFILE), jsStringify(sort));
+                if (!writeFileContent(resolveHikerPath(JUYUE_SORTFILE), jsStringify(sort))) throw new RuntimeException("writeFile failed");
             } catch (Throwable e) {
                 // 原文无外层 try（内层读文件失败才 xlog）；垫片统一"失败只记日志不抛"
                 logImpl(new Object[]{"setJkSort失败>" + e.getMessage()});
@@ -3805,8 +3805,11 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     Logger.t(TAG).d("confirm(no handler): %s", title);
                 }
             } catch (Throwable ignored) {
+                Logger.t(TAG).e(ignored, "confirm failed");
             }
-            return true;
+            // 失败形态：确认框没真弹出去（无 handler/空标题内容/坏参/异常）一律
+            // 回 false，不许与「已弹框」的 true 同形——规则会据返回值当用户已确认。
+            return false;
         });
         putFunction("initConfig", args -> {
             // initConfig({host: ...})：把配置持久化到 plugins/hk/config/<规则名>.json，供 config.xxx 读取
@@ -3814,18 +3817,19 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 if (args != null && args.length > 0 && args[0] != null) {
                     String json = stringifyArg(args[0]);
                     if (!TextUtils.isEmpty(json) && json.startsWith("{")) {
-                        HkRuleManager.get().saveRuleConfig(rule.getTitle(), json);
-                        // 同步刷新当前 ctx 的 config 对象
-                        try {
-                            Object obj = parseJson(json);
-                            ScriptableObject.putProperty(scope, "config", obj);
-                        } catch (Throwable ignored) {
+                        if (!HkRuleManager.get().saveRuleConfig(rule.getTitle(), json)) {
+                            throw new RuntimeException("initConfig 保存失败：" + rule.getTitle());
                         }
+                        // 同步刷新当前 ctx 的 config 对象：刷新失败抛回外层转 JS
+                        // 异常，不许盘上新值、内存仍读旧 config 还装作成功。
+                        Object obj = parseJson(json);
+                        ScriptableObject.putProperty(scope, "config", obj);
                         Logger.t(TAG).d("initConfig saved for %s", rule.getTitle());
                     }
                 }
             } catch (Throwable e) {
-                Logger.t(TAG).d("initConfig failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "initConfig failed");
+                throw new RuntimeException("initConfig 失败：" + e.getMessage(), e);
             }
             return null;
         });
@@ -4073,7 +4077,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             String k = mustBeString(args, 0);
             PUBLIC_KV_TOMBSTONES.remove(k);
             publicKv.put(k, mustBeString(args, 1));
-            savePublicKv();
+            if (!savePublicKv()) throw new RuntimeException("公共存档写入失败：" + k);
             return null;
         });
         putFunction("getPublicItem", args -> {
@@ -4086,7 +4090,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             String k = mustBeString(args, 0);
             PUBLIC_KV_TOMBSTONES.add(k);
             publicKv.remove(k);
-            savePublicKv();
+            if (!savePublicKv()) throw new RuntimeException("公共存档写入失败：" + k);
             return null;
         });
 
@@ -4614,10 +4618,12 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             try {
                 if (args != null && args.length > 0) {
                     ClipboardManager cm = (ClipboardManager) App.get().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
-                    if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("hk", argStr(args[0])));
+                    if (cm == null) throw new RuntimeException("剪贴板服务不可用");
+                    cm.setPrimaryClip(ClipData.newPlainText("hk", argStr(args[0])));
                 }
             } catch (Throwable e) {
-                Logger.t(TAG).d("copy failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "copy failed");
+                hkToast("复制失败");
             }
             return null;
         });
@@ -4712,6 +4718,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                                             java.util.List.class, HkM3u8ClearAdRule.class).getType());
                         }
                     } catch (Throwable ignored) {
+                        Logger.t(TAG).e(ignored, "proxyClearM3u8 ad rules parse failed, use default rules");
                     }
                 }
                 if (adRules == null) adRules = HkM3u8ClearUtil.getRules();
@@ -4791,6 +4798,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                         body = buildParamStr(el.getAsJsonObject());
                     }
                 } catch (Throwable ignored) {
+                    Logger.t(TAG).e(ignored, "buildUrl params parse failed");
+                    throw new RuntimeException("buildUrl 参数解析失败：" + ignored.getMessage(), ignored);
                 }
             }
             if (url == null || url.isEmpty() || "undefined".equals(url)) return body;
@@ -5028,7 +5037,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 ev.setRuleTitle(rule != null ? rule.getTitle() : "");
                 EventBus.getDefault().post(ev);
             } catch (Throwable e) {
-                Logger.t(TAG).d("showSelectOptions failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "showSelectOptions failed");
+                hkToast("选项弹窗打开失败");
             }
             return null;
         });
@@ -5288,8 +5298,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                         });
                 return null;
             } catch (Throwable e) {
-                Logger.t(TAG).d("publishRule failed: %s", e.getMessage());
-                return null;
+                Logger.t(TAG).e(e, "publishRule failed");
+                throw new RuntimeException("publishRule 失败：" + e.getMessage(), e);
             }
         });
         // registerDNS(options, ruleTitleKey)：8.83 JSEngine.registerDNS。
@@ -5320,13 +5330,16 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                                     }
                                 }
                             } catch (Throwable e) {
-                                Logger.t(TAG).d("registerDNS apply failed: %s", e.getMessage());
+                                // checkAuth 自吞 Runnable 异常，抛不出去：走用户
+                                // 可见提示＋错误日志，不许 DNS 没注册上还装作已注册。
+                                Logger.t(TAG).e(e, "registerDNS apply failed");
+                                hkToast("DNS 注册失败");
                             }
                         });
                 return null;
             } catch (Throwable e) {
-                Logger.t(TAG).d("registerDNS failed: %s", e.getMessage());
-                return null;
+                Logger.t(TAG).e(e, "registerDNS failed");
+                throw new RuntimeException("registerDNS 失败：" + e.getMessage(), e);
             }
         });
         // findJavaClass(p, c, so, ruleTitleKey)：8.83 JSEngine.findJavaClass。
@@ -5387,7 +5400,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             try {
                 EventBus.getDefault().post(new com.fongmi.android.tv.api.hk.event.OnBackEvent(refreshPage, false));
             } catch (Throwable e) {
-                Logger.t(TAG).d("back failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "back failed");
+                throw new RuntimeException("back 失败：" + e.getMessage(), e);
             }
             return null;
         });
@@ -5396,7 +5410,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             try {
                 EventBus.getDefault().post(new com.fongmi.android.tv.api.hk.event.video.BackMainEvent());
             } catch (Throwable e) {
-                Logger.t(TAG).d("backToHome failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "backToHome failed");
+                throw new RuntimeException("backToHome 失败：" + e.getMessage(), e);
             }
             return null;
         });
@@ -5433,7 +5448,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                             .edit().putInt("smode", mode).apply();
                 }
             } catch (Throwable e) {
-                Logger.t(TAG).d("setSearchMode failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "setSearchMode failed");
+                throw new RuntimeException("setSearchMode 失败：" + e.getMessage(), e);
             }
             return null;
         });
@@ -5481,7 +5497,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 Logger.t(TAG).d("setPagePicUrl: %s", pagePicUrl);
                 org.greenrobot.eventbus.EventBus.getDefault().post(new com.fongmi.android.tv.api.hk.event.home.SetPagePicEvent(pagePicUrl));
             } catch (Throwable e) {
-                Logger.t(TAG).d("setPagePicUrl failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "setPagePicUrl failed");
+                throw new RuntimeException("setPagePicUrl 失败：" + e.getMessage(), e);
             }
             return null;
         });
@@ -5493,7 +5510,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 Logger.t(TAG).d("showLoading: %s", text);
                 HkLoading.show(rule.getTitle(), text);
             } catch (Throwable e) {
-                Logger.t(TAG).d("showLoading failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "showLoading failed");
+                throw new RuntimeException("showLoading 失败：" + e.getMessage(), e);
             }
             return null;
         });
@@ -5501,7 +5519,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             try {
                 HkLoading.hide(rule.getTitle());
             } catch (Throwable e) {
-                Logger.t(TAG).d("hideLoading failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "hideLoading failed");
+                throw new RuntimeException("hideLoading 失败：" + e.getMessage(), e);
             }
             return null;
         });
@@ -5520,14 +5539,16 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                         try {
                             host.startQrScan();
                         } catch (Throwable t) {
-                            Logger.t(TAG).d("startQRScanPage failed: %s", t.getMessage());
+                            Logger.t(TAG).e(t, "startQRScanPage failed");
+                            hkToast("扫码页打开失败");
                         }
                     });
                 } else {
                     Logger.t(TAG).d("stub startQRScanPage called (no host registered)");
                 }
             } catch (Throwable e) {
-                Logger.t(TAG).d("startQRScanPage failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "startQRScanPage failed");
+                hkToast("扫码页打开失败");
             }
             return null;
         });
@@ -5549,15 +5570,13 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         putFunction("saveImage", args -> {
             // 官方 saveImage(url, path)：参数顺序注意是 (url, path)
             if (args == null || args.length < 2) return null;
-            try {
-                String url = argStr(args[0]);
-                String path = argStr(args[1]);
-                if (TextUtils.isEmpty(url) || "undefined".equalsIgnoreCase(url)) return null;
-                if (TextUtils.isEmpty(path) || "undefined".equalsIgnoreCase(path)) return null;
-                downloadToFile(url, resolveHikerPath(path), "{}");
-            } catch (Throwable e) {
-                Logger.t(TAG).d("saveImage failed: %s", e.getMessage());
-            }
+            String url = argStr(args[0]);
+            String path = argStr(args[1]);
+            if (TextUtils.isEmpty(url) || "undefined".equalsIgnoreCase(url)) return null;
+            if (TextUtils.isEmpty(path) || "undefined".equalsIgnoreCase(path)) return null;
+            // 下载失败由 downloadToFile 抛 RuntimeException 直穿 JS（与 downloadFile
+            // 同形），不再吞成与成功同形的 null。
+            downloadToFile(url, resolveHikerPath(path), "{}");
             return null;
         });
         stub("copyFiles", null);
@@ -5620,7 +5639,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 strResult = args != null && args.length > 0 && args[0] != null ? argStr(args[0]) : "";
                 Logger.t(TAG).d("setStrResult: %d chars", strResult.length());
             } catch (Throwable e) {
-                Logger.t(TAG).d("setStrResult failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "setStrResult failed");
+                throw new RuntimeException("setStrResult 失败：" + e.getMessage(), e);
             }
             return null;
         });
@@ -5629,7 +5649,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 strResult = args != null && args.length > 0 && args[0] != null ? argStr(args[0]) : "";
                 Logger.t(TAG).d("setLastChapterResult: %d chars", strResult.length());
             } catch (Throwable e) {
-                Logger.t(TAG).d("setLastChapterResult failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "setLastChapterResult failed");
+                throw new RuntimeException("setLastChapterResult 失败：" + e.getMessage(), e);
             }
             return null;
         });
@@ -5640,7 +5661,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 // 8.83 JSEngine.setLastChapterRule(2774)：post SetPageLastChapterRuleEvent(rule) 经 EventBus
                 org.greenrobot.eventbus.EventBus.getDefault().post(new com.fongmi.android.tv.api.hk.event.home.SetPageLastChapterRuleEvent(lastChapterRule));
             } catch (Throwable e) {
-                Logger.t(TAG).d("setLastChapterRule failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "setLastChapterRule failed");
+                throw new RuntimeException("setLastChapterRule 失败：" + e.getMessage(), e);
             }
             return null;
         });
@@ -5741,11 +5763,13 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                                     evalJsRooted(taskJs, nullRuleScope(regScope));
                                 }
                             } catch (Throwable th) {
-                                Logger.t(TAG).d("registerTask fire failed: " + th.getMessage());
+                                Logger.t(TAG).e(th, "registerTask fire failed");
+                                hkToast("定时任务执行失败");
                             }
                             return null;
                         });
-                    } catch (Throwable ignored) {
+                    } catch (Throwable t) {
+                        Logger.t(TAG).e(t, "registerTask submit failed");
                     }
                 };
                 ScheduledFuture<?> f = timerScheduler.schedule(fire, delay, TimeUnit.MILLISECONDS);
@@ -5756,7 +5780,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 }
                 Logger.t(TAG).d("registerTask(%s, %dms)", taskId, delay);
             } catch (Throwable e) {
-                Logger.t(TAG).d("registerTask failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "registerTask failed");
+                throw new RuntimeException("registerTask 失败：" + e.getMessage(), e);
             }
             return null;
         });
@@ -5771,7 +5796,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     Logger.t(TAG).d("unRegisterTask(%s)", id);
                 }
             } catch (Throwable e) {
-                Logger.t(TAG).d("unRegisterTask failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "unRegisterTask failed");
+                throw new RuntimeException("unRegisterTask 失败：" + e.getMessage(), e);
             }
             return null;
         });
@@ -6016,7 +6042,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 if (p.getParent() != null) java.nio.file.Files.createDirectories(p.getParent());
                 java.nio.file.Files.write(p, data);
             } catch (java.io.IOException e) {
-                Logger.t(TAG).d("writeHexFile failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "writeHexFile failed");
+                throw new RuntimeException("writeHexFile 写入失败：" + e.getMessage(), e);
             }
             return null;
         });
@@ -6071,10 +6098,13 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     try {
                         App.get().startActivity(chooser);
                     } catch (Throwable ignored) {
+                        Logger.t(TAG).e(ignored, "shareDirectory startActivity failed");
+                        hkToast("拉起分享失败");
                     }
                 });
             } catch (Throwable e) {
-                Logger.t(TAG).d("shareDirectory failed: %s", e.getMessage());
+                Logger.t(TAG).e(e, "shareDirectory failed");
+                hkToast("分享文件夹失败");
             }
             return null;
         });
@@ -6118,6 +6148,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 it.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION | android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
                 App.get().startActivity(it);
             } catch (Throwable ignored) {
+                Logger.t(TAG).e(ignored, "createQRCode failed");
+                hkToast("生成二维码失败");
             }
             return null;
         });
@@ -6192,6 +6224,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 com.fongmi.chaquo.Loader.warmUp();
             } catch (Throwable t) {
                 Logger.t(TAG).e(t, "initChaquopy(builtin) failed");
+                hkToast("Python 运行时启动失败");
             }
             return null;
         });
@@ -6363,7 +6396,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 "}\n"
             );
         } catch (Throwable e) {
-            Logger.t(TAG).d("Uint8Array shim failed: %s", e.getMessage());
+            Logger.t(TAG).e(e, "Uint8Array shim failed");
+            throw new RuntimeException("Uint8Array 垫片安装失败：" + e.getMessage(), e);
         }
     }
 
@@ -6537,14 +6571,13 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
 
     /** W1 倒序语义本体（8.83 JSEngine.setPageReverse:4140：布尔参有效时发 OnReversePageEvent）。 */
     private void setPageReverseDo(Object[] args) {
-        try {
-            boolean rev = args != null && args.length > 0 && Boolean.parseBoolean(argStr(args[0]));
-            kv.put("__pageReverse", rev ? "1" : "0");
-            saveKv();
-            // 对齐 8.83：发 EventBus 事件，详情页收到后倒序列表
-            org.greenrobot.eventbus.EventBus.getDefault().post(new com.fongmi.android.tv.api.hk.event.home.OnReversePageEvent(rev));
-        } catch (Throwable ignored) {
-        }
+        boolean rev = args != null && args.length > 0 && Boolean.parseBoolean(argStr(args[0]));
+        kv.put("__pageReverse", rev ? "1" : "0");
+        saveKv();
+        // 对齐 8.83：发 EventBus 事件，详情页收到后倒序列表。
+        // 失败不吞：saveKv 写失败本就抛 RuntimeException、事件投递失败同样直穿
+        // JS 桥，不许存值/事件任一没落还装作已设置。
+        org.greenrobot.eventbus.EventBus.getDefault().post(new com.fongmi.android.tv.api.hk.event.home.OnReversePageEvent(rev));
     }
 
     /** 环22 对官（8.83 JSEngine.requireCache，smali:22956）：与 require 同路调
@@ -6698,7 +6731,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         String abs = resolveHikerPath("hiker://files/_cache/" + fileName);
         File f = new File(abs);
         if (f.getParentFile() != null) f.getParentFile().mkdirs();
-        writeFileContent(abs, content);
+        if (!writeFileContent(abs, content)) return url;
         Logger.t(TAG).d("downloadM3u8File ok: %s", abs);
         return "file://" + abs;
     }
@@ -7351,7 +7384,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             }
             Logger.t(TAG).d("handlePageRequest: no page rule for path=%s", path);
         } catch (Throwable e) {
-            Logger.t(TAG).d("handlePageRequest failed: %s", e.getMessage());
+            Logger.t(TAG).e(e, "handlePageRequest failed");
+            throw new RuntimeException("页面规则处理失败：" + e.getMessage(), e);
         }
         // 8.83 找不到时抛 ParseException，上层返回 ""（非 "{}"，避免 JSON.parse("{}").rule 为 undefined）
         return "";
@@ -7389,7 +7423,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 }
             }
         } catch (Throwable e) {
-            Logger.t(TAG).d("findPageCode failed: %s", e.getMessage());
+            Logger.t(TAG).e(e, "findPageCode failed");
+            throw new RuntimeException("页面代码查找失败：" + e.getMessage(), e);
         }
         return null;
     }
@@ -7557,7 +7592,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             if (sourceMap != null) e.setSourceMap(sourceMap);
             org.greenrobot.eventbus.EventBus.getDefault().post(e);
         } catch (Throwable t) {
-            Logger.t(TAG).d("postItemModifyEvent failed: %s", t.getMessage());
+            Logger.t(TAG).e(t, "postItemModifyEvent failed");
+            throw new RuntimeException("条目变更事件投递失败：" + t.getMessage(), t);
         }
     }
 
@@ -7573,7 +7609,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             e.setAfter(after);
             org.greenrobot.eventbus.EventBus.getDefault().post(e);
         } catch (Throwable t) {
-            Logger.t(TAG).d("postItemModifyEvent failed: %s", t.getMessage());
+            Logger.t(TAG).e(t, "postItemModifyEvent failed");
+            throw new RuntimeException("条目变更事件投递失败：" + t.getMessage(), t);
         }
     }
 
@@ -7587,7 +7624,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             e.setAfter(after);
             org.greenrobot.eventbus.EventBus.getDefault().post(e);
         } catch (Throwable t) {
-            Logger.t(TAG).d("postItemModifyEvent failed: %s", t.getMessage());
+            Logger.t(TAG).e(t, "postItemModifyEvent failed");
+            throw new RuntimeException("条目变更事件投递失败：" + t.getMessage(), t);
         }
     }
 
@@ -7860,9 +7898,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     /** 8.83 FileUtil.stringToFile（FileUtil.smali:3353）：父目录不存在则
      * mkdirs，FileWriter 写+flush，IOException 吞。 */
     /** 8.83 FileUtil.stringToFile 本体形（FileUtil.smali:3353）：
-     * 父目录先 mkdirs、BufferedWriter 写后自吞 IOException；
-     * throws 声明照官保留（官本体同为声明在、异常不外穿），
-     * 使调用方 hkStringToFile 的 catch(IOException) 官形成立。 */
+     * 父目录先 mkdirs、BufferedWriter 写+flush；IOException 按 throws 声明
+     * 真穿出（官本体自吞，此处偏官一格：写失败须由 hkStringToFile 抛回
+     * JS 写桥可区分，不许与写成功同形）。 */
     private static void hkRawStringToFile(String content, String path) throws java.io.IOException {
         File target = new File(path);
         File parent = target.getParentFile();
@@ -7872,7 +7910,6 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             w = new java.io.BufferedWriter(new java.io.FileWriter(target));
             w.write(content);
             w.flush();
-        } catch (java.io.IOException ignored) {
         } finally {
             if (w != null) {
                 try { w.close(); } catch (java.io.IOException ignored) {}
@@ -7988,10 +8025,11 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             if (path.contains(hkFilesDirPrefix())) return;
             if (hkInJsDir(path)) return;
             hkRawStringToFile(content, path);
-        } catch (java.io.IOException ignored) {
-            // 官 JE stringToFile 只 catch IOException（JE:9738 尾）；
-            // 旧形 catch Throwable 把非 IO 异常一并吞掉与官分叉，
-            // 照官收窄（第七阶段复核点名）。
+        } catch (java.io.IOException e) {
+            // 写失败不再静默吞：记 Log.e 并抛回 JS 写桥（writeFile/saveFile），
+            // 底层 hkRawStringToFile 已按其 throws 声明把 IOException 真穿出到此。
+            Logger.t(TAG).e(e, "hkStringToFile write failed path=%s", path);
+            throw new RuntimeException("写入文件失败：" + e.getMessage(), e);
         }
     }
 
@@ -8035,6 +8073,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             org.greenrobot.eventbus.EventBus.getDefault().post(
                     new com.fongmi.android.tv.api.hk.event.rule.RuleModifiedEvent(target));
         } catch (Throwable ignored) {
+            Logger.t(TAG).e(ignored, "postRuleModifiedEvent failed title=%s", title);
+            throw new RuntimeException("规则变更事件投递失败：" + title, ignored);
         }
     }
 
@@ -8063,7 +8103,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         Map<String, String> m = readKvFile(f);
         checkSetItemSize(m, key, value);
         m.put(key, value);
-        writeKvFile(f, m);
+        if (!writeKvFile(f, m)) throw new RuntimeException("规则存档写入失败：" + title);
         postRuleModifiedEvent(title);
     }
 
@@ -8092,7 +8132,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         try {
             obj.put(field, value == null ? org.json.JSONObject.NULL : value);
         } catch (Throwable ignored) {
-            return;
+            Logger.t(TAG).e(ignored, "bridgeKvSet put failed bucket=%s field=%s", bucket, field);
+            throw new RuntimeException("bridgeKvSet 写入失败：" + bucket + "/" + field, ignored);
         }
         setItemNow("js@" + bucket, obj.toString(), bucket);
     }
@@ -8168,11 +8209,15 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         return m;
     }
 
-    private static void writeKvFile(File f, Map<String, String> m) {
+    /** KV 文件写：失败记错误日志并回 false，由调用方决定去路（不再静默吞）。 */
+    private static boolean writeKvFile(File f, Map<String, String> m) {
         try {
             if (f.getParentFile() != null) f.getParentFile().mkdirs();
             java.nio.file.Files.write(f.toPath(), GSON.toJson(m).getBytes("UTF-8"));
-        } catch (Throwable ignored) {
+            return true;
+        } catch (Throwable e) {
+            Logger.t(TAG).e(e, "writeKvFile failed: %s", f);
+            return false;
         }
     }
 
@@ -8216,13 +8261,15 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         }
     }
 
-    private void writeFileContent(String absPath, String content) {
+    private boolean writeFileContent(String absPath, String content) {
         try {
             File f = new File(absPath);
             if (f.getParentFile() != null) f.getParentFile().mkdirs();
             java.nio.file.Files.write(f.toPath(), (content == null ? "" : content).getBytes(Charset.forName("UTF-8")));
+            return true;
         } catch (Throwable e) {
-            Logger.t(TAG).d("writeFile failed %s: %s", absPath, e.getMessage());
+            Logger.t(TAG).e(e, "writeFile failed %s", absPath);
+            return false;
         }
     }
 
@@ -8436,10 +8483,21 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     new com.google.gson.reflect.TypeToken<Map<String, String>>() {}.getType());
             if (map != null) publicKv.putAll(map);
         } catch (Throwable ignored) {
+            Logger.t(TAG).e(ignored, "loadPublicKv failed");
+            // 坏档备份：内存按空继续，但盘上原文件先留 .bad 副本，后续
+            // savePublicKv 整表写回不无声抹掉原数据（可人工恢复）。
+            try {
+                File f = publicKvFile();
+                if (f.exists()) java.nio.file.Files.copy(f.toPath(),
+                        new File(f.getAbsolutePath() + ".bad").toPath(),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (Throwable backupFailed) {
+                Logger.t(TAG).e(backupFailed, "loadPublicKv backup failed");
+            }
         }
     }
 
-    private void savePublicKv() {
+    private boolean savePublicKv() {
         try {
             File f = publicKvFile();
             if (f.getParentFile() != null) f.getParentFile().mkdirs();
@@ -8461,12 +8519,19 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                         }
                     }
                 } catch (Throwable ignored) {
+                    // 合并读盘失败中止本次落盘：照旧覆写会把别实例刚写的键
+                    // 整表冲掉；回 false 由桥调用方抛错，盘上原文件不动待重试。
+                    Logger.t(TAG).e(ignored, "savePublicKv merge disk read failed, abort save");
+                    return false;
                 }
             }
             // 别实例内存里的已删旧值同样不许借本次落盘复活
             publicKv.keySet().removeAll(PUBLIC_KV_TOMBSTONES);
             java.nio.file.Files.write(f.toPath(), GSON.toJson(publicKv).getBytes("UTF-8"));
+            return true;
         } catch (Throwable ignored) {
+            Logger.t(TAG).e(ignored, "savePublicKv failed");
+            return false;
         }
     }
 
@@ -8560,7 +8625,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     /**
      * 目标缺失、或内容不含标志串 rrules（只剩 404 正文等空壳）时，
      * 把内置种子原样写回目标。有效内容（含 rrules 的正版/更新件）
-     * 永不覆盖。全程吞异常：回补失败保持原缺失语义（读回 ""）。
+     * 永不覆盖。全程不抛：回补失败记错误日志、保持原缺失语义（读回 ""）。
      */
     private void hkSeedWriteIfInvalid(String asset, java.io.File target) {
         try {
@@ -8576,6 +8641,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             out.write(code.getBytes("UTF-8"));
             out.close();
         } catch (Throwable ignored) {
+            Logger.t(TAG).e(ignored, "hkSeedWriteIfInvalid failed asset=%s target=%s", asset, target);
         }
     }
 
@@ -8608,6 +8674,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             }
             return code;
         } catch (Throwable ignored) {
+            com.github.catvod.crawler.SpiderDebug.log("hk",
+                    "loadLibLocal load failed name=%s err=%s", libUrl, ignored.getMessage());
             return null;
         }
     }
@@ -10053,12 +10121,23 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             ua.put("pcUa", UA_PC);
             ScriptableObject.putProperty(scope, "MY_UA", parseJson(GSON.toJson(ua)));
         } catch (Throwable ignored) {
+            Logger.t(TAG).e(ignored, "inject MY_UA failed");
+            // 与 MY_PARAMS/MY_RULE 同形补空对象：规则读到 {} 而非 undefined。
+            try {
+                ScriptableObject.putProperty(scope, "MY_UA", rhinoCx.newObject(scope));
+            } catch (Throwable ignored2) {
+            }
         }
         try {
             Map<String, String> headers = new HashMap<>();
             headers.put("User-Agent", rule == null ? UA_MOBILE : rule.resolvedUa());
             ScriptableObject.putProperty(scope, "MY_HEADERS", parseJson(GSON.toJson(headers)));
         } catch (Throwable ignored) {
+            Logger.t(TAG).e(ignored, "inject MY_HEADERS failed");
+            try {
+                ScriptableObject.putProperty(scope, "MY_HEADERS", rhinoCx.newObject(scope));
+            } catch (Throwable ignored2) {
+            }
         }
         try {
             // W3：序列化的是 bindRule 绑定的当前页规则，不再是实例创建时规则。
@@ -10123,9 +10202,15 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 putDisplayNameInto(target);
             }
             String lazyPlugin = loadAsset("plugin.js");
-            if (!TextUtils.isEmpty(lazyPlugin)) evalIntoScope(target, lazyPlugin, "hk-plugin");
+            if (TextUtils.isEmpty(lazyPlugin)) {
+                throw new IllegalStateException("plugin.js asset missing");
+            }
+            evalIntoScope(target, lazyPlugin, "hk-plugin");
         } catch (Throwable e) {
-            Logger.t(TAG).d("install plugin.js failed: " + e.getMessage());
+            // 安装失败直穿求值：storage0 缺失不许拖到规则用时才在别处报
+            // ReferenceError（与装配失败即本发失败同形）。
+            Logger.t(TAG).e(e, "install plugin.js failed");
+            throw new RuntimeException("plugin.js 安装失败：" + e.getMessage(), e);
         }
     }
 
@@ -10520,7 +10605,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             String json = resultPayloadJson(args);
             if (json != null) appendResultItems(json);
         } catch (Throwable e) {
-            Logger.t(TAG).d("collectResult failed: %s", e.getMessage());
+            // 载荷解析失败写 error 字段：宿主空态经 getError() 能区分
+            // 「载荷坏了」与「规则真回空」，不再同为静默空列表。
+            Logger.t(TAG).e(e, "collectResult failed");
+            error = "结果载荷解析失败：" + e.getMessage();
         }
     }
 
@@ -11252,6 +11340,17 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 sanitizeKvUndefinedOnce();
             }
         } catch (Throwable ignored) {
+            Logger.t(TAG).e(ignored, "loadKv failed");
+            // 坏档备份：kv 按空继续本次运行，但原文件先留 .bad 副本，
+            // 后续 saveKv 整表写回不无声抹掉原数据（可人工恢复）。
+            try {
+                File f = kvFile();
+                if (f.exists()) java.nio.file.Files.copy(f.toPath(),
+                        new File(f.getAbsolutePath() + ".bad").toPath(),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (Throwable backupFailed) {
+                Logger.t(TAG).e(backupFailed, "loadKv backup failed");
+            }
         }
     }
 
@@ -11296,6 +11395,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             }
             marker.createNewFile();
         } catch (Throwable ignored) {
+            Logger.t(TAG).e(ignored, "sanitizeKvPoisonOnce failed");
         }
     }
 
@@ -11330,6 +11430,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             }
             marker.createNewFile();
         } catch (Throwable ignored) {
+            Logger.t(TAG).e(ignored, "sanitizeKvUndefinedOnce failed");
         }
     }
 
@@ -11338,7 +11439,12 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             File f = kvFile();
             if (f.getParentFile() != null) f.getParentFile().mkdirs();
             java.nio.file.Files.write(f.toPath(), GSON.toJson(kv).getBytes("UTF-8"));
-        } catch (Throwable ignored) {
+        } catch (Throwable e) {
+            // 存档写失败不再静默吞：记错误日志并抛回调用方（桥层转 JS 异常、
+            // 规则可感知，与 checkSetItemSize 大小闸抛 RuntimeException 同形）；
+            // 内部调用方 sanitize 自有 catch 记日志、不受影响。
+            Logger.t(TAG).e(e, "saveKv failed");
+            throw new RuntimeException("规则存档写入失败：" + e.getMessage(), e);
         }
     }
 // ============ D1: 8.83 JSEngine P0 core port ============
@@ -11497,7 +11603,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 try {
                     listener.bindObjectToView(key, item);
                 } catch (Throwable e) {
-                    Logger.t(TAG).d("bindObjectToView failed: %s", e.getMessage());
+                    Logger.t(TAG).e(e, "bindObjectToView failed key=%s", key);
+                    throw new RuntimeException("onUpdate 绑视图失败：" + e.getMessage(), e);
                 }
             }
             @Override public void showErr(String err) {
@@ -13337,6 +13444,28 @@ private Object generateHeadersOptions(Object options) {
 }
 
 // ---------------------------------------------------------------------------
+// 8.83: JSEngine.getDomScripts(String)String  [JSEngine.smali 3362-3488]
+// private. Empty input, or input starting with "[" or "{" -> "".
+// Otherwise Jsoup.parse the input, take every <script> element in order,
+// and join wrapTryScript(element.html()) with "\n" between entries;
+// no <script> elements -> "".
+// ---------------------------------------------------------------------------
+private String getDomScripts(String html) {
+    if (TextUtils.isEmpty(html)) return "";
+    if (html.startsWith("[") || html.startsWith("{")) return "";
+    org.jsoup.nodes.Document document = org.jsoup.Jsoup.parse(html);
+    if (document == null) return "";
+    org.jsoup.select.Elements scripts = document.getElementsByTag("script");
+    if (scripts == null || scripts.size() < 1) return "";
+    StringBuilder sb = new StringBuilder();
+    for (org.jsoup.nodes.Element element : scripts) {
+        if (sb.length() != 0) sb.append("\n");
+        sb.append(wrapTryScript(element.html()));
+    }
+    return sb.toString();
+}
+
+// ---------------------------------------------------------------------------
 // 8.83: JSEngine.getFilePath(String)String  [JSEngine.smali 3490-3562]
 // NOTE: smali declares this public static (not private as described in the
 // task); kept public static. "hiker://files/<p>" -> rootDir/<p>;
@@ -13405,6 +13534,8 @@ private void batchExecuteImpl(Object[] args) {
                 TimeUnit.SECONDS, new LinkedBlockingDeque<>(4096));
         CountDownLatch latch = new CountDownLatch(tasks.size());
         AtomicInteger counter = new AtomicInteger(0);
+        final java.util.concurrent.atomic.AtomicReference<Throwable> listenerFailure =
+                new java.util.concurrent.atomic.AtomicReference<>();
         // 8.83 JSEngine.batchExecute: String tag = UUIDUtil.genUUID()（本机无 UUIDUtil，等价替代）
         final String beTag = UUID.randomUUID().toString();
         SpiderDebug.log("hk", "be: start tasks=%d success=%d", tasks.size(), successLimit);
@@ -13474,6 +13605,7 @@ private void batchExecuteImpl(Object[] args) {
                                 } catch (Throwable e) {
                                     Logger.t(TAG).e(e, "be listener failed");
                                     SpiderDebug.log("hk", "be: listener failed id=%s err=%s", taskId, e);
+                                    listenerFailure.compareAndSet(null, e);
                                 }
                             }
                         }
@@ -13506,12 +13638,18 @@ private void batchExecuteImpl(Object[] args) {
             Logger.t(TAG).e(e, "be pool shutdown failed");
             SpiderDebug.log("hk", "be: pool shutdown failed err=%s", e);
         }
+        if (listenerFailure.get() != null) {
+            // 监听回调失败不许整批装作成功：抛回外层转 JS 调用方。
+            throw new RuntimeException("batchExecute 监听回调失败："
+                    + listenerFailure.get().getMessage(), listenerFailure.get());
+        }
         BATCH_EXECUTE_READY = true;
         Logger.t(TAG).d("be: done, %d tasks", tasks.size());
         SpiderDebug.log("hk", "be: done tasks=%d", tasks.size());
     } catch (Throwable e) {
         Logger.t(TAG).e(e, "batchExecute failed");
         SpiderDebug.log("hk", "be: batchExecute failed err=%s", e);
+        throw new RuntimeException("batchExecute 失败：" + e.getMessage(), e);
     }
 }
 
@@ -13611,7 +13749,12 @@ private void setErrorImpl(Object[] args) {
             try {
                 new android.os.Handler(android.os.Looper.getMainLooper()).post(() ->
                         ToastUtil.show(App.get(), msg, android.widget.Toast.LENGTH_LONG));
-            } catch (Throwable ignored) {
+            } catch (Throwable postFailed) {
+                Logger.t(TAG).e(postFailed, "setError toast post failed");
+                try {
+                    ToastUtil.show(App.get(), msg, android.widget.Toast.LENGTH_LONG);
+                } catch (Throwable ignored) {
+                }
             }
         } else {
             callbackMap.remove(ck);
@@ -13619,10 +13762,12 @@ private void setErrorImpl(Object[] args) {
                 callback.showErr(msg);
             } catch (Throwable e) {
                 Logger.t(TAG).e(e, "setError callback.showErr failed");
+                hkToast(msg);
             }
         }
     } catch (Throwable e) {
         Logger.t(TAG).e(e, "setError failed");
+        hkToast("解析失败！");
     }
 }
 

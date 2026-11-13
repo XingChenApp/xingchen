@@ -1200,10 +1200,14 @@ public class ReadingShelfActivity extends AppCompatActivity {
         new Thread(() -> {
             String err = "";
             int ok = 0;
+            boolean persistFailed = false;
             try {
                 getContentResolver().takePersistableUriPermission(treeUri,
                         Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                // 长期读权限没存下不许吞（349）：这次靠临时授权还能导入，但重启后
+                // 可能读不了这个文件夹——必须让用户知道，并给他重试的路（重新导入）。
+                persistFailed = true;
             }
             try {
                 LocalBookImporter.importTree(getApplicationContext(), treeUri);
@@ -1213,10 +1217,17 @@ public class ReadingShelfActivity extends AppCompatActivity {
             }
             final int fOk = ok;
             final String fErr = err;
+            final boolean fPersistFailed = persistFailed;
             runOnUiThread(() -> {
                 setImporting(false);
-                ToastUtil.show(ReadingShelfActivity.this,
-                        fOk > 0 ? "导入成功" : "导入失败：" + fErr, Toast.LENGTH_LONG);
+                if (fOk > 0 && fPersistFailed) {
+                    ToastUtil.show(ReadingShelfActivity.this,
+                            "导入成功，但这个文件夹的长期读取权限没存下，重启后可能读不了，请重新导入一次",
+                            Toast.LENGTH_LONG);
+                } else {
+                    ToastUtil.show(ReadingShelfActivity.this,
+                            fOk > 0 ? "导入成功" : "导入失败：" + fErr, Toast.LENGTH_LONG);
+                }
                 refresh();
             });
         }).start();

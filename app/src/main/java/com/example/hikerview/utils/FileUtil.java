@@ -4,6 +4,10 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Environment;
+import android.widget.Toast;
+
+import com.annimon.stream.function.Consumer;
+import com.lxj.xpopup.util.XPermission;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.api.hk.HkCryptoFileUtil;
@@ -678,13 +682,143 @@ public class FileUtil {
         }
     }
 
-    /*
-     * 未补的两个原版方法（原因如实记录）：
-     * - scanFiles(String, com.annimon.stream.function.Consumer)：annimon 流库不在
-     *   星辰依赖清单里，原签名无法在本工程编译；无规则 JS 直调样本，不补。
-     * - saveFile(Context, Runnable)：原版走 XPermission（lxj xpopup 库，未引入）
-     *   申请存储权限的 UI 流程，不是文件工具语义，不补。
-     * 另 generateHtml / clearExtension / generateFileName 三个助手依赖原版播放页
-     * 模板与 UrlDetector 分类器（App 内部特征），无规则 JS 消费证据，未补。
+    // ---- 2026-11-14 对官补缺：scanFiles / saveFile / generateHtml ----
+
+    /**
+     * 递归扫描目录、逐个文件回调其绝对路径（原版 FileUtil.scanFiles，
+     * 官 smali_classes2 FileUtil.smali 行 3271–3351）：路径不存在直接返回；
+     * 是文件则回调自身绝对路径；是目录则对每个子项递归。
+     * 回调类型 com.annimon.stream.function.Consumer 本树已有同包名同签名
+     * 补齐类（app/src/main/java/com/annimon/stream/function/Consumer.java），
+     * 与官签名一致，非新依赖。
      */
+    public static void scanFiles(String path, Consumer<String> consumer) {
+        File file = new File(path);
+        if (!file.exists()) return;
+        if (file.isFile()) {
+            consumer.accept(file.getAbsolutePath());
+            return;
+        }
+        File[] files = file.listFiles();
+        if (files != null && files.length > 0) {
+            for (File f : files) {
+                scanFiles(f.getAbsolutePath(), consumer);
+            }
+        }
+    }
+
+    /**
+     * 申请存储权限后执行任务（原版 FileUtil.saveFile，官 FileUtil.smali
+     * 行 3238–3269 及 FileUtil$1）：走 XPermission
+     * （com.lxj.xpopup.util.XPermission）——该类是 XPopup 库的 util 类，
+     * 本工程已依赖 XPopup 2.9.0（app/build.gradle，官包内嵌同库，
+     * 官包 smali_classes3/com/lxj/xpopup/util/XPermission.smali），非新引入。
+     * 授权 → task.run()；拒绝 → Toast「请授予文件存储权限！」（官 $1 原话）。
+     */
+    public static void saveFile(Context context, Runnable task) {
+        XPermission.create(context, "STORAGE")
+                .callback(new XPermission.SimpleCallback() {
+                    @Override
+                    public void onGranted() {
+                        task.run();
+                    }
+
+                    @Override
+                    public void onDenied() {
+                        Toast.makeText(context, "请授予文件存储权限！", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .request();
+    }
+
+    /**
+     * 生成 ckplayer 播放页 index.html 到指定目录并拷贝 assets/player 资源
+     * （原版 FileUtil.generateHtml，官 FileUtil.smali 行 1676–1749）：
+     * 模板逐字照官 smali 常量串，播放地址插在 var url="..." 处；写文件走
+     * 本类 stringToFile——官版 stringToFile 声明 throws IOException 故官码
+     * 外包一层 try/catch→Timber.e，本类 stringToFile 无 throws 且内部已吞
+     * 异常，官那层 catch 实际不可达，运行时行为一致，故直调。
+     * 两处与官环境的差异如实记名：① 官 Application.getContext() 本树无此
+     * 类，接同职责等价物 com.fongmi.android.tv.App.get()（本类 getFilePath
+     * 已用同一入口）；② 本树 assets 无 player 目录（只有 dplayer），
+     * copyFilesFromAssets 对缺失目录内部吞异常成空转，index.html 照常
+     * 生成，ckplayer 资源拷贝待 assets 补齐后自动生效。
+     */
+    public static void generateHtml(String dir, String url) {
+        String html = "<!doctype html >\n<html>\n<head>\n    <meta charset=\"UTF-8\" />\n    <title>方圆影视播放页</title>\n    <style>\n        html,\n        body {\n            margin: 0;\n            padding: 0;\n            width: 100%;\n            height: 100%;\n        }/*这里是关键*/\n        #a1 {\n            margin: 0 auto;\n            width: 100%;\n            height: 600px;\n        }\n    </style>\n    <script type=\"text/javascript\"src=\"./player/ckplayer/jquery.min.js\"></script>\n    <script type=\"text/javascript\" src=\"./player/ckplayer/ckplayer.js\" charset=\"utf-8\"></script>\n</head>\n<body>\n<div id=\"a1\"></div>\n<script type=\"text/javascript\">\n    var url=\"" + url + "\";\n    var flashvars={\n        f:'./player/m3u8/m3u8.swf',\n        a:url,\n        s:4,\n        c:0\n    };\n    var params={bgcolor:'#000',allowFullScreen:true,allowScriptAccess:'always',wmode:'transparent'};\n    var video=[url];\n    var videoObject = {\n        container: '#a1',\n        variable: 'player',//该属性必需设置，值等于下面的new chplayer()的对象\n        flashplayer:false,//如果强制使用flashplayer则设置成true\n        video:url,\n        logo: ''\n    };\n    var player=new ckplayer(videoObject);\n    player.embed('./player/ckplayer/ckplayer.swf','a1','ckplayer_a1','100%','100%',false,flashvars,video,params);\n</script>\n</body>\n</html>";
+        stringToFile(html, dir + File.separator + "index.html");
+        copyFilesFromAssets(App.get(), "player", dir);
+    }
+
+    /*
+     * ①团订正：clearExtension / generateFileName 两法已解锁落码（官 ShareUtil
+     * 已按需转写在位，见下方两法）。早前注记（scanFiles / saveFile / generateHtml
+     * 补齐、annimon Consumer 与 XPermission 为既有同包补齐类/既有依赖库类）仍有效。
+     */
+
+    /**
+     * 官 clearExtension（FileUtil.smali 同名法）逐字转写（①团解锁）：
+     * 名含 "." 才处理；指定扩展名优先按 ".ext" 末位截断（下标须 >0）；
+     * 否则取本名扩展名（"#" 前段），在 ShareUtil MIME 表任一值表命中同名才截断。
+     */
+    public static String clearExtension(String name, String extension) {
+        if (name != null && name.contains(".")) {
+            if (StringUtil.isNotEmpty(extension)) {
+                int index = name.lastIndexOf("." + extension);
+                if (index > 0) {
+                    return name.substring(0, index);
+                }
+            }
+            String ext = getExtension(name).split("#")[0];
+            if (StringUtil.isEmpty(ext)) {
+                return name;
+            }
+            for (java.util.Map.Entry<String, java.util.List<String>> entry : ShareUtil.getMimeTypeMap().entrySet()) {
+                for (String mimeExt : entry.getValue()) {
+                    if (ext.equals(mimeExt)) {
+                        int index = name.lastIndexOf("." + ext);
+                        if (index > 0) {
+                            return name.substring(0, index);
+                        }
+                    }
+                }
+            }
+        }
+        return name;
+    }
+
+    /**
+     * 官 generateFileName（FileUtil.smali 同名法）逐字转写（①团解锁）：
+     * 名空取资源名、再空取 url 的 md5；音乐或非音视频走补扩展名支
+     * （ShareUtil.getExtension 优先、本类 getExtension(url) 兜后——照官序），
+     * 视频（非音乐）走截掉末扩展名支（"." 末位下标须 >=1）。
+     */
+    public static String generateFileName(String name, String contentType, String url) {
+        if (StringUtil.isEmpty(name)) {
+            name = getResourceName(url);
+        }
+        if (StringUtil.isEmpty(name)) {
+            name = StringUtil.md5(url);
+        }
+        if (com.example.hikerview.ui.browser.model.UrlDetector.isMusic(url)
+                || !com.example.hikerview.ui.browser.model.UrlDetector.isVideoOrMusic(url)) {
+            if (!name.contains(".")) {
+                String ext = ShareUtil.getExtension(url, contentType);
+                if (StringUtil.isNotEmpty(ext)) {
+                    name = name + "." + ext;
+                } else {
+                    String urlExt = getExtension(url);
+                    if (StringUtil.isNotEmpty(urlExt)) {
+                        name = name + "." + urlExt;
+                    }
+                }
+            }
+        } else {
+            int index = name.lastIndexOf(".");
+            if (index >= 1) {
+                name = name.substring(0, name.lastIndexOf("."));
+            }
+        }
+        return name;
+    }
 }

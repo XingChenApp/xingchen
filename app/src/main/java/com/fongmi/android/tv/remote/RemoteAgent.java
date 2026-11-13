@@ -95,6 +95,7 @@ public final class RemoteAgent {
             }
         } catch (Throwable e) {
             log("agent start failed error=%s", e.getMessage());
+            android.util.Log.e("RemoteAgent", "agent start failed, remote control may stay offline (isRunning=" + isRunning() + ")", e);
         }
     }
 
@@ -200,6 +201,13 @@ public final class RemoteAgent {
                 new RemoteClient(profile).commandResult(command.id, result);
             } catch (Throwable e) {
                 log("command execute failed origin=%s id=%s error=%s", serverOrigin, command.id, e.getMessage());
+                android.util.Log.e("RemoteAgent", "command execute failed origin=" + serverOrigin + " id=" + command.id, e);
+                // 执行抛错必须回失败结果给服务端，不许让命令方静默等到超时。
+                try {
+                    new RemoteClient(profile).commandResult(command.id, RemoteCommandResult.failure("Execute failed: " + e.getMessage()));
+                } catch (Throwable replyError) {
+                    log("command failure reply failed origin=%s id=%s error=%s", serverOrigin, command.id, replyError.getMessage());
+                }
             }
         }
 
@@ -252,6 +260,7 @@ public final class RemoteAgent {
 
         @Override
         public void onMessage(WebSocket webSocket, String text) {
+            RemoteCommand parsed = null;
             try {
                 JsonObject object = App.gson().fromJson(text, JsonObject.class);
                 if (object == null || !object.has("command")) return;
@@ -259,6 +268,7 @@ public final class RemoteAgent {
                 if (element == null || !element.isJsonObject()) return;
                 RemoteCommand command = App.gson().fromJson(element, RemoteCommand.class);
                 if (command == null || TextUtils.isEmpty(command.id)) return;
+                parsed = command;
                 RemoteProfile profile = RemoteStore.getProfileByOrigin(serverOrigin);
                 if (!RemoteStore.shouldStart(profile)) {
                     session.closeWebSocket();
@@ -268,6 +278,20 @@ public final class RemoteAgent {
                 Task.execute(() -> session.executeCommand(profile, command));
             } catch (Throwable e) {
                 log("websocket message failed origin=%s error=%s", serverOrigin, e.getMessage());
+                android.util.Log.e("RemoteAgent", "websocket message failed origin=" + serverOrigin, e);
+                // 命令已解析出 id 却在分发前抛错：回失败结果，不让服务端静默等超时；
+                // 解析本身失败、无 id 可回时只能留痕。
+                if (parsed != null && !TextUtils.isEmpty(parsed.id)) {
+                    RemoteCommand failed = parsed;
+                    Task.execute(() -> {
+                        try {
+                            RemoteProfile profile = RemoteStore.getProfileByOrigin(serverOrigin);
+                            if (profile != null) new RemoteClient(profile).commandResult(failed.id, RemoteCommandResult.failure("Message handling failed: " + e.getMessage()));
+                        } catch (Throwable replyError) {
+                            log("websocket failure reply failed origin=%s id=%s error=%s", serverOrigin, failed.id, replyError.getMessage());
+                        }
+                    });
+                }
             }
         }
 

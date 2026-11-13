@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Environment;
 import android.util.Base64;
+import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.google.gson.Gson;
@@ -45,6 +46,8 @@ import okhttp3.Response;
  * 规则 JS 数据：filesDir/plugins/hk/data/&lt;规则名&gt;/（setItem/getItem 持久化，M2 用）。
  */
 public class HkRuleManager {
+
+    private static final String TAG = "HkRuleManager";
 
     private static final String DIR = "plugins/hk";
     private static final String DATA_DIR = "plugins/hk/data";
@@ -133,12 +136,16 @@ public class HkRuleManager {
      */
     public String loadRuleJson(String title) {
         if (title == null || title.isEmpty()) return null;
+        File f = new File(getDir(), safeFileName(title) + ".json");
         try {
-            File f = new File(getDir(), safeFileName(title) + ".json");
             if (!f.exists()) return null;
             byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
             return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
         } catch (Throwable e) {
+            // 文件存在却读失败与「不存在」同回 null 是接口契约（调用方全按
+            // null 分流、无既有失败通道可接），留痕必须带标题＋完整路径，
+            // 与「文件不存在」（无此日志）可区分（批 fix349＋residual）。
+            Log.e(TAG, "规则文件读取失败：" + title + " path=" + f.getAbsolutePath(), e);
             return null;
         }
     }
@@ -148,13 +155,16 @@ public class HkRuleManager {
      */
     public HkRule getInstalledRule(String title) {
         if (title == null || title.isEmpty()) return null;
+        File f = new File(getDir(), safeFileName(title) + ".json");
         try {
-            File f = new File(getDir(), safeFileName(title) + ".json");
             if (!f.exists()) return null;
             byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
             String json = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
             return parseJson(json);
         } catch (Throwable e) {
+            // 同 loadRuleJson 口径：契约回 null 不变，留痕带标题＋完整路径，
+            // 与「未安装」（无此日志）可区分（批 residual）。
+            Log.e(TAG, "已装规则读取/解析失败：" + title + " path=" + f.getAbsolutePath(), e);
             return null;
         }
     }
@@ -188,7 +198,9 @@ public class HkRuleManager {
                                 if (target.exists()) target.delete();
                                 Files.copy(f.toPath(), target.toPath());
                                 f.delete();
-                            } catch (Throwable ignored) {
+                            } catch (Throwable t) {
+                                // 拷贝失败源文件保留（delete 在 copy 之后），记日志待下次启动重试（批 fix349）。
+                                Log.e(TAG, "旧版规则库文件迁移失败：" + f.getName(), t);
                             }
                         }
                     }
@@ -204,7 +216,8 @@ public class HkRuleManager {
                         if (target.exists()) target.delete();
                         Files.copy(oldRequire.toPath(), target.toPath());
                         oldRequire.delete();
-                    } catch (Throwable ignored) {
+                    } catch (Throwable t) {
+                        Log.e(TAG, "旧版 require.json 迁移失败：" + title, t);
                     }
                 }
             }
@@ -248,13 +261,16 @@ public class HkRuleManager {
         }
     }
 
-    /** 写某规则的配置 JSON 文本（供后续"规则设置"页用）。 */
-    public void saveRuleConfig(String title, String json) {
+    /** 写某规则的配置 JSON 文本（供后续"规则设置"页用）。失败回 false 并记日志，不许静默（批 fix349）。 */
+    public boolean saveRuleConfig(String title, String json) {
         try {
             File f = new File(getConfigDir(), safeFileName(title) + ".json");
             java.nio.file.Files.write(f.toPath(),
                     (json == null || json.trim().isEmpty() ? "{}" : json.trim()).getBytes("UTF-8"));
-        } catch (Throwable ignored) {
+            return true;
+        } catch (Throwable t) {
+            Log.e(TAG, "规则配置写入失败：" + title, t);
+            return false;
         }
     }
 
@@ -490,7 +506,9 @@ public class HkRuleManager {
                             }
                             zin.closeEntry();
                         }
-                    } catch (Exception ignored) {
+                    } catch (Exception e) {
+                        // 内层 libs.zip 坏包不许静默缺库：整包判失败回调用方（批 fix349）。
+                        throw new Exception("libs.zip 解包失败", e);
                     }
                 } else if (lower.equals("data.zip") || lower.equals("data2.zip")) {
                     // 内层 zip：data/ 下的规则数据文件（plugins/、template/ 等），相对路径原样带出；
@@ -509,7 +527,9 @@ public class HkRuleManager {
                             }
                             zin.closeEntry();
                         }
-                    } catch (Exception ignored) {
+                    } catch (Exception e) {
+                        // 内层 data.zip 坏包同样不许静默缺文件：整包判失败（与 libs.zip 同口径）。
+                        throw new Exception(lower + " 解包失败", e);
                     }
                 } else if (lower.endsWith(".json")) {
                     try {
@@ -554,8 +574,9 @@ public class HkRuleManager {
     }
 
     /** 把 .hkzip 的附带资源（require.json / libs / data.zip）落盘，供 require() 本地加载与规则读文件。 */
-    public void saveHkZipAssets(HkZipData data, List<HkRule> rules) {
-        if (data == null || rules == null) return;
+    public boolean saveHkZipAssets(HkZipData data, List<HkRule> rules) {
+        boolean ok = true;
+        if (data == null || rules == null) return false;
         for (HkRule rule : rules) {
             if (data.requireJson != null) {
                 // 环13 对官（8.83 ShareRuleUtil.lambda$importRuleByZip$3）：包内
@@ -566,7 +587,9 @@ public class HkRuleManager {
                     File target = new File(getRequireFilesDir(rule.getTitle()), "require.json");
                     if (target.exists()) target.delete();
                     Files.write(target.toPath(), data.requireJson);
-                } catch (Exception ignored) {
+                } catch (Exception e) {
+                    Log.e(TAG, "require.json 落盘失败：" + rule.getTitle(), e);
+                    ok = false;
                 }
             }
             if (!data.libs.isEmpty()) {
@@ -577,7 +600,9 @@ public class HkRuleManager {
                 for (Map.Entry<String, byte[]> e : data.libs.entrySet()) {
                     try {
                         Files.write(new File(libsDir, e.getKey()).toPath(), e.getValue());
-                    } catch (Exception ignored) {
+                    } catch (Exception ex) {
+                        Log.e(TAG, "包内库文件落盘失败：" + e.getKey(), ex);
+                        ok = false;
                     }
                 }
             }
@@ -593,7 +618,9 @@ public class HkRuleManager {
                         File parent = out.getParentFile();
                         if (parent != null) parent.mkdirs();
                         Files.write(out.toPath(), e.getValue());
-                    } catch (Exception ignored) {
+                    } catch (Exception ex) {
+                        Log.e(TAG, "包内资源文件落盘失败：" + e.getKey(), ex);
+                        ok = false;
                     }
                 }
             }
@@ -609,11 +636,14 @@ public class HkRuleManager {
                         File parent = out.getParentFile();
                         if (parent != null) parent.mkdirs();
                         Files.write(out.toPath(), e.getValue());
-                    } catch (Exception ignored) {
+                    } catch (Exception ex) {
+                        Log.e(TAG, "包内资源文件落盘失败：" + e.getKey(), ex);
+                        ok = false;
                     }
                 }
             }
         }
+        return ok;
     }
 
     /**
@@ -1746,7 +1776,11 @@ public class HkRuleManager {
             if (rule != null) rule.setEnabled(isEnabled(rule.getTitle()));
             return rule;
         } catch (Exception e) {
-            e.printStackTrace();
+            // 读/解析失败与「不存在」同回 null 是契约，但不许只剩 printStackTrace：
+            // 走本类既有规则错误文件日志（hk_rule_error.log）＋Log.e 带标题/路径，
+            // 与「文件不存在」（静默回 null）可区分（批 residual）。
+            Log.e(TAG, "规则读取/解析失败：" + title + " path=" + f.getAbsolutePath(), e);
+            logRuleError(f.getName(), e);
             return null;
         }
     }
@@ -1774,7 +1808,11 @@ public class HkRuleManager {
             if (ctx != null) ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                     .edit().remove(KEY_ENABLED_PREFIX + title).apply();
         } catch (Exception e) {
-            e.printStackTrace();
+            // 启用标记没摘掉不许报删净：装回同名规则会复活旧启用状态。
+            // delete 本就回 boolean（HkErrorUtil 等调用方按成败消费），
+            // 此失败并入 ok=false 报出去（批 residual）。
+            Log.e(TAG, "删除规则时启用标记移除失败：" + title, e);
+            ok = false;
         }
         return ok;
     }
@@ -1786,16 +1824,18 @@ public class HkRuleManager {
         f.delete();
     }
 
-    public void setEnabled(String title, boolean enabled) {
-        if (title == null) return;
+    /** @return 是否真存上；失败回 false 并留痕，不许开关静默没拨动（批 residual）。 */
+    public boolean setEnabled(String title, boolean enabled) {
+        if (title == null) return false;
         try {
             Context ctx = appContext();
-            if (ctx != null) {
-                SharedPreferences sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-                sp.edit().putBoolean(KEY_ENABLED_PREFIX + title, enabled).apply();
-            }
+            if (ctx == null) return false;
+            SharedPreferences sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+            sp.edit().putBoolean(KEY_ENABLED_PREFIX + title, enabled).apply();
+            return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e(TAG, "规则启用状态保存失败：" + title + " -> " + enabled, e);
+            return false;
         }
     }
 

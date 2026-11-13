@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.provider.Settings;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.utils.Notify;
 import com.github.catvod.Init;
 import com.github.catvod.utils.Prefers;
 
@@ -429,6 +430,9 @@ public class PlayerSetting {
                         .edit().putString("player_decode", videoPrefer ? "hard" : "soft").apply();
             }
         } catch (Throwable ignored) {
+            // 这份 player_decode 是设置界面显示的唯一依据：写失败界面就会显示旧档，
+            // 等于用户改的解码偏好没存上，必须让用户感知，不许静默。
+            Notify.show("解码设置保存失败，请重新设置");
         }
     }
 

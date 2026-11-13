@@ -122,8 +122,12 @@ public class LoginManager {
                 .hint("请在下方页面完成快手登录，然后点「完成登录」")
                 .cookieValidator(KuaishouLoginProvider::isCookieValid)
                 .onLogin(cookie -> {
-                    KuaishouLoginProvider.putCookie(cookie);
-                    if (callback != null) callback.onSuccess(KuaishouLoginProvider.ID, cookie);
+                    // 落盘成败必须分支（349 处置 deferred 收口）：存不上不许报成功
+                    if (KuaishouLoginProvider.putCookie(cookie)) {
+                        if (callback != null) callback.onSuccess(KuaishouLoginProvider.ID, cookie);
+                    } else if (callback != null) {
+                        callback.onError("登录信息保存失败，请重试");
+                    }
                 })
                 .showLogin(activity);
     }
@@ -147,8 +151,11 @@ public class LoginManager {
                 .hint("请在下方页面完成谷歌账号登录，然后点「完成登录」")
                 .cookieValidator(GoogleLoginProvider::isCookieValid)
                 .onLogin(cookie -> {
-                    GoogleLoginProvider.putCookie(cookie);
-                    if (callback != null) callback.onSuccess(GoogleLoginProvider.ID, cookie);
+                    if (GoogleLoginProvider.putCookie(cookie)) {
+                        if (callback != null) callback.onSuccess(GoogleLoginProvider.ID, cookie);
+                    } else if (callback != null) {
+                        callback.onError("登录信息保存失败，请重试");
+                    }
                 })
                 .showLogin(activity);
     }

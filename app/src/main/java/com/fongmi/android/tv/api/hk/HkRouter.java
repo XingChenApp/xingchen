@@ -263,7 +263,11 @@ public class HkRouter {
             detail.setPageUrl(url);
             detail.setRawItems(items);
         } catch (Throwable e) {
+            // 取数/解析失败不许带着只有基础信息的 detail 冒充成功回：
+            // 唯一调用方 VideoActivity 对 detail() 本就 try/catch 并走
+            // error_detail 错误页，此处抛出去让失败显形（批 residual）。
             Logger.t(TAG).d("detail failed: %s", e.getMessage());
+            throw new IllegalStateException("海阔详情加载失败：" + e.getMessage(), e);
         }
         classifyDetailItems(detail);
         return detail;
@@ -294,12 +298,26 @@ public class HkRouter {
                     di.setDryVerdict(HkEpisodeDryClassifier.classifyLazyItem(
                             engine.getJsRuntime(), u, pageUrl));
                 } catch (Throwable itemError) {
-                    Logger.t(TAG).d("classifyDetailItems item failed: %s",
-                            itemError.getMessage());
+                    // 干跑抛错必须落 UNKNOWN 标（本环既定口径），不许留 null
+                    // 与「未分类」同形（批 residual）。
+                    di.setDryVerdict(HkEpisodeDryClassifier.Verdict.UNKNOWN);
+                    Logger.t(TAG).d("classifyDetailItems item failed url=%s: %s",
+                            u, itemError.getMessage());
                 }
             }
         } catch (Throwable e) {
             Logger.t(TAG).d("classifyDetailItems failed: %s", e.getMessage());
+            // 整环失败：还没落标的干跑候选统一补 UNKNOWN，与「分类成功、
+            // 本就无标」区分开（批 residual）。
+            if (detail != null && detail.getRawItems() != null) {
+                for (HkDetailItem di : detail.getRawItems()) {
+                    if (di.getDryVerdict() != null) continue;
+                    String u = di.getUrl() == null ? "" : di.getUrl().trim();
+                    if (!HkChapters.isPlayForm(u) || HkChapters.isExcluded(di.getColType(), u)) continue;
+                    if (!HkEpisodeDryClassifier.isJsLazy(u)) continue;
+                    di.setDryVerdict(HkEpisodeDryClassifier.Verdict.UNKNOWN);
+                }
+            }
         }
     }
 
@@ -593,7 +611,8 @@ public class HkRouter {
     /**
      * V2 分类 tab 点击：求值条目 url 里的 {@code @lazyRule=}，只为其副作用
      * （如 {@code putMyVar} 设置分类变量），不取播放地址。调用后由上层重新
-     * {@code loadContent(true)} 刷新列表。求值异常只打日志，不抛给上层。
+     * {@code loadContent(true)} 刷新列表。求值异常抛 IllegalStateException
+     * 给上层（HkPageActivity 既有 catch 会 toast「页签切换失败」）。
      *
      * @return 规则回调里是否调了 refreshPage（调用方据此决定是否重刷；当前
      * HkPageActivity 在 evalTab 后本来就会 loadContent(true)，故恒为 true 语义）
@@ -610,7 +629,11 @@ public class HkRouter {
             String prefix = tabUrl.substring(0, lr).trim();
             engine.getJsRuntime().evalLazy(r, prefix.isEmpty() ? null : prefix);
         } catch (Throwable e) {
-            Logger.t(TAG).d("tab eval (side effects applied): %s", e.getMessage());
+            // 求值失败不许照常 return true 冒充成功：唯一调用方
+            // HkPageActivity.onHeaderTabClick 对 evalTab 本就 try/catch 并
+            // toast「页签切换失败」，抛出去走这条既有失败出口（批 residual）。
+            Logger.t(TAG).d("tab eval failed: %s", e.getMessage());
+            throw new IllegalStateException("页签分类求值失败：" + e.getMessage(), e);
         }
         // 规则标准写法是 setItem(...); refreshPage(true); —— 无论是否显式调用，
         // tab 点击后都需要重刷；显式调用时打日志便于排障。
@@ -831,6 +854,10 @@ public class HkRouter {
         } catch (Throwable e) {
             Logger.t(TAG).d("lazyRule failed: %s", e.getMessage());
             SpiderDebug.log("hk", "lazy play failed rule=%s host=%s err=%s", rule.getTitle(), hostOf(pageUrl), String.valueOf(e));
+            // 求值抛错不许留空 out 退回：playRoute 步骤 4 的空检只能管
+            // 「求值回空」，管不到「求值抛错后 out 残留半成品地址被出口
+            // 当可播放行」；与步骤 5/6 js 路同口径抛可见错（批 residual）。
+            throw new IllegalStateException("海阔懒解析执行失败，请换一条试试", e);
         }
     }
 
@@ -1210,11 +1237,18 @@ public class HkRouter {
     private List<HkDetailItem> fromJsDetail(String jsCode, String url, String defaultColType) throws Exception {
         // R2：8.83 详情 JS 求值前先抓详情 HTML，getResCode()/getCode() 可取正文
         String fetchUrl = cleanDetailUrl(url);
+        boolean prefetchFailed = false;
         if (!fetchUrl.isEmpty() && (fetchUrl.startsWith("http://") || fetchUrl.startsWith("https://"))) {
             try {
                 String body = getMarked(fetchUrl);
                 if (body != null && !body.isEmpty()) engine.getJsRuntime().setEvalResCodeBody(body);
-            } catch (Throwable ignored) {
+            } catch (Throwable e) {
+                // 预抓失败则详情 JS 拿不到正文、解析可能为空，此前无痕与「规则本身
+                // 出空」不可区分；按本文件既有失败日志形（lazy/js play failed）留痕，
+                // 并置标：下方求值若因此出空，按失败抛、不冒充规则真空（批 residual）。
+                prefetchFailed = true;
+                SpiderDebug.log("hk", "detail prefetch failed rule=%s host=%s err=%s",
+                        rule.getTitle(), hostOf(fetchUrl), String.valueOf(e));
             }
         }
         try {
@@ -1239,6 +1273,9 @@ public class HkRouter {
                 if (col.isEmpty()) col = defaultColType;
                 it.setColType(col);
                 items.add(it);
+            }
+            if (prefetchFailed && items.isEmpty()) {
+                throw new IllegalStateException("详情正文预抓失败，JS 详情无正文可解析");
             }
             return items;
         } finally {

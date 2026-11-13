@@ -304,22 +304,31 @@ public final class HkStringUtil {
         }
     }
 
-    /** 照抄 PageParser.getUrl(url, extra)：extra 是 JSON 对象且含非空 "url" 键时取该 url，否则原样返回。 */
+    /**
+     * 照抄 PageParser.getUrl(url, extra)：extra 是 JSON 对象且含非空 "url" 键时取该 url，否则原样返回。
+     * 处置订正（2026-11-14）：extra 形似 JSON 却解析失败、或 "url" 键在场却
+     * 读不出字符串时，改回 null 作失败信号——此前静默拿外层原地址顶替、
+     * 可能落到错页/空页；唯一消费方（自动翻页）已按 null 拦截提示。
+     * extra 非 JSON 形/无 "url" 键仍是合法无内嵌地址、照旧回原地址。
+     */
     public static String pageParserGetUrl(String url, String extra) {
         com.google.gson.JsonObject obj = null;
         if (isNotEmpty(extra) && extra.startsWith("{") && extra.endsWith("}")) {
             try {
                 obj = com.google.gson.JsonParser.parseString(extra).getAsJsonObject();
             } catch (Exception e) {
-                Log.e(TAG, "hk error", e);
+                Log.e(TAG, "extra 内嵌地址 JSON 解析失败", e);
+                return null;
             }
         }
         if (obj != null && obj.has("url")) {
             try {
                 String u = obj.get("url").getAsString();
                 if (u != null) return u;
+                return null;
             } catch (Exception e) {
-                Log.e(TAG, "hk error", e);
+                Log.e(TAG, "extra 内嵌地址 url 字段读取失败", e);
+                return null;
             }
         }
         return url;

@@ -43,7 +43,10 @@ public class HkSuggestModel {
         Runnable task = () -> {
             if (seq != SEQ.get()) return;
             new Thread(() -> {
-                List<String> result = new ArrayList<>();
+                // 失败（拉取异常/回包解析失败/无响应体）回 null 作失败信号，
+                // 与「成功但无建议」的空列表区分（残项处置 2026-11-14）：
+                // 既有消费方均已判 null（搜索页按无建议收口、文章页保留旧建议不清空）。
+                List<String> result = null;
                 try {
                     String url = "http://suggestion.baidu.com/su?wd="
                             + HkHttpParser.encodeUrl(query)
@@ -52,7 +55,8 @@ public class HkSuggestModel {
                     String body = httpGet(url);
                     if (body != null) result = parseRecommands(body);
                 } catch (Exception e) {
-                    Log.e(TAG, "hk error", e);
+                    Log.e(TAG, "建议词拉取失败", e);
+                    result = null;
                 }
                 if (consumer != null && seq == SEQ.get()) consumer.accept(result);
             }, "hk-suggest").start();
@@ -64,7 +68,11 @@ public class HkSuggestModel {
         DEBOUNCE.postDelayed(task, 250);
     }
 
-    /** 照原版 getRecommands(String)：剥壳后取 "s" 数组逐项 toString 入列；异常回已收集部分。 */
+    /**
+     * 照原版 getRecommands(String)：剥壳后取 "s" 数组逐项 toString 入列。
+     * 处置订正（2026-11-14）：解析异常改回 null 作失败信号，不再回已收集
+     * 部分/空列表冒充无建议（与 loadFromRemote 的失败口径同一条）。
+     */
     static List<String> parseRecommands(String body) {
         List<String> list = new ArrayList<>();
         try {
@@ -77,7 +85,8 @@ public class HkSuggestModel {
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "hk error", e);
+            Log.e(TAG, "建议词回包解析失败", e);
+            return null;
         }
         return list;
     }

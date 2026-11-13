@@ -42,6 +42,8 @@ public class JarLoader {
     private final ConcurrentHashMap<String, ProxyMethod> methods;
     private final ConcurrentHashMap<String, Spider> spiders;
     private final ConcurrentHashMap<String, Object> locks;
+    /** Proxy 类在场但加载/兼容层安装失败的 jar 键：proxy() 对这些键抛错收口，不许静默无响应。 */
+    private final java.util.Set<String> proxyFailed = ConcurrentHashMap.newKeySet();
     private volatile String recent;
 
     public JarLoader() {
@@ -59,6 +61,7 @@ public class JarLoader {
         methods.clear();
         spiders.clear();
         locks.clear();
+        proxyFailed.clear();
         recent = null;
     }
 
@@ -84,14 +87,20 @@ public class JarLoader {
         String cachePath = Path.jar().getAbsolutePath();
         SpiderDebug.log("jar-loader", "load start key=%s file=%s size=%s cache=%s", key, file.getAbsolutePath(), file.length(), cachePath);
         DexClassLoader loader = new CspDexClassLoader(file.getAbsolutePath(), cachePath, cachePath, App.get().getClassLoader());
-        invokeInit(key, loader, file);
-        invokeNetworkCompat(key, loader);
+        if (!invokeInit(key, loader, file)) {
+            SpiderDebug.forceLog("jar-loader", "load aborted init failed key=%s", key);
+            return;
+        }
+        if (!invokeNetworkCompat(key, loader)) {
+            SpiderDebug.forceLog("jar-loader", "load aborted network inject failed key=%s", key);
+            return;
+        }
         invokeProxy(key, loader, file);
         loaders.put(key, loader);
         SpiderDebug.log("jar-loader", "load done key=%s cost=%sms", key, System.currentTimeMillis() - start);
     }
 
-    private void invokeNetworkCompat(String key, DexClassLoader loader) {
+    private boolean invokeNetworkCompat(String key, DexClassLoader loader) {
         try {
             Class<?> clz = loader.loadClass("com.github.catvod.parser.merge.j0.b");
             Method method = clz.getMethod("b", okhttp3.OkHttpClient.class);
@@ -113,10 +122,13 @@ public class JarLoader {
             SpiderDebug.log("jar-loader", "network client injected key=%s", key);
         } catch (ClassNotFoundException | NoSuchMethodException ignored) {
             // Optional compatibility hook used only by jars which expose it.
-            return;
+            return true;
         } catch (Throwable e) {
-            SpiderDebug.log("jar-loader", "network client inject failed key=%s error=%s", key, error(e));
-            return;
+            // 钩子在场但注入失败：该 jar 的网络能力已残缺，不许照常登记成可用源。
+            // 回 false 让 load() 中止登记，下游以 loader missing 失败态收口。
+            SpiderDebug.forceLog("jar-loader", "network client inject failed key=%s error=%s", key, error(e));
+            SpiderDebug.forceLog("jar-loader", e);
+            return false;
         }
         final Class<?> clz;
         final Object fetcher;
@@ -126,10 +138,11 @@ public class JarLoader {
             fetcher = provider.getMethod("b").invoke(null);
         } catch (Throwable e) {
             SpiderDebug.log("youtube-iframe", "probe skipped key=%s error=%s", key, error(e));
-            return;
+            return true;
         }
         SpiderDebug.log("youtube-iframe", "probe async dispatched key=%s", key);
         Task.submit(() -> probeYoutube(key, clz, fetcher));
+        return true;
     }
 
     /** 探针实拨只做诊断、结果无人消费，移到后台线程，不再串在进源主路径上同步等。 */
@@ -147,7 +160,7 @@ public class JarLoader {
         }
     }
 
-    private void invokeInit(String key, DexClassLoader loader, File file) {
+    private boolean invokeInit(String key, DexClassLoader loader, File file) {
         long start = System.currentTimeMillis();
         try {
             SpiderDebug.log("jar-loader", "jar init start key=%s", key);
@@ -162,11 +175,18 @@ public class JarLoader {
             }
             method.invoke(clz, context);
             SpiderDebug.log("jar-loader", "jar init done key=%s cost=%sms", key, System.currentTimeMillis() - start);
+            return true;
+        } catch (ClassNotFoundException e) {
+            // jar 本就没有 Init 类＝没有初始化步，属合法缺失，不按失败中止。
+            SpiderDebug.log("jar-loader", "jar init absent key=%s", key);
+            return true;
         } catch (Throwable e) {
             // jar 装载初始化失败走强制通道：调试开关没开也必须落盘（断点判别靠它）。
+            // 回 false 让 load() 中止登记：不再把初始化缺失的 jar 当可用源递出去，
+            // 下游 createJarSpider 会以 loader missing 强制留痕并回 SpiderNull。
             SpiderDebug.forceLog("jar-loader", "jar init error key=%s cost=%sms error=%s", key, System.currentTimeMillis() - start, error(e));
             SpiderDebug.forceLog("jar-loader", e);
-            e.printStackTrace();
+            return false;
         }
     }
 
@@ -182,13 +202,26 @@ public class JarLoader {
                     SpiderDebug.log("jar-loader", "pan proxy lifecycle compat enabled key=%s sha256=%s", key, PanProxyCompat.JAR_SHA256);
                 }
             } catch (Exception e) {
-                SpiderDebug.log("jar-loader", "pan proxy lifecycle compat unavailable key=%s error=%s", key, error(e));
+                // install 只对哈希命中的那个 jar 抛错（不命中直接回 null）：
+                // 命中 jar 的兼容层装不上还照常以 compat=null 注册，等于让该 jar
+                // 的代理在生命周期场景静默异常。改为不注册并记入 proxyFailed，
+                // proxy() 对该 key 走既有抛错出口，不再静默无响应。
+                SpiderDebug.forceLog("jar-loader", "pan proxy lifecycle compat install failed key=%s error=%s", key, error(e));
+                proxyFailed.add(key);
+                return;
             }
             methods.put(key, new ProxyMethod(method, compat));
+            proxyFailed.remove(key);
             SpiderDebug.log("jar-loader", "proxy method ready key=%s cost=%sms", key, System.currentTimeMillis() - start);
+        } catch (ClassNotFoundException e) {
+            // jar 本就没有 Proxy 类是合法缺失（多数 jar 不提供代理），不记失败。
+            SpiderDebug.log("jar-loader", "proxy method absent key=%s cost=%sms", key, System.currentTimeMillis() - start);
         } catch (Throwable e) {
-            SpiderDebug.log("jar-loader", "proxy method missing key=%s cost=%sms error=%s", key, System.currentTimeMillis() - start, error(e));
-            e.printStackTrace();
+            // Proxy 类在但加载/取法失败：记入 proxyFailed，proxy() 对该 key
+            // 抛错收口，不再与「没有任何代理处理」同形地静默回 null。
+            SpiderDebug.forceLog("jar-loader", "proxy method load failed key=%s cost=%sms error=%s", key, System.currentTimeMillis() - start, error(e));
+            SpiderDebug.forceLog("jar-loader", e);
+            proxyFailed.add(key);
         }
     }
 
@@ -242,7 +275,10 @@ public class JarLoader {
             parseJar(jaKey, jar);
             return loaders.get(jaKey);
         } catch (Throwable e) {
-            e.printStackTrace();
+            // dex 装载失败走强制通道落盘（printStackTrace 在日志页查不到根因）；
+            // null 仍是既有失败值，下游蜘蛛据此走初始化失败态。
+            SpiderDebug.forceLog("jar-loader", "dex load failed jar=%s error=%s", source(jar), error(e));
+            SpiderDebug.forceLog("jar-loader", e);
             return null;
         }
     }
@@ -392,7 +428,12 @@ public class JarLoader {
         ProxyMethod method = recent != null ? methods.get(recent) : null;
         Object[] result = proxyInvoke(method, params);
         if (result != null) return result;
-        return tryOthers(params);
+        result = tryOthers(params);
+        if (result != null) return result;
+        // 本 jar 的 Proxy 是坏的（invokeProxy 已记 proxyFailed）且无人接手时，
+        // 走 proxy() 既有 throws 出口报错，不许与「无代理处理」同形回 null。
+        if (recent != null && proxyFailed.contains(recent)) throw new Exception("jar proxy unavailable key=" + recent);
+        return null;
     }
 
     private Object[] tryOthers(Map<String, String> p) {

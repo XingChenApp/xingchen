@@ -363,6 +363,7 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
      * 与嗅探模块自带的 isBad 域名族），不动可见浏览行为。
      */
     private boolean sniffMode;
+    private boolean interceptFailNotified;
 
     public boolean isSniffMode() {
         return sniffMode;
@@ -670,7 +671,17 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
                 return new WebResourceResponse(null, null, (java.io.InputStream) null);
             }
         } catch (Exception e) {
-            Log.e(TAG, "hk error", e);
+            // 拦截处理失败不再照常放行装没事（残项处置 2026-11-14）：页面
+            // 仍走下方代理放行，但失败每页只提示一次，广告拦截/嗅探记录
+            // 可能失效这一事实必须显形。
+            Log.e(TAG, "shouldInterceptRequest 拦截处理失败：" + request.getUrl(), e);
+            if (!interceptFailNotified) {
+                interceptFailNotified = true;
+                Activity act2 = reference == null ? null : reference.get();
+                if (act2 != null) {
+                    HkRouteBlocker.toastShortBottom(act2, "资源拦截处理失败，广告拦截可能未生效");
+                }
+            }
         }
         BrowserProxyHook hook = browserProxyHook;
         if (hook != null) return hook.proxy(myUrl, request, requestHeaderMap);
@@ -688,6 +699,7 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
         @Override
         public void onPageStarted(WebView view, String url, Bitmap favicon) {
             myUrl = url;
+            interceptFailNotified = false;
             if (progressListener != null) progressListener.onPageStarted(url);
             requestHeaderMap.clear();
             refererPolicy = null;
@@ -942,12 +954,10 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
 
         @Override
         public String getCookie(String url) {
-            try {
-                return CookieManager.getInstance().getCookie(url);
-            } catch (Exception e) {
-                Log.e(TAG, "hk error", e);
-                return null;
-            }
+            // 处置订正（2026-11-14）：不再吞异常回 null 与无 Cookie 同形——
+            // 异常穿出给调用方既有失败出口（JS 桥 getCookie 的 catch 回
+            // "error:..." 给网页侧；其余两个调用点自有 try 承接）。
+            return CookieManager.getInstance().getCookie(url);
         }
 
         @Override
@@ -1542,7 +1552,11 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
                 if (TextUtils.isEmpty(url) || TextUtils.isEmpty(key) || TextUtils.isEmpty(value)) return;
                 // 官走 HeavyTaskUtil 后台 BigTextDO.saveFormInputs（form@ 桶）；
                 // 环26 落地面：咱家委托 HkFormInputStore（同桶键/同值闸），后台形照官。
-                BRIDGE_TASKS.execute(() -> HkFormInputStore.saveFormInputs(url, key, value));
+                BRIDGE_TASKS.execute(() -> {
+                    if (!HkFormInputStore.saveFormInputs(url, key, value)) {
+                        toast("表单保存失败");
+                    }
+                });
             }
 
             @JavascriptInterface
@@ -1695,7 +1709,9 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
                             options.put("headers", headers);
                         }
                     }
-                } catch (Exception ignored) {
+                } catch (Exception e) {
+                    Log.e(TAG, "fetchRemote cookie inject failed", e);
+                    return "";
                 }
                 String responseType = options.optString("responseType", "");
                 if ("stream".equals(responseType)) {
@@ -1977,7 +1993,9 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
                     Activity act = reference.get();
                     if (act == null) return;
                     act.runOnUiThread(() -> h.openBridgePage(title, url, pic, extraJson, pages));
-                } catch (Throwable ignored) {
+                } catch (Throwable e) {
+                    Log.e(TAG, "bridge open failed", e);
+                    toast("打开页面失败");
                 }
             }
 
@@ -1991,7 +2009,9 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
                             android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url));
                     intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
                     act.startActivity(intent);
-                } catch (Throwable ignored) {
+                } catch (Throwable e) {
+                    Log.e(TAG, "openThirdApp failed", e);
+                    toast("无法打开外部应用");
                 }
             }
 
@@ -2029,7 +2049,9 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
                             wrapper.evaluateJavascript("(function() {var input = '"
                                     + escapeJavaScriptString(result)
                                     + "'; eval('" + escapeJavaScriptString(callback) + "')})();");
-                        } catch (Exception ignored) {
+                        } catch (Exception e) {
+                            Log.e(TAG, "parseLazyRuleAsync callback failed", e);
+                            toast("规则执行失败");
                         }
                     });
                 });
@@ -2140,14 +2162,19 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
             private void downloadImageToFile(String url, String path) {
                 try {
                     byte[] bytes = fetchImageBytes(url);
-                    if (bytes == null) return;
+                    if (bytes == null) {
+                        toast("图片保存失败");
+                        return;
+                    }
                     java.io.File f = new java.io.File(path);
                     java.io.File parent = f.getParentFile();
                     if (parent != null && !parent.exists()) parent.mkdirs();
                     java.io.FileOutputStream out = new java.io.FileOutputStream(f);
                     out.write(bytes);
                     out.close();
-                } catch (Exception ignored) {
+                } catch (Exception e) {
+                    Log.e(TAG, "downloadImageToFile failed", e);
+                    toast("图片保存失败");
                 }
             }
 
@@ -2155,7 +2182,10 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
             private void saveImageToGallery(String url) {
                 try {
                     byte[] bytes = fetchImageBytes(url);
-                    if (bytes == null) return;
+                    if (bytes == null) {
+                        toast("图片保存失败");
+                        return;
+                    }
                     Activity a = act();
                     Context ctx = a != null ? a : App.get();
                     android.content.ContentValues values = new android.content.ContentValues();
@@ -2164,12 +2194,20 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
                     values.put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
                     android.net.Uri uri = ctx.getContentResolver().insert(
                             android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-                    if (uri == null) return;
+                    if (uri == null) {
+                        toast("图片保存失败");
+                        return;
+                    }
                     java.io.OutputStream out = ctx.getContentResolver().openOutputStream(uri);
-                    if (out == null) return;
+                    if (out == null) {
+                        toast("图片保存失败");
+                        return;
+                    }
                     out.write(bytes);
                     out.close();
-                } catch (Exception ignored) {
+                } catch (Exception e) {
+                    Log.e(TAG, "saveImageToGallery failed", e);
+                    toast("图片保存失败");
                 }
             }
 
@@ -2184,8 +2222,16 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
                     int n;
                     while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
                     in.close();
-                    return out.toByteArray();
+                    byte[] bytes = out.toByteArray();
+                    // 空字节与抓取失败同判（残项处置 2026-11-14）：此前空图被
+                    // 当成功写进图库/文件，调用方的失败提示永远触发不到。
+                    if (bytes.length == 0) {
+                        Log.e(TAG, "fetchImageBytes 取到空字节：" + url);
+                        return null;
+                    }
+                    return bytes;
                 } catch (Exception e) {
+                    Log.e(TAG, "fetchImageBytes failed: " + url, e);
                     return null;
                 }
             }
@@ -2254,7 +2300,9 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
                     wrapper.reload();
                     // 官尾步 UAModel.updateUa(wrapper.getUrl(), ua)：环26 落地面，
                     // 按域存档走 HkUaModel（setWebUa 的 ua 原参，非 target）。
-                    HkUaModel.updateUa(wrapper.getUrl(), ua);
+                    if (!HkUaModel.updateUa(wrapper.getUrl(), ua)) {
+                        toast("UA 保存失败，重启后将失效");
+                    }
                 });
             }
 
@@ -2352,7 +2400,9 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
                     java.io.FileOutputStream out = new java.io.FileOutputStream(f);
                     out.write((content == null ? "" : content).getBytes(java.nio.charset.StandardCharsets.UTF_8));
                     out.close();
-                } catch (java.io.IOException ignored) {
+                } catch (java.io.IOException e) {
+                    Log.e(TAG, "writeFile failed", e);
+                    toast("文件写入失败");
                 }
             }
         }

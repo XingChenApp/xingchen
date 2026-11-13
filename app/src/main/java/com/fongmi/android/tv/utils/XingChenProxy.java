@@ -67,17 +67,20 @@ public class XingChenProxy {
                 .putString(KEY_USER, user == null ? "" : user)
                 .putString(KEY_PASS, pass == null ? "" : pass)
                 .apply();
-        apply(context);
+        if (!apply(context)) android.util.Log.e("XingChenProxy", "proxy settings saved but apply failed, traffic may stay on old proxy state");
     }
 
-    /** 读取配置 → 推入 GlobalProxy → 重建 OkHttp clients → 同步 Python requests */
-    public static void apply(Context context) {
+    /** 读取配置 → 推入 GlobalProxy → 重建 OkHttp clients → 同步 Python requests
+     *  @return 是否整链应用成功；中途失败回 false，代理可能未生效或只生效一半。 */
+    public static boolean apply(Context context) {
         try {
             GlobalProxy.set(read(context));
             OkHttp.resetClients();
             GlobalProxy.syncPython();
+            return true;
         } catch (Throwable t) {
-            t.printStackTrace();
+            android.util.Log.e("XingChenProxy", "apply proxy failed, settings saved but proxy not fully applied", t);
+            return false;
         }
     }
 

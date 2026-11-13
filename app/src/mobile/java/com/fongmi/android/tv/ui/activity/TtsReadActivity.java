@@ -13,6 +13,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -297,7 +298,11 @@ public class TtsReadActivity extends Activity
             try {
                 if (svc.player().isPlaying()) svc.player().pause();
                 else svc.player().play();
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                // 页已销毁、条是唯一主人：记名留痕之外照 detached reopen 同形
+                // 用服务上下文弹提示，不许点条无反应又查不到原因。
+                Log.w("TtsReadActivity", "detached toggle failed", t);
+                ToastUtil.show(svc, "播放控制失败，请重试", Toast.LENGTH_SHORT);
             }
         }
 
@@ -334,7 +339,11 @@ public class TtsReadActivity extends Activity
                 r.position = Math.max(0, pos);
                 r.updatedAt = System.currentTimeMillis();
                 ReadingStore.save(r);
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                // 落盘失败：save 未完成则旧记录原样保留、不被覆盖；失败记名并提示，
+                // 不许续听位置静默丢了还查不到。
+                Log.w("TtsReadActivity", "detached close saveProgress failed", t);
+                ToastUtil.show(ctx, "续听进度保存失败，下次将从上次位置继续", Toast.LENGTH_SHORT);
             }
             try {
                 svc.player().stop();
@@ -351,8 +360,18 @@ public class TtsReadActivity extends Activity
             try {
                 if (TtsJob.get(jobId) != null) {
                     TtsReadActivity.start((Activity) ctx, jobId);
+                } else {
+                    // 任务已不在：接不上必须显形（与 onCreate「朗读任务已失效」
+                    // 同文案），不许点条静默无反应装作回去了。
+                    Log.w("TtsReadActivity", "detached reopen: job gone jobId=" + jobId);
+                    ToastUtil.show(ctx, "朗读任务已失效", Toast.LENGTH_SHORT);
                 }
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                Log.w("TtsReadActivity", "detached reopen failed", t);
+                try {
+                    ToastUtil.show(ctx, "朗读任务已失效", Toast.LENGTH_SHORT);
+                } catch (Throwable ignored) {
+                }
             }
         }
     }
@@ -727,7 +746,10 @@ public class TtsReadActivity extends Activity
             if (target < 0) target = 0;
             if (dur > 0 && target > dur) target = dur;
             player().seekTo(target);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 跳转失败按本页既有反馈形态（ToastUtil）显形＋记名，不许点了没动静。
+            Log.w("TtsReadActivity", "seekBy failed", t);
+            ToastUtil.show(this, "跳转失败", Toast.LENGTH_SHORT);
         }
     }
 
@@ -1307,7 +1329,11 @@ public class TtsReadActivity extends Activity
             r.position = mService == null ? 0 : (int) player().getPosition();
             r.updatedAt = System.currentTimeMillis();
             ReadingStore.save(r);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 落盘失败：save 未达则旧记录原样保留、不被覆盖；失败记名并提示，
+            // 不许续听位置静默丢失无痕。
+            Log.w("TtsReadActivity", "saveProgress failed", t);
+            ToastUtil.show(this, "续听进度保存失败", Toast.LENGTH_SHORT);
         }
     }
 
@@ -1340,12 +1366,22 @@ public class TtsReadActivity extends Activity
         // 页销毁：控制权交给条（detached 兜底，不持有页实例），会话不注销——
         // 后台续播时条就是主；真关闭（10秒/音乐页/点封面）才停播。
         if (miniSession != null) {
+            boolean handed = false;
             try {
                 miniSession.setDetached(new TtsDetached(jobId, job, ci, si,
                         playbackKey()));
-            } catch (Throwable ignored) {
+                handed = true;
+            } catch (Throwable t) {
+                Log.w("TtsReadActivity", "detached handover failed in onDestroy", t);
             }
-            miniSession.setControl(null);
+            // 交接成功才清页控制；失败时保留 control——reopen 首路只靠
+            // reopenIntent 重启本页（不调页方法），是接不上的最后明路，
+            // 不许连它一起清掉让点条静默死。
+            if (handed) {
+                miniSession.setControl(null);
+            } else {
+                Log.w("TtsReadActivity", "handover failed: keep control for reopen route");
+            }
         }
         // 页面销毁即停合成引擎（防泄漏）；当前段在后台服务里播到段尾。
         // 用户点关闭才 stop 播放＋注销锁屏回调（与 AudioBookActivity 同口径）。

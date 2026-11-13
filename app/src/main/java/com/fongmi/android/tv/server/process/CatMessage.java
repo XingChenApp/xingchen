@@ -125,6 +125,8 @@ public class CatMessage implements Process {
             return Pattern.compile(rule);
         } catch (Exception e) {
             SpiderDebug.log("cat-msg", "bad sniff rule: %s", rule);
+            // 正则坏掉时该条嗅探规则静默失效：补常开错误级留痕（带规则原文与异常），与「规则为空」区分。
+            android.util.Log.e("CatMessage", "bad sniff rule=" + rule, e);
             return null;
         }
     }

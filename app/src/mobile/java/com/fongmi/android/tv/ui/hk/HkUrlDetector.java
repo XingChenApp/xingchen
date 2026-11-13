@@ -223,6 +223,8 @@ public final class HkUrlDetector {
         loadVideoRules();
     }
 
+    private static boolean videoRulesLoadFailed;
+
     private static synchronized void loadVideoRules() {
         if (appContext == null) return;
         try {
@@ -243,12 +245,17 @@ public final class HkUrlDetector {
                     videoRules.addAll(ordered);
                 }
             }
+            videoRulesLoadFailed = false;
         } catch (Exception e) {
-            Log.e(TAG, "hk error", e);
+            // 失败不许与真空同形（残项处置 2026-11-14）：置失败旗，已解析的
+            // 临时表不入表、旧名单保留，下次 getVideoRules 时重试加载。
+            videoRulesLoadFailed = true;
+            Log.e(TAG, "自定义 video_rules 加载失败，保留旧名单待重试", e);
         }
     }
 
     public static List<String> getVideoRules() {
+        if (videoRulesLoadFailed) loadVideoRules();
         return videoRules;
     }
 

@@ -133,6 +133,7 @@ public class DanDanPlayApi {
         EXECUTOR.execute(() -> {
             List<Anime> out = new ArrayList<>();
             boolean networkError = false;
+            boolean parseError = false;
             String body = doGet(Uri.encode("/v2/search/anime?keyword=" + keyword));
             if (body == null) {
                 networkError = true;
@@ -148,11 +149,13 @@ public class DanDanPlayApi {
                             if (id > 0 && !TextUtils.isEmpty(title)) out.add(new Anime(id, title));
                         }
                     }
-                } catch (Throwable ignored) {
+                } catch (Throwable e) {
+                    parseError = true;
+                    android.util.Log.e("DanDanPlayApi", "search anime parse failed", e);
                 }
             }
             List<Anime> result = out;
-            boolean failed = networkError;
+            boolean failed = networkError || parseError;
             App.post(() -> callback.onResult(result, failed));
         });
     }
@@ -162,6 +165,7 @@ public class DanDanPlayApi {
         EXECUTOR.execute(() -> {
             List<Episode> out = new ArrayList<>();
             boolean networkError = false;
+            boolean parseError = false;
             String body = doGet(Uri.encode("/v2/bangumi/" + animeId));
             if (body == null) {
                 networkError = true;
@@ -178,11 +182,13 @@ public class DanDanPlayApi {
                             if (id > 0) out.add(new Episode(id, title));
                         }
                     }
-                } catch (Throwable ignored) {
+                } catch (Throwable e) {
+                    parseError = true;
+                    android.util.Log.e("DanDanPlayApi", "get episodes parse failed", e);
                 }
             }
             List<Episode> result = out;
-            boolean failed = networkError;
+            boolean failed = networkError || parseError;
             App.post(() -> callback.onResult(result, failed));
         });
     }

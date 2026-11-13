@@ -263,7 +263,10 @@ public class Source {
                     sanitized = new Youtube().fetch(referer);
                     SpiderDebug.log("mpd-sanitizer", "replaced limited jar MPD with app YouTube extractor");
                 } catch (Exception e) {
+                    // 替换失败还照常交已知受限音轨的原 MPD，等于让用户播无声/受限
+                    // 版本且无任何提示。走 fetch 既有抛错出口明示失败，不递已知坏件。
                     SpiderDebug.log("mpd-sanitizer", "app YouTube extractor fallback failed: %s", e.getMessage());
+                    throw e;
                 }
             }
         }

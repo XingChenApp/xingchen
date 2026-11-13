@@ -276,10 +276,17 @@ public class PyLoader {
                 public void onEvent(int event, String path) {
                     SpiderDebug.log("pyloader", "watch event=%s path=%s", watchEventName(event), path);
                     if (path == null || !path.toLowerCase().endsWith(".py")) return;
+                    // 失效与首页刷新拆开：失效失败只记日志，不许连坐掉刷新事件
+                    // （旧写法同 try 时失效一抛，刷新永不发出、旧蜘蛛继续被用且无提示）。
                     try {
                         invalidateScript(new File(watchDir, path).getAbsolutePath());
+                    } catch (Throwable e) {
+                        SpiderDebug.log("pyloader", "invalidate on watch event failed path=%s error=%s", path, e.getMessage());
+                    }
+                    try {
                         RefreshEvent.home();
-                    } catch (Throwable ignored) {
+                    } catch (Throwable e) {
+                        SpiderDebug.log("pyloader", "home refresh on watch event failed path=%s error=%s", path, e.getMessage());
                     }
                 }
             };

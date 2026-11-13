@@ -4,11 +4,13 @@ import android.content.Context;
 import android.os.Handler;
 import android.text.TextUtils;
 
+import com.fongmi.android.tv.legado.LegadoReading;
 import com.fongmi.android.tv.read.ReadingMatch;
 import com.fongmi.android.tv.read.ReadingSession;
 import com.fongmi.android.tv.ui.activity.ComicReaderActivity;
 import com.fongmi.android.tv.ui.activity.NovelReaderActivity;
 import com.fongmi.android.tv.utils.Task;
+import com.fongmi.android.tv.utils.ToastUtil;
 import com.github.catvod.net.GlobalProxy;
 import com.github.catvod.net.SourceGate;
 
@@ -61,6 +63,47 @@ public final class ReadingDownload {
 
     public interface Progress {
         void onDone(int ok, int total);
+
+        /**
+         * 带失败信息的完成回调（349 阅读组）：哪几章失败/为何停随结果一起回，
+         * 不许最后只报已下数、用户以为下完了实际缺章还没原因。默认实现只走
+         * 老口径计数，老调用方（lambda）不受影响。
+         */
+        default void onResult(int ok, int total, String failureSummary) {
+            onDone(ok, total);
+        }
+    }
+
+    // ---- 失败不再静默（349 阅读组）：最近一次保存/读清单失败的原因 ----
+    private static volatile String lastSaveError;
+    private static volatile String lastLoadError;
+
+    public static String lastSaveError() {
+        return lastSaveError;
+    }
+
+    public static String lastLoadError() {
+        return lastLoadError;
+    }
+
+    private static String msgOf(Throwable t) {
+        if (t == null) return "";
+        String m = t.getMessage();
+        if (m == null || m.isEmpty()) m = t.getClass().getSimpleName();
+        return m.length() > 40 ? m.substring(0, 40) : m;
+    }
+
+    /** 失败清单拼成一句人话：总数＋前三条，余者省略号。 */
+    private static String failureSummary(java.util.List<String> failures) {
+        if (failures == null || failures.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder("失败 ").append(failures.size()).append(" 章：");
+        int n = Math.min(3, failures.size());
+        for (int i = 0; i < n; i++) {
+            if (i > 0) sb.append("；");
+            sb.append(failures.get(i));
+        }
+        if (failures.size() > n) sb.append("；…");
+        return sb.toString();
     }
 
     public static File root(Context ctx) {
@@ -99,14 +142,33 @@ public final class ReadingDownload {
 
     /** 读完即写回：下次打开/重进同章直接命中文件，不再重跑源解析。 */
     public static void saveNovelChapter(Context ctx, String bookKey, int chapterIndex, String text) {
+        saveNovelChapterChecked(ctx, bookKey, chapterIndex, text);
+    }
+
+    /**
+     * 保存并回报成败（349 阅读组）：落盘失败不许无痕——原因记 lastSaveError，
+     * 批量下载按章据此记失败；失败时不留正式文件，hasNovelChapter 仍为假，
+     * 下次打开会重新在线取，不会把「没存上」冒充成已缓存。
+     */
+    static boolean saveNovelChapterChecked(Context ctx, String bookKey, int chapterIndex, String text) {
+        File tmp = null;
         try {
             File f = novelFile(ctx, bookKey, chapterIndex);
-            File tmp = new File(f.getParent(), f.getName() + ".part");
+            tmp = new File(f.getParent(), f.getName() + ".part");
             try (FileOutputStream out = new FileOutputStream(tmp)) {
                 out.write(text.getBytes(StandardCharsets.UTF_8));
             }
-            if (!tmp.renameTo(f)) tmp.delete();
-        } catch (Throwable ignored) {
+            if (!tmp.renameTo(f)) {
+                lastSaveError = "缓存文件落盘失败";
+                tmp.delete();
+                return false;
+            }
+            lastSaveError = null;
+            return true;
+        } catch (Throwable t) {
+            lastSaveError = msgOf(t);
+            if (tmp != null) tmp.delete();
+            return false;
         }
     }
 
@@ -138,9 +200,10 @@ public final class ReadingDownload {
     /** 缓存的章节图片（本地 file:// 地址，阅读器直接加载）。 */
     public static List<String> loadComicChapter(Context ctx, String bookKey, int chapterIndex) {
         List<String> out = new java.util.ArrayList<>();
+        File mf = null;
         try {
             File dir = comicDir(ctx, bookKey, chapterIndex);
-            File mf = new File(dir, "manifest.txt");
+            mf = new File(dir, "manifest.txt");
             if (!mf.exists()) return out;
             for (String line : new String(
                     java.nio.file.Files.readAllBytes(mf.toPath()),
@@ -150,7 +213,13 @@ public final class ReadingDownload {
                 File img = new File(dir, line);
                 if (img.exists()) out.add("file://" + img.getAbsolutePath());
             }
-        } catch (Throwable ignored) {
+            lastLoadError = null;
+        } catch (Throwable t) {
+            // 清单在盘上却读不出来（坏了/IO 错）：与「没下载过」分开处置——
+            // 记因，并删掉坏清单让 hasComicChapter 回假，批量下载能重新补这一章；
+            // 原写法按空返回后清单还在，下好的漫画永远打开空白还没得补（349）。
+            lastLoadError = msgOf(t);
+            if (mf != null) mf.delete();
         }
         return out;
     }
@@ -271,6 +340,8 @@ public final class ReadingDownload {
                                          String bookKey, int count, Handler ui, Progress cb) {
         Task.execute(() -> {
             int ok = 0, total = 0;
+            java.util.List<String> failures = new java.util.ArrayList<>();
+            String[] quotaNote = {""};
             // 节点打点：整批下载归属本书的来源（书源/规则/站点），内层各抓取点
             // 按自己的精确归属覆盖（push/pop 栈恢复，不吞外层）。
             String[] own = ReadingProxy.ownership(session);
@@ -278,26 +349,52 @@ public final class ReadingDownload {
             try {
                 int from = session.chapterIndex + 1;
                 int to = Math.min(session.chapters.size() - 1, from + count - 1);
+                total = Math.max(0, to - from + 1);
                 for (int i = from; i <= to; i++) {
-                    total++;
                     if (hasNovelChapter(ctx, bookKey, i)) {
                         ok++;
                         continue;
                     }
-                    ReadingSession.Chapter ch = session.chapters.get(i);
-                    String text = NovelReaderActivity.resolveText(session, ch);
-                    if (!TextUtils.isEmpty(text)) {
-                        saveNovelChapter(ctx, bookKey, i, text);
-                        ok++;
+                    // 逐章记失败再继续（349）：原写法整批共用一个外层 catch，
+                    // 中间一章炸了后面全停、最后只报已下数，用户无从知道缺哪章。
+                    try {
+                        ReadingSession.Chapter ch = session.chapters.get(i);
+                        String text = NovelReaderActivity.resolveText(session, ch);
+                        if (!TextUtils.isEmpty(text)) {
+                            if (saveNovelChapterChecked(ctx, bookKey, i, text)) ok++;
+                            else failures.add("第" + (i + 1) + "章 保存失败"
+                                    + (lastSaveError == null ? "" : "：" + lastSaveError));
+                        } else {
+                            String why = !TextUtils.isEmpty(session.legadoKey)
+                                    ? LegadoReading.lastFetchError() : null;
+                            failures.add("第" + (i + 1) + "章 正文没取到"
+                                    + (TextUtils.isEmpty(why) ? "" : "：" + why));
+                        }
+                    } catch (Throwable t) {
+                        failures.add("第" + (i + 1) + "章 " + msgOf(t));
                     }
                 }
-                enforceQuota(ctx);
-            } catch (Throwable ignored) {
+                try {
+                    enforceQuota(ctx);
+                } catch (Throwable t) {
+                    quotaNote[0] = "缓存清理失败：" + msgOf(t);
+                }
+            } catch (Throwable t) {
+                failures.add("批量下载中断：" + msgOf(t));
             } finally {
                 ReadingProxy.pop(own, prev);
             }
             final int fOk = ok, fTotal = total;
-            ui.post(() -> cb.onDone(fOk, fTotal));
+            String sum0 = failureSummary(failures);
+            final String summary = quotaNote[0].isEmpty() ? sum0
+                    : (sum0.isEmpty() ? quotaNote[0] : sum0 + "；" + quotaNote[0]);
+            ui.post(() -> {
+                cb.onResult(fOk, fTotal, summary);
+                if (!summary.isEmpty()) {
+                    ToastUtil.show(ctx, "章节缓存" + summary,
+                            android.widget.Toast.LENGTH_LONG);
+                }
+            });
         });
     }
 
@@ -306,53 +403,91 @@ public final class ReadingDownload {
                                          String bookKey, int count, Handler ui, Progress cb) {
         Task.execute(() -> {
             int ok = 0, total = 0;
+            java.util.List<String> failures = new java.util.ArrayList<>();
+            String[] quotaNote = {""};
             // 节点打点：同上，整批下载归属本书的来源。
             String[] own = ReadingProxy.ownership(session);
             SourceGate.Mark prev = ReadingProxy.push(own);
             try {
                 int from = session.chapterIndex + 1;
                 int to = Math.min(session.chapters.size() - 1, from + count - 1);
+                total = Math.max(0, to - from + 1);
                 for (int i = from; i <= to; i++) {
-                    total++;
                     if (hasComicChapter(ctx, bookKey, i)) {
                         ok++;
                         continue;
                     }
-                    ReadingSession.Chapter ch = session.chapters.get(i);
-                    List<String> imgs = ComicReaderActivity.resolveImages(session, ch, false);
-                    if (imgs == null || imgs.isEmpty()) continue;
-                    File dir = comicDir(ctx, bookKey, i);
-                    StringBuilder mf = new StringBuilder();
-                    int n = 0;
-                    for (int p = 0; p < imgs.size(); p++) {
-                        String name = "img_" + p + ".jpg";
-                        if (downloadToFile(imgs.get(p), session.referer, new File(dir, name)) != null) {
-                            mf.append(name).append("\n");
-                            n++;
+                    // 逐章记失败再继续（349）：原写法整批共用一个外层 catch，
+                    // 中间一章炸了（含写 manifest 的 IO 错）后面全停、最后只报
+                    // 已下数，用户以为下完实际缺章还没原因。
+                    try {
+                        ReadingSession.Chapter ch = session.chapters.get(i);
+                        List<String> imgs = ComicReaderActivity.resolveImages(session, ch, false);
+                        if (imgs == null || imgs.isEmpty()) {
+                            String why = !TextUtils.isEmpty(session.legadoKey)
+                                    ? LegadoReading.lastFetchError() : null;
+                            failures.add("第" + (i + 1) + "章 图片没取到"
+                                    + (TextUtils.isEmpty(why) ? "" : "：" + why));
+                            continue;
                         }
-                    }
-                    if (n == imgs.size()) {
-                        try (FileOutputStream out = new FileOutputStream(new File(dir, "manifest.txt"))) {
-                            out.write(mf.toString().getBytes(StandardCharsets.UTF_8));
+                        File dir = comicDir(ctx, bookKey, i);
+                        StringBuilder mf = new StringBuilder();
+                        int n = 0;
+                        for (int p = 0; p < imgs.size(); p++) {
+                            String name = "img_" + p + ".jpg";
+                            if (downloadToFile(imgs.get(p), session.referer, new File(dir, name)) != null) {
+                                mf.append(name).append("\n");
+                                n++;
+                            }
                         }
-                        ok++;
-                    } else {
-                        // 缺页不许报整章成功（低-19）：此前下到任意一张就写 manifest 计 ok，
-                        // hasComicChapter 从此恒真、缺的页永远补不回来。缺页整章作废：
-                        // 不写 manifest、不计 ok、删掉已下文件，下次重试整章重下。
-                        File[] partials = dir.listFiles();
-                        if (partials != null) {
-                            for (File pf : partials) pf.delete();
+                        if (n == imgs.size()) {
+                            try (FileOutputStream out = new FileOutputStream(new File(dir, "manifest.txt"))) {
+                                out.write(mf.toString().getBytes(StandardCharsets.UTF_8));
+                            } catch (Throwable t) {
+                                // 清单没写成整章不算下好：删已下图，下次整章重下
+                                File[] partials = dir.listFiles();
+                                if (partials != null) {
+                                    for (File pf : partials) pf.delete();
+                                }
+                                failures.add("第" + (i + 1) + "章 清单保存失败：" + msgOf(t));
+                                continue;
+                            }
+                            ok++;
+                        } else {
+                            // 缺页不许报整章成功（低-19）：此前下到任意一张就写 manifest 计 ok，
+                            // hasComicChapter 从此恒真、缺的页永远补不回来。缺页整章作废：
+                            // 不写 manifest、不计 ok、删掉已下文件，下次重试整章重下。
+                            File[] partials = dir.listFiles();
+                            if (partials != null) {
+                                for (File pf : partials) pf.delete();
+                            }
+                            failures.add("第" + (i + 1) + "章 图片只下到 " + n + "/" + imgs.size() + " 张");
                         }
+                    } catch (Throwable t) {
+                        failures.add("第" + (i + 1) + "章 " + msgOf(t));
                     }
                 }
-                enforceQuota(ctx);
-            } catch (Throwable ignored) {
+                try {
+                    enforceQuota(ctx);
+                } catch (Throwable t) {
+                    quotaNote[0] = "缓存清理失败：" + msgOf(t);
+                }
+            } catch (Throwable t) {
+                failures.add("批量下载中断：" + msgOf(t));
             } finally {
                 ReadingProxy.pop(own, prev);
             }
             final int fOk = ok, fTotal = total;
-            ui.post(() -> cb.onDone(fOk, fTotal));
+            String sum0 = failureSummary(failures);
+            final String summary = quotaNote[0].isEmpty() ? sum0
+                    : (sum0.isEmpty() ? quotaNote[0] : sum0 + "；" + quotaNote[0]);
+            ui.post(() -> {
+                cb.onResult(fOk, fTotal, summary);
+                if (!summary.isEmpty()) {
+                    ToastUtil.show(ctx, "章节缓存" + summary,
+                            android.widget.Toast.LENGTH_LONG);
+                }
+            });
         });
     }
 }

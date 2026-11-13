@@ -272,6 +272,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     private boolean quickSearchDialogClosed;
     private boolean useParse;
     private int mLyricsSearchSeq;
+    private boolean mLyricsRequestFailed;
     private int mLyricsSearchSheetSeq;
     private int mLyricsRefreshSeq;
     private int mAudioQueueSearchSeq;
@@ -4388,6 +4389,11 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         }
         boolean audioContent = shouldUseImmersiveAudio();
         if (request == null || !audioContent) {
+            if (request == null && mLyricsRequestFailed) {
+                if (isLyricsSearchSheetShowing()) setLyricsSearchStatus("歌词搜索失败，请重试", true);
+                else Notify.show("歌词搜索失败，请重试");
+                return;
+            }
             showLyricsResults(seq, cacheKey, List.of(), true);
             return;
         }
@@ -4402,10 +4408,12 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
 
     @Nullable
     private LyricsRequest createLyricsSearchRequest(@Nullable LyricsRequest baseRequest, String keyword) {
+        mLyricsRequestFailed = false;
         try {
             LyricsRequest request = baseRequest != null ? baseRequest : LyricsRequest.from(player());
             return request == null ? null : request.withKeyword(keyword);
         } catch (Throwable e) {
+            mLyricsRequestFailed = true;
             SpiderDebug.log("lyrics-ui", "search request failed keyword=%s error=%s", keyword, e.getMessage());
             return null;
         }

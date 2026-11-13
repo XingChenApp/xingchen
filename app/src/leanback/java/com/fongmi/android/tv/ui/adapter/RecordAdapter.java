@@ -1,5 +1,6 @@
 package com.fongmi.android.tv.ui.adapter;
 
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,6 +18,7 @@ import java.util.List;
 
 public class RecordAdapter extends RecyclerView.Adapter<RecordAdapter.ViewHolder> {
 
+    private static final String TAG = "RecordAdapter";
     private final OnClickListener listener;
     private final List<String> mItems;
 
@@ -39,8 +41,34 @@ public class RecordAdapter extends RecyclerView.Adapter<RecordAdapter.ViewHolder
             List<String> items = App.gson().fromJson(Setting.getKeyword(), TypeToken.getParameterized(List.class, String.class).getType());
             return items == null ? new ArrayList<>() : items;
         } catch (Exception e) {
+            // 存量关键词整体解析失败：先逐元素抢救还能认的字符串词，救不回的
+            // 把原始串备份到 keyword_corrupt_backup 再回空，不许历史词无声全没、
+            // 之后写回时把原始数据一并冲掉。
+            Log.w(TAG, "parse keyword history failed", e);
+            List<String> salvaged = salvageItems(Setting.getKeyword());
+            if (!salvaged.isEmpty()) return salvaged;
+            try {
+                com.github.catvod.utils.Prefers.put("keyword_corrupt_backup", Setting.getKeyword());
+            } catch (Exception backupError) {
+                Log.w(TAG, "backup corrupt keyword failed", backupError);
+            }
             return new ArrayList<>();
         }
+    }
+
+    private List<String> salvageItems(String raw) {
+        List<String> out = new ArrayList<>();
+        try {
+            com.google.gson.JsonElement el = com.google.gson.JsonParser.parseString(raw);
+            if (el != null && el.isJsonArray()) {
+                for (com.google.gson.JsonElement item : el.getAsJsonArray()) {
+                    if (item != null && item.isJsonPrimitive() && item.getAsJsonPrimitive().isString()) out.add(item.getAsString());
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "salvage keyword history failed", e);
+        }
+        return out;
     }
 
     private void checkToAdd(String item) {

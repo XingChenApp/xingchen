@@ -14,10 +14,11 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 8.83 {@code com.example.hikerview.utils.ThreadTool}（Kotlin object）的同包名补齐
- * （官包 jadx 反编译对位）。本树未引入 kotlinx-coroutines，协程落点按本树既有
- * 口径（HkLazyRuleParser 同例）以执行器等价实现：CoroutineScope → 本类
- * {@link ScopeHandle}（一片可取消的调度执行器），Job 返回值 JS 侧不用、作废；
+ * （官包 jadx 反编译对位）。协程落点按本树既有口径（HkLazyRuleParser 同例）以执行器
+ * 等价实现：CoroutineScope → 本类 {@link ScopeHandle}（一片可取消的调度执行器）；
  * async(Function2 协程块) 一法无 Java 对应形态，不补（JS 无法构造该入参）。
+ * 例外（①团订正）：executeNewTask 已改回官形——GlobalScope.launch(Dispatchers.IO)
+ * 返回真 Job（协程 1.6.1 已由②团引入），见该法注。
  * 语义面对齐官版：runOnUI 主线程直跑、否则投主线程；postDelayed 走后台、
  * postUIDelayed 走主线程；loadScheduleTask 按 holder 复用同一片、周期跑；
  * getStrOnUIThread 非主线程时投主线程执行并等 5 秒。
@@ -61,8 +62,21 @@ public final class ThreadTool {
         return scopeMap;
     }
 
-    public void executeNewTask(Runnable command) {
-        IO.execute(command);
+    /**
+     * 官本体（ThreadTool.smali executeNewTask）：GlobalScope.launch(Dispatchers.IO) { runnable.run() }，
+     * 返回 kotlinx Job。①团支撑改动：本法返回型由执行器等价形 void 改官 Job 形（只改这一处签名面；
+     * 消费点核过——本类 async(Runnable) 内部调用不取返回值、HeavyTaskUtil.executeNewTask 照官丢弃
+     * 返回值，其余三源集无直调）。协程依赖已由②团引入（kotlinx-coroutines-android 1.6.1，官同版）。
+     */
+    public kotlinx.coroutines.Job executeNewTask(Runnable command) {
+        return kotlinx.coroutines.BuildersKt.launch(
+                kotlinx.coroutines.GlobalScope.INSTANCE,
+                kotlinx.coroutines.Dispatchers.getIO(),
+                kotlinx.coroutines.CoroutineStart.DEFAULT,
+                (scope, continuation) -> {
+                    command.run();
+                    return kotlin.Unit.INSTANCE;
+                });
     }
 
     public void async(Runnable task) {

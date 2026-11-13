@@ -722,11 +722,10 @@ public final class HkDlanController {
 
     private static String allRuleTitles() {
         List<String> titles = new ArrayList<>();
-        try {
-            for (HkRule rule : HkRuleManager.get().getRules()) {
-                if (rule != null && rule.getTitle() != null) titles.add(rule.getTitle());
-            }
-        } catch (Throwable ignored) {
+        // 不在此吞异常：取规则表失败必须与「真没有规则」区分开——异常上抛到
+        // handle() 顶层 catch 回 500，Web 端能感知失败，不再冒充空名单。
+        for (HkRule rule : HkRuleManager.get().getRules()) {
+            if (rule != null && rule.getTitle() != null) titles.add(rule.getTitle());
         }
         return GSON.toJson(titles);
     }
@@ -749,15 +748,13 @@ public final class HkDlanController {
     private static String allJsTitles(boolean fromSync) {
         // 官：fromSync 且 syncList[4]（网页插件同步）关 → "[]"；咱家无该设置面，不关（记名）。
         List<String> names = new ArrayList<>();
-        try {
-            File[] files = jsDir().listFiles();
-            if (files != null) {
-                Arrays.sort(files);
-                for (File f : files) {
-                    if (f.isFile()) names.add(f.getName());
-                }
+        // 同 allRuleTitles：列目录失败上抛到 handle() 顶层回 500，不冒充空名单。
+        File[] files = jsDir().listFiles();
+        if (files != null) {
+            Arrays.sort(files);
+            for (File f : files) {
+                if (f.isFile()) names.add(f.getName());
             }
-        } catch (Throwable ignored) {
         }
         return GSON.toJson(names);
     }
@@ -827,7 +824,11 @@ public final class HkDlanController {
                         filtered.add(e.getKey(), e.getValue());
                     }
                     arr.add(filtered);
-                } catch (Throwable ignored) {
+                } catch (Throwable t) {
+                    // 单条规则 JSON 损坏只跳过该条、其余照常导出（分条隔离不变），
+                    // 但被跳过的规则必须按名留痕，不许静默从导出里消失。
+                    android.util.Log.e("HkDlanController",
+                            "homeRules skip unparsable rule title=" + rule.getTitle(), t);
                 }
             }
             dto.put("homeRules", GSON.toJson(arr));

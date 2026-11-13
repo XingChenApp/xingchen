@@ -95,7 +95,10 @@ public class HkFuck {
                     loadFromText(text);
                 }
             } catch (Exception e) {
-                Log.e(TAG, "hk error", e);
+                Log.e(TAG, "拦截名单读取失败，名单未加载", e);
+                // 失败必须显形：只记日志时名单静默为空、该拦的全不拦（残项处置 2026-11-14）。
+                com.fongmi.android.tv.utils.ToastUtil.show(App.get(),
+                        "拦截名单读取失败，本次未生效", android.widget.Toast.LENGTH_SHORT);
             }
         }, "hk-fuck-load").start();
     }
@@ -116,15 +119,24 @@ public class HkFuck {
         }
     }
 
-    /** 照原版 deleteFile：文件存在则删除，并清空 list。 */
-    public static void deleteFile(Context context) {
+    /**
+     * 照原版 deleteFile：文件存在则删除，并清空 list。
+     * 处置订正（2026-11-14）：删除失败时不许先清内存装作删掉——文件还在、
+     * 下次启动会把名单读回来；失败保留内存名单与文件一致、回 false 报成败。
+     */
+    public static boolean deleteFile(Context context) {
         try {
             File file = fuckListFile(context);
-            if (file != null && file.exists()) file.delete();
+            if (file != null && file.exists() && !file.delete()) {
+                Log.e(TAG, "拦截名单文件删除失败，名单保留：" + file.getAbsolutePath());
+                return false;
+            }
         } catch (Exception e) {
-            Log.e(TAG, "hk error", e);
+            Log.e(TAG, "拦截名单文件删除失败，名单保留", e);
+            return false;
         }
         list.clear();
+        return true;
     }
 
     /** UriUtils.getRootDir = getExternalFilesDir(Documents)（不存在则建），其下 cache/fuck-list.txt。 */

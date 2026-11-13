@@ -154,6 +154,8 @@ public class ImportActivity extends AppCompatActivity {
             if (py) BaseLoader.get().invalidatePyScript(dest.getAbsolutePath());
             else BaseLoader.get().clearJs();
         } catch (Throwable ignored) {
+            // 文件已落盘，但旧蜘蛛缓存没清掉：不许装作新脚本已生效，明示用户。
+            ToastUtil.show(this, "新脚本已导入，但旧缓存清除失败，可能仍是旧版本", Toast.LENGTH_LONG);
         }
         // 同一脚本的缀号变体清掉（此前按「名(1)」落过盘的存量双份）：只留正名
         // 这一份，列表/条目不许再双份（fix168-pyimport2）；py 变体一并失效
@@ -392,6 +394,9 @@ public class ImportActivity extends AppCompatActivity {
                 VodConfig.get().markImportedHome(site.getKey());
             }
         } catch (Throwable ignored) {
+            // 文件已进插件管理，但没能设为首页打开：给明确结果，不许照常跳首页装作导入成功。
+            fail("文件已导入，但没能直接打开，请到插件管理里手动打开");
+            return;
         }
         RefreshEvent.home();
         startActivity(new Intent(this, HomeActivity.class));

@@ -28,18 +28,16 @@ public class HkContentTypeAfterInterceptor implements Interceptor {
     public Response intercept(Chain chain) throws IOException {
         Request request = chain.request();
         Request.Builder builder = request.newBuilder();
-        try {
-            String cookieTemp = request.header("Cookie-Temp");
-            if (cookieTemp != null) {
-                if ("#noCookie#".equals(cookieTemp)) {
-                    builder.removeHeader("Cookie");
-                } else {
-                    builder.header("Cookie", cookieTemp);
-                }
-                builder.removeHeader("Cookie-Temp");
+        // Cookie-Temp 还原失败不许吞：带着临时头/未还原 Cookie 发出等于
+        // 登录态静默错位；让异常穿出 intercept 走 OkHttp 既有失败路（批 residual）。
+        String cookieTemp = request.header("Cookie-Temp");
+        if (cookieTemp != null) {
+            if ("#noCookie#".equals(cookieTemp)) {
+                builder.removeHeader("Cookie");
+            } else {
+                builder.header("Cookie", cookieTemp);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+            builder.removeHeader("Cookie-Temp");
         }
         if (request.body() != null) {
             String ctTemp = request.header("Content-Type-Temp");
@@ -48,16 +46,14 @@ public class HkContentTypeAfterInterceptor implements Interceptor {
                 builder.removeHeader("Content-Type-Temp");
             }
         }
-        try {
-            Set<String> names = request.headers().names();
-            for (String name : names) {
-                String value = request.headers().get(name);
-                if ("hiker://empty".equals(value)) {
-                    builder.removeHeader(name);
-                }
+        // hiker://empty 占位头清理失败同上：不吞，占位头真发给服务器
+        // 比请求失败更坏，穿出走失败路（批 residual）。
+        Set<String> names = request.headers().names();
+        for (String name : names) {
+            String value = request.headers().get(name);
+            if ("hiker://empty".equals(value)) {
+                builder.removeHeader(name);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
         return chain.proceed(builder.build());
     }

@@ -29,13 +29,11 @@ public class HkContentTypePreInterceptor implements Interceptor {
     public Response intercept(Chain chain) throws IOException {
         Request request = chain.request();
         Request.Builder builder = request.newBuilder();
-        try {
-            String cookie = request.header("Cookie");
-            if (cookie != null) {
-                builder.header("Cookie-Temp", cookie);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+        // Cookie 备份失败不许吞：备份没落上，后置拦截器会按无备份处理、
+        // 登录态静默丢失；让异常穿出 intercept 走 OkHttp 既有失败路（批 residual）。
+        String cookie = request.header("Cookie");
+        if (cookie != null) {
+            builder.header("Cookie-Temp", cookie);
         }
         RequestBody body = request.body();
         if (body != null) {
@@ -47,21 +45,19 @@ public class HkContentTypePreInterceptor implements Interceptor {
                 }
             }
         }
-        try {
-            String host = request.url().host();
-            if (host.contains("gitee.io")) {
-                if (request.header("Referer") == null) {
-                    String home = getHome(request.url().toString());
-                    builder.header("Referer", home + "/");
-                }
+        // gitee 补 Referer 失败同上：不吞，穿出走失败路，不许带着缺头请求
+        // 静默发出去换回 403（批 residual）。
+        String host = request.url().host();
+        if (host.contains("gitee.io")) {
+            if (request.header("Referer") == null) {
+                String home = getHome(request.url().toString());
+                builder.header("Referer", home + "/");
             }
-            if (host.contains("gitee.com")) {
-                if (request.header("Referer") == null) {
-                    builder.header("Referer", "https://gitee.com");
-                }
+        }
+        if (host.contains("gitee.com")) {
+            if (request.header("Referer") == null) {
+                builder.header("Referer", "https://gitee.com");
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
         return chain.proceed(builder.build());
     }

@@ -3,6 +3,7 @@ package com.fongmi.android.tv.api.hk;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.bean.Keep;
@@ -25,28 +26,56 @@ public class HkFavoriteStore {
     private static final String PREFS = "hk_favorite";
     private static final String KEY_RECORDS = "records";
     private static final String KEY_MIGRATED = "migrated_keep_v1";
+    private static final String KEY_RECORDS_CORRUPT = "records_corrupt_backup";
+    private static final String TAG = "HkFavoriteStore";
     public static final String DEFAULT_GROUP = "默认";
 
     private static SharedPreferences prefs() {
         return App.get().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    private static List<HkFavorite> readAll() {
+    /**
+     * 严格读：无数据回空表；已存 JSON 解析失败回 null（与真空可区分），
+     * 原始串先备份到 KEY_RECORDS_CORRUPT 再报错——写路径遇 null 必须中止，
+     * 不许拿空表覆盖盘上可能完好的收藏（批 fix349 补结构，原 catch 静默回空）。
+     */
+    private static List<HkFavorite> tryReadAll() {
+        String json;
         try {
-            String json = prefs().getString(KEY_RECORDS, "");
-            if (TextUtils.isEmpty(json)) return new ArrayList<>();
+            json = prefs().getString(KEY_RECORDS, "");
+        } catch (Throwable t) {
+            Log.e(TAG, "收藏记录读取失败", t);
+            return null;
+        }
+        if (TextUtils.isEmpty(json)) return new ArrayList<>();
+        try {
             List<HkFavorite> list = new Gson().fromJson(json,
                     TypeToken.getParameterized(List.class, HkFavorite.class).getType());
             return list == null ? new ArrayList<>() : list;
-        } catch (Throwable ignored) {
-            return new ArrayList<>();
+        } catch (Throwable t) {
+            Log.e(TAG, "收藏记录解析失败，已备份原始数据并中止本次读写", t);
+            try {
+                if (!json.equals(prefs().getString(KEY_RECORDS_CORRUPT, ""))) {
+                    prefs().edit().putString(KEY_RECORDS_CORRUPT, json).apply();
+                }
+            } catch (Throwable ignored) {
+            }
+            return null;
         }
     }
 
-    private static void writeAll(List<HkFavorite> list) {
+    private static List<HkFavorite> readAll() {
+        List<HkFavorite> list = tryReadAll();
+        return list == null ? new ArrayList<>() : list;
+    }
+
+    private static boolean writeAll(List<HkFavorite> list) {
         try {
             prefs().edit().putString(KEY_RECORDS, new Gson().toJson(list)).apply();
-        } catch (Throwable ignored) {
+            return true;
+        } catch (Throwable t) {
+            Log.e(TAG, "收藏记录写入失败", t);
+            return false;
         }
     }
 
@@ -79,11 +108,12 @@ public class HkFavoriteStore {
         return find(ruleTitle, episodeUrl) != null;
     }
 
-    /** 新增或更新（同键覆盖，时间刷新）。 */
-    public static void addOrUpdate(HkFavorite fav) {
-        if (fav == null) return;
+    /** 新增或更新（同键覆盖，时间刷新）。盘上数据解析失败时中止并回 false，不覆盖旧档。 */
+    public static boolean addOrUpdate(HkFavorite fav) {
+        if (fav == null) return false;
         if (TextUtils.isEmpty(fav.getGroup())) fav.setGroup(DEFAULT_GROUP);
-        List<HkFavorite> list = readAll();
+        List<HkFavorite> list = tryReadAll();
+        if (list == null) return false;
         boolean hit = false;
         for (int i = 0; i < list.size(); i++) {
             HkFavorite f = list.get(i);
@@ -94,12 +124,13 @@ public class HkFavoriteStore {
             }
         }
         if (!hit) list.add(fav);
-        writeAll(list);
+        return writeAll(list);
     }
 
-    public static void remove(String ruleTitle, String episodeUrl) {
-        if (ruleTitle == null || episodeUrl == null) return;
-        List<HkFavorite> list = readAll();
+    public static boolean remove(String ruleTitle, String episodeUrl) {
+        if (ruleTitle == null || episodeUrl == null) return false;
+        List<HkFavorite> list = tryReadAll();
+        if (list == null) return false;
         boolean changed = false;
         for (int i = list.size() - 1; i >= 0; i--) {
             HkFavorite f = list.get(i);
@@ -108,7 +139,7 @@ public class HkFavoriteStore {
                 changed = true;
             }
         }
-        if (changed) writeAll(list);
+        return !changed || writeAll(list);
     }
 
     /**
@@ -120,6 +151,9 @@ public class HkFavoriteStore {
         if (prefs().getBoolean(KEY_MIGRATED, false)) return;
         new Thread(() -> {
             int moved = 0;
+            // 任一条迁移失败都不许打完成标记：失败条目留在 Keep 里，
+            // 下次启动整轮重试，不许单条静默永不进新 store（批 residual）。
+            boolean anyFailed = false;
             try {
                 List<Keep> keeps = AppDatabase.get().getKeepDao().findAll();
                 if (keeps != null) {
@@ -146,14 +180,29 @@ public class HkFavoriteStore {
                             f.setTime(k.getCreateTime());
                             HkRule rule = HkRuleManager.get().getInstalledRule(ruleTitle);
                             if (rule != null) f.setRuleUrl(rule.getUrl());
-                            addOrUpdate(f);
+                            if (!addOrUpdate(f)) {
+                                // 没存进新 store 就不许删 Keep 原行，更不许
+                                // 冒充迁完：置失败标，整轮不打完成标记。
+                                anyFailed = true;
+                                Log.e(TAG, "单条旧收藏迁移存入失败，保留原记录待重试：" + ruleTitle);
+                                continue;
+                            }
                             k.delete();
                             moved++;
-                        } catch (Throwable ignored) {
+                        } catch (Throwable t) {
+                            anyFailed = true;
+                            Log.e(TAG, "单条旧收藏迁移失败，保留原记录待重试", t);
                         }
                     }
                 }
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                // 迁移整体失败不打完成标记：下次启动重试，不许静默当已迁（批 fix349）。
+                Log.e(TAG, "旧收藏迁移失败，下次启动重试", t);
+                return;
+            }
+            if (anyFailed) {
+                Log.e(TAG, "旧收藏迁移有条目失败，不打完成标记，下次启动重试（已迁 " + moved + " 条）");
+                return;
             }
             prefs().edit().putBoolean(KEY_MIGRATED, true).apply();
         }).start();

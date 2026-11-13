@@ -195,7 +195,10 @@ public final class HkRouteBlocker {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     context.startActivity(intent);
                 } catch (Exception e) {
-                    Log.e(TAG, "hk error", e);
+                    // 三路全失败不再点击彻底没反应（残项处置 2026-11-14）：
+                    // 走本文件既有 toast 形态显形。
+                    Log.e(TAG, "goWeb 三路全失败：" + url, e);
+                    toastShortBottom(context, "打开页面失败");
                 }
             }
 
@@ -443,12 +446,18 @@ public final class HkRouteBlocker {
                 try {
                     if (activity == null) return;
                     activity.runOnUiThread(() -> {
-                        if (!activity.isFinishing() && !activity.isDestroyed()) {
+                        if (activity.isFinishing() || activity.isDestroyed()) return;
+                        try {
                             h.showRulesGroup(activity, group);
+                        } catch (Exception e) {
+                            // 路由已回 true 却展示失败不再静默（残项处置 2026-11-14）。
+                            Log.e(TAG, "rulesGroup 分组页展示失败：" + group, e);
+                            toastShortBottom(activity, "分组页打开失败");
                         }
                     });
                 } catch (Exception e) {
-                    Log.e(TAG, "hk error", e);
+                    Log.e(TAG, "rulesGroup 分组页展示失败：" + group, e);
+                    toastShortBottom(activity, "分组页打开失败");
                 }
             }, "hk-rulesGroup").start();
             return true;

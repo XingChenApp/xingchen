@@ -67,7 +67,11 @@ public final class HkEngineBridge implements HkArticleListModel.EngineBridge {
                 try {
                     HkEngineManager.ensureInit(rt);
                 } catch (Exception e) {
-                    Log.e(TAG, "hk error", e);
+                    // 初始化失败不许在未初始化的运行时上继续求值装出空结果
+                    // （残项处置 2026-11-14）：抛给 HkLazyRuleParser 既有
+                    // catch → callback.error 失败出口。
+                    Log.e(TAG, "evalLazyRule 引擎初始化失败", e);
+                    throw new RuntimeException("引擎初始化失败：" + e.getMessage(), e);
                 }
                 return rt.evalLazyRule(rule, myCode, jsRule);
             }
@@ -80,8 +84,10 @@ public final class HkEngineBridge implements HkArticleListModel.EngineBridge {
                 try {
                     HkEngineManager.ensureInit(rt);
                 } catch (Exception e) {
-                    Log.e(TAG, "hk error", e);
-                    return null;
+                    // 同 evalLazyRule：初始化失败抛给调用方既有错误回调，
+                    // 不许回 null 与「求值无结果」同形（残项处置 2026-11-14）。
+                    Log.e(TAG, "evalJSForObj 引擎初始化失败", e);
+                    throw new RuntimeException("引擎初始化失败：" + e.getMessage(), e);
                 }
                 return rt.evalJSForObj(script, input);
             }
@@ -311,7 +317,12 @@ public final class HkEngineBridge implements HkArticleListModel.EngineBridge {
                     + js;
             return rt.evalJS(script, input);
         } catch (Exception e) {
-            Log.e(TAG, "hk error", e);
+            // 文件选择求值失败不再与无结果同形静默（残项处置 2026-11-14）：
+            // 回 null 不变（调用方按无结果收口），但失败经既有提示形态显形。
+            Log.e(TAG, "evalFileSelect 文件选择求值失败", e);
+            Activity act = activityProvider == null ? null : activityProvider.get();
+            com.fongmi.android.tv.utils.ToastUtil.show(act != null ? act : appContext,
+                    "文件选择处理失败", android.widget.Toast.LENGTH_SHORT);
             return null;
         }
     }

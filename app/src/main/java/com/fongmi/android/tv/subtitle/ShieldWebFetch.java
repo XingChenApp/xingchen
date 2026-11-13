@@ -117,7 +117,11 @@ public final class ShieldWebFetch {
             if (!TextUtils.isEmpty(cookie)) {
                 ShieldBypass.saveCookie(ShieldBypass.hostOf(cookieUrl), cookie);
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // Cookie 没存下：详情页 ajax 这类次级请求下次还会撞盾。按既有
+            // blocked 通道记名，字幕搜索弹窗会把该源摆出来提示人工验证，
+            // 不许静默吞掉假装存好了；本次取到的 html 照常交付。
+            ShieldBypass.setBlocked(providerId);
         }
         result.set(html);
         latch.countDown();

@@ -233,7 +233,8 @@ public class DrivePikPak implements CloudDrive {
                     out.add(new Cookie.Builder().name(name).value(value).domain(url.host()).build());
                 }
                 return out;
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                com.github.catvod.crawler.SpiderDebug.log("pikpak", "load webview cookies failed url=%s error=%s", url.host(), e.getMessage());
                 return Collections.emptyList();
             }
         }

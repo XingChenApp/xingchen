@@ -1443,16 +1443,18 @@ public final class LabImportCompat {
         List<LabManifest.LabCommand> customs = parseCustomCommands(userCmdsBytes);
         for (ImportItem it : r.items) {
             if (!bins.isEmpty()) it.extraFiles = new LinkedHashMap<>(bins);
-            if (hasUserCmds && customs.isEmpty()) {
+            // 解析失败（null）才提示没读出来；文件在且合法空表是真·没有命令，不误报
+            if (hasUserCmds && customs == null) {
                 it.needsReview = addLine(it.needsReview, "包里的自建命令（commands.json）没读出来，没有导入");
             }
-            it.customCommands.addAll(customs);
+            if (customs != null) it.customCommands.addAll(customs);
         }
         r.note = "认出来了：默影视实验室离线包（" + r.items.size() + " 条命令）";
         return r;
     }
 
-    /** commands.json（JSON 数组）→ LabCommand 列表；读不出返回空表，调用方据此提示 */
+    /** commands.json（JSON 数组）→ LabCommand 列表；没给文件/合法空表返回空表，
+     * 内容在但解析失败返回 null——调用方据此区分「真没有」与「没读出来」 */
     static List<LabManifest.LabCommand> parseCustomCommands(byte[] bytes) {
         List<LabManifest.LabCommand> out = new ArrayList<>();
         if (bytes == null || bytes.length == 0) return out;
@@ -1473,7 +1475,9 @@ public final class LabImportCompat {
                         : c.optBoolean("show_output", true);
                 if (!cmd.command.isEmpty()) out.add(cmd);
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            android.util.Log.e("LabImportCompat", "commands.json 解析失败，导入的自建命令整表没读出来", e);
+            return null;
         }
         return out;
     }

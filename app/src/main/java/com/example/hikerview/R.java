@@ -40,6 +40,7 @@ public final class R {
         public static final int item_txt_title = com.fongmi.android.tv.R.layout.item_txt_title;
         public static final int item_history_pic = com.fongmi.android.tv.R.layout.item_history_pic;
         public static final int item_history_pic_vertical = com.fongmi.android.tv.R.layout.item_history_pic_vertical;
+        public static final int xpopup_image_viewer_popup_view = com.fongmi.android.tv.R.layout.xpopup_image_viewer_popup_view;
     }
 
     public static final class id {
@@ -101,6 +102,12 @@ public final class R {
         public static final int ad_list_share = com.fongmi.android.tv.R.id.ad_list_share;
         public static final int ad_list_title_text = com.fongmi.android.tv.R.id.ad_list_title_text;
         public static final int ad_list_recycler_view = com.fongmi.android.tv.R.id.ad_list_recycler_view;
+        public static final int container = com.fongmi.android.tv.R.id.container;
+        public static final int pager = com.fongmi.android.tv.R.id.pager;
+        public static final int photoViewContainer = com.fongmi.android.tv.R.id.photoViewContainer;
+        public static final int placeholderView = com.fongmi.android.tv.R.id.placeholderView;
+        public static final int tv_pager_indicator = com.fongmi.android.tv.R.id.tv_pager_indicator;
+        public static final int tv_save = com.fongmi.android.tv.R.id.tv_save;
     }
 
     public static final class drawable {
@@ -285,6 +292,7 @@ public final class R {
         public static final int tree2 = com.fongmi.android.tv.R.drawable.tree2;
         public static final int tree3 = com.fongmi.android.tv.R.drawable.tree3;
         public static final int tree4 = com.fongmi.android.tv.R.drawable.tree4;
+        public static final int ic_loading_bg = com.fongmi.android.tv.R.drawable.ic_loading_bg;
     }
 
     public static final class color {
@@ -297,5 +305,7 @@ public final class R {
     }
 
     public static final class string {
+        public static final int version_check_url = com.fongmi.android.tv.R.string.version_check_url;
+        public static final int version_check_url2 = com.fongmi.android.tv.R.string.version_check_url2;
     }
 }

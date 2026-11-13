@@ -59,6 +59,8 @@ public final class NodeStore {
 
     private final File file;
     private List<Node> nodes = new ArrayList<>();
+    /** 落盘名单存在但加载失败（解析/归一失败）：与「文件不存在的真空」区分，见 load() */
+    private boolean loadFailed;
     /** 勾选多选：内存态，界面勾选用。 */
     private final Set<String> checked = new HashSet<>();
 
@@ -93,6 +95,11 @@ public final class NodeStore {
 
     public synchronized int size() {
         return nodes.size();
+    }
+
+    /** 名单文件存在但加载失败时为 true（nodes 保持未换入，不许按空名单理解） */
+    public synchronized boolean isLoadFailed() {
+        return loadFailed;
     }
 
     /** 新增或按 id 更新（订阅刷新时同 id 覆盖配置、保留改名）。 */
@@ -202,8 +209,7 @@ public final class NodeStore {
         if (n == null || newName == null || newName.trim().isEmpty()) return false;
         n.name = newName.trim();
         n.nameCustomized = true;
-        save();
-        return true;
+        return save();
     }
 
     /** 当前选中节点（单选）。 */
@@ -251,15 +257,19 @@ public final class NodeStore {
             while (off < buf.length && (r = in.read(buf, off, buf.length - off)) > 0) off += r;
             in.close();
             List<Node> list = GSON.fromJson(new String(buf, 0, off, "UTF-8"), LIST_TYPE);
-            if (list != null) nodes = list;
+            if (list == null) return;
             // Gson 把 Map<String,Object> 里的数字一律读成 Double，重载后 port 会变 443.0，
             // MiniYaml.dump 照 Number.toString 输出 "443.0"，mihomo 配置非法。
             // 落盘前的内存形态（MiniYaml.parseScalar/LinkParser）整数都是 Integer/Long，
             // 故读盘后在此把整数值 Double 归一回去（嵌套 Map/List 递归）。
-            for (Node n : nodes) {
+            // 先在本地表归一、全部成功才换入 nodes：旧写法先换入再归一，归一中途抛错会留下 port 带小数的半成品表。
+            for (Node n : list) {
                 if (n != null && n.config != null) n.config = normalizeMap(n.config);
             }
-        } catch (Exception ignored) {
+            nodes = list;
+        } catch (Exception e) {
+            loadFailed = true;
+            android.util.Log.e("NodeStore", "load nodes failed, keep in-memory list untouched", e);
         }
     }
 
@@ -289,7 +299,7 @@ public final class NodeStore {
         return v;
     }
 
-    private void save() {
+    private boolean save() {
         try {
             File parent = file.getParentFile();
             if (parent != null) parent.mkdirs();
@@ -301,7 +311,10 @@ public final class NodeStore {
                 file.delete();
                 tmp.renameTo(file);
             }
-        } catch (Exception ignored) {
+            return true;
+        } catch (Exception e) {
+            android.util.Log.e("NodeStore", "save nodes failed", e);
+            return false;
         }
     }
 

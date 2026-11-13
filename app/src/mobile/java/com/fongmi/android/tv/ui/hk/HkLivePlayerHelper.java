@@ -97,12 +97,19 @@ public final class HkLivePlayerHelper {
             @Override
             public void onResponse(Call call, Response response) {
                 String body = "";
+                String readErr = null;
                 try {
                     ResponseBody rb = response.body();
                     if (rb != null) body = rb.string();
-                } catch (Exception ignored) {
+                } catch (Exception e) {
+                    readErr = e.getMessage() == null ? "" : e.getMessage();
                 } finally {
                     response.close();
+                }
+                if (readErr != null) {
+                    final String msg = readErr;
+                    MAIN.post(() -> listener.onFailure(-1, msg));
+                    return;
                 }
                 final String text = body;
                 if (response.isSuccessful()) {

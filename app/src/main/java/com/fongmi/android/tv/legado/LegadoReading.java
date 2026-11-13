@@ -14,6 +14,27 @@ import java.util.List;
  */
 public class LegadoReading {
 
+    // ---- 失败不再静默（349 阅读组）：最近一次取数/进书架失败的原因 ----
+    // 正文/图片懒取的失败原因留在这里：阅读器按既有失败态呈现（小说「正文抓取
+    // 失败」/漫画「这一章没有取到图片」），批量缓存（ReadingDownload）按章读它
+    // 拼失败原因，不许只剩一个空串/空表无从分辨是没内容还是取失败。
+    private static volatile String lastFetchError;
+    private static volatile String lastShelfError;
+
+    public static String lastFetchError() {
+        return lastFetchError;
+    }
+
+    public static String lastShelfError() {
+        return lastShelfError;
+    }
+
+    private static String msgOf(Throwable t) {
+        if (t == null) return "";
+        String m = t.getMessage();
+        return m == null || m.isEmpty() ? t.getClass().getSimpleName() : m;
+    }
+
     /**
      * 组装一本书的会话：章节表进会话，当前章内容首载尽量内联。
      * 打开动作由 mobile 侧经 ReadingRouter.openReading 完成（main 不引用 mobile 类）。
@@ -42,8 +63,12 @@ public class LegadoReading {
                 if (s.kind == ReadingSession.Kind.COMIC) s.images = splitImages(c.text);
                 else s.text = c.text == null ? "" : c.text;
                 s.chapterUrl = ch.url;
+                lastFetchError = null;
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 内联失败不再无痕：原因留档（见类头），会话照常打开，阅读器懒取
+            // 重试后仍失败会按其既有失败态明示，不会只剩空白页无解释。
+            lastFetchError = msgOf(t);
         }
         // 进书架
         try {
@@ -62,7 +87,11 @@ public class LegadoReading {
             r.bookUrl = info.bookUrl == null ? "" : info.bookUrl;
             r.updatedAt = System.currentTimeMillis();
             ReadingStore.save(r);
-        } catch (Throwable ignored) {
+            // 保存失败由 ReadingStore 新结构承接（commit 校验＋提示＋不覆盖旧记录）；
+            // 这里把结局留档，不许再出现「看过的书没进书架」却查不到原因。
+            lastShelfError = ReadingStore.lastWriteError();
+        } catch (Throwable t) {
+            lastShelfError = msgOf(t);
         }
         return s;
     }
@@ -70,11 +99,16 @@ public class LegadoReading {
     /** 小说阅读器按章懒取（NovelReaderActivity 分支调用）。 */
     public static String fetchText(String legadoKey, String chapterUrl) {
         LegadoSource source = LegadoStore.get(legadoKey);
-        if (source == null || TextUtils.isEmpty(chapterUrl)) return "";
+        if (source == null || TextUtils.isEmpty(chapterUrl)) {
+            lastFetchError = source == null ? "书源已不存在" : "章节地址为空";
+            return "";
+        }
         try {
             LegadoPipeline.Content c = new LegadoPipeline(source).content(chapterUrl);
+            lastFetchError = null;
             return c.text == null ? "" : c.text;
         } catch (Throwable t) {
+            lastFetchError = msgOf(t);
             return "";
         }
     }
@@ -82,11 +116,16 @@ public class LegadoReading {
     /** 漫画阅读器按章懒取（ComicReaderActivity 分支调用）。 */
     public static List<String> fetchImages(String legadoKey, String chapterUrl) {
         LegadoSource source = LegadoStore.get(legadoKey);
-        if (source == null || TextUtils.isEmpty(chapterUrl)) return new ArrayList<>();
+        if (source == null || TextUtils.isEmpty(chapterUrl)) {
+            lastFetchError = source == null ? "书源已不存在" : "章节地址为空";
+            return new ArrayList<>();
+        }
         try {
             LegadoPipeline.Content c = new LegadoPipeline(source).content(chapterUrl);
+            lastFetchError = null;
             return splitImages(c.text);
         } catch (Throwable t) {
+            lastFetchError = msgOf(t);
             return new ArrayList<>();
         }
     }

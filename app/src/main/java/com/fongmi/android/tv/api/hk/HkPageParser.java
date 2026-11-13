@@ -142,7 +142,11 @@ public class HkPageParser {
                     ruleTitle = paramsMap.get("rule");
                 }
             } catch (Exception e) {
-                Log.e(TAG, "getNextPage", e);
+                // 参数解析失败不许静默丢参继续拼页：本方法本就 throws
+                // ParseException、调用方（HkListActivity 等）对 ParseException
+                // 有弹消息的既有出口，抛出去显形（批 residual）。
+                Log.e(TAG, "getNextPage params parse failed", e);
+                throw new ParseException("子页参数解析失败：" + e.getMessage());
             }
         }
         HkPage pageRule = parsePageRule(rule, ruleTitle, url);
@@ -206,7 +210,10 @@ public class HkPageParser {
                     }
                 }
             } catch (Exception e) {
-                Log.e(TAG, "getUrl", e);
+                // 回原 url 是官形契约不变，但留痕带入参，与「params 里本无
+                // url 键」（无此日志）可区分（批 residual）。
+                Log.e(TAG, "getUrl params parse failed, fallback to url=" + url
+                        + " params=" + (paramsJson.length() > 120 ? paramsJson.substring(0, 120) : paramsJson), e);
             }
         }
         return url;
@@ -266,7 +273,10 @@ public class HkPageParser {
                 list.addAll(parsed);
             }
         } catch (Exception e) {
-            Log.e(TAG, "getPageList", e);
+            // 回空表是官形契约（parsePageRule 据空表抛「找不到页面」、
+            // 其余调用方按无子页处理），留痕带规则标题，与「规则本无
+            // pages」（无此日志）可区分（批 residual）。
+            Log.e(TAG, "getPageList parse failed rule=" + rule.getTitle(), e);
         }
         return list;
     }

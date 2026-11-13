@@ -3,6 +3,10 @@ package com.fongmi.android.tv.api.hk;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.util.Log;
+import android.widget.Toast;
+
+import com.fongmi.android.tv.utils.ToastUtil;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -56,8 +60,15 @@ public class HkShareHelper {
         if (cmd == null) return null;
         try {
             ClipboardManager cm = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
-            if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("hk_rule", cmd));
-        } catch (Exception ignored) {
+            if (cm == null) throw new IllegalStateException("ClipboardManager 不可用");
+            cm.setPrimaryClip(ClipData.newPlainText("hk_rule", cmd));
+        } catch (Exception e) {
+            // 写剪贴板失败不许假装已复制：记日志、回 null，且唯一调用方
+            // （HkListActivity 退回支）不消费返回值，故按本域既有提示形
+            // （HkErrorUtil 复制失败 toast）直接显形（批 residual）。
+            Log.e("HkShareHelper", "分享口令写入剪贴板失败", e);
+            ToastUtil.show(context, "复制失败", Toast.LENGTH_SHORT);
+            return null;
         }
         return cmd;
     }

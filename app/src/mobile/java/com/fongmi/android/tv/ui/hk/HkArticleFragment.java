@@ -344,7 +344,11 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                 HkPageRecordStore store = HkPageRecordStore.shared();
                 store.applyCollectionTo(articleListRuleDTO, pageTitle);
                 store.upsertHistoryOnLoad(articleListRuleDTO, pageTitle, pic);
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                // 收藏回读/历史登记失败不再静默（残项处置 2026-11-14）：
+                // 页面照常打开，但失败经既有 toast 形态显形。
+                Log.e(TAG, "initData record store failed", e);
+                toastBottom("记录读取失败，上次进度可能未恢复");
             }
         }
         // G1：新一轮页面加载起清声明标题，本页求值若再调 setPageTitle 会重新写入
@@ -809,6 +813,7 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         }
         adapter.setWebViewHolder(webViewHolder);
         // 照原版 initAdapter 的三钩子接线：输入 onChange 求值（引擎单例）、百度建议词、富文本动作
+        boolean[] inputEvalFailNotified = {false};
         adapter.setOnInputEvalListener((onChangeJs, text) -> {
             HkRule r = articleListRuleDTO;
             if (r == null) return;
@@ -817,7 +822,13 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                 HkEngineManager.ensureInit(rt);
                 rt.evalJS(com.fongmi.android.tv.api.hk.HkJsRuntime.getMyRule(r) + onChangeJs, text);
             } catch (Exception e) {
-                Log.e(TAG, "hk error", e);
+                // 输入联动求值失败不再静默不执行（残项处置 2026-11-14）：
+                // 逐键触发会刷屏，只在首次失败时提示一次。
+                Log.e(TAG, "输入联动求值失败", e);
+                if (!inputEvalFailNotified[0]) {
+                    inputEvalFailNotified[0] = true;
+                    toastBottom("输入联动规则执行失败");
+                }
             }
         });
         adapter.setSuggestLoader(HkSuggestModel::loadFromRemote);
@@ -1029,7 +1040,9 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                     break;
             }
         } catch (Exception e) {
+            // 条目变更事件处理失败不再静默停在旧数据（残项处置 2026-11-14）。
             Log.e(TAG, "onItemModify", e);
+            toastBottom("条目更新失败，列表可能未同步");
         }
     }
 
@@ -1212,7 +1225,9 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                         }
                     }
                 } catch (Exception e) {
-                    Log.e(TAG, "hk error", e);
+                    // 选项求值失败不再点了没反应（残项处置 2026-11-14）。
+                    Log.e(TAG, "选择弹窗选项求值失败", e);
+                    toastBottom("选项执行失败");
                 }
             }
 
@@ -1255,7 +1270,11 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         try {
             runWaitUI(() -> applyListToView(isNew, isPre, isAfter, articlesIdStr, fromCache, list, key));
         } catch (Exception e) {
+            // 新数据落表失败不再静默停在旧内容/加载态（残项处置 2026-11-14）：
+            // 走本页既有 error 失败出口（收圈、页码回退、错误窗显形）。
             SpiderDebug.log("hk", "bindArrayToView runWaitUI failed key=%s err=%s", key, e.toString());
+            Log.e(TAG, "bindArrayToView 落表失败", e);
+            error("解析失败", "页面数据展示失败：" + e, "500", e);
         }
     }
 
@@ -1595,13 +1614,18 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         if (TextUtils.isEmpty(title) || adapter == null) return 0;
         String name = title;
         int parsed = 0;
+        boolean indexValid = true;
         if (title.contains("@@")) {
             String[] parts = title.split("@@");
             name = parts.length > 0 ? parts[0] : title;
             try {
                 if (parts.length > 1) parsed = Integer.parseInt(parts[1]);
             } catch (NumberFormatException e) {
-                Log.e(TAG, "hk error", e);
+                // 下标解析失败不再按 0 冒充定位到首条（残项处置 2026-11-14）：
+                // 标题扫描仍可命中；扫不到时回 -1 表示未定位（既有消费方
+                // applyLastClick/refreshLastClick 对 -1 均不滚动不打标）。
+                indexValid = false;
+                Log.e(TAG, "findPosByTitle 下标解析失败：" + title, e);
             }
         }
         java.util.List<HkItem> list = adapter.getList();
@@ -1609,6 +1633,7 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
             String t = detailBridge == null ? list.get(i).getTitle() : detailBridge.getTitleText(list.get(i).getTitle());
             if (name.equals(t)) return i;
         }
+        if (!indexValid) return -1;
         return Math.min(parsed, Math.max(0, list.size() - 1));
     }
 
@@ -1735,6 +1760,13 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         try {
             rt = com.fongmi.android.tv.ui.hk.HkEngineManager.runtimeFor(rule);
         } catch (Throwable t) {
+            // 拦截接线时运行时获取失败不再整套静默没接上（残项处置 2026-11-14）：
+            // 本页只提示一次，网页内点击按普通网页走这一事实必须显形。
+            Log.e(TAG, "wireWebViewInterception runtime failed", t);
+            if (!webInterceptFailNotified) {
+                webInterceptFailNotified = true;
+                toastBottom("网页拦截初始化失败，页面内点击将按普通网页打开");
+            }
             return;
         }
         if (rt == null) return;
@@ -1853,7 +1885,9 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                         chapters.add(ch);
                     }
                     detailBridge.startPlayerChapters(act, chapters, null, null, null);
-                } catch (Throwable ignored) {
+                } catch (Throwable t) {
+                    SpiderDebug.log("hk", "playVideos failed err=%s", t.toString());
+                    toastBottom("章节播放失败");
                 }
             }
         });
@@ -1952,7 +1986,11 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
             req.newWindow = newWindow;
             req.windowId = windowId;
             if (pageOpener != null) pageOpener.openSubList(req);
-        } catch (Throwable ignored) {
+        } catch (com.fongmi.android.tv.api.hk.HkPageParser.ParseException e) {
+            toastBottom(e.getMessage());
+        } catch (Throwable t) {
+            Log.e(TAG, "openBridgePage failed", t);
+            toastBottom("打开页面失败");
         }
     }
 
@@ -4283,7 +4321,9 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                 try {
                     showPosDetail(position);
                 } catch (Exception e) {
-                    Log.e(TAG, "hk error", e);
+                    // 调试数据查看失败不再点了没反应（残项处置 2026-11-14）。
+                    Log.e(TAG, "调试数据打开失败", e);
+                    toastBottom("调试数据打开失败");
                 }
                 break;
             case "访问链接": {
@@ -4415,6 +4455,7 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
     public static String pendingHighlightResult = "";
 
     private android.webkit.ValueCallback<android.net.Uri[]> filePathCallback;
+    private boolean webInterceptFailNotified;
 
     /** 宿主行内 WebView 文件上传时登记（对应原版 filePathCallback 字段）。 */
     public void setFilePathCallback(android.webkit.ValueCallback<android.net.Uri[]> callback) {
@@ -4676,6 +4717,14 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                 HkArticleListModel.EngineBridge bridge = HkArticleListModel.getEngineBridge();
                 String resolved = bridge == null ? next.getUrl()
                         : bridge.pageParserGetUrl(next.getUrl(), extraJson(next));
+                if (resolved == null) {
+                    // 内嵌地址解析失败（HkStringUtil 失败信号）：不许拿原地址
+                    // 顶替落错页，照本页失败形回滚页码并提示（残项处置 2026-11-14）。
+                    loading(false);
+                    page--;
+                    toastBottom("页面地址解析失败");
+                    return;
+                }
                 dto.setUrl(resolved);
             } else {
                 String[] parts = dto.getUrl() == null ? new String[]{""} : dto.getUrl().split(";");

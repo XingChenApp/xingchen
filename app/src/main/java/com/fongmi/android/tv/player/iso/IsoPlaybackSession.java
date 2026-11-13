@@ -86,12 +86,18 @@ final class IsoPlaybackSession {
         metadataPreparing = true;
         executor.execute(() -> {
             long startMs = System.currentTimeMillis();
-            IsoTrackMetadataResolver.Snapshot resolved = IsoTrackMetadataResolver.Snapshot.EMPTY;
+            IsoTrackMetadataResolver.Snapshot resolved;
             try {
                 resolved = IsoTrackMetadataResolver.resolve(source, playlist);
                 SpiderDebug.log("iso-track", "metadata ready id=%d playlist=%05d audio=%d subtitle=%d elapsedMs=%d", id, playlist, resolved.audioCount(), resolved.subtitleCount(), System.currentTimeMillis() - startMs);
             } catch (Throwable e) {
                 SpiderDebug.log("iso-track", "metadata failed id=%d playlist=%05d error=%s elapsedMs=%d", id, playlist, e.getMessage(), System.currentTimeMillis() - startMs);
+                // 失败不许置就绪：ready 保持假、监听者保留，下次 prepare 调用可重试，
+                // 不把「解析失败」缓存成「元数据已就绪（空）」。
+                synchronized (IsoPlaybackSession.this) {
+                    metadataPreparing = false;
+                }
+                return;
             }
             trackMetadata = resolved;
             trackMetadataReady = true;

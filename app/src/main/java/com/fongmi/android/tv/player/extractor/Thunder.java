@@ -619,16 +619,13 @@ public class Thunder implements Source.Extractor {
     // 同链接记录 → 删整个目录，最后由调用方按原流程新建，保证新任务不挂任何
     // 旧状态。引擎侧记录含跨进程残留：内存里的任务只动属于这条链接的那个；
     // 不属于时用同链接探针任务去删引擎侧记录，不碰可能正在播的别的链接。
-    private void wipeZeroMarked(String url) {
+    private void wipeZeroMarked(String url) throws ExtractException {
         try {
             zeroMark(url).delete();
             boolean mine = sameContent(url, lastKey);
-            try {
-                ThunderRuntime.Task stale = mine && taskId != null ? taskId : runtime().addThunderTask(url, Path.thunder(Util.md5(url)));
-                runtime().stopTask(stale);
-                runtime().deleteTask(stale);
-            } catch (Exception ignored) {
-            }
+            ThunderRuntime.Task stale = mine && taskId != null ? taskId : runtime().addThunderTask(url, Path.thunder(Util.md5(url)));
+            runtime().stopTask(stale);
+            runtime().deleteTask(stale);
             if (mine) {
                 taskId = null;
                 lastKey = null;
@@ -636,9 +633,17 @@ public class Thunder implements Source.Extractor {
                 lastDownloadFile = null;
             }
             deleteRecursive(Path.thunder(Util.md5(url)));
+            // 清理后回读验证：标记或目录还在＝没清干净，不许在脏状态上重建，
+            // 走 fetch 既有抛错出口让用户重试，而不是把零字节问题静默带进新任务。
+            if (zeroMark(url).exists() || Path.thunder(Util.md5(url)).exists()) {
+                throw new ExtractException("迅雷零字节旧任务清理不完整，请重试");
+            }
             SpiderDebug.log("thunder", "zero-byte history wiped, rebuilding clean");
+        } catch (ExtractException e) {
+            throw e;
         } catch (Exception e) {
             SpiderDebug.log("thunder", "zero-byte wipe err=%s", String.valueOf(e.getMessage()));
+            throw new ExtractException("迅雷零字节旧任务清理失败，请重试");
         }
     }
 

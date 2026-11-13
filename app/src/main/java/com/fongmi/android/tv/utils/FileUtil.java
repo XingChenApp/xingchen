@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.StatFs;
 import android.text.TextUtils;
+import android.util.Log;
 
 import androidx.core.content.FileProvider;
 
@@ -44,29 +45,42 @@ public class FileUtil {
         App.get().startActivity(intent);
     }
 
-    public static void gzipCompress(File target) {
+    public static boolean gzipCompress(File target) {
         byte[] buffer = new byte[16384];
-        try (FileInputStream is = new FileInputStream(target); GZIPOutputStream os = new GZIPOutputStream(new FileOutputStream(target.getAbsolutePath() + ".gz"))) {
+        File gz = new File(target.getAbsolutePath() + ".gz");
+        boolean success = false;
+        try (FileInputStream is = new FileInputStream(target); GZIPOutputStream os = new GZIPOutputStream(new FileOutputStream(gz))) {
             int read;
             while ((read = is.read(buffer)) > 0) os.write(buffer, 0, read);
+            success = true;
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.e("FileUtil", "gzipCompress failed target=" + target.getAbsolutePath(), e);
         } finally {
-            Path.clear(target);
+            // 删除原文件必须以压缩成功为前提：失败时原文件保留、残缺 .gz 清掉，
+            // 不许出现「原文件没了、压缩包又是坏的」静默丢数据。
+            if (success) Path.clear(target);
+            else Path.clear(gz);
         }
+        return success;
     }
 
-    public static void gzipDecompress(File target, File path) {
+    public static boolean gzipDecompress(File target, File path) {
         byte[] buffer = new byte[16384];
         try (GZIPInputStream is = new GZIPInputStream(new BufferedInputStream(new FileInputStream(target))); BufferedOutputStream os = new BufferedOutputStream(new FileOutputStream(path))) {
             int read;
             while ((read = is.read(buffer)) != -1) os.write(buffer, 0, read);
+            return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e("FileUtil", "gzipDecompress failed target=" + target.getAbsolutePath() + " out=" + path.getAbsolutePath(), e);
+            // 失败不许留残缺输出冒充解压完成（调用方按文件存在性判断时会把残缺当成品，
+            // 且 EPG 缓存这类存在性闸会让它永远不再重试）：清掉残缺，失败回 false。
+            Path.clear(path);
+            return false;
         }
     }
 
-    public static void zipDecompress(File target, File path) {
+    public static boolean zipDecompress(File target, File path) {
+        java.util.List<File> created = new java.util.ArrayList<>();
         try (ZipFile zip = new ZipFile(target)) {
             // 路径穿越校验（与 AppBackup.restore 的 safe/inside 同口径）：条目名带 ../
             // 能逃出目标目录——本函数被本地服务 /upload 的 zip 解压直调，局域网递来的
@@ -79,10 +93,18 @@ public class FileUtil {
                 String outPath = out.getCanonicalPath();
                 if (!outPath.equals(base) && !outPath.startsWith(base + File.separator)) continue;
                 if (entry.isDirectory()) out.mkdirs();
-                else Path.copy(zip.getInputStream(entry), out);
+                else {
+                    if (!out.exists()) created.add(out);
+                    Path.copy(zip.getInputStream(entry), out);
+                }
             }
+            return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e("FileUtil", "zipDecompress failed target=" + target.getAbsolutePath() + " out=" + path.getAbsolutePath(), e);
+            // 失败回滚本次新建的文件，不留半棵目录树冒充解压完成；
+            // 解压前已存在的文件（被覆盖的）无法还原，不动。
+            for (int i = created.size() - 1; i >= 0; i--) Path.clear(created.get(i));
+            return false;
         }
     }
 

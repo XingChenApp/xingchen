@@ -192,7 +192,9 @@ public class AiSubtitleTranslator {
                 if (line.endsWith("\r")) line = line.substring(0, line.length() - 1);
                 sb.append(line).append('\n');
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            // 读失败回空：调用方（TrackDialog）对空结果已有「字幕解析失败」提示，这里留痕区分真空文件与读失败
+            android.util.Log.e("AiSubtitleTranslator", "read subtitle file failed: " + file, e);
         }
         return sb.toString();
     }

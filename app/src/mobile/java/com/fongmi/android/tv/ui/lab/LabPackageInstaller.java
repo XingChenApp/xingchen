@@ -781,12 +781,12 @@ public final class LabPackageInstaller {
         }
     }
 
-    private static void chmod755(File dir) {
-        try {
-            // 整目录递归 755（参照物优化过：逐文件 chmod 在 node 这类大包上会卡）
-            new ProcessBuilder("chmod", "-R", "755", dir.getAbsolutePath()).start().waitFor();
-        } catch (Exception ignored) {
-        }
+    /** 整目录递归 755：失败（起不来/非零退出）抛给调用方——两个调用点都在
+     * 安装 try 内，异常经既有 fail(listener) 出口告诉用户，不许静默装出没执行权限的包 */
+    private static void chmod755(File dir) throws Exception {
+        // 整目录递归 755（参照物优化过：逐文件 chmod 在 node 这类大包上会卡）
+        int rc = new ProcessBuilder("chmod", "-R", "755", dir.getAbsolutePath()).start().waitFor();
+        if (rc != 0) throw new Exception("给包文件加执行权限失败（chmod 退出码 " + rc + "），装上的包可能跑不起来");
     }
 
     static void deleteDir(File f) {

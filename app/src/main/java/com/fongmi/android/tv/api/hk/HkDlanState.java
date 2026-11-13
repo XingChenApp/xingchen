@@ -105,6 +105,18 @@ public final class HkDlanState {
         return dto;
     }
 
+    /**
+     * 官 RemoteServerManager.setUrlDTO 写口（ui/webdlan/RemoteServerManager.smali
+     * .line 116：整替所持 DlanUrlDTO）：整替当前 Dto，并同步 playUrl——官
+     * getPlayUrl 直读 DTO.getUrl()，写后 /playUrl 口径随 DTO 走；咱家 playUrl
+     * 独立成字段，故照 setSingle/updatePlayUrl 既有双写先例同步。供
+     * PlayerChooser.initSubtitleUrl 字幕支写入（url/headers/title/subtitle）。
+     */
+    public static void setUrlDTO(Dto urlDTO) {
+        dto = urlDTO;
+        if (urlDTO != null) playUrl = urlDTO.url;
+    }
+
     public static List<String[]> getChapters() {
         return chapters;
     }

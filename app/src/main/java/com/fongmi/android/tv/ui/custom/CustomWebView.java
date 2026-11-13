@@ -323,7 +323,14 @@ public class CustomWebView extends WebView implements DialogInterface.OnDismissL
             if (waiter.owner.stopped) continue;
             try {
                 acquireSniffProxy(waiter.owner, waiter.port, waiter.ready);
-            } catch (Throwable ignored) {
+            } catch (Throwable error) {
+                // 重新领取失败不许让等待者永远等不到装载：照 acquire 自家的放行口径
+                // 直接跑 ready 装载（代理没装上就直连，行为退回改前），并留痕。
+                SpiderDebug.log("webview-parse", "sniff proxy re-acquire failed, load anyway error=%s", error.getClass().getSimpleName());
+                try {
+                    waiter.ready.run();
+                } catch (Throwable ignored) {
+                }
             }
         }
     }
@@ -392,7 +399,10 @@ public class CustomWebView extends WebView implements DialogInterface.OnDismissL
                 // 收口在 post 的 runnable 里再复检一次（复核二轮必改项）：本回调读旗到 runnable
                 // 执行之间，工作线程可能刚走完 onParseAdd 派生了子视图，只查一次会差一拍抢先判负。
                 if (request.isForMainFrame() && !spawnedParseChild && callbackRef.get() != null && isNetworkDead(error.getErrorCode())) {
-                    post(() -> {
+                    // 投递走 App 主线程通道，不用 View.post：接管视图（HomeWebController
+                    // 以 App 上下文新建）从不 attach，View.post 的任务永不执行、错误
+                    // 收口落不了地（成功路同病，见 onParseSuccess）。
+                    App.post(() -> {
                         if (!spawnedParseChild && callbackRef.get() != null) stop(true);
                     });
                 }
@@ -626,7 +636,8 @@ public class CustomWebView extends WebView implements DialogInterface.OnDismissL
                         return;
                     }
                 }
-            } catch (Throwable ignored) {
+            } catch (Throwable error) {
+                SpiderDebug.log("webview-probe", "dom media parse failed from=%s attempt=%d error=%s", from, attempt, error.getClass().getSimpleName());
             }
             if (!stopped) postDelayed(() -> probeDomMedia(attempt + 1), 1000);
         });
@@ -686,7 +697,11 @@ public class CustomWebView extends WebView implements DialogInterface.OnDismissL
     private void onParseSuccess(Map<String, String> headers, String url) {
         ParseCallback cb = callbackRef.getAndSet(null);
         if (cb != null) cb.onParseSuccess(headers, url, from);
-        post(() -> stop(false));
+        // 停必须必达，照 ParseJob 的收口形态走 App 主线程通道：接管视图从不
+        // attach，View.post 的任务永远排队不执行，成功后只能等 30 秒会话计时
+        // 收尾，承载页白活、进程级代理覆盖跟着多挂满 30 秒。改走 App.post 后
+        // 成功即停即撤，30 秒计时回归会话超时本职。
+        App.post(() -> stop(false));
     }
 
     private void onParseError() {

@@ -286,32 +286,24 @@ public class Youtube implements Source.Extractor {
         }
 
         @Override
-        public List<Episode> call() {
-            try {
-                ListLinkHandler handler = YoutubePlaylistLinkHandlerFactory.getInstance().fromUrl(url);
-                YoutubePlaylistExtractor extractor = new YoutubePlaylistExtractor(ServiceList.YouTube, handler);
-                extractor.forceLocalization(NewPipe.getPreferredLocalization());
-                extractor.fetchPage();
-                List<Episode> episodes = new ArrayList<>();
-                add(extractor, episodes, extractor.getInitialPage());
-                return episodes;
-            } catch (Exception e) {
-                return Collections.emptyList();
-            }
+        public List<Episode> call() throws Exception {
+            ListLinkHandler handler = YoutubePlaylistLinkHandlerFactory.getInstance().fromUrl(url);
+            YoutubePlaylistExtractor extractor = new YoutubePlaylistExtractor(ServiceList.YouTube, handler);
+            extractor.forceLocalization(NewPipe.getPreferredLocalization());
+            extractor.fetchPage();
+            List<Episode> episodes = new ArrayList<>();
+            add(extractor, episodes, extractor.getInitialPage());
+            return episodes;
         }
 
-        private void add(YoutubePlaylistExtractor extractor, List<Episode> episodes, ListExtractor.InfoItemsPage<StreamInfoItem> page) {
+        private void add(YoutubePlaylistExtractor extractor, List<Episode> episodes, ListExtractor.InfoItemsPage<StreamInfoItem> page) throws Exception {
             for (StreamInfoItem item : page.getItems()) {
                 if (item.getDuration() == -1) continue;
                 episodes.add(Episode.create(item.getName(), item.getUrl()));
             }
-            if (page.hasNextPage()) {
-                try {
-                    add(extractor, episodes, extractor.getPage(page.getNextPage()));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
+            // 下一页拉取失败不许把已凑的部分列表当完整列表交回：异常上抛，
+            // Source.parseToLists 的 ExecutionException 支会记日志并保留原选集。
+            if (page.hasNextPage()) add(extractor, episodes, extractor.getPage(page.getNextPage()));
         }
     }
 }

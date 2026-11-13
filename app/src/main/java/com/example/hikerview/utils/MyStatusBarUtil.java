@@ -11,12 +11,21 @@ import android.view.WindowManager;
 
 /**
  * 官 {@code com.example.hikerview.utils.MyStatusBarUtil} 照官 jadx 转写。
- * 记名差异：官 setColor/setColorNoTranslucent 委托官 StatusBarCompatUtil
- * （未移植），两法未落——插件面只有 getStatusBarHeight 被
- * hikerPop.updateRecordsBottom 实调；官 exoplayer IcyHeaders 常量
- * REQUEST_HEADER_ENABLE_METADATA_VALUE 按其值 "1" 内联；Timber 改 Log。
+ * setColor/setColorNoTranslucent 照官委托同包 StatusBarCompatUtil（官
+ * smali 两法本体同为单行转调，.line 33/47），该类连同其依赖的外部库
+ * com.githang:status-bar-compat:0.7 已于 2026-11-14 外部小库批一并落；
+ * 官 exoplayer IcyHeaders 常量 REQUEST_HEADER_ENABLE_METADATA_VALUE
+ * 按其值 "1" 内联；Timber 改 Log。
  */
 public class MyStatusBarUtil {
+
+    public static void setColor(Activity activity, int color) {
+        StatusBarCompatUtil.setStatusBarColor(activity, color);
+    }
+
+    public static void setColorNoTranslucent(Activity activity, int color) {
+        StatusBarCompatUtil.setStatusBarColor(activity, color);
+    }
 
     public static boolean isDark(int i) {
         return isDark(Double.valueOf((16711680 & i) >> 16), Double.valueOf((65280 & i) >> 8), Double.valueOf(i & 255));

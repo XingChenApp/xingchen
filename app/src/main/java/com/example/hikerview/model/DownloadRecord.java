@@ -6,8 +6,8 @@ import com.alibaba.fastjson.annotation.JSONField;
  * 照官 8.83 本体移植（jadx 官包源）：下载记录模型。与 Bookmark
  * 同口径——官 LitePal 基类与 @Column 注解摘除落纯模型，id 改自有
  * 字段；fastjson 注解（lastPlay 不序列化）照官保留。
- * 记名未落：以 DownloadTask 为参的构造与 update 两法——耦合官下载
- * 栈（DownloadTask/DownloadConfig），星辰未落该栈，随之再补。
+ * ①团订正：DownloadTask 已逐字转写落位（ui/download），update 两重载
+ * 在本批照官补落（见类尾）；以 DownloadTask 为参的构造一法仍未落、记名在案。
  */
 public class DownloadRecord {
 
@@ -241,5 +241,43 @@ public class DownloadRecord {
 
     public void setLastPlay(boolean z) {
         this.lastPlay = z;
+    }
+
+    /** 照官 update(DownloadTask) 逐字：委托 update(task, false)。 */
+    public DownloadRecord update(com.example.hikerview.ui.download.DownloadTask task) {
+        return update(task, false);
+    }
+
+    /** 照官 update(DownloadTask, boolean) 逐字转写（官源 DownloadRecord.smali 同名法）。 */
+    public DownloadRecord update(com.example.hikerview.ui.download.DownloadTask task, boolean force) {
+        this.taskId = task.getTaskId();
+        if (force || com.example.hikerview.utils.StringUtil.isEmpty(this.videoType)) {
+            this.videoType = task.getVideoType();
+        }
+        if (force || com.example.hikerview.utils.StringUtil.isEmpty(this.fileExtension)) {
+            this.fileExtension = task.getFileExtension();
+        }
+        if (com.example.hikerview.utils.StringUtil.isNotEmpty(task.getFileName())) {
+            this.fileName = task.getFileName();
+        }
+        this.url = task.getUrl();
+        this.sourcePageUrl = task.getSourcePageUrl();
+        if (task.getSourcePageTitle() != null) {
+            if (com.example.hikerview.utils.StringUtil.isNotEmpty(task.getFileExtension())
+                    && task.getSourcePageTitle().endsWith("." + task.getFileExtension())) {
+                this.sourcePageTitle = com.example.hikerview.utils.FileUtil.getSimpleName(task.getSourcePageTitle());
+            } else {
+                this.sourcePageTitle = task.getSourcePageTitle();
+            }
+        }
+        this.size = task.getSize().get();
+        this.status = task.getStatus();
+        this.failedReason = task.getFailedReason();
+        this.totalDownloaded = task.getTotalDownloaded().get();
+        this.currentSpeed = task.getCurrentSpeed();
+        this.lastClearSpeedTime = task.getLastClearSpeedTime();
+        this.film = task.getFilm();
+        this.subtitle = task.getSubtitle();
+        return this;
     }
 }

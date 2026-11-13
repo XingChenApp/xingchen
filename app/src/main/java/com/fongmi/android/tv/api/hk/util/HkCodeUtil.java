@@ -237,8 +237,11 @@ public final class HkCodeUtil {
         final String target = HkJsRuntime.getFilePath(savePath);
         if (url.startsWith("hiker://files/") || url.startsWith("file://") || url.startsWith("/")) {
             String src = HkJsRuntime.getFilePath(url);
-            if (!src.equals(target)) {
-                copyFile(new File(src), new File(target));
+            if (!src.equals(target) && !copyFile(new File(src), new File(target))) {
+                // 拷贝失败不许无条件 onSuccess：走本接口既有 onFailure 出口，
+                // 文件根本不在不报下载成功（批 residual）。
+                listener.onFailure(500, "本地文件拷贝失败：" + src);
+                return;
             }
             listener.onSuccess(target);
             return;
@@ -281,8 +284,9 @@ public final class HkCodeUtil {
     public static void downloadSync(String url, String savePath, Map<String, String> headers) throws Exception {
         if (url.startsWith("hiker://files/") || url.startsWith("file://") || url.startsWith("/")) {
             String src = HkJsRuntime.getFilePath(url);
-            if (!src.equals(savePath)) {
-                copyFile(new File(src), new File(savePath));
+            if (!src.equals(savePath) && !copyFile(new File(src), new File(savePath))) {
+                // 本方法契约本就 throws：拷贝失败抛出去，不许装作已下载（批 residual）。
+                throw new Exception("本地文件拷贝失败：" + src);
             }
             return;
         }
@@ -343,7 +347,8 @@ public final class HkCodeUtil {
         }
     }
 
-    private static void copyFile(File src, File dst) {
+    /** @return 是否真拷贝完整：写完按长度回读校验，残缺/失败回 false（批 residual）。 */
+    private static boolean copyFile(File src, File dst) {
         try {
             if (dst.getParentFile() != null) dst.getParentFile().mkdirs();
             try (InputStream in = new java.io.FileInputStream(src);
@@ -352,8 +357,10 @@ public final class HkCodeUtil {
                 int n;
                 while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
             }
+            return dst.isFile() && dst.length() == src.length();
         } catch (Exception e) {
             Log.e(TAG, "copyFile", e);
+            return false;
         }
     }
 

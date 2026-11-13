@@ -97,6 +97,16 @@ public class HkListActivity extends AppCompatActivity
     private static volatile String tempRuleKey;
     /** 原版 FilmListActivity.tempParentData 等价：#autoPage# 子页的父页续页数据静态槽（消费后清空）。 */
     private static volatile HkArticleFragment.AutoPageData tempParentData;
+
+    /**
+     * 官 FilmListActivity.tempParentData 为 public static 字段，官
+     * PageParser.goPageByPageUrl 在目标 url 含 #autoPage# 时直写 null 清槽
+     * （防上一父页的续页数据串入本次开页）；本树字段私有，以此公开清槽口
+     * 对位（2026-11-14 海阔缺口③团 PageParser.goPageByPageUrl 接缝）。
+     */
+    public static void clearTempParentData() {
+        tempParentData = null;
+    }
     private static final AtomicBoolean STATICS_READY = new AtomicBoolean(false);
     private static volatile WeakReference<Activity> currentRef;
 
@@ -509,7 +519,9 @@ public class HkListActivity extends AppCompatActivity
                                 albumName, sel.pic == null ? "" : sel.pic, arr.toString(), selIdx)) {
                             return;
                         }
-                    } catch (Throwable ignored) {
+                    } catch (Throwable t) {
+                        com.github.catvod.crawler.SpiderDebug.log("hk",
+                                "x5 radio-ask-title failed rule=%s err=%s", ruleTitle, t.toString());
                     }
                     // 直问未成：落回原分流（下面的 x5 网页支/startHkPlay 原链）
                 }
@@ -1011,7 +1023,10 @@ public class HkListActivity extends AppCompatActivity
                     Activity activity = currentActivity();
                     if (activity != null) importRuleText(activity, text);
                 });
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                // 下载文件检测失败不再静默不弹导入（残项处置 2026-11-14）。
+                Log.e(TAG, "checkDownloadedRuleFile failed", e);
+                HkRouteBlocker.toastShortBottom(App.get(), "规则文件读取失败，无法自动导入");
             }
         }).start();
     }
@@ -1209,7 +1224,9 @@ public class HkListActivity extends AppCompatActivity
                                 })
                                 .setNegativeButton("关闭", null)
                                 .show();
-                    } catch (Exception ignored) {
+                    } catch (Exception e) {
+                        Log.e(TAG, "shareRuleToCloud dialog failed", e);
+                        HkRouteBlocker.toastShortBottom(activity, "云口令弹窗失败");
                     }
                 });
             } catch (Exception e) {
@@ -2148,6 +2165,7 @@ public class HkListActivity extends AppCompatActivity
                 fileEditCallbackJs.clear();
                 HkRule currentRule = rule;
                 new Thread(() -> {
+                    int failed = 0;
                     for (String js : callbacks) {
                         try {
                             com.fongmi.android.tv.api.hk.HkJsRuntime rt =
@@ -2155,8 +2173,16 @@ public class HkListActivity extends AppCompatActivity
                             HkEngineManager.ensureInit(rt);
                             rt.evalJS(com.fongmi.android.tv.api.hk.HkJsRuntime.getMyRule(currentRule) + js, "");
                         } catch (Exception e) {
-                            Log.e(TAG, "hk error", e);
+                            failed++;
+                            Log.e(TAG, "文件编辑回调 JS 求值失败", e);
                         }
+                    }
+                    if (failed > 0) {
+                        // 回调失败不再静默不回灌（残项处置 2026-11-14）：汇总提示一次。
+                        final int failedCount = failed;
+                        runOnUiThread(() -> HkRouteBlocker.toastShortBottom(
+                                HkListActivity.this,
+                                "文件编辑回调执行失败（" + failedCount + " 条），页面可能未更新"));
                     }
                 }, "hk-file-edit-callback").start();
             }

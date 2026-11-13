@@ -68,7 +68,9 @@ public class HkAdUrlBlocker {
                         .getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE);
                 java.util.Set<String> set = sp.getStringSet(KEY_URLS, null);
                 if (set != null) globalUrls.addAll(set);
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                // 名单加载失败与「名单真空」要可区分：记日志（批 fix349）。
+                android.util.Log.e("HkAdUrlBlocker", "广告拦截名单加载失败", t);
             }
         }
         return globalUrls;
@@ -87,20 +89,25 @@ public class HkAdUrlBlocker {
         if (urls == null || urls.isEmpty()) return 0;
         List<String> cur = loadGlobal();
         java.util.Set<String> seen = new java.util.HashSet<>(cur);
-        int added = 0;
+        java.util.List<String> addedList = new java.util.ArrayList<>();
         for (String u : urls) {
             if (u == null) continue;
             String t = u.trim();
             if (t.isEmpty() || !seen.add(t)) continue;
             cur.add(t);
-            added++;
+            addedList.add(t);
         }
+        int added = addedList.size();
         if (added > 0) {
             try {
                 com.fongmi.android.tv.App.get()
                         .getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
                         .edit().putStringSet(KEY_URLS, new java.util.HashSet<>(cur)).apply();
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                // 落盘失败不许假报新增数：回滚内存新增并回 0（批 fix349）。
+                android.util.Log.e("HkAdUrlBlocker", "广告拦截名单保存失败，已回滚", t);
+                cur.removeAll(addedList);
+                return 0;
             }
         }
         return added;

@@ -59,15 +59,20 @@ public class GoogleLoginProvider implements LoginProvider {
     public void clear() {
         try {
             CloudAccountStore.clear(App.get(), ID);
-        } catch (Throwable ignored) {
+        } catch (Throwable e) {
+            android.util.Log.e("GoogleLoginProvider", "clear stored account failed", e);
         }
     }
 
     /** 登录成功后落盘托管（登录弹窗的 onLogin 回调调此口，与实例 clear/get 同一轨）。 */
-    public static void putCookie(String cookie) {
+    /** @return true=已落盘；false=保存失败（调用方据此不许报登录成功，见 DISPOSITION-part-shellapi） */
+    public static boolean putCookie(String cookie) {
         try {
             CloudAccountStore.saveCookie(App.get(), ID, cookie == null ? "" : cookie);
-        } catch (Throwable ignored) {
+            return true;
+        } catch (Throwable e) {
+            android.util.Log.e("GoogleLoginProvider", "save cookie failed", e);
+            return false;
         }
     }
 

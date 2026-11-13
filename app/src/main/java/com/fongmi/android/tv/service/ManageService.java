@@ -239,9 +239,12 @@ public class ManageService extends Service {
                 wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, BuildConfig.APPLICATION_ID + ":manage");
                 wakeLock.setReferenceCounted(false);
                 wakeLock.acquire();
+                // 获取后回读验证：没真持锁时后台任务会在息屏后被杀，必须留常开错误痕区分。
+                if (!wakeLock.isHeld()) android.util.Log.e("ManageService", "wakeLock acquire finished but lock not held");
             }
         } catch (Throwable e) {
             SpiderDebug.log("server", e);
+            android.util.Log.e("ManageService", "acquire wakeLock failed, background tasks may be killed on screen off", e);
         }
         try {
             WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
@@ -249,9 +252,11 @@ public class ManageService extends Service {
                 wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, BuildConfig.APPLICATION_ID + ":manage");
                 wifiLock.setReferenceCounted(false);
                 wifiLock.acquire();
+                if (!wifiLock.isHeld()) android.util.Log.e("ManageService", "wifiLock acquire finished but lock not held");
             }
         } catch (Throwable e) {
             SpiderDebug.log("server", e);
+            android.util.Log.e("ManageService", "acquire wifiLock failed, background transfers may be cut on screen off", e);
         }
     }
 

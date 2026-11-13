@@ -212,6 +212,9 @@ public class ProxySetting {
             return Proxy.arrayFrom(parseLines(rules, defaultUrl));
         } catch (Exception e) {
             SpiderDebug.log("proxy", "parse failed rulesLength=%s error=%s", rules.length(), e.getMessage());
+            // 解析失败与「没配代理」同回空表，流量会静默直连：补常开错误级留痕区分两者
+            // （isValidRules 消费方另有空表判假的成败通道）。
+            android.util.Log.e("ProxySetting", "proxy rules parse failed rulesLength=" + (rules == null ? 0 : rules.length()), e);
             return List.of();
         }
     }
