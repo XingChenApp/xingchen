@@ -71,6 +71,8 @@ public class HkHistoryActivity extends BaseActivity {
 
     @Override
     protected void initView(Bundle savedInstanceState) {
+        // 海阔面统一入口仪式：先过模块一次性接线（含 LitePal 存储层初始化）
+        com.fongmi.android.tv.ui.hk.HkListActivity.ensureStatics();
         binding.rvHistory.setLayoutManager(new LinearLayoutManager(this));
         adapter = new HistoryAdapter();
         binding.rvHistory.setAdapter(adapter);

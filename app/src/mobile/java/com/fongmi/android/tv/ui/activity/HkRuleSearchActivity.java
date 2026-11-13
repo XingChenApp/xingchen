@@ -76,6 +76,8 @@ public class HkRuleSearchActivity extends BaseActivity {
 
     @Override
     protected void initView(Bundle savedInstanceState) {
+        // 海阔面统一入口仪式：先过模块一次性接线（含 LitePal 存储层初始化）
+        com.fongmi.android.tv.ui.hk.HkListActivity.ensureStatics();
         // 海阔浅色页状态栏：透明＋深色图标（BaseActivity 默认白图标，浅底上看不清，这里盖掉）；
         // 液态玻璃动态背景（LinearLayout 根走 decor 注入，画到状态栏底下）
         EdgeToEdge.enable(this,

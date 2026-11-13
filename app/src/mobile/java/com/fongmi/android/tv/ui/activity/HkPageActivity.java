@@ -325,6 +325,8 @@ public class HkPageActivity extends BaseActivity {
 
     @Override
     protected void initView(Bundle savedInstanceState) {
+        // 海阔面统一入口仪式：先过模块一次性接线（含 LitePal 存储层初始化）
+        com.fongmi.android.tv.ui.hk.HkListActivity.ensureStatics();
         String groupExtra = getIntent().getStringExtra("rule_group");
         if (!TextUtils.isEmpty(groupExtra)) ruleGroup = groupExtra;
         String editExtra = getIntent().getStringExtra("edit_rule_title");

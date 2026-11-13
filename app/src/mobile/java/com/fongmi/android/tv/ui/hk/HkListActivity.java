@@ -328,11 +328,18 @@ public class HkListActivity extends AppCompatActivity
         return s.trim();
     }
 
-    /** 全套静态接线一次性初始化（引擎单例桥 + DetailBridge + 活动供给 + Fuck 名单）。 */
-    /** 桥与静态接线（搜索宿主同包共用，故包内可见）。 */
-    static void ensureStatics() {
+    /** 全套静态接线一次性初始化（LitePal 存储层 + 引擎单例桥 + DetailBridge + 活动供给 + Fuck 名单）。 */
+    /** 桥与静态接线（各海阔面进入时统一调用，故 public）。 */
+    public static void ensureStatics() {
         if (!STATICS_READY.compareAndSet(false, true)) return;
         Context app = App.get();
+        // 海阔存储层（LitePal）初始化收口在此（2026-11-14 口径）：官在
+        // Application 初始化是因为官整包就是海阔；咱家海阔是模块，初始化不进
+        // App 启动链，只在任一海阔面进入、经本一次性接线点时完成（CAS 保证
+        // 只跑一次），且排在桥与引擎装配之前——模块内一切碰库代码都在接线
+        // 之后。配置走 assets/litepal.xml（名单只列树内真实存在的类）。
+        org.litepal.LitePal.initialize(app);
+        org.litepal.LitePal.getDatabase().disableWriteAheadLogging();
         HkEngineBridge engineBridge = new HkEngineBridge(app);
         HkArticleListModel.setEngineBridge(engineBridge);
         HkCommonParser.setJsEval((rule, js, input) -> {

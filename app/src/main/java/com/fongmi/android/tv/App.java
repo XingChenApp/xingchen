@@ -118,17 +118,11 @@ public class App extends Application implements Application.ActivityLifecycleCal
         // 口径与 startBackgroundServices 的注释一致：非主进程什么都不起，
         // 只留 Application 本体供系统在该进程拉起页面（崩溃页/恢复页）。
         if (!PlaybackRecoveryMonitor.isMainProcess(this)) return;
-        // 海阔 LitePal 存储层照官接法（①团记名）：官 ui.Application.onCreate:130-131 为
-        // LitePal.initialize(context) 后 LitePal.getDatabase().disableWriteAheadLogging()，
-        // 官 Application 继承的是 android.app.Application（非 LitePalApplication）；
-        // 咱家等价接进本类 onCreate 主进程守卫之后、其余初始化之前（记名接点）。
-        // 配置走 assets/litepal.xml（dbname=hiker、version=54 与官同；mapping 只列树内
-        // 真实存在的 6 类——官名单另 8 名 MovieRuleDO/XiuTanFavor/AdBlockRule/AdBlockUrl/
-        // SearchEngineDO/UaRuleDO/SharedAdUrl/BigTextDO 在咱家无类、语义已由 SP 等载体承接，
-        // 不入名单：LitePal 建表逐个 Class.forName，死名在名单里启动即抛
-        // DatabaseGenerateException，1.4.130 曾因此点图标闪退）。
-        org.litepal.LitePal.initialize(this);
-        org.litepal.LitePal.getDatabase().disableWriteAheadLogging();
+        // 海阔 LitePal 存储层不在启动链初始化（2026-11-14 他亲定口径）：官把
+        // LitePal.initialize 放在 Application 是因为官整包就是海阔；咱家海阔是
+        // 模块，初始化收口到模块一次性接线点 HkListActivity.ensureStatics，
+        // 任一海阔面进入时先完成、只跑一次。此处不碰它——名单/建表问题从此
+        // 杀不了进程启动（1.4.130 曾因此点图标闪退）。
         // 实验室自启抢在已选配置首读之前：配置首读在 HomeActivity.initConfig，
         // 比这里晚得多；已选配置若是实验室服务的本地回环地址（如样本服务
         // http://127.0.0.1:<分配端口>/），服务没拉起来首读必然连不上、每次冷启
