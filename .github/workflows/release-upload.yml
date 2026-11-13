@@ -12,6 +12,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           artifact-ids: 14078380021
+          run-id: 43508208347
+          github-token: ${{ github.token }}
           path: art
       - name: Upload APK to release v1.4.130
         env:
