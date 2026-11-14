@@ -164,7 +164,9 @@ public final class PatchInstaller {
             if (rc != 0 || !outApk.isFile() || outApk.length() == 0) {
                 logLine(log, "门4 失败：拼包核返回 " + rc + "，耗时 " + costMs + "ms");
                 if (rc == -1001)
-                    throw new Fail(4, "拼包核没加载起来（这台机器的芯片用不了补丁更新）。把这句原样发我看。");
+                    throw new Fail(4, "拼包核没加载起来（拼包库文件加载失败）。把这句原样发我看。");
+                if (rc == -1002)
+                    throw new Fail(4, "拼包核调用失败（拼包库接口对不上）。把这句原样发我看。");
                 throw new Fail(4, "拼包没拼成（拼包核返回 " + rc + "）。把这句原样发我看。");
             }
             logLine(log, "门4 拼包：通过（" + outApk.length() + " 字节，耗时 " + costMs / 1000.0 + "s）");
@@ -216,14 +218,23 @@ public final class PatchInstaller {
     }
 
     /** 拼包核调用（ApkDiffPatch 安卓端，与桌面 ZipPatch 同一 C++ 核）。
-     * 加载失败（如非 arm64 机型没有这份 .so）会以 Error 抛出，这里收成错误码 -1001 走门 4 显形。 */
+     * 两段分开收码、分开报：ensureLoaded 触发声明类初始化与 .so 加载，
+     * 失败收 -1001（加载失败）；真调用时符号链接不上或调用抛错收 -1002
+     * （链接/调用失败）——1.4.133 真机那次是 .so 在、JNI 符号名对不上，
+     * 属 -1002，两段不许再混成一句误导文案。 */
     private static int runPatchCore(String basePath, String patchPath, String outPath, String tempPath) {
         int threads = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
         try {
+            ApkPatch.ensureLoaded();
+        } catch (Throwable t) {
+            android.util.Log.e("XcPatch", "拼包核加载失败", t);
+            return -1001;
+        }
+        try {
             return ApkPatch.patch(basePath, patchPath, outPath, 512L * 1024 * 1024, tempPath, threads);
         } catch (Throwable t) {
-            android.util.Log.e("XcPatch", "拼包核加载/调用失败", t);
-            return -1001;
+            android.util.Log.e("XcPatch", "拼包核链接/调用失败", t);
+            return -1002;
         }
     }
 

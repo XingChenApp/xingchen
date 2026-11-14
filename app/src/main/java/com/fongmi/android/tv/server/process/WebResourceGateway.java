@@ -14,6 +14,7 @@ import com.github.catvod.net.SourceGate;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -70,6 +71,11 @@ public class WebResourceGateway implements Process {
             CookieBridge.apply(builder.build().url(), builder, "include".equals(params.get("credentials")), HeaderPolicy.hasCookie(headers));
             builder.method(getMethod(session), getBody(session, builder.build().headers(), files));
             Request request = builder.build();
+            // 取证（鉴黄师子列表 403 案）：票到底有没有真挂上上游腿，导出日志里
+            // 网址全被脱敏、无从判读——发上游前把实发头形态记一行：只记 Cookie
+            // 有无与长度、不记值，UA/Referer 只记有无，credentials 记实收形态。
+            String sentCookie = request.header("Cookie");
+            SpiderDebug.log("web-resource", "upstream send host %s cookie %s length %d ua %s referer %s credentials %s", request.url().host(), sentCookie == null || sentCookie.isEmpty() ? "absent" : "present", sentCookie == null ? 0 : sentCookie.length(), request.header("User-Agent") == null ? "absent" : "present", request.header("Referer") == null ? "absent" : "present", "include".equals(params.get("credentials")) ? "include" : "none");
             long start = System.currentTimeMillis();
             SpiderDebug.log("web-resource", "%s %s", request.method(), request.url());
             response = OkHttp.client().newCall(request).execute();
@@ -137,6 +143,7 @@ public class WebResourceGateway implements Process {
             String rewritten = M3u8.rewrite(base, text, target -> wrapSegment(params, target));
             byte[] bytes = rewritten.getBytes(StandardCharsets.UTF_8);
             SpiderDebug.log("web-resource", "playlist rewritten base=%s bytes=%s->%s", base, raw.length, bytes.length);
+            logSubListPairs(text, rewritten);
             Response result = NanoHTTPD.newFixedLengthResponse(status, "application/vnd.apple.mpegurl; charset=utf-8", new ByteArrayInputStream(bytes), bytes.length);
             copyHeaders(response, result);
             return result;
@@ -144,6 +151,71 @@ public class WebResourceGateway implements Process {
         Response result = NanoHTTPD.newFixedLengthResponse(status, getContentType(response), new ByteArrayInputStream(raw), raw.length);
         copyHeaders(response, result);
         return result;
+    }
+
+    /**
+     * 取证（鉴黄师子列表 403 案）：改写有没有打坏子列表行的签名，靠原始行与
+     * 改写后行成对判读——只记子列表行（.m3u8/.m3u），每行只落 host、path 与
+     * query 的键名及各值长度、不落值（全值会被日志脱敏整段抹掉、键与长度是
+     * 验签形态的判读面）。改写保持行序行数，逐行对位；上限 8 行防大表刷屏。
+     */
+    private void logSubListPairs(String text, String rewritten) {
+        String[] rawLines = text.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
+        String[] newLines = rewritten.split("\n", -1);
+        int logged = 0;
+        for (int i = 0; i < rawLines.length && i < newLines.length && logged < 8; i++) {
+            String raw = rawLines[i].trim();
+            if (raw.isEmpty() || raw.startsWith("#") || !M3u8.isPlaylistUrl(raw)) continue;
+            SpiderDebug.log("web-resource", "playlist sub raw %s wrapped %s", urlShape(raw), urlShape(newLines[i].trim()));
+            logged++;
+        }
+    }
+
+    /** 地址形态：host＋path＋query 键名与值长（不含值）；网关址先剥壳取内包真址再拆。 */
+    private String urlShape(String url) {
+        String value = url;
+        int marker = value.indexOf("/webResource?url=");
+        if (marker >= 0) {
+            String rest = value.substring(marker + "/webResource?url=".length());
+            int amp = rest.indexOf('&');
+            if (amp >= 0) rest = rest.substring(0, amp);
+            try {
+                value = URLDecoder.decode(rest, StandardCharsets.UTF_8);
+            } catch (Throwable ignored) {
+                value = rest;
+            }
+        }
+        int frag = value.indexOf('#');
+        if (frag >= 0) value = value.substring(0, frag);
+        String head = value;
+        String query = "";
+        int q = value.indexOf('?');
+        if (q >= 0) {
+            head = value.substring(0, q);
+            query = value.substring(q + 1);
+        }
+        String host = "";
+        String path = head;
+        int scheme = head.indexOf("://");
+        if (scheme >= 0) {
+            String rest = head.substring(scheme + 3);
+            int slash = rest.indexOf('/');
+            host = slash >= 0 ? rest.substring(0, slash) : rest;
+            path = slash >= 0 ? rest.substring(slash) : "/";
+        }
+        StringBuilder shape = new StringBuilder("host ").append(host).append(" path ").append(path).append(" qkeys ");
+        if (query.isEmpty()) {
+            shape.append("none");
+        } else {
+            String[] pairs = query.split("&", -1);
+            for (int i = 0; i < pairs.length; i++) {
+                if (i > 0) shape.append(',');
+                int eq = pairs[i].indexOf('=');
+                if (eq >= 0) shape.append(pairs[i].substring(0, eq)).append('(').append(pairs[i].length() - eq - 1).append(')');
+                else shape.append(pairs[i]).append("(-)");
+            }
+        }
+        return shape.toString();
     }
 
     /** 分段/子列表/密钥地址包回网关：与列表请求同一套参数（头、凭证、源归属），取数路一字不变。 */

@@ -6385,20 +6385,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // 本地用生产同款 Rhino 1.7.15 实测：加载跑通、$.require('engine').home() 能真实返回结果。
         // 此前这里有一段手敲仿写的 $ 预置（照反编译重写 $require 等），与资产 $ 互相覆盖且错漏连环
         // （三处转义写错曾让整段在解析期全灭），已整段删除，不再与官方实现并存。
-        // 仅保留 Uint8Array 垫片：Rhino 无此内建，部分规则/加密代码会用到，官方 $ 不提供。
-        try {
-            evalJs(
-                "function Uint8Array(a) {\n" +
-                "  var r = [];\n" +
-                "  if (typeof a === 'number') { for (var i = 0; i < a; i++) r.push(0); }\n" +
-                "  else if (a && typeof a.length === 'number') { for (var j = 0; j < a.length; j++) r.push(a[j] & 255); }\n" +
-                "  return r;\n" +
-                "}\n"
-            );
-        } catch (Throwable e) {
-            Logger.t(TAG).e(e, "Uint8Array shim failed");
-            throw new RuntimeException("Uint8Array 垫片安装失败：" + e.getMessage(), e);
-        }
+        // Uint8Array 不另加垫片：咱家 Rhino 1.7.15 的 initStandardObjects 已原生
+        // 挂载 NativeUint8Array（typeof Uint8Array === "function"，实测同官），
+        // 官方亦无此垫片；旧自加假垫片走 evalJs 读未赋值字段 scope，装配期必崩，已摘。
     }
 
     /** 8.83 AesUtil 同款（encrypt/decrypt）：AES/ECB/PKCS5Padding；密钥补"0"到 32 字节（只补不截）；

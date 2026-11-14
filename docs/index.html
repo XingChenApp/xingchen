@@ -1,11 +1,35 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>星辰 · 下载</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>星辰播放器 · 下载</title>
+<!-- 下载直跳页（潇洒哥 2026-11-11 亲定）：点开即跳最新朋友版安装包，不落介绍页。
+     包名口径：朋友版发布资产名 = xingchen-arm64_v8a-<版本号>.apk（架构在前、版本在后），
+     文件名带版本、不写死——本页运行时查老仓 releases/latest、挑其中 .apk 资产直跳；
+     查不到/取不到时兜底跳发布页。 -->
+<meta http-equiv="refresh" content="5; url=https://github.com/XingChenApp/xingchen/releases">
+<script>
+(function () {
+  var FALLBACK = "https://github.com/XingChenApp/xingchen/releases";
+  function go(url) { window.location.replace(url); }
+  try {
+    fetch("https://api.github.com/repos/XingChenApp/xingchen/releases/latest", { headers: { "Accept": "application/vnd.github+json" } })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (rel) {
+        var assets = (rel && rel.assets) || [];
+        for (var i = 0; i < assets.length; i++) {
+          var a = assets[i];
+          if (a && /\.apk$/i.test(a.name || "") && a.browser_download_url) { go(a.browser_download_url); return; }
+        }
+        go(FALLBACK);
+      })
+      .catch(function () { go(FALLBACK); });
+  } catch (e) { go(FALLBACK); }
+})();
+</script>
 </head>
 <body>
-<p>新版暂时下架，稍后再来。</p>
+<p>正在前往下载…没有自动跳转请点 <a href="https://github.com/XingChenApp/xingchen/releases">这里打开下载页</a>。</p>
 </body>
 </html>

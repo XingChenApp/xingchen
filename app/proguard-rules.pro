@@ -181,6 +181,13 @@
 -keep class * extends org.litepal.crud.LitePalSupport { *; }
 -keep class * extends org.litepal.crud.DataSupport { *; }
 
+# 补丁拼包核 JNI 口（账 xc-delta-update）：libapkpatch.so 的唯一 JNI 入口
+# Java_com_github_sisong_ApkPatch_patch 按声明类全限定名写死、无 JNI_OnLoad，
+# 声明类 com.github.sisong.ApkPatch 类名一改（含 R8 改名）首次调用必抛
+# UnsatisfiedLinkError（1.4.133 真机补丁门 4 实锤，当时声明落自家包名）。
+# 整类保名，成品审计逐版验名＋验符号对位。
+-keep class com.github.sisong.ApkPatch { *; }
+
 # 海阔模型：Gson 按字段名序列化/反序列化（MY_RULE、hiker://page 规则体），字段名不能改
 -keep class com.fongmi.android.tv.api.hk.HkRule { *; }
 -keep class com.fongmi.android.tv.api.hk.HkPageRule { *; }
