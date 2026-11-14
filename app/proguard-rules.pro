@@ -336,3 +336,9 @@
 -dontwarn org.joda.**
 -dontwarn org.javamoney.**
 -dontwarn springfox.**
+# 135 全族保名后补三系：support.spring/jaxrs/retrofit 集成类随全族 keep 成根，
+# 其可选框架本体不在安卓依赖内（服务端适配、安卓永不触发），135 首编 R8
+# 缺类 37 条全出自此三系，与上四系同口径 dontwarn 放行（keep 本体不动）。
+-dontwarn org.springframework.**
+-dontwarn org.glassfish.jersey.**
+-dontwarn retrofit2.**
