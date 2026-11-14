@@ -35,6 +35,7 @@ import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.DanmakuApi;
 import com.fongmi.android.tv.api.SiteApi;
+import com.fongmi.android.tv.clash.ClashGate;
 import com.fongmi.android.tv.bean.Danmaku;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Sub;
@@ -197,6 +198,8 @@ public class PlayerManager implements ParseCallback {
     private VideoSize videoSize;
     private ParseJob parseJob;
     private PlaySpec spec;
+    /** 在播源归属（节点决策层会话绑定值）：start/parse 时绑、stop/release 时按值解。 */
+    private String[] gateSession;
     private Player player;
     private String currentDanmakuUrl;
     private String currentDanmakuKey;
@@ -355,6 +358,7 @@ public class PlayerManager implements ParseCallback {
     }
 
     public void release() {
+        unbindGateSession();
         if (player == null) return;
         com.fongmi.android.tv.api.HomePrewarm.playbackActive = false; // 首页预热恢复推进
         logStopAction("release");
@@ -1296,9 +1300,27 @@ public class PlayerManager implements ParseCallback {
         unregisterNoisyReceiver();
     }
 
+    /**
+     * 在播源归属绑定：起播关口（start/parse）把当前条目的源归属绑进节点
+     * 决策层（SourceGate 会话层），播放器取流线程没有线程打点、流媒体 host
+     * 又多为未登记 CDN，靠它认源走节点；停播/释放按值解绑。归属解析不出
+     * （本地文件、听书/朗读合成 key）不绑，维持 host 认领与全局口径原裁决。
+     */
+    private void bindGateSession(String key) {
+        unbindGateSession();
+        gateSession = ClashGate.bindPlayback(App.get(), key);
+    }
+
+    private void unbindGateSession() {
+        if (gateSession == null) return;
+        ClashGate.unbindPlayback(gateSession);
+        gateSession = null;
+    }
+
     public void stop() {
         com.fongmi.android.tv.api.HomePrewarm.playbackActive = false; // 首页预热恢复推进
         logStopAction("stop");
+        unbindGateSession();
         prepareSeq++;
         stopNativeAudioSession();
         clearDanmaku("stop");
@@ -3596,6 +3618,7 @@ public class PlayerManager implements ParseCallback {
         clearPendingSwitchRestore();
         clearDanmaku("start");
         this.spec = spec;
+        bindGateSession(spec == null ? null : spec.getKey());
         pendingInitialStartPositionMs = positionMs > 0 ? positionMs : C.TIME_UNSET;
         prepareMpvOutputForNewItem();
         beginPlaybackTrace("start", false);
@@ -3621,6 +3644,7 @@ public class PlayerManager implements ParseCallback {
         clearPendingSwitchRestore();
         clearDanmaku("parse");
         spec = PlaySpec.fromParse(result, key, metadata, useParse);
+        bindGateSession(key);
         pendingInitialStartPositionMs = positionMs > 0 ? positionMs : C.TIME_UNSET;
         prepareMpvOutputForNewItem();
         beginPlaybackTrace("parse", false);

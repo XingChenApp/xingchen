@@ -75,7 +75,7 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
     private boolean isLoading;
     /** 首拉（initData 第一发）是否已落地（bind/error 任一收尾到达）。 */
     private boolean firstLoadSettled;
-    /** 首拉未收尾时被 resumed 守卫挡下的 refreshPage 事件（只留最新一发的 scrollTop），首拉落地后补发。 */
+    /** 页面未 resumed 时被挡下的 refreshPage 事件（只留最新一发的 scrollTop），页面 resumed 后补发（见 onRefreshPage/drainPendingHostRefresh）。 */
     private Boolean pendingHostRefreshScrollTop;
     private boolean isReadTheme;
     /** 环42：#autoReader# 链累积的阅读组件章节表（映射层，见 HkAutoReaderMapper）。 */
@@ -488,28 +488,35 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
     }
 
     /**
-     * 照抄原版 onRefreshPage(OnRefreshPageEvent)：脚本调 refreshPage() 发来的刷新事件；
-     * 本页可见时按事件的 scrollTop 回顶并整页重取（宿主暂停/不可见时忽略，同原版）。
+     * onRefreshPage(OnRefreshPageEvent)：脚本调 refreshPage() 发来的刷新事件。
+     * 官账（8.83 ArticleListFragment.onRefreshPage，源行 1128-1149）：丢弃门只有
+     * 两道——宿主 Activity 处于 onPause（MainActivity 另有 forceRefresh 豁免）、
+     * 本页不可见（getUserVisibleHint 为假时静默忽略）；可见时立即整页重取，
+     * 没有 Fragment resumed 门、没有首拉收尾概念。咱家宿主恒为 HkListActivity，
+     * 等价形态：本页可见、只差 resumed 这一步时不丢——记下 scrollTop，
+     * resumed 后由 drainPendingHostRefresh 补跑一遍（与首拉窗补发同源：首拉
+     * 未收尾的子格由 onFirstLoadSettled 触发补发，已收尾的子格由 onResume
+     * 触发补发）。本页不可见时仍按官忽略，只记日志不补发（旁格 B，另判）。
      */
     @org.greenrobot.eventbus.Subscribe(threadMode = org.greenrobot.eventbus.ThreadMode.MAIN)
     public void onRefreshPage(com.fongmi.android.tv.api.hk.event.home.OnRefreshPageEvent event) {
         if (event == null || getActivity() == null || getActivity().isFinishing()) return;
         if (!isResumed() || !getUserVisibleHint()) {
-            // 守卫的本意是宿主暂停/不可见时忽略；但「首拉未收尾、只差 resumed
-            // 这一步」是页面正在装载的技术窗——「首跑只做装配＋refreshPage、
-            // 数据在刷新后那一跑才出」写法的规则（聚合框架常见）在这窗里发的
-            // 刷新若被吞，首拉必然空转、下拉才出（账 hk-import-firstload-empty-dig
-            // §五候选 2）。此窗内不吞：记下 scrollTop，首拉落地后补发一次
-            // （见 onFirstLoadSettled/drainPendingHostRefresh）。首拉已收尾或
-            // 本页不可见时被挡，仍按原版忽略，不记。
-            if (!isResumed() && getUserVisibleHint() && !firstLoadSettled) {
+            // 「首跑只做装配＋refreshPage、数据在刷新后那一跑才出」写法的规则
+            // （聚合框架常见）发的刷新常落在本页未 resumed 的技术窗里：首拉
+            // 未收尾时事件先于首拉结果到达、已收尾时首拉（装配＋回空表）先于
+            // onResume 落地——两格都记下待补发，不丢（账
+            // hk-rule-load-slow-20261114 §四格 A、§六）。
+            if (!isResumed() && getUserVisibleHint()) {
                 pendingHostRefreshScrollTop = event.isScrollTop();
-                SpiderDebug.log("hk", "onRefreshPage 首拉窗记下待补发 rule=%s scrollTop=%s",
-                        articleListRule == null ? "" : articleListRule.getTitle(), event.isScrollTop());
+                SpiderDebug.log("hk", "onRefreshPage 首拉窗记下待补发 rule=%s scrollTop=%s settled=%s",
+                        articleListRule == null ? "" : articleListRule.getTitle(), event.isScrollTop(),
+                        firstLoadSettled);
                 return;
             }
-            SpiderDebug.log("hk", "onRefreshPage 守卫拦截 rule=%s resumed=%s visible=%s",
-                    articleListRule == null ? "" : articleListRule.getTitle(), isResumed(), getUserVisibleHint());
+            SpiderDebug.log("hk", "onRefreshPage 守卫拦截 rule=%s resumed=%s visible=%s settled=%s",
+                    articleListRule == null ? "" : articleListRule.getTitle(), isResumed(), getUserVisibleHint(),
+                    firstLoadSettled);
             return;
         }
         refreshFromHost(event.isScrollTop());
@@ -967,10 +974,11 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
 
     /**
      * 照 8.83 ArticleListFragment.onItemModify 全支（源行 5019 起，lambda58/59/60）：
-     * 前置静默门（宿主 null/finishing、adapter null、列表空 → return）后四路——
+     * 前置门（宿主 null/finishing、adapter null、列表空 → return；其中 adapter/列表空
+     * 一格 2026-11-14 起带 hkimage 落点日志，P2 观测）后四路——
      * DELETE+cls 走 lambda58（hasCls 两趟删＋通知形态）；DELETE+list 走 lambda59
      * 批量删后 return；ADD/UPDATE/DELETE 单条走 lambda60（锚扫 adapter 首命中、
-     * 无命中静默 return）。锚恒为 extra.id：ADD/UPDATE 取 event.anchorId、
+     * 无命中 return，带 hkimage 落点日志）。锚恒为 extra.id：ADD/UPDATE 取 event.anchorId、
      * DELETE 单条取桩条目 extra.id，url 不参与（环30 D30-1 补全：此前只有
      * DELETE+cls 一支，展示后 updateItem/addItem/deleteItem 屏上恒无-op）。
      */
@@ -978,7 +986,13 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
     public void onItemModify(ItemModifyEvent event) {
         if (event == null || event.getAction() == null) return;
         if (getActivity() == null || getActivity().isFinishing()) return;
-        if (adapter == null || adapter.getList().isEmpty()) return;
+        if (adapter == null || adapter.getList().isEmpty()) {
+            // P2 回填蒸发格①落点（纯观测，见 hk-rule-load-slow 第七节）：回填事件赶在首绑落地前到达、列表尚空。
+            SpiderDebug.log("hkimage", "onItemModify 丢弃 格=首绑前列表空 action=%s anchorId=%s cls=%s adapterNull=%s",
+                    String.valueOf(event.getAction()), String.valueOf(event.getAnchorId()),
+                    String.valueOf(event.getCls()), adapter == null);
+            return;
+        }
         if (event.getAction() == ItemModifyEvent.Action.DELETE
                 && !TextUtils.isEmpty(event.getCls())) {
             onItemModifyDeleteByCls(event.getCls());
@@ -1001,7 +1015,12 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         if (TextUtils.isEmpty(anchor)) return;
         List<HkItem> list = adapter.getList();
         int index = indexOfExtraId(list, anchor);
-        if (index < 0) return;
+        if (index < 0) {
+            // P2 回填蒸发格②落点（纯观测，见 hk-rule-load-slow 第七节）：锚扫 adapter 全表未命中。
+            SpiderDebug.log("hkimage", "onItemModify 丢弃 格=锚未命中 action=%s anchor=%s listSize=%d",
+                    String.valueOf(event.getAction()), anchor, list.size());
+            return;
+        }
         try {
             if (index >= list.size()) return;
             switch (event.getAction()) {
@@ -3420,9 +3439,20 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
             boolean collect = cleared.equals(itemCleared) || !TextUtils.isEmpty(codeAndHeader)
                     || detailBridge.canParseX5(item.getUrl()) || detailBridge.canParseWebkit(item.getUrl());
             boolean byPlayDataOnly = !collect && HkListActivity.playDataOf(url) != null;
+            // 他亲裁（2026-11-14，偏离 8.83 一步、记名）：当前页是规则首页/目录页
+            // （本实例 listHost=false——startRule 开页信号，宿主建实例时定死、实例
+            // 内不再变）时，点封面直进只收点中一条，不把整页同段链接全拉进选集。
+            // 收口特征＝无详情页型规则在其唯一页（首页）走媒体直进这一格；有详情
+            // 页的规则首页条目是进详情页的地址、根本不进本支（推演见账
+            // hk-home-directplay-chapters-20261114 落码节）。落法与 byPlayDataOnly
+            // 同形：仍走章节路径、只带被点这条（singleChapter），getChapters 的
+            // 收集口径一行不动；详情页/子页（listHost=true）原样。他已接受的
+            // 代价：极少数首页本身即一部剧集列表的规则，点封面也只剩点中一条。
+            boolean byHomeOnly = collect && !listHost;
+            boolean singleOnly = byPlayDataOnly || byHomeOnly;
             // 定根诊断：记 collect 定值与实际走的分支（单播/单集章节/收全选集），不记地址内容
-            SpiderDebug.log("hk", "collect-branch collect=%b byPlayDataOnly=%b branch=%s", collect, byPlayDataOnly,
-                    byPlayDataOnly ? "single-chapter" : (!collect ? "single" : "chapters"));
+            SpiderDebug.log("hk", "collect-branch collect=%b byPlayDataOnly=%b byHomeOnly=%b branch=%s", collect, byPlayDataOnly, byHomeOnly,
+                    singleOnly ? "single-chapter" : (!collect ? "single" : "chapters"));
             // 电台问询（媒体支补问，与下方非媒体支的问询前置同口径）：媒体门
             // 认出的地址此前直奔 startHkPlay，那里只认规则名——规则名不含
             // 电台字时（如「一个APP」电台帖里的「播放音频」钮解出真音频
@@ -3436,7 +3466,7 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                 int sig = com.fongmi.android.tv.ui.HkRadioRouter.claimSignal(rTitle, actTitle, itemTitle);
                 if (sig >= 2) {
                     dealBranchMark("radio-ask-media", url);
-                    java.util.List<HkChapter> chs = byPlayDataOnly
+                    java.util.List<HkChapter> chs = singleOnly
                             ? singleChapter(url, position, titlePrefix, codeAndHeader)
                             : getChapters(url, position, titlePrefix, codeAndHeader);
                     int sel = 0;
@@ -3454,11 +3484,11 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                     // 认领未成：落回下方原分发
                 }
             }
-            if (!collect && !byPlayDataOnly) {
+            if (!collect && !singleOnly) {
                 detailBridge.startPlayerSingle(getActivity(), itemTitle, url);
                 return;
             }
-            java.util.List<HkChapter> chapters = byPlayDataOnly
+            java.util.List<HkChapter> chapters = singleOnly
                     ? singleChapter(url, position, titlePrefix, codeAndHeader)
                     : getChapters(url, position, titlePrefix, codeAndHeader);
             android.os.Bundle bundle = new android.os.Bundle();

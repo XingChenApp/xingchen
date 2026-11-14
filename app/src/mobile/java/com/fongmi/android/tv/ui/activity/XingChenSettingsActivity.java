@@ -19,6 +19,7 @@ import com.fongmi.android.tv.ui.dialog.PatchDialog;
 import com.fongmi.android.tv.utils.AppVersion;
 import com.fongmi.android.tv.utils.FileUtil;
 import com.fongmi.android.tv.utils.Notify;
+import com.fongmi.android.tv.utils.PreviousProcessExitLogger;
 import com.fongmi.android.tv.utils.XingChenDoh;
 
 import java.io.File;
@@ -50,6 +51,7 @@ public class XingChenSettingsActivity extends BaseActivity {
         // 补丁更新：纯本地拼包（不联网、不查版），点入口选补丁文件才动。
         PatchInstaller.cleanStale(this);
         binding.cardPatch.setOnClickListener(v -> patchLauncher.launch(new String[]{"application/octet-stream"}));
+        refreshLastExit();
         updateDohSub();
         binding.cardDoh.setOnClickListener(v -> ChoiceDialog.showSingle(getSupportFragmentManager(), "DoH", XingChenDoh.NAMES, XingChenDoh.getIndex(this), which -> {
             XingChenDoh.setIndex(this, which);
@@ -76,9 +78,16 @@ public class XingChenSettingsActivity extends BaseActivity {
         binding.tvDohSub.setText(XingChenDoh.getName(this));
     }
 
+    // 「上次退出」只展示不挂点击：logger 启动时已把最新一条主进程死因落盘，这里只读回拼行。
+    private void refreshLastExit() {
+        String summary = PreviousProcessExitLogger.lastExitSummary();
+        binding.tvLastExitSub.setText(summary != null ? summary : "无记录");
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
+        refreshLastExit();
         updateDohSub();
     }
 

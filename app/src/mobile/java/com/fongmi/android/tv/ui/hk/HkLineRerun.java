@@ -24,7 +24,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 子页加载，再按与详情页 getChapters 同口径的过滤收集，交回播放页替换该线路的选集。
  *
  * 章节过滤（chapterCandidate 及其辅助判据）与 HkArticleFragment 的现行实现同口径
- * 复制一份在本文件：收集层若再改口径（正表化等），此处必须同步——两处分叉即新坑。
+ * 复制一份在本文件：判据只有排除表、无 URL 形态门（官 getChapters 本无形态判据；
+ * 星辰自加的 isPlayableChapterForm 已在 135 随详情页摘除，本处同步摘净）。两处
+ * 差别只在收集范围——详情页按被点条目定同 type 段窗、本处子页全表无被点条目；
+ * 过滤判据本身必须逐条一致，改口径须两处同步——两处分叉即新坑。
  * isDupTitleEntry 依赖「被点条目」概念、重跑页没有被点条目，不适用，未复制。
  *
  * 回调线程：bind/error 来自模型 IO 线程，原样透传；调用方（播放页）负责切主线程。
@@ -249,46 +252,12 @@ public final class HkLineRerun {
                 ? url.substring("pics://".length()) : url;
         if (!TextUtils.isEmpty(pic) && urlBare.equals(pic)) return false;
         if (playList && !isSamePlayList(playListCls, item)) return false;
-        // 正表形态门（与 HkArticleFragment 现行同口径：直链族/@lazyRule/PlayData/P2P
-        // 四形之外不收），被拦条目同样打日志点便于核样本。
-        if (!isPlayableChapterForm(url)) {
-            try {
-                com.github.catvod.crawler.SpiderDebug.log("hk", "rerun chapter dropped by form-gate url=%s title=%s",
-                        url, item.getTitle());
-            } catch (Throwable ignored) {
-            }
-            return false;
-        }
+        // 正表形态门两处均无（与 HkArticleFragment 现行同口径）：官 getChapters
+        // 无 URL 形态判据，星辰全表扫时代自加的 isPlayableChapterForm 已在 135
+        // 随详情页一并摘除。本处是子页全表收集（无被点条目、无段窗可依），
+        // 判据仍只到上面的排除表为止——不许再自加形态门把四形之外的可播
+        // 地址拦掉（复查账 P2：两处口径曾在这一步分家，此后须同步）。
         return true;
-    }
-
-    /** 能播的集的地址正表，与 HkArticleFragment.isPlayableChapterForm 同口径复制。 */
-    private static boolean isPlayableChapterForm(String url) {
-        if (url.contains("@lazyRule=")) return true;
-        String t = url.trim();
-        if (t.startsWith("{") && t.contains("\"urls\"")) return true;
-        String l = t.toLowerCase();
-        if (com.fongmi.android.tv.api.hk.HkRouter.isP2pPlayLink(t)) return true;
-        if (l.startsWith("js:")) return true;
-        int sep = l.indexOf("://");
-        if (sep < 0) return true;
-        switch (l.substring(0, sep)) {
-            case "http":
-            case "https":
-            case "rtsp":
-            case "rtmp":
-            case "rtmps":
-            case "udp":
-            case "mms":
-            case "file":
-            case "content":
-            case "webrule":
-            case "video":
-            case "x5play":
-                return true;
-            default:
-                return false;
-        }
     }
 
     private static boolean isEmptyPlaceholder(String url) {

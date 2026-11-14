@@ -1,6 +1,8 @@
 package com.example.hikerview.ui.view.popup;
 
 import android.content.Context;
+import android.graphics.Color;
+import android.widget.ImageView;
 
 import com.example.hikerview.R;
 import com.lxj.xpopup.core.PopupInfo;
@@ -9,6 +11,8 @@ import com.lxj.xpopup.impl.MyInputConfirmPopupView;
 import com.lxj.xpopup.interfaces.OnCancelListener;
 import com.lxj.xpopup.interfaces.OnInputConfirmListener;
 
+import java.util.List;
+
 /**
  * 官 {@code com.example.hikerview.ui.view.popup.MyXpopup} 照官 smali 转写
  * （官源 smali_classes2/com/example/hikerview/ui/view/popup/MyXpopup.smali）：
@@ -16,8 +20,9 @@ import com.lxj.xpopup.interfaces.OnInputConfirmListener;
  * isDestroyOnDismiss）、asInputConfirm 两重载、asInputMyConfirm 三重载。
  * 官默认布局 id 0x7f0d01e7 经官 public.xml 核为库布局 xpopup_confirm_input，
  * 咱家引 com.example.hikerview.R.layout.xpopup_confirm_input（官布局原名落咱家 res，上游 2.9.0 库内同面布局已改名 _xpopup_center_impl_confirm、无此名）。
- * 官 asImageViewer 四重载依赖 MyImageViewerPopupView/XPopupImageLoader
- * （咱家树无此二类，ImgUtil 批已记名），本批不落。
+ * 官 asImageViewer 四重载（官行 86/108/132/155）随图库接线批补落：
+ * 依赖的 MyImageViewerPopupView/XPopupImageLoader 已由图片团落树、
+ * 带 View 加载器 PopImageLoader 同批落树（账 hk-img-viewer-wiring-20261114）。
  */
 public class MyXpopup {
 
@@ -50,6 +55,59 @@ public class MyXpopup {
     public MyXpopup isDestroyOnDismiss(boolean z) {
         this.popupInfo.isDestroyOnDismiss = z;
         return this;
+    }
+
+    public MyImageViewerPopupView asImageViewer(ImageView srcView, Object url, XPopupImageLoader loader) {
+        MyImageViewerPopupView popupView = new MyImageViewerPopupView(this.context)
+                .setSingleSrcView(srcView, url)
+                .setXPopupImageLoader(loader);
+        popupView.popupInfo = this.popupInfo;
+        return popupView;
+    }
+
+    public MyImageViewerPopupView asImageViewer(ImageView srcView, Object url, boolean isInfinite,
+                                                int placeholderColor, int placeholderStrokeColor,
+                                                int placeholderRadius, boolean isShowSaveButton,
+                                                int bgColor, XPopupImageLoader loader) {
+        MyImageViewerPopupView popupView = new MyImageViewerPopupView(this.context)
+                .setSingleSrcView(srcView, url)
+                .isInfinite(isInfinite)
+                .setPlaceholderColor(placeholderColor)
+                .setPlaceholderStrokeColor(placeholderStrokeColor)
+                .setPlaceholderRadius(placeholderRadius)
+                .isShowSaveButton(isShowSaveButton)
+                .setBgColor(bgColor)
+                .setXPopupImageLoader(loader);
+        popupView.popupInfo = this.popupInfo;
+        return popupView;
+    }
+
+    public MyImageViewerPopupView asImageViewer(ImageView srcView, int position, List<Object> urls,
+                                                OnSrcViewUpdateListener listener, XPopupImageLoader loader) {
+        return asImageViewer(srcView, position, urls, false, true, -1, -1, -1, true,
+                Color.rgb(32, 36, 46), listener, loader);
+    }
+
+    public MyImageViewerPopupView asImageViewer(ImageView srcView, int position, List<Object> urls,
+                                                boolean isInfinite, boolean isShowPlaceholder,
+                                                int placeholderColor, int placeholderStrokeColor,
+                                                int placeholderRadius, boolean isShowSaveButton,
+                                                int bgColor, OnSrcViewUpdateListener listener,
+                                                XPopupImageLoader loader) {
+        MyImageViewerPopupView popupView = new MyImageViewerPopupView(this.context)
+                .setSrcView(srcView, position)
+                .setImageUrls(urls)
+                .isInfinite(isInfinite)
+                .isShowPlaceholder(isShowPlaceholder)
+                .setPlaceholderColor(placeholderColor)
+                .setPlaceholderStrokeColor(placeholderStrokeColor)
+                .setPlaceholderRadius(placeholderRadius)
+                .isShowSaveButton(isShowSaveButton)
+                .setBgColor(bgColor)
+                .setSrcViewUpdateListener(listener)
+                .setXPopupImageLoader(loader);
+        popupView.popupInfo = this.popupInfo;
+        return popupView;
     }
 
     public InputConfirmPopupView asInputConfirm(CharSequence charSequence, CharSequence charSequence2,

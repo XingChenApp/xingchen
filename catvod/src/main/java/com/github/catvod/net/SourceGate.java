@@ -20,7 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * 决策语义：提供者为空或总开关未开 → 透传原链；
  * 回环地址永远直连；
  * 当前线程有源归属 → 按 shouldProxy(kind,id) 决定；
- * 无归属 → 按全部走节点开关决定；
+ * 无归属 → 按 host 认领、在播会话绑定、近期回退的顺序找归属，
+ * 都没有 → 按全部走节点开关决定；
  * 命中 → 返回 127.0.0.1:混合口 的 HTTP 代理。
  */
 public final class SourceGate {
@@ -69,6 +70,32 @@ public final class SourceGate {
 
     public static void registerHostClaim(HostClaim c) {
         hostClaim = c;
+    }
+
+    /**
+     * 在播会话归属（进程级单例）：同一时刻只有一个前台播放会话，播放器
+     * 取流线程（media3 OkHttp dispatcher）没有线程打点、host 又多为未登记的
+     * CDN 域名，靠回退猜测窗口外必漏（1.4.134 真机实证：py 源蜘蛛线程带
+     * 标记走节点全成、播放腿无归属判直连全灭）。由播放会话侧在起播时按
+     * 当前条目的源归属绑定、停播/释放时按值解绑——是确定归属，不是猜测，
+     * 故排在 host 认领之后（登记归属对自家 host 更精确）、近期回退之前。
+     */
+    private static volatile Mark sessionMark;
+
+    /** 绑定在播会话归属：kind 为空不绑。重复绑定以最后一次为准。 */
+    public static void bindSession(String kind, String id) {
+        if (kind == null || kind.isEmpty()) return;
+        sessionMark = new Mark(kind, id == null ? "" : id);
+    }
+
+    /** 解绑：仅当当前会话归属与传入值一致才清，防旧会话收尾误清新会话。 */
+    public static void clearSession(String kind, String id) {
+        Mark s = sessionMark;
+        if (s != null && s.kind.equals(kind) && s.id.equals(id == null ? "" : id)) sessionMark = null;
+    }
+
+    public static Mark session() {
+        return sessionMark;
     }
 
     private SourceGate() {
@@ -205,46 +232,37 @@ public final class SourceGate {
                 Provider p = provider;
                 Mark m = HOLDER.get();
                 String via = null;
-                if (m == null) {
-                    m = fallbackMark(null);
-                    if (m != null) via = "fallback";
-                }
                 if (p == null) {
                     if (m != null) logDecision("noprov|" + m.kind + "|" + m.id,
                             "gate direct reason=no-provider kind=" + m.kind + " id=" + m.id);
                     return shell.select(uri);
                 }
                 if (isLoopback(uri)) return List.of(Proxy.NO_PROXY);
+                // 归属咨询顺序（确定归属先于猜测）：线程打点 → host 认领 →
+                // 在播会话绑定 → 近期回退猜测。host 认领排在回退之前，本人对
+                // 自家 host 的裁决优先于兜底认领（1.4.24 口径，此前靠越界守卫
+                // 在回退命中后再拦截，现由咨询顺序直接保证，守卫随之移除）。
                 // 无线程打点时按 host 认领归属（如 Emby 播放流/海报跑在 Exo/Glide 线程上）。
                 // 认领实现里可做内核按需拉起，所以放在 enabled() 门控之前。
                 if (m == null && hostClaim != null) {
                     m = claimHost(uri);
                     if (m != null) via = "host";
                 }
+                // 在播会话绑定：播放器取流线程的确定归属（起播时绑、停播时解），
+                // 排在 host 认领之后（登记归属对自家 host 更精确）、回退猜测之前
+                // （回退只是 15 秒窗口内的猜测，不能压过在播条目本身的归属）。
+                if (m == null) {
+                    m = sessionMark;
+                    if (m != null) via = "session";
+                }
+                if (m == null) {
+                    m = fallbackMark(null);
+                    if (m != null) via = "fallback";
+                }
                 if (!p.enabled()) {
                     if (m != null) logDecision("disabled|" + m.kind + "|" + m.id,
                             "gate direct reason=disabled(开关关或内核没跑) kind=" + m.kind + " id=" + m.id + " host=" + hostOf(uri) + viaSuffix(via));
                     return shell.select(uri);
-                }
-                // 兜底认领越界守卫（1.4.24 真机实证）：回退打点（via=fallback）只是
-                // 「近 15 秒内唯一活跃源」的猜测归属，排在 host 认领之前咨询，会把
-                // 已登记归属他人的 host 抢走——missav.com 登记本人是 MissAV（其逐源
-                // 开关没开、本场已判 not-enabled 直连），随后一发无打点请求却被回退
-                // 猜成当时唯一活跃的 JAV Verse、判走节点，同一 host 两条相悖裁决并存。
-                // 治本口径：规则本人对自家 host 的裁决优先于一切兜底认领——host 有
-                // 登记归属、归属与回退猜测不同、且归属未启用时，本人未开就是未开，
-                // 回退认领不得把该请求判给任何其它已启用来源走节点。归属与猜测相同、
-                // 归属已启用、或 host 无登记归属时，维持现状不拦。
-                if ("fallback".equals(via) && hostClaim != null) {
-                    Mark owner = claimHost(uri);
-                    if (owner != null
-                            && !(owner.kind.equals(m.kind) && owner.id.equals(m.id))
-                            && !p.shouldProxy(owner.kind, owner.id)) {
-                        logDecision("owneroff|" + owner.kind + "|" + owner.id + "|" + hostOf(uri),
-                                "gate direct reason=owner-not-enabled kind=" + owner.kind + " id=" + owner.id
-                                        + " host=" + hostOf(uri) + " via=fallback claimant=" + m.kind + "|" + m.id);
-                        return shell.select(uri);
-                    }
                 }
                 boolean hit = (m != null) ? p.shouldProxy(m.kind, m.id) : p.globalMode();
                 if (hit) {

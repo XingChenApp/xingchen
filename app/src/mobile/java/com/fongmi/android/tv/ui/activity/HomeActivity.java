@@ -36,6 +36,7 @@ import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.api.config.WallConfig;
 import com.fongmi.android.tv.bean.Config;
+import com.fongmi.android.tv.bean.PluginKinds;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.databinding.ActivityHomeBinding;
 import com.fongmi.android.tv.event.ConfigEvent;
@@ -782,9 +783,24 @@ public class HomeActivity extends BaseActivity implements XcBottomBar.OnItemSele
         } else if (mManager.isVisible(1)) {
             change(0);
         } else if (mManager.canBack(0)) {
+            if (exitFileSourceHome()) return;
             if (PlaybackService.isRunning()) Util.moveToBackground(this);
             else super.onBackInvoked();
         }
+    }
+
+    /**
+     * 退源一环（2026-11-14 他亲述口径）：当前 home 是经脚本弹窗选进框的文件源
+     * （py_/js_/html_ 前缀）且返回链已退到源首页根部（canBack 放行）时，返回先退掉
+     * 当前源——清 home 走 setHome 同路（落盘＋RefreshEvent.home 重载），落回空白
+     * 首页并消费本次返回；空白首页本身无文件源前缀，下一按返回照旧走下方退出路。
+     * 接口/CMS 源不在此列（他划出范围），其 key 无此三种前缀、判据天然不中。
+     * 不留源历史栈：退源即清，目的地是 home 清空态的现成空白首页。
+     */
+    private boolean exitFileSourceHome() {
+        if (PluginKinds.kindOfKey(VodConfig.get().getHome().getKey()) == null) return false;
+        VodConfig.get().setHome(new Site());
+        return true;
     }
 
     @Override

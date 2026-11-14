@@ -35,6 +35,13 @@ import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
+import com.example.hikerview.ui.view.PopImageLoader;
+import com.example.hikerview.ui.view.PopImageLoaderNoView;
+import com.example.hikerview.ui.view.popup.MyXpopup;
+import com.example.hikerview.ui.view.popup.OnSrcViewUpdateListener;
+import com.example.hikerview.ui.view.popup.XPopupImageLoader;
+import com.example.hikerview.utils.DisplayUtil;
+
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.hk.HkCommonParser;
@@ -856,22 +863,71 @@ public class HkListActivity extends AppCompatActivity
             public void showImageViewer(java.util.List<String> urls, int selectPos,
                                         java.util.Map<Integer, Integer> posMap,
                                         android.widget.ImageView srcView) {
-                // posMap 是原版图集页码映射，图集本身走 openPictureList 的阅读器，普通看图不消费；
-                // srcView 只用来取宿主页面（原版的小图→大图共享元素动画不搬）。
+                // 照官 ArticleListFragment 图片支图集路落点（账 hk-img-viewer-wiring-20261114）：
+                // 加载器按源图控件空否二选一（空＝PopImageLoaderNoView、非空＝带 View 的
+                // PopImageLoader 并回填 selectPos），baseUrl 取宿主当前规则地址；查看器走
+                // MyXpopup 全形重载（实参逐值照官：borderRadius 16dp、占位色 gray_rice、
+                // 背景 rgb(32,36,46)），切页监听只在分发侧给了页码映射（posMap）时挂——
+                // 官监听器本体（lambda$dealWithUrl$41）整段 try/catch：先清源图控件，
+                // 再按映射把列表滚回对应条目；列表视图经宿主当前 HkArticleFragment 的
+                // 视图树取（R.id.frag_article_list_recycler_view），条数以其适配器计数为界。
                 Activity activity = srcView != null && srcView.getContext() instanceof Activity
                         ? (Activity) srcView.getContext() : currentActivity();
                 if (activity == null || urls == null || urls.isEmpty()) return;
-                showImageDialog(activity, urls, selectPos);
+                String baseUrl = hostRuleUrl(activity);
+                XPopupImageLoader loader;
+                if (srcView == null) {
+                    loader = new PopImageLoaderNoView(baseUrl);
+                } else {
+                    PopImageLoader popLoader = new PopImageLoader(srcView, baseUrl);
+                    popLoader.setSelectPos(selectPos);
+                    loader = popLoader;
+                }
+                OnSrcViewUpdateListener listener = null;
+                if (posMap != null) {
+                    final HkArticleFragment hostFragment = activity instanceof HkListActivity
+                            ? ((HkListActivity) activity).fragment : null;
+                    listener = (popupView, pos) -> {
+                        try {
+                            popupView.updateSrcView(null);
+                            Integer itemPos = posMap.get(pos);
+                            if (itemPos != null && hostFragment != null && hostFragment.getView() != null) {
+                                RecyclerView rv = hostFragment.getView()
+                                        .findViewById(R.id.frag_article_list_recycler_view);
+                                if (rv != null && rv.getAdapter() != null
+                                        && itemPos < rv.getAdapter().getItemCount() && itemPos >= 0) {
+                                    rv.scrollToPosition(itemPos);
+                                }
+                            }
+                        } catch (Throwable e) {
+                            timber.log.Timber.e(e);
+                        }
+                    };
+                }
+                java.util.List<Object> objects = new ArrayList<>(urls);
+                new MyXpopup().Builder(activity)
+                        .borderRadius((float) DisplayUtil.dpToPx(activity, 16))
+                        .asImageViewer(srcView, selectPos, objects, false, true,
+                                activity.getResources().getColor(R.color.gray_rice), -1, -1, true,
+                                Color.rgb(32, 36, 46), listener, loader)
+                        .show();
             }
 
             @Override
             public void showSingleImage(String url, android.widget.ImageView srcView) {
+                // 照官单图路：加载器同样按源图控件空否二选一，查看器走 MyXpopup
+                // 三参重载＋borderRadius 16dp（账 hk-img-viewer-wiring-20261114）。
                 Activity activity = srcView != null && srcView.getContext() instanceof Activity
                         ? (Activity) srcView.getContext() : currentActivity();
                 if (activity == null || TextUtils.isEmpty(url)) return;
-                java.util.List<String> urls = new ArrayList<>();
-                urls.add(url);
-                showImageDialog(activity, urls, 0);
+                String baseUrl = hostRuleUrl(activity);
+                XPopupImageLoader loader = srcView == null
+                        ? new PopImageLoaderNoView(baseUrl)
+                        : new PopImageLoader(srcView, baseUrl);
+                new MyXpopup().Builder(activity)
+                        .borderRadius((float) DisplayUtil.dpToPx(activity, 16))
+                        .asImageViewer(srcView, url, loader)
+                        .show();
             }
 
             @Override
@@ -938,6 +994,22 @@ public class HkListActivity extends AppCompatActivity
         }
         if (activity instanceof HkSearchActivity) {
             return ((HkSearchActivity) activity).currentEngineTitle();
+        }
+        return "";
+    }
+
+    /** 本页规则地址（图库查看器加载器取 baseUrl 用，官 articleListRule.getUrl() 的落点）。 */
+    public String currentRuleUrl() {
+        return rule != null && rule.getUrl() != null ? rule.getUrl() : "";
+    }
+
+    /** 按宿主活动取当前规则地址：列表页取本页规则，搜索页取当前发动机，与 hostRuleTitle 同形。 */
+    static String hostRuleUrl(Activity activity) {
+        if (activity instanceof HkListActivity) {
+            return ((HkListActivity) activity).currentRuleUrl();
+        }
+        if (activity instanceof HkSearchActivity) {
+            return ((HkSearchActivity) activity).currentEngineUrl();
         }
         return "";
     }

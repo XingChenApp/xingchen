@@ -313,6 +313,10 @@
 -keep class kotlin.jvm.internal.FunctionBase { *; }
 -keep class kotlin.reflect.KAnnotatedElement { *; }
 -keepclassmembers class com.fongmi.chaquo.Platform { public android.content.Context getApplication(); }
+# 135 审计 G3 补（2026-11-14）：上行 keepclassmembers 的锚方法在本类不存在、
+# 保不住类名本身（134/135 旧成品实测 Platform 原名不在位）；补整类保名，
+# 与上方 133 本意（防按名命中落空）对齐，纯增保名不改语义。
+-keep class com.fongmi.chaquo.Platform { *; }
 
 # EventBus（账 r8-byname-sweep-20261114 行 4）：官方 ProGuard 规矩原文。
 # 本树运行时未注册 EventIndex、靠反射扫 @Subscribe 方法（三源集 50+ 处），

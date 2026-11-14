@@ -21,6 +21,12 @@ import java.nio.charset.StandardCharsets;
 public final class PreviousProcessExitLogger {
 
     private static final String KEY_LAST_EXIT_TIMESTAMP = "debug_last_process_exit_timestamp";
+    // 「上次退出」设置页展示组：只落最新一条主进程记录的展示字段，与水位键分开，
+    // 不参与 fresh/水位判定；写入点只在 logApi30 已读到的 main 表上，不新造采集链。
+    private static final String KEY_DISPLAY_EXIT_TS = "debug_last_exit_ts";
+    private static final String KEY_DISPLAY_EXIT_REASON = "debug_last_exit_reason";
+    private static final String KEY_DISPLAY_EXIT_IMPORTANCE = "debug_last_exit_importance";
+    private static final String KEY_DISPLAY_EXIT_RSS = "debug_last_exit_rss";
 
     private PreviousProcessExitLogger() {
     }
@@ -62,6 +68,17 @@ public final class PreviousProcessExitLogger {
             if (context.getPackageName().equals(exit.getProcessName())) main.add(exit);
         }
         if (main.isEmpty()) { DebugLogStore.event(event().unknown("exitReason", DiagnosticEvent.Status.UNAVAILABLE)); return; }
+        // 设置页「上次退出」展示落盘：取最新一条（返回序新→旧，main.get(0)），
+        // 在水位逻辑之前落，保证即使本条已被水位跳过、展示也是最新实况。
+        // 整段围住，失败不许影响原日志流与水位语义。
+        try {
+            ApplicationExitInfo latest = main.get(0);
+            Prefers.put(KEY_DISPLAY_EXIT_TS, latest.getTimestamp());
+            Prefers.put(KEY_DISPLAY_EXIT_REASON, latest.getReason());
+            Prefers.put(KEY_DISPLAY_EXIT_IMPORTANCE, latest.getImportance());
+            Prefers.put(KEY_DISPLAY_EXIT_RSS, latest.getRss());
+        } catch (Throwable ignored) {
+        }
         long watermark = Prefers.getLong(KEY_LAST_EXIT_TIMESTAMP, 0);
         List<ApplicationExitInfo> fresh = new ArrayList<>();
         for (ApplicationExitInfo exit : main) {
@@ -128,6 +145,41 @@ public final class PreviousProcessExitLogger {
             DebugLogStore.event(event().unknown("traceAvailable", DiagnosticEvent.Status.READ_ERROR)
                     .observed("javaClass", error.getClass().getSimpleName()));
         }
+    }
+
+    /**
+     * 设置页「上次退出」一行人话：读回展示组四字段拼成
+     * 「yyyy-MM-dd HH:mm:ss · <reason 人话> · 重要性 <importance> · RSS <x.x MB>」；
+     * 无记录（时间戳未落过）返 null，调用方显示「无记录」。
+     * reason 常量是编译期内联 int，本法不加载 ApplicationExitInfo 类，低版本可安全调用（恒无记录）。
+     */
+    public static String lastExitSummary() {
+        long ts = Prefers.getLong(KEY_DISPLAY_EXIT_TS, 0);
+        if (ts <= 0) return null;
+        int reason = Prefers.getInt(KEY_DISPLAY_EXIT_REASON, ApplicationExitInfo.REASON_OTHER);
+        int importance = Prefers.getInt(KEY_DISPLAY_EXIT_IMPORTANCE, 0);
+        long rss = Prefers.getLong(KEY_DISPLAY_EXIT_RSS, 0);
+        String rssMb = String.format(java.util.Locale.ROOT, "%.1f", rss / 1048576.0);
+        return formatTime(ts) + " · " + reasonCn(reason) + " · 重要性 " + importance + " · RSS " + rssMb + " MB";
+    }
+
+    private static String reasonCn(int reason) {
+        return switch (reason) {
+            case ApplicationExitInfo.REASON_EXIT_SELF -> "主动退出";
+            case ApplicationExitInfo.REASON_SIGNALED -> "被信号终止";
+            case ApplicationExitInfo.REASON_LOW_MEMORY -> "内存不足被系统回收";
+            case ApplicationExitInfo.REASON_CRASH -> "崩溃";
+            case ApplicationExitInfo.REASON_CRASH_NATIVE -> "崩溃（底层）";
+            case ApplicationExitInfo.REASON_ANR -> "卡死无响应";
+            case ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "初始化失败";
+            case ApplicationExitInfo.REASON_PERMISSION_CHANGE -> "权限变更被终止";
+            case ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "资源占用过高被终止";
+            case ApplicationExitInfo.REASON_USER_REQUESTED -> "手动强停";
+            case ApplicationExitInfo.REASON_USER_STOPPED -> "被停止运行";
+            case ApplicationExitInfo.REASON_DEPENDENCY_DIED -> "依赖进程死亡连带";
+            case ApplicationExitInfo.REASON_OTHER -> "其他原因";
+            default -> "未知";
+        };
     }
 
     @RequiresApi(Build.VERSION_CODES.R)

@@ -2,8 +2,15 @@ package com.fongmi.android.tv.clash;
 
 import android.content.Context;
 
+import com.fongmi.android.tv.api.SiteApi;
+import com.fongmi.android.tv.api.config.VodConfig;
+import com.fongmi.android.tv.api.hk.HkDetailBridge;
+import com.fongmi.android.tv.bean.Site;
+import com.fongmi.android.tv.db.AppDatabase;
 import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.net.SourceGate;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * app 侧把节点策略注册进 catvod 的 SourceGate（模块方向：app → catvod）。
@@ -56,6 +63,86 @@ public final class ClashGate {
         } catch (Throwable ignored) {
         }
         return port;
+    }
+
+    /**
+     * 播放会话归属解析：站点 key → {kind, id}，与取数侧打点同口径。
+     * hk_ 直达 key 的 id 取规则名（key 拼法 hk_&lt;规则名&gt;，历史键带 @@@
+     * 后缀时在分隔符处截断），与 HkRouter 播放分流的打点 (hk, 规则名) 对齐；
+     * 其余 key 必须能在配置里查到站点才认——查不到（听书/朗读的合成 key、
+     * 本地文件等）返回 null 不绑定，保住 host 认领与全局口径的原有裁决。
+     */
+    public static String[] playbackAttribution(String key) {
+        if (key == null || key.isEmpty()) return null;
+        if (key.startsWith(HkDetailBridge.KEY_PREFIX)) {
+            String rest = key.substring(HkDetailBridge.KEY_PREFIX.length());
+            int at = rest.indexOf(AppDatabase.SYMBOL);
+            String title = at >= 0 ? rest.substring(0, at) : rest;
+            if (title.isEmpty()) return null;
+            return new String[]{SourceProxyPolicy.KIND_HK, title};
+        }
+        Site site = null;
+        try {
+            site = VodConfig.get().getSite(key);
+        } catch (Throwable ignored) {
+        }
+        if (site == null) return null;
+        String kind = SiteApi.proxyKindForKey(key);
+        if (kind == null || kind.isEmpty()) return null;
+        return new String[]{kind, key};
+    }
+
+    /**
+     * 起播绑定：把当前条目的源归属绑进 SourceGate 会话层，播放器取流线程
+     * 据此裁决（见 SourceGate.bindSession）。归属解析不出返回 null（不绑）。
+     * 返回值原样留给调用方，停播时交回 {@link #unbindPlayback(String[])} 按值解绑。
+     */
+    public static String[] bindPlayback(Context context, String key) {
+        String[] attr = playbackAttribution(key);
+        if (attr == null) return null;
+        try {
+            Context app = context.getApplicationContext();
+            // 与阅读 host 认领同口径：归属命中走节点而内核没跑时按需拉起——
+            // 播放腿此前没有任何人为它拉起内核（取数侧有蜘蛛打点链、嗅探有
+            // 装载口、阅读有认领口，唯独播放腿三样都没有）。
+            // 拉起只能在后台线程：ensureRunning 同步阻塞（含最长约 10 秒健康
+            // 检查，其自家注释明文要求后台调用），而本口在起播主线程路径上
+            // （PlayerManager.start/parse 同栈带 UI 动作），同步拉会冻主线程
+            // （复查账 P1）。照 MihomoManager.setEnabled 的树内现行形起后台
+            // 线程拉起，主线程只登记会话绑定即返回。
+            // 拉起未完成期间该源的取流请求按既有未就绪形态裁决：Provider
+            // .enabled() 在内核没跑时为 false，SourceGate 透传原选择器直连
+            // （留痕 reason=disabled、via=session）——与总开关关/内核没跑时
+            // 全系统同形，窗口内不等待、不重试，内核起来后的请求自然命中。
+            if (SourceProxyPolicy.shouldProxy(app, attr[0], attr[1])
+                    && !MihomoManager.get().isRunning()) {
+                startKernelInBackground(app);
+            }
+        } catch (Throwable ignored) {
+        }
+        SourceGate.bindSession(attr[0], attr[1]);
+        return attr;
+    }
+
+    /** 播放腿按需拉起的单飞闸（照 KernelDownloader 防重口径）：一发在途时不重复起线程，在途那发的结果对后来者同样有效。 */
+    private static final AtomicBoolean playbackStartInFlight = new AtomicBoolean(false);
+
+    private static void startKernelInBackground(final Context app) {
+        if (!playbackStartInFlight.compareAndSet(false, true)) return;
+        new Thread(() -> {
+            try {
+                MihomoManager.get().ensureRunning(app);
+            } catch (Throwable ignored) {
+            } finally {
+                playbackStartInFlight.set(false);
+            }
+        }, "clash-playback-start").start();
+    }
+
+    /** 停播解绑：按绑定时的归属值解绑（值不一致不清，防旧会话收尾误清新会话）。 */
+    public static void unbindPlayback(String[] attr) {
+        if (attr == null || attr.length < 2) return;
+        SourceGate.clearSession(attr[0], attr[1]);
     }
 
     public static void register(Context context) {

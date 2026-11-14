@@ -540,6 +540,15 @@ public class HkSearchActivity extends AppCompatActivity implements HkSearchFragm
         return t == null ? "" : t;
     }
 
+    /** 当前页发动机地址（图库查看器加载器取 baseUrl 用，与 currentEngineTitle 同形）。 */
+    public String currentEngineUrl() {
+        if (pager == null || engines.isEmpty()) return "";
+        int pos = pager.getCurrentItem();
+        if (pos < 0 || pos >= engines.size()) return "";
+        String u = engines.get(pos).getUrl();
+        return u == null ? "" : u;
+    }
+
     // ---------- HkSearchFragment.SearchHost ----------
 
     @Override
