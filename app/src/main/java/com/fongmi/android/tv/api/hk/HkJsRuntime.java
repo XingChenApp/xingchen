@@ -718,6 +718,51 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     private Context rhinoCx;
     private ScriptableObject scope;
     /**
+     * 官形收口（2026-11-14，账 hk-engine-singleton-land）：共享桥实例的发外
+     * 值空间——仅 initStandardObjects 的裸 scope，不评入任何脚本（无
+     * allFunctions/CryptoJS/RequireJS），只供发外 parseJson/putFunction 兜底
+     * 等需要一个带原型链的 scope 的宿主路。每发任务结束 scope 字段复位到它，
+     * 当发全装配 scope 图随任务结束释放，不再按规则常驻。
+     * 非桥实例（图片单例/自建路）恒 null、行为与改前一致。
+     */
+    private ScriptableObject bareScope;
+    /** 共享桥标记：HkEngineManager 建桥时置 true；决定 init 装配形与 submit 的 scope 释放纪律。 */
+    private boolean sharedBridge;
+    /** kv 表当前装载的规则标题（桥按标题切换 kv 的记账；非桥恒为建台规则标题）。 */
+    private volatile String kvTitle;
+    /** 进程共享桥登记（HkEngineManager 建桥时登记）：供同包 HkRuleManager 删规则时找桥清账。 */
+    private static volatile HkJsRuntime sharedBridgeInstance;
+
+    /** HkEngineManager 建桥登记（进程一台）。 */
+    public static void registerSharedBridge(HkJsRuntime rt) {
+        sharedBridgeInstance = rt;
+    }
+
+    /** 取进程共享桥（未建回 null）。 */
+    public static HkJsRuntime sharedBridge() {
+        return sharedBridgeInstance;
+    }
+
+    /** 标记为共享桥（HkEngineManager 建桥时、ensureInit 之前调用）。 */
+    public void setSharedBridge(boolean shared) {
+        this.sharedBridge = shared;
+    }
+
+    /**
+     * 删规则清账口（8.83 规则管理面删改时 clearVarByRule＋clearModuleCache 两口，
+     * 咱家此前全树零调用、差格点名）：HkRuleManager.delete 成功后调本口，
+     * 清桥上该规则的变量键与 require 模块脚本缓存。桥未建时无账可清。
+     */
+    public static void onRuleDeleted(String title) {
+        HkJsRuntime rt = sharedBridgeInstance;
+        if (rt == null || title == null) return;
+        try {
+            rt.clearVarByRule(title);
+            rt.clearModuleCache();
+        } catch (Throwable ignored) {
+        }
+    }
+    /**
      * 当发求值 scope 登记（线程本地，入出按栈恢复）：官方每发求值里 MY_RULE
      * 是与规则代码同 scope 的变量，聚合壳在求值内赋值换成子规则对象后，
      * 取页（handlePageRequest/findPageCode）读到的就是子规则——咱家常驻
@@ -763,6 +808,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     private int resCode;
     /** @rule= js: 预检时设置的响应正文（HkHttp.get 取回），供 getResCode() 返回；用后清零。 */
     private String evalResCodeBody;
+    /** 本发正文的任务内副本（parse 系任务头由 boundResBody 写入、finally 摘）：
+     * resCodeByCallbackKey 的回落优先读它，防桥上跨规则 set/clear 串发。 */
+    private final ThreadLocal<String> evalBodyLocal = new ThreadLocal<>();
     private String lastUrl;
     /** 网络诊断（排障用）：最近一次 fetch 异常/非2xx/空数据的脱敏信息，供错误弹窗展示。只记录，不改业务逻辑。 */
     private static volatile String lastFetchDiag = "";
@@ -2201,6 +2249,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // 环19 复核订正2：登记时捕获登记发 scope，字符串回调触发时在捕获
         // scope 上求值（其后各发 arm 换 scope 不影响本回调的可见状态）。
         final Scriptable regScope = scope;
+        // 桥化补（普查 #14）：登记规则一并捕获——今形定时器在本规则的台上
+        // 触发，this.rule/kv 恒登记规则；桥上触发时先重绑＋切 kv 保持等价。
+        final HkRule regRule = rule;
         Runnable fire = () -> {
             try {
                 submit(() -> {
@@ -2209,6 +2260,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                         synchronized (jsTimers) {
                             if (!jsTimers.containsKey(id)) return null;
                             if (!repeat) jsTimers.remove(id);
+                        }
+                        if (regRule != null) {
+                            this.rule = regRule;
+                            syncKvToBoundRule();
                         }
                         fireTimerCallback(cb, cbArgs, regScope);
                     } catch (Throwable t) {
@@ -3188,7 +3243,22 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     }
 
     private <T> Future<T> submit(java.util.concurrent.Callable<T> callable) {
-        return executor.submit(callable);
+        if (!sharedBridge) return executor.submit(callable);
+        // 桥纪律（官形「求值现建现弃」的字段面）：当发任务把全装配 scope 写进
+        // scope 字段供发内各路读，任务一结束字段必须复位裸 scope——装配图
+        // （allFunctions/CryptoJS/RequireJS/plugin 的求值产物）只活一发。
+        // 非桥实例不走本包装（图片单例字段 scope 恒 null 是既有契约、自建路
+        // 保留改前留存语义）。
+        return executor.submit(() -> {
+            try {
+                return callable.call();
+            } finally {
+                scope = bareScope;
+                // 本发正文的任务内副本同纪律摘除（含顶替等 try 外抛出的路径），
+                // 不许漏进同线程的下一发。
+                evalBodyLocal.remove();
+            }
+        });
     }
 
     /**
@@ -3241,8 +3311,17 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 Logger.t(TAG).e(t, "build allFunctions");
                 allFunctions = "";
             }
-            scope = assembleFreshScope();
+            if (sharedBridge) {
+                // 桥形（官 JSEngine 单例同位）：init 不装配全 scope 常驻——只建
+                // 裸 scope 作发外值空间（见 bareScope 注），每发求值自带
+                // assembleFreshScope。非桥实例维持改前「首个鲜 scope 常驻」形。
+                bareScope = rhinoCx.initStandardObjects();
+                scope = bareScope;
+            } else {
+                scope = assembleFreshScope();
+            }
             com.github.catvod.crawler.SpiderDebug.log("hk", "init step=api rule=%s", rule.getTitle());
+            kvTitle = rule != null ? rule.getTitle() : null;
             loadKv();
             com.github.catvod.crawler.SpiderDebug.log("hk", "init step=config rule=%s", rule.getTitle());
             // G35：init 不再自跑 preRule——官 JSEngine 无 init 求值，preRule 只经
@@ -3301,6 +3380,11 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             } catch (Throwable ignored) {
             }
         }
+        // 桥化补（普查 #12 同族）：parse 系任务已把本发正文捕获进 evalBodyLocal，
+        // 任务内回落优先读它——别规则的流在调用线程 set/clear 字段不会再串进
+        // 本发；无任务语境（转录路等）维持字段兼容路原形（dig2 件3 判 C 不动）。
+        String localBody = evalBodyLocal.get();
+        if (localBody != null) return localBody;
         if (evalResCodeBody != null) return evalResCodeBody;
         return null;
     }
@@ -5743,6 +5827,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 // 环19 复核订正2：捕获登记发 scope；环24-11 簇二后它只作
                 // nullRuleScope 的原型基底（API 面来源），不再作规则语境。
                 final Scriptable regScope = scope;
+                // 桥化补（普查 #14）：Java 侧标题解析/kv 归属仍从登记规则走
+                // （JS 可见 MY_RULE≡null 的官形由 nullRuleScope 保，不受影响）。
+                final HkRule regRule = rule;
                 Runnable fire = () -> {
                     try {
                         submit(() -> {
@@ -5751,6 +5838,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                                 synchronized (jsTasks) {
                                     if (!jsTasks.containsKey(taskId)) return null;
                                     jsTasks.remove(taskId); // 单次执行
+                                }
+                                if (regRule != null) {
+                                    this.rule = regRule;
+                                    syncKvToBoundRule();
                                 }
                                 if (taskJs != null && !taskJs.isEmpty()) {
                                     // 环24-11 簇二（行为变化，官形）：官
@@ -8079,14 +8170,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             postRuleModifiedEvent(title);
             return;
         }
-        HkJsRuntime rt = runtimeForTitle(title);
-        if (rt != null) {
-            checkSetItemSize(rt.kv, key, value);
-            rt.kv.put(key, value);
-            rt.saveKv();
-            postRuleModifiedEvent(title);
-            return;
-        }
+        // 桥化摘支（普查 #8）：旧形第二路走「对方常驻台的 kv」——桥上已无
+        // 对方台，且 kv 全部写点同步落盘、磁盘恒为权威，直走文件路与旧形
+        // 等价（对方台内存表与其 kv.json 恒同内容）。
         if (HkRuleManager.get().getInstalledRule(title) == null) return;
         File f = new File(HkRuleManager.get().getDataDir(title), "kv.json");
         Map<String, String> m = readKvFile(f);
@@ -8161,27 +8247,15 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         }
     }
 
-    /** 按 title 取 storage 表：当前规则＝本实例 kv；他规则＝常驻运行时
-     * 的 kv，无常驻则读其 kv.json（文件不存在＝空表）；规则不存在回 null。 */
+    /** 按 title 取 storage 表：当前规则＝本桥已装载 kv；他规则恒读其
+     * kv.json（文件不存在＝空表）；规则不存在回 null。桥化前他规则先走
+     * 常驻台内存表——kv 写点全同步落盘，两路同内容（普查 #8）。 */
     private Map<String, String> kvMapForTitle(String title) {
         if (title.equals(currentRuleTitle())) return kv;
-        HkJsRuntime rt = runtimeForTitle(title);
-        if (rt != null) return rt.kv;
         if (HkRuleManager.get().getInstalledRule(title) == null) return null;
         File f = new File(HkRuleManager.get().getDataDir(title), "kv.json");
         if (!f.exists()) return new HashMap<>();
         return readKvFile(f);
-    }
-
-    /** 按 title 取常驻运行时（不触发创建；规则不存在/异常回 null）。 */
-    private HkJsRuntime runtimeForTitle(String title) {
-        try {
-            HkRule other = HkRuleManager.get().getInstalledRule(title);
-            if (other == null) return null;
-            return com.fongmi.android.tv.ui.hk.HkEngineManager.runtimeIfPresent(other);
-        } catch (Throwable ignored) {
-            return null;
-        }
     }
 
     private static Map<String, String> readKvFile(File f) {
@@ -8997,8 +9071,18 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // 提交时捕获当前绑定，任务在引擎线程开头重申：防提交与执行之间
         // 别的页 bindRule 换掉 this.rule 造成串页（与带规则入口的锁互补）
         final HkRule boundRule = this.rule;
+        // 桥化相碰收口（账 hk-engine-singleton-land 普查 #12/#13）：预抓正文与
+        // find 承接监听都是「调用线程写、任务内读」的字段，今形同规则两页并发
+        // 已有后写覆盖面，桥化后扩到跨规则——同 boundRule 口径在提交时捕获成
+        // 任务局部，任务内只读/只写局部捕获，字段本体不再被任务读。
+        final String boundResBody = evalResCodeBody;
+        final BindObjectToViewListener boundListener = bindObjectListener;
         java.util.concurrent.Future<List<HkItem>> future = submit(() -> {
             if (boundRule != null) this.rule = boundRule;
+            syncKvToBoundRule();
+            bindObjectListener = boundListener;
+            if (boundResBody != null) evalBodyLocal.set(boundResBody);
+            else evalBodyLocal.remove();
             if (mark != null) {
                 // 排队期间已被同一页面身份的继任者接管：按取消语义收口——抛
                 // ListEvalSupersededException 让调用方丢弃本发，绝不回空表冒充
@@ -9007,6 +9091,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 // 由调用方票据定（官 8.83 形态：结果真假与上屏与否分离）。
                 synchronized (latestListMarkByScope) {
                     if (latestListMarkByScope.get(mark.scope) != mark) {
+                        // 本支在 find 的 try/finally 之前抛：监听字段在此自清，
+                        // 不许把本发的承接面留给后续无关求值（捕获收口的尾口；
+                        // evalBodyLocal 由 submit 包装层 finally 兜底摘除）。
+                        bindObjectListener = null;
                         throw new ListEvalSupersededException();
                     }
                 }
@@ -9028,8 +9116,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 setContext(myUrl);
                 try {
                     // 8.83 parseHome 同款：每次求值注入 fresh CALLBACK_KEY 并登记正文表
-                    //（正文=预抓正文，HkEngine.home() 经 setEvalResCodeBody 传入）
-                    String cbKey = armCallbackKey(evalResCodeBody);
+                    //（正文=预抓正文，HkEngine.home() 经 setEvalResCodeBody 传入；
+                    // 桥化后读提交时捕获的 boundResBody，见方法头注）
+                    String cbKey = armCallbackKey(boundResBody);
                     // G2：同一 key 同挂主 scope 属性——预置段包装函数的
                     // callbackKey 覆写读的是定义作用域（主 scope）的 CALLBACK_KEY，
                     // 求值串里的 var 只落子 scope，包装层读不到；官每发新 scope
@@ -9084,6 +9173,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     if (regKey != null) findRegisteredKeys.remove(regKey);
                     activeFindSink.remove();
                 }
+                bindObjectListener = null;
+                evalBodyLocal.remove();
                 if (mark != null) {
                     rhinoCx.removeThreadLocal(LIST_MARK_KEY);
                     if (activeListMark == mark) activeListMark = null;
@@ -9143,8 +9234,15 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
      */
     public List<SearchResult> parseSearch(String jsCode, String myUrl, String keyword, int page) throws Exception {
         final HkRule boundRule = this.rule;
+        // 同 parseListInternal：正文/监听提交时捕获（普查 #12/#13）。
+        final String boundResBody = evalResCodeBody;
+        final BindObjectToViewListener boundListener = bindObjectListener;
         return submit(() -> {
             if (boundRule != null) this.rule = boundRule;
+            syncKvToBoundRule();
+            bindObjectListener = boundListener;
+            if (boundResBody != null) evalBodyLocal.set(boundResBody);
+            else evalBodyLocal.remove();
             results.clear();
             error = null;
             // R6: 求值前清掉 refreshPage 标记，避免上次残留被误判
@@ -9158,8 +9256,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             HkFindDelivery.Sink findSink = null;
             try {
                 // 8.83 parseSearch 同款：每次求值注入 fresh CALLBACK_KEY 并登记正文表
-                //（正文=搜索预抓正文，调用方经 setEvalResCodeBody 传入）
-                String cbKey = armCallbackKey(evalResCodeBody);
+                //（正文=搜索预抓正文，调用方经 setEvalResCodeBody 传入；
+                // 桥化后读提交时捕获的 boundResBody）
+                String cbKey = armCallbackKey(boundResBody);
                 // G2：同 parseListInternal——CALLBACK_KEY 同挂主 scope 属性，
                 // 供预置段包装函数的 callbackKey 覆写读取（官同体语义）。
                 ScriptableObject.putProperty(scope, "CALLBACK_KEY", cbKey);
@@ -9191,6 +9290,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     if (regKey != null) findRegisteredKeys.remove(regKey);
                     activeFindSink.remove();
                 }
+                bindObjectListener = null;
+                evalBodyLocal.remove();
             }
             if (findSink == null) return new ArrayList<SearchResult>();
             synchronized (findSink) {
@@ -9236,6 +9337,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 return argStr(evalJs(js));
             }
             return submit(() -> {
+                syncKvToBoundRule();
                 // 环19 arm：经提交的独立发换鲜 scope；已在 JS 线程的直调支是
                 // 当发求值内的选择器回调，与当发同 scope（官同形），不换。
                 scope = assembleFreshScope();
@@ -9833,6 +9935,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         final HkRule boundRule = this.rule;
         return submit(() -> {
             if (boundRule != null) this.rule = boundRule;
+            syncKvToBoundRule();
             error = null;
             String s = evalRawInFreshScope(jsCode, pageUrl);
             if (s.isEmpty() || "undefined".equals(s) || "null".equals(s)) {
@@ -9875,6 +9978,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         try {
             return submit(() -> {
                 if (boundRule != null) this.rule = boundRule;
+                syncKvToBoundRule();
                 error = null;
                 Map<String, String> varSnapshot = new java.util.HashMap<>(varMap);
                 int resultBase = results.size();
@@ -10749,6 +10853,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         final HkRule boundRule = this.rule;
         return submit(() -> {
             if (boundRule != null) this.rule = boundRule;
+            syncKvToBoundRule();
             rawResults.clear();
             results.clear();
             error = null;
@@ -11310,8 +11415,26 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     // ================= setItem/getItem 持久化 =================
 
     private File kvFile() {
-        File dir = HkRuleManager.get().getDataDir(rule.getTitle());
+        // 桥按标题切换 kv 后，存档文件恒跟已装载表走（kvTitle），不跟 this.rule
+        // 的瞬时绑定走（定时器重绑/任务头重申都会动 this.rule，表与文件必须同题）。
+        String t = kvTitle != null ? kvTitle : (rule != null ? rule.getTitle() : null);
+        File dir = HkRuleManager.get().getDataDir(t);
         return new File(dir, "kv.json");
+    }
+
+    /**
+     * 桥的 kv 按标题切换（官单例下规则存储按标题分账的咱家落法）：当前绑定
+     * 规则标题与已装载表不同题时，整表换成该题的 kv.json。kv 全部写点都同步
+     * saveKv 落盘（setItem/clearItem/setItemNow 等逐点实证），换表前无需回写、
+     * 磁盘恒为权威。只许在 JS 线程的任务头（各求值臂重申 boundRule 之后）调，
+     * 与求值串行、无并发面。非桥实例恒同题、自然空转。
+     */
+    private void syncKvToBoundRule() {
+        String t = rule != null ? rule.getTitle() : null;
+        if (t == null || t.equals(kvTitle)) return;
+        kv.clear();
+        kvTitle = t;
+        loadKv();
     }
 
     private void loadKv() {

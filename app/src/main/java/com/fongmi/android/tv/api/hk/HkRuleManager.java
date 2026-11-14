@@ -1803,6 +1803,13 @@ public class HkRuleManager {
             deleteRecursive(getDataDir(title));
         } catch (Throwable ignored) {
         }
+        // 8.83 规则管理面删规则的两口（clearVarByRule＋clearModuleCache）：
+        // 文件删了，桥上该规则的内存变量与 require 模块缓存也须同删，
+        // 否则装回同名规则会读到已删规则的旧账（账 hk-engine-singleton-land #10）。
+        try {
+            HkJsRuntime.onRuleDeleted(title);
+        } catch (Throwable ignored) {
+        }
         try {
             Context ctx = appContext();
             if (ctx != null) ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

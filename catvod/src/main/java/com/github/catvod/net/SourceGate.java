@@ -225,6 +225,22 @@ public final class SourceGate {
 
     /** 把原选择器包在外面：命中策略 → 本地口；否则透传原链。回环永远直连。 */
     public static ProxySelector wrapSelector(ProxySelector inner) {
+        return wrap(inner, true);
+    }
+
+    /**
+     * 图片专用包装：只认确定归属——线程打点、host 认领（登记在册的自家
+     * host）、全部走节点开关；不吃在播会话绑定与近期回退这两级猜测。
+     * 理由：封面这类请求的归属本可由 host 认领确定，猜测归属一旦把图判给
+     * 某个走节点的源，首开连接就被拖进本地口的 CONNECT 阶段（该阶段无上界
+     * 的前科见 HkHttp 图片 client 的 W1 注），而官方海阔图片 client 根本
+     * 没有这层。播放器取流线程用全量版（会话/回退是为它设计的），互不影响。
+     */
+    public static ProxySelector wrapSelectorNoGuess(ProxySelector inner) {
+        return wrap(inner, false);
+    }
+
+    private static ProxySelector wrap(ProxySelector inner, final boolean allowGuess) {
         final ProxySelector shell = inner != null ? inner : ProxySelector.getDefault();
         return new ProxySelector() {
             @Override
@@ -251,11 +267,13 @@ public final class SourceGate {
                 // 在播会话绑定：播放器取流线程的确定归属（起播时绑、停播时解），
                 // 排在 host 认领之后（登记归属对自家 host 更精确）、回退猜测之前
                 // （回退只是 15 秒窗口内的猜测，不能压过在播条目本身的归属）。
-                if (m == null) {
+                // 图片专用链（allowGuess=false）跳过这两级：会话是播放的归属、
+                // 回退是窗口内的猜测，都不该接管封面这类确定流量。
+                if (allowGuess && m == null) {
                     m = sessionMark;
                     if (m != null) via = "session";
                 }
-                if (m == null) {
+                if (allowGuess && m == null) {
                     m = fallbackMark(null);
                     if (m != null) via = "fallback";
                 }

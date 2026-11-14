@@ -827,9 +827,14 @@ public class HkHttp {
                             // 1.3.44/45 真机「UU 每次进白、下拉刷新才出」的病根。DNS 阶段已由 HK_IMAGE_DNS 10 秒封顶，
                             // callTimeout 补的是 TLS/代理握手这些真正无上界的阶段。hang 45 秒后 onFailure 进 fetcher
                             // 自带的 3 次 refire 重试，瞬态 hang 在进页时自愈，不再靠用户下拉刷新。
-                            // 按源定向：与壳子同套选择器链（SourceGate 包在 GlobalProxy 外）。
-                            // to()/取数 client 由 client().newBuilder() 派生，选择器自动继承。
-                            .proxySelector(SourceGate.wrapSelector(GlobalProxy.wrapSelector(java.net.ProxySelector.getDefault())));
+                            // 按源定向：与壳子同套选择器链（SourceGate 包在 GlobalProxy 外），
+                            // 但图片链只吃确定归属版（wrapSelectorNoGuess）：封面请求跑在
+                            // Glide/OkHttp 线程上、无线程打点，全量版的会话绑定与 15 秒
+                            // 近期回退会把封面猜给某个走节点的源，首开连接被拖进本地口
+                            // CONNECT 阶段（正是上面 W1 那种 hang 的入口）——官方图片
+                            // client 无此层，猜测归属摘除后图片只剩 host 认领/全局开关
+                            // 两条确定路。取数 client（下方 client()）仍用全量版，不动。
+                            .proxySelector(SourceGate.wrapSelectorNoGuess(GlobalProxy.wrapSelector(java.net.ProxySelector.getDefault())));
                     // 8.83 图片 client dispatcher maxRequestsPerHost = 48
                     okhttp3.Dispatcher d = new okhttp3.Dispatcher();
                     d.setMaxRequestsPerHost(48);
