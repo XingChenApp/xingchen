@@ -894,6 +894,17 @@ public class HomeWebController {
                             // 与 fm.play 带头播放同形：认址回的头（UA/Referer 等）经 /webResource 代理带给播放器。
                             JsonObject options = new JsonObject();
                             options.add("headers", App.gson().toJsonTree(sniffHeaders));
+                            // 带票同行（账 sniff-cookie-20261114）：嗅探在站点会话的
+                            // WebView 里跑、页内请求天然带 CookieManager 的饼干；铸给
+                            // 播放器的网关址此前只放 headers——而 WebView 拦截到的请求
+                            // 头天然没有 Cookie（平台不给），饼干只能由网关取数时从
+                            // CookieManager 现贴（CookieBridge.apply，门是网关址参数
+                            // credentials=include）。不放这一项门永不开：靠饼干认人
+                            // 的上游整条腿裸奔（鉴黄师 MPV 腿复取列表回 403 一案）。
+                            // 形态照本链既有口径：options 里 credentials=include，
+                            // resourceUrl 转网关址参数、列表改写再逐段原样带下；
+                            // 饼干按目标址域名由 CookieManager 自己圈定，不串站。
+                            options.addProperty("credentials", "include");
                             playUrl = bridge.resourceUrl(mediaUrl, options.toString());
                         }
                         SpiderDebug.log("webhome-takeover", "sniff ok site=%s media=%s", siteKey, mediaUrl);
