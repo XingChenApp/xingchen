@@ -54,8 +54,8 @@ android {
         applicationId "com.XingChen.tv"
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
-        versionCode 217
-        versionName "1.4.134"
+        versionCode 218
+        versionName "1.4.135"
         buildConfigField "String", "BUILD_TIME", "\"${buildTime}\""
         buildConfigField "String", "BUILD_TAG", "\"${releaseTag}\""
         buildConfigField "String", "GIT_REVISION", "\"${gitRevision}\""
@@ -185,6 +185,22 @@ dependencies {
     // XPopup（官包内嵌同库，2.9.0 的 API 面已逐项对过 AAR）、模型走 fastjson。
     implementation "com.github.li-xiaojun:XPopup:2.9.0"
     implementation "com.alibaba:fastjson:1.2.83"
+    // 依赖补齐批（2026-11-14，账 byname-dep-fill-20261114）：
+    // xtooltip：聚阅 hikerPop 的 showTooltip（data/plugins/hikerPop.js:1090-1091
+    // 按名导入 Tooltip/ClosePolicy、:1141 用 R.style.MyTooltip、:2685 导出）
+    // 指向 it.sephiroth.android.library.xtooltip，官包内嵌此库而咱家此前无依赖。
+    // 官包无从定版（类面无 BuildConfig、与公开 2.0.3/2.0.5 内部类命名均有差），
+    // 取公开最新 release-2.0.5（JitPack 作者官方分发）：其 Builder 的
+    // styleId/floatingAnimation/closePolicy/anchor/text/showDuration/create 与
+    // Animation/ClosePolicy 的 Companion 取值经 javap 逐项对上 hikerPop 调用面；
+    // 配套样式 MyTooltip/MyToolTipOverlayDefaultStyle 照官 styles.xml 原值补入
+    // res/values/hk_hiker.xml，R 垫片同步补 style 转发。
+    implementation "com.github.sephiroth74:android-target-tooltip:release-2.0.5"
+    // okhttp-brotli：官 BrotliInterceptor 直装，咱家照官转写的 3 处探针
+    // （HkHttp.java:838/918、DohProvidersKt.java:77）Class.forName 恒落空被吞，
+    // 海阔/DOH 链永远协商不上 brotli。版本随 okhttp 5.4.0（version.ref），
+    // 传递 org.brotli:dec 0.1.2（POM 实证）。
+    implementation libs.okhttp.brotli
     // 海阔缺口·外部小库批（2026-11-14，版本均按官包 8.83 内嵌件核）：
     // githang 状态栏库：官 BuildConfig VERSION_NAME 0.7 / VERSION_CODE 71
     // （smali_classes2/com/githang/statusbar/BuildConfig.smali），供

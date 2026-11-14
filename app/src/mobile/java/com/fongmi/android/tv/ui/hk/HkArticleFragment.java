@@ -3685,11 +3685,20 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         HkItem clicked = list.get(position);
         boolean playList = isPlayList(clicked);
         String playListCls = getPlayListCls(clicked);
-        // 照 8.83 getChapters：前后都从全表收，只靠 chapterCandidate 过滤（跳 header 等），
-        // 没有「遇不同 type 就停」的窗口。此前星辰自加了同 type 窗口，详情页里
-        // 播放按钮与数字选集格 type 不同时，整排选集被窗口丢掉（1.3.11 录屏实证）。
-        int start = 0;
         String clickedRawUrl = clicked.getUrl();
+        // 照 8.83 getChapters 原文定界（官账 hk-chapters-official-20261114）：
+        // 非 playlist 时范围＝被点条目所在的同 type 连续段——向前逐个比 type、
+        // 首个异型之后为段首；向后遇首个异型即整段终止（下方后段循环内断）。
+        // playlist 时全表、逐条 cls 过滤。此前星辰自摘窗口改全表扫，又自加
+        // URL 正表形态门补洞，聚合页功能条目（标题/搜索/源切换/排序）与真集
+        // 同为 @lazyRule= 形态被无条件放行混进选集（1.4.134 蜘蛛侠案定根）；
+        // 135 恢复官窗口、形态门随之摘除（见 chapterCandidate）。
+        int start = 0;
+        if (!playList) {
+            start = position;
+            String clickedType = clicked.getType();
+            while (start - 1 >= 0 && clickedType.equals(list.get(start - 1).getType())) start--;
+        }
         for (int i = start; i < position; i++) {
             HkItem it = list.get(i);
             if (!chapterCandidate(it, playList, playListCls)) continue;
@@ -3713,6 +3722,9 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
             HkItem it = list.get(i);
             if (!chapterCandidate(it, playList, playListCls)) continue;
             if (isDupTitleEntry(it, clickedRawUrl)) continue;
+            // 官形后段终止：非 playlist 时，首个过了过滤但与被点条目异型的
+            // 条目即段尾、整段收束（被过滤掉的条目不终止段，同官 smali 序）。
+            if (!playList && !clicked.getType().equals(it.getType())) break;
             chapters.add(buildChapter(it, i, titlePrefix, codeAndHeader, false));
         }
         return chapters;
@@ -3812,59 +3824,12 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                 ? url.substring("pics://".length()) : url;
         if (!TextUtils.isEmpty(pic) && urlBare.equals(pic)) return false;
         if (playList && !isSamePlayList(playListCls, item)) return false;
-        // 正表形态门（普查提醒二，hk-handover-audit-20261031 E3/G2）：上面是逐
-        // 事故累积的排除表，拦不住没见过的新装饰/导航形态；这里再按「能播的集
-        // 长什么样」收最后一道——直链/@lazyRule/PlayData/P2P 四形之外一律不
-        // 收。被正表拦下的打一行日志（与误杀只隔一层：日后核样本能看到拦了
-        // 什么，不再靠真机事故发现）。
-        if (!isPlayableChapterForm(url)) {
-            try {
-                SpiderDebug.log("hk", "chapter dropped by form-gate url=%s title=%s",
-                        url, item.getTitle());
-            } catch (Throwable ignored) {
-            }
-            return false;
-        }
+        // 正表形态门已摘（135，官账 hk-chapters-official-20261114）：官 getChapters
+        // 无 URL 形态判据，范围由同 type 连续段定界；星辰 2026-10-31 自加的
+        // isPlayableChapterForm 是全表扫时代的补洞，其 @lazyRule=/js: 无条件
+        // 放行支正是聚合页功能条目混入选集的洞（1.4.134 蜘蛛侠案）。窗口恢复
+        // 后装饰/导航形态由段界天然挡在外面，本门连同方法一并摘除。
         return true;
-    }
-
-    /**
-     * 能播的集的地址正表（chapterCandidate 形态门）：四形——
-     * ①带 @lazyRule= 的懒集（含 hiker://empty#标记#@lazyRule=）；
-     * ②PlayData JSON（{ 起头且含 "urls"）；
-     * ③P2P（ed2k:/magnet:/thunder:/ftp://，口径同 HkRouter.play 步骤 1.6）；
-     * ④直链族：http/https/rtsp/rtmp/rtmps/udp/mms/file/content，以及分流层
-     * 有支的 webRule://（嗅探）、video://（剥协议）、js:（整段求值）、
-     * x5Play://（咱家自产壳，交接层另有分流），与无协议头的相对址/本地
-     * 路径（播放器与嗅探的既有处理面）。
-     * 四形之外（如 hiker:// 导航串的其余变体、未登记伪协议）回 false。
-     */
-    private static boolean isPlayableChapterForm(String url) {
-        if (url.contains("@lazyRule=")) return true;
-        String t = url.trim();
-        if (t.startsWith("{") && t.contains("\"urls\"")) return true;
-        String l = t.toLowerCase();
-        if (com.fongmi.android.tv.api.hk.HkRouter.isP2pPlayLink(t)) return true;
-        if (l.startsWith("js:")) return true;
-        int sep = l.indexOf("://");
-        if (sep < 0) return true;
-        switch (l.substring(0, sep)) {
-            case "http":
-            case "https":
-            case "rtsp":
-            case "rtmp":
-            case "rtmps":
-            case "udp":
-            case "mms":
-            case "file":
-            case "content":
-            case "webrule":
-            case "video":
-            case "x5play":
-                return true;
-            default:
-                return false;
-        }
     }
 
     /**

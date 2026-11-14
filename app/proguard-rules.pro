@@ -181,6 +181,31 @@
 -keep class * extends org.litepal.crud.LitePalSupport { *; }
 -keep class * extends org.litepal.crud.DataSupport { *; }
 
+# 按名直调库整包保名（2026-11-14，账 byname-lib-keep-20261114）：海阔规则
+# JS 经 Rhino Packages 按全限定名直调库类（HkJsRuntime 无白名单），官方包
+# 不混淆、类名全原样，规则生态按原名写死。此前保名只防「库按名找 App 类」
+# 一向，漏了反向的「规则按名找库类」——134 成品 dex 实测五库原名在位率：
+# XPopup 7/180、fastjson 0/274、Glide 4/645、jsoup 0/301、EventBus 2/44，
+# 其余全被 R8 改名；聚阅 hikerPop 行 358 直调 com.lxj.xpopup.XPopup.Builder
+# 当场 TypeError 即此病首爆。聚阅语料实证被点名的类：xpopup 的 XPopup/
+# core.BottomPopupView/core.CenterPopupView/util.XPopupUtils/interfaces.
+# XPopupCallback、fastjson.JSON、glide.Glide＋request.RequestOptions、
+# jsoup.Jsoup、eventbus.EventBus——按名可达集不可枚举，整包保名（与
+# org.litepal 同口径）。咱家转写类 com.lxj.xpopup.impl.MyInputConfirm-
+# PopupView 同在 XPopup 域内，一并覆盖（134 成品里它亦已被改名）。
+-keep class com.lxj.xpopup.** { *; }
+-keep class com.alibaba.fastjson.** { *; }
+-keep class com.bumptech.glide.** { *; }
+-keep class org.jsoup.** { *; }
+-keep class org.greenrobot.eventbus.** { *; }
+
+# 依赖补齐批同口径保名（2026-11-14，账 byname-dep-fill-20261114）：
+# xtooltip 由 hikerPop 经 Packages 按名直调（Tooltip/ClosePolicy），
+# okhttp3.brotli.BrotliInterceptor 由宿主 3 处 Class.forName 按名探入并反射
+# 读 INSTANCE 字段——两者皆按名面，整包/整类保名，验名门 G8f/G8g 逐版验。
+-keep class it.sephiroth.android.library.xtooltip.** { *; }
+-keep class okhttp3.brotli.** { *; }
+
 # 补丁拼包核 JNI 口（账 xc-delta-update）：libapkpatch.so 的唯一 JNI 入口
 # Java_com_github_sisong_ApkPatch_patch 按声明类全限定名写死、无 JNI_OnLoad，
 # 声明类 com.github.sisong.ApkPatch 类名一改（含 R8 改名）首次调用必抛

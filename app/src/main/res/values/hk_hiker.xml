@@ -31,4 +31,13 @@
     <color name="gray_text2">#ffa4a4a4</color>
     <string name="version_check_url">http://gh.haikuoshijie.cn/https://github.com/qiusunshine/hiker-rules/blob/master/versions.json</string>
     <string name="version_check_url2">https://ghproxy.com/https://raw.githubusercontent.com/qiusunshine/hiker-rules/master/versions.json</string>
+    <!-- 官 styles.xml 原值补（xtooltip 补齐批）：父样式与 ttlm_* 属性由
+         xtooltip AAR 提供，greenAction 本文件已有 -->
+    <style name="MyToolTipOverlayDefaultStyle" parent="@style/ToolTipOverlayDefaultStyle">
+        <item name="android:color">@color/greenAction</item>
+    </style>
+    <style name="MyTooltip" parent="@style/ToolTipLayoutDefaultStyle">
+        <item name="ttlm_backgroundColor">@color/greenAction</item>
+        <item name="ttlm_overlayStyle">@style/MyToolTipOverlayDefaultStyle</item>
+    </style>
 </resources>

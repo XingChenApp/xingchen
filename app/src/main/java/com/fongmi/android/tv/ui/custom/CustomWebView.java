@@ -409,6 +409,29 @@ public class CustomWebView extends WebView implements DialogInterface.OnDismissL
             }
 
             @Override
+            public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse) {
+                super.onReceivedHttpError(view, request, errorResponse);
+                // 列表类请求的浏览器侧成败见证（135，鉴黄师子列表 403 定根观测）：
+                // shouldInterceptRequest 只记请求发出、不记响应成败，网关腿吃
+                // 403 时无从对出「浏览器自己取没取到」。这里把播放列表/分片类
+                // 请求的 HTTP 错误状态落进同一诊断通道（host＋path＋状态码，
+                // 不记正文）：有此行＝浏览器也没取到（站对谁都不给）；只有
+                // webview-sniff 的请求行而无此行＝浏览器取到了（非错误状态）。
+                try {
+                    android.net.Uri u = request.getUrl();
+                    String p = u == null ? "" : String.valueOf(u.getPath());
+                    String l = p.toLowerCase();
+                    if (l.contains("m3u8") || l.endsWith(".ts") || l.endsWith(".m4s")
+                            || l.endsWith(".aac") || l.endsWith(".mp4")) {
+                        SpiderDebug.log("webview-sniff", "http-error host=%s path=%s status=%d",
+                                u == null ? "" : u.getHost(), p,
+                                errorResponse == null ? -1 : errorResponse.getStatusCode());
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+
+            @Override
             @SuppressLint("WebViewClientOnReceivedSslError")
             public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
                 handler.proceed();

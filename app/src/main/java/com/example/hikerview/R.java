@@ -315,4 +315,9 @@ public final class R {
         public static final int version_check_url = com.fongmi.android.tv.R.string.version_check_url;
         public static final int version_check_url2 = com.fongmi.android.tv.R.string.version_check_url2;
     }
+
+    public static final class style {
+        public static final int MyTooltip = com.fongmi.android.tv.R.style.MyTooltip;
+        public static final int MyToolTipOverlayDefaultStyle = com.fongmi.android.tv.R.style.MyToolTipOverlayDefaultStyle;
+    }
 }

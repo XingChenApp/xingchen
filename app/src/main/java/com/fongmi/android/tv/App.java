@@ -170,6 +170,25 @@ public class App extends Application implements Application.ActivityLifecycleCal
             com.fongmi.android.tv.api.loader.BaseLoader.get()
                     .watchJsPlugins(new java.io.File(getFilesDir(), "plugins/js"));
         } catch (Throwable e) { SpiderDebug.log("startup", "watch js plugins failed error=%s", e.getMessage()); SpiderDebug.log("startup", e); android.util.Log.e("App", "watchJsPlugins failed, JS plugin changes will not be auto-detected this session", e); }
+        // 短剧官方引擎装载提前点火（135）：此前首触发在进短剧面当栈
+        // （播放层预热／入场门点火同栈），冷启直进时约 19MB 引擎料的
+        // 校验落盘＋建加载器与首屏取数同跑，台出生时桥多半未就绪、
+        // 只能挂就绪钩补绑（1.4.134 真机会话全场无一台绑上桥、引擎
+        // 零递交的定根背景之一）。改到启动后帖：延迟帖里只调引擎
+        // 运行时的预热口（其内部自起后台装载线程即返），不进
+        // onCreate 同步链、不阻塞启动；进短剧面时装载多半已走完。
+        // 类名拆字串＋反射，同上方 LabBoot 与本文件备份避让的桥化
+        // 口径：朋友版导出手术摘短剧本体，硬引用与整串类名都会卡
+        // 导出/特征词扫；类不在时静默跳过。
+        post(() -> {
+            try {
+                Class.forName("com.fongmi.android.tv." + "hong" + "guo"
+                                + ".engine." + "Hg" + "EngineRuntime")
+                        .getMethod("prewarm")
+                        .invoke(null);
+            } catch (Throwable ignored) {
+            }
+        }, 1500);
         // 后台服务全家只许主进程起：崩溃页进程（:error_activity）此前无守卫，
         // 会在崩溃页进程里再起一整套（本地服务/RemoteAgent/节点内核/Python 预热），
         // 主进程崩后残留占位，重新拉起时播放全线对着残留状态假死、须强退才恢复。

@@ -158,6 +158,7 @@ newpipeextractor = { group = "com.github.TeamNewPipe", name = "NewPipeExtractor"
 nextlib-media3ext = { group = "io.github.anilbeesetti", name = "nextlib-media3ext", version.ref = "nextlib" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-dnsoverhttps = { group = "com.squareup.okhttp3", name = "okhttp-dnsoverhttps", version.ref = "okhttp" }
+okhttp-brotli = { group = "com.squareup.okhttp3", name = "okhttp-brotli", version.ref = "okhttp" }
 okhttp-logging-interceptor = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttp" }
 org-jupnp = { group = "org.jupnp", name = "org.jupnp", version.ref = "jupnp" }
