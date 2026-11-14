@@ -1,0 +1,33 @@
+name: release-upload-133
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Build run id (artifact XingChen-APK)'
+        required: true
+      tag:
+        description: 'Release tag'
+        required: true
+        default: 'v1.4.135'
+permissions:
+  contents: write
+  actions: read
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download build artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download "${{ inputs.run_id }}" --name XingChen-APK --dir /tmp/art
+      - name: Create release with notes and upload apk
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK=$(find /tmp/art -name "*.apk" | head -1)
+          echo "artifact apk: $APK"
+          cp "$APK" /tmp/xingchen-arm64_v8a-1.4.135.apk
+          gh release create "${{ inputs.tag }}" --title "星辰 1.4.135" --notes "修复已知bug" || gh release view "${{ inputs.tag }}" > /dev/null
+          gh release upload "${{ inputs.tag }}" /tmp/xingchen-arm64_v8a-1.4.135.apk --clobber
+          gh release view "${{ inputs.tag }}"
