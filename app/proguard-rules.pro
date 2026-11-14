@@ -271,6 +271,25 @@
 # 按字符串类名反射装配的播放引擎保名（Startup 按名预热，无编译期引用保名）
 -keep class com.fongmi.android.tv.player.engine.ExoPlayerEngine { *; }
 
+# Chaquopy（账 r8-byname-sweep-20261114 行 2）：上游 FongMi 的
+# chaquo/consumer-rules.pro 五条原文——本树 chaquo 模块无此文件、主规此前
+# 亦无，Python 侧 from com.chaquo.python import Python 与 catvod GlobalProxy
+# 的 Class.forName 全靠按名命中；132 成品实测 com.chaquo.python 本体幸存但
+# com.fongmi.chaquo.Platform 已改名/摘除，同 LitePal 一型隐患，照上游补齐。
+-keep class com.chaquo.python.** { *; }
+-keep class kotlin.jvm.functions.** { *; }
+-keep class kotlin.jvm.internal.FunctionBase { *; }
+-keep class kotlin.reflect.KAnnotatedElement { *; }
+-keepclassmembers class com.fongmi.chaquo.Platform { public android.content.Context getApplication(); }
+
+# EventBus（账 r8-byname-sweep-20261114 行 4）：官方 ProGuard 规矩原文。
+# 本树运行时未注册 EventIndex、靠反射扫 @Subscribe 方法（三源集 50+ 处），
+# 此前主规零 EventBus 规则——订阅方法被裁/改名即事件静默不达。
+# （-keepattributes *Annotation* 已在文件首部。）
+-keepclassmembers class ** { @org.greenrobot.eventbus.Subscribe <methods>; }
+-keep enum org.greenrobot.eventbus.ThreadMode { *; }
+-keepclassmembers class * extends org.greenrobot.eventbus.util.ThrowableFailureEvent { <init>(java.lang.Throwable); }
+
 # 收官大扫查类二加固（2026-10-31，账 round-close-20261031）：以下三类含
 # 泛型集合字段、走 Gson .class 读回，此前只靠 -keepattributes Signature 保险丝
 # 单层防护（无 TypeToken/retype/点名 keep）——保险丝在位时不崩，但单层就是单层，
