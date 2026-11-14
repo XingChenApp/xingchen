@@ -169,6 +169,18 @@
 -keep class com.example.hikerview.** { *; }
 -keep class com.annimon.stream.function.Consumer { *; }
 
+# LitePal（org.litepal core 2.0.0，官包内嵌同库）：官方 ProGuard 规矩
+# （LitePal 官方 README「ProGuard Configuration」原文）。其 AAR 不带
+# consumer 规则，不在此补，R8 会把库类改名/裁剪——而 LitePal 把自家记账类
+# org.litepal.model.Table_Schema 以字符串字面量塞进建表名单（LitePalAttr/
+# LitePalConfig/LitePalDB 三处 ldc 同名），再由 LitePalBase 逐名
+# Class.forName 建表，改名即抛「can not find a class named ...Table_Schema」
+# （1.4.132 真机进海阔崩实锤；132 审计只验了 litepal.xml 六个用户模型类、
+# 漏了库自家按名查找的这一名）。模型行覆盖 LitePalSupport/DataSupport 两代。
+-keep class org.litepal.** { *; }
+-keep class * extends org.litepal.crud.LitePalSupport { *; }
+-keep class * extends org.litepal.crud.DataSupport { *; }
+
 # 海阔模型：Gson 按字段名序列化/反序列化（MY_RULE、hiker://page 规则体），字段名不能改
 -keep class com.fongmi.android.tv.api.hk.HkRule { *; }
 -keep class com.fongmi.android.tv.api.hk.HkPageRule { *; }
