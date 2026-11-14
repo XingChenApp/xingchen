@@ -92,6 +92,41 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         return DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID;
     }
 
+    /** 三面显示位归属源（主服务＝MAIN；短剧听书子类覆写为 HG_AUDIO）。 */
+    protected PlaybackSlot.Source slotSource() {
+        return PlaybackSlot.Source.MAIN;
+    }
+
+    /**
+     * 显示位参与者（账 session-slot-follow-play-20261115）：让位＝摘会话登记
+     * （管理器据此 stopForeground＋cancel 本服务通知，是 media3 原生撤卡路），
+     * 服务本体/导航回调/迷你条代管一概不动；回位＝候补且仍有曲目时重新登记
+     * ＋戳一次按钮偏好让管理器重建通知（树内 onRepeatModeChanged 同款戳法）。
+     * 回调由 PlaybackSlot 经 App.post 在主线程发。
+     */
+    private final PlaybackSlot.Participant slotParticipant = new PlaybackSlot.Participant() {
+        @Override
+        public void onSlotYielded() {
+            yieldSlot();
+        }
+
+        @Override
+        public void onSlotReclaimable() {
+            if (session == null || isSessionAdded(session)) return;
+            if (exoPlayer == null || exoPlayer.isPlaying()
+                    || exoPlayer.getCurrentMediaItem() == null) return;
+            if (!PlaybackSlot.claimPaused(slotSource())) return;
+            addSession(session);
+            session.setMediaButtonPreferences(ImmutableList.of(buildRepeatButton(), buildStopButton()));
+        }
+    };
+
+    /** 让位执行口：自家没在播才摘登记；在播被认领挤不掉（起播互停链会随后收口）。 */
+    private void yieldSlot() {
+        if (exoPlayer != null && exoPlayer.isPlaying()) return;
+        if (session != null && isSessionAdded(session)) removeSession(session);
+    }
+
     /**
      * 是否主服务：只有主服务写类级 running 旗、注册 Server 单例、接管
      * PlaybackEventCollector 指针——这三处都是全局单槽，拆套后必须归一，
@@ -145,6 +180,14 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         session = new MediaLibrarySession.Builder(this, wrap(exoPlayer), this).setId(sessionId()).build();
         if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-flow", "service session ready cost=%dms", System.currentTimeMillis() - start);
         session.setSessionActivity(buildDefaultIntent());
+        // 必须显式登记会话（与音乐侧 1.3.59 实证同理，账 session-slot-follow-play
+        // -20261115 B2）：media3 的 MediaNotificationManager 只认 addSession 过的
+        // 会话——它靠登记才连上自家内部控制器驱动通知（shouldShowNotification
+        // 只认连上的控制器）。此前本服务从不登记，登记只靠播放页自家
+        // MediaController 连进来那一刻，线一断（绑定延迟/连接失败被吞）页内
+        // 照播、三面就是没有。登记/摘登记同时是三面显示位让位/回位的执行口。
+        addSession(session);
+        PlaybackSlot.register(slotSource(), slotParticipant);
         EventBus.getDefault().register(this);
         if (isPrimaryService()) Server.get().setService(this);
         setupNotification();
@@ -234,6 +277,10 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-lifecycle", "service destroy before %s", serviceState());
         alive = false;
         if (isPrimaryService()) running = false;
+        // 显示位收口：先释放（位若已归 A5 续播的音乐，release 只认持位者、无操作；
+        // 仍归自家就放位给候补回位），再摘登记，免销毁后的参与者还收让位/回位。
+        PlaybackSlot.release(slotSource());
+        PlaybackSlot.unregister(slotSource(), slotParticipant);
         // player 在 onCreate 首段才赋值：构造中途抛错时 player 为 null，
         // 这里无条件解引用会以二次 NPE 把真因盖掉，故逐处判空。
         if (player != null) {
@@ -640,6 +687,15 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         public void onIsPlayingChanged(boolean isPlaying) {
             PlaybackEventCollector.get().onIsPlayingChanged(player, isPlaying);
             if (desktopLyrics != null) desktopLyrics.update(player);
+            // 三面显示位跟播走（账 session-slot-follow-play-20261115）：真起播即
+            // 认领（登记被让位摘掉过就先补回）；暂停落点时位已属别人就自让，
+            // 防认领/暂停时序交错把自家暂停卡留成残留占位。
+            if (isPlaying) {
+                if (session != null && !isSessionAdded(session)) addSession(session);
+                PlaybackSlot.claim(slotSource());
+            } else if (PlaybackSlot.ownedByOther(slotSource())) {
+                yieldSlot();
+            }
         }
 
         @Override

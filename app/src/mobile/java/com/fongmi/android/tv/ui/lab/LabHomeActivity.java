@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.ui.lab;
 
+import com.fongmi.android.tv.utils.ToastUtil;
+
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
@@ -61,7 +63,7 @@ public class LabHomeActivity extends AppCompatActivity {
         // 不许再出现「列表凭空变空、什么都不说」的静默清空
         String notice = LabRegistry.takeLoadNotice();
         if (notice != null && !notice.isEmpty()) {
-            android.widget.Toast.makeText(this, notice, android.widget.Toast.LENGTH_LONG).show();
+            ToastUtil.show(this, notice, android.widget.Toast.LENGTH_LONG);
         }
     }
 

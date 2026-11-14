@@ -182,7 +182,9 @@ public class GlideUtil {
     }
 
     public static int[] smartCompress(Context context, Drawable drawable) {
-        // 注：d/d2 初值官 jadx 不可见，按 d=宽、d2=1.0 落（见账）
+        // 注：d/d2 初值已对官 smali 复核（d＝原宽 float、d2 初值 1.0）；
+        // 宽高比两处旧转写丢了 float 除法（宽图高算成 0 崩 createScaledBitmap），
+        // 2026-11-15 已按官 smali 恢复 float 并补尺寸下限（见 hk-imgutil-crash-20261115.md）
         double d = 0;
         double d2 = 1.0d;
         int intrinsicWidth = drawable.getIntrinsicWidth();
@@ -203,7 +205,7 @@ public class GlideUtil {
             } else if (byteCount >= 10485760) {
                 if ((byteCount / screenMin) / screenMin < 5242880.0f) {
                     intrinsicWidth = ScreenUtil.getScreenMin(context);
-                    intrinsicHeight = (int) ((drawable.getIntrinsicHeight() / drawable.getIntrinsicWidth()) * intrinsicWidth);
+                    intrinsicHeight = (int) (((float) drawable.getIntrinsicHeight() / (float) drawable.getIntrinsicWidth()) * intrinsicWidth);
                 } else {
                     if (byteCount > 104857600) {
                         d = f;
@@ -212,8 +214,10 @@ public class GlideUtil {
                         d = f;
                         d2 = 3.3d;
                     } else if (byteCount > 20971520) {
+                        // 官 smali cond_4：宽高同减半即定版（旧转写被下方 d/d2
+                        // 覆写把宽拉回全宽，已订正为经 d 走同一出口）
+                        d = f / 2.0f;
                         intrinsicHeight = (int) (intrinsicHeight / 2.0f);
-                        intrinsicWidth = (int) (f / 2.0f);
                     }
                     intrinsicWidth = (int) (d / d2);
                     intrinsicHeight = (int) (intrinsicHeight / d2);
@@ -222,7 +226,14 @@ public class GlideUtil {
         }
         if (intrinsicWidth > ScreenUtil.getScreenMin(context)) {
             intrinsicWidth = ScreenUtil.getScreenMin(context);
-            intrinsicHeight = (int) ((drawable.getIntrinsicHeight() / drawable.getIntrinsicWidth()) * intrinsicWidth);
+            intrinsicHeight = (int) (((float) drawable.getIntrinsicHeight() / (float) drawable.getIntrinsicWidth()) * intrinsicWidth);
+        }
+        // 尺寸下限（官形 float 下极端长宽比仍可算出 0，下游 createScaledBitmap 必崩；与 HkGlideUtil 副本房规一致）
+        if (intrinsicWidth < 1) {
+            intrinsicWidth = 1;
+        }
+        if (intrinsicHeight < 1) {
+            intrinsicHeight = 1;
         }
         return new int[]{intrinsicWidth, intrinsicHeight};
     }
@@ -247,7 +258,7 @@ public class GlideUtil {
         } else if (byteCount >= 10485760) {
             if ((byteCount / screenMin) / screenMin < 5242880.0f) {
                 width = ScreenUtil.getScreenMin(context);
-                height = (int) ((bitmap.getHeight() / bitmap.getWidth()) * width);
+                height = (int) (((float) bitmap.getHeight() / (float) bitmap.getWidth()) * width);
             } else {
                 if (byteCount > 104857600) {
                     d = f;
@@ -256,8 +267,9 @@ public class GlideUtil {
                     d = f;
                     d2 = 3.3d;
                 } else if (byteCount > 20971520) {
+                    // 官 smali cond_4：宽高同减半即定版（同 Drawable 重载订正）
+                    d = f / 2.0f;
                     height = (int) (height / 2.0f);
-                    width = (int) (f / 2.0f);
                 }
                 width = (int) (d / d2);
                 height = (int) (height / d2);
@@ -265,7 +277,14 @@ public class GlideUtil {
         }
         if (width > ScreenUtil.getScreenMin(context)) {
             width = ScreenUtil.getScreenMin(context);
-            height = (int) ((bitmap.getHeight() / bitmap.getWidth()) * width);
+            height = (int) (((float) bitmap.getHeight() / (float) bitmap.getWidth()) * width);
+        }
+        // 尺寸下限（同 Drawable 重载）
+        if (width < 1) {
+            width = 1;
+        }
+        if (height < 1) {
+            height = 1;
         }
         return new int[]{width, height};
     }

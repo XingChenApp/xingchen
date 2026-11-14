@@ -119,7 +119,10 @@ public class HkHistoryActivity extends BaseActivity {
         }
         String vodId = extractVodId(h);
         String episodeUrl = h.getEpisodeUrl() == null ? "" : h.getEpisodeUrl();
-        boolean directForm = !episodeUrl.isEmpty() && episodeUrl.equals(vodId);
+        // 毛病2(a)：形态判定走键标记口（HkDetailBridge.isDirectForm）——
+        // 旧形拿行内 episodeUrl 与键 id 相等自证，而 episodeUrl 每次切集
+        // 都被改写，直达行切一次集就翻成详情形、再入拿集址当详情址必死。
+        boolean directForm = HkDetailBridge.isDirectForm(vodId, episodeUrl);
         // 借面三类（小说/听书/音乐）再入（2026-11-14 不留痕新规配套）：
         // 详情形记录不在此分流——落下方原路回详情页，divertHkRead 按有
         // 效规则重新分类改道并从本行恢复进度，与首次打开同路；直达形记
@@ -170,7 +173,7 @@ public class HkHistoryActivity extends BaseActivity {
                 return;
             }
         }
-        if (!episodeUrl.isEmpty() && episodeUrl.equals(vodId)) {
+        if (HkDetailBridge.isDirectForm(vodId, episodeUrl)) {
             // 列表条目直达播放留下的记录（id 即当时播的那条）：回播放器直达
             VideoActivity.startHkPlay(from, ruleTitle,
                     TextUtils.isEmpty(h.getVodFlag()) ? "默认" : h.getVodFlag(),

@@ -2,6 +2,7 @@ package com.fongmi.android.tv.utils;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Looper;
@@ -22,6 +23,12 @@ import com.google.android.material.snackbar.Snackbar;
  * 他手机上系统 Toast 是浅色透底，盖在亮色画面上字看不清；自定义 Toast 视图在高版本
  * 系统上会被忽略回系统样式，改了也白改，所以不再走 Toast 自定义视图。
  * 没有可用 Activity 时才回落系统 Toast。
+ *
+ * 宿主口径（2026-11-15，账 app-toast-layer-toastmgr-20261115）：Snackbar 先挂
+ * {@link TopPromptWindow} 的顶层窗——136 的抬 Z 只压得住 Activity 窗内的页面内容，
+ * 压不过任何 Dialog 窗（XPopup 全屏查看器等）；顶层窗在一切 Dialog 窗之上，
+ * 且不依赖 Activity 存活。顶层窗不可用（无悬浮窗权限）时回落原 Activity 内容框
+ * 路径（136 形态原样），再不行才回落系统 Toast。
  */
 public class ToastUtil {
 
@@ -39,82 +46,102 @@ public class ToastUtil {
         }
         try {
             Activity activity = context instanceof Activity ? (Activity) context : App.activity();
-            if (activity != null && !activity.isFinishing() && !activity.isDestroyed()) {
-                View anchor = activity.findViewById(android.R.id.content);
-                if (anchor != null) {
-                    if (current != null) current.dismiss();
-                    int len = duration == Toast.LENGTH_LONG ? Snackbar.LENGTH_LONG : Snackbar.LENGTH_SHORT;
-                    Snackbar bar = Snackbar.make(anchor, text, len);
-                    View sbView = bar.getView();
-                    float density = activity.getResources().getDisplayMetrics().density;
-                    int screenW = activity.getResources().getDisplayMetrics().widthPixels;
-                    // 2026-10-22 潇洒哥纠正：提示不许贴底盖 tab 栏、不许满宽大条。
-                    // 改回老 Toast 的形态：居中小胶囊，字白底深；位置浮在 tab 栏上方（有 tab 栏时按其实高＋底边距＋8dp 缝顶上去，
-                    // 无 tab 栏时按老 Toast 的 64dp 底边距），不再是贴底满宽大条。
-                    GradientDrawable pill = new GradientDrawable();
-                    pill.setColor(Color.parseColor("#FF262626"));
-                    pill.setCornerRadius(24 * density);
-                    sbView.setBackground(pill);
-                    int padH = Math.round(10 * density);
-                    int padV = Math.round(5 * density);
-                    sbView.setPadding(padH, padV, padH, padV);
-                    TextView tv = sbView.findViewById(com.google.android.material.R.id.snackbar_text);
-                    if (tv != null) {
-                        tv.setTextColor(Color.WHITE);
-                        tv.setMaxLines(5);
-                        tv.setMaxWidth(Math.round(screenW * 0.85f));
-                    }
-                    int bottomMargin = Math.round(64 * density);
-                    int navId = activity.getResources().getIdentifier("navigation", "id", activity.getPackageName());
+            boolean activityAlive = activity != null && !activity.isFinishing() && !activity.isDestroyed();
+            View anchor = null;
+            boolean hosted = false;
+            FrameLayout hostRoot = TopPromptWindow.hostRoot();
+            if (hostRoot != null) {
+                anchor = hostRoot;
+                hosted = true;
+            } else if (activityAlive) {
+                anchor = activity.findViewById(android.R.id.content);
+            }
+            if (anchor != null) {
+                if (current != null) current.dismiss();
+                int len = duration == Toast.LENGTH_LONG ? Snackbar.LENGTH_LONG : Snackbar.LENGTH_SHORT;
+                Snackbar bar = Snackbar.make(anchor, text, len);
+                View sbView = bar.getView();
+                Resources res = activityAlive ? activity.getResources() : context.getResources();
+                float density = res.getDisplayMetrics().density;
+                int screenW = res.getDisplayMetrics().widthPixels;
+                // 2026-10-22 潇洒哥纠正：提示不许贴底盖 tab 栏、不许满宽大条。
+                // 改回老 Toast 的形态：居中小胶囊，字白底深；位置浮在 tab 栏上方（有 tab 栏时按其实高＋底边距＋8dp 缝顶上去，
+                // 无 tab 栏时按老 Toast 的 64dp 底边距），不再是贴底满宽大条。
+                GradientDrawable pill = new GradientDrawable();
+                pill.setColor(Color.parseColor("#FF262626"));
+                pill.setCornerRadius(24 * density);
+                sbView.setBackground(pill);
+                int padH = Math.round(10 * density);
+                int padV = Math.round(5 * density);
+                sbView.setPadding(padH, padV, padH, padV);
+                TextView tv = sbView.findViewById(com.google.android.material.R.id.snackbar_text);
+                if (tv != null) {
+                    tv.setTextColor(Color.WHITE);
+                    tv.setMaxLines(5);
+                    tv.setMaxWidth(Math.round(screenW * 0.85f));
+                }
+                int bottomMargin = Math.round(64 * density);
+                if (activityAlive) {
+                    int navId = res.getIdentifier("navigation", "id", activity.getPackageName());
                     View tabBar = navId != 0 ? activity.findViewById(navId) : null;
                     if (tabBar != null && tabBar.getVisibility() == View.VISIBLE) {
                         int tabH = tabBar.getHeight();
                         if (tabH <= 0) {
-                            int dimId = activity.getResources().getIdentifier("xc_bottombar_height", "dimen", activity.getPackageName());
-                            tabH = dimId != 0 ? activity.getResources().getDimensionPixelSize(dimId) : Math.round(56 * density);
+                            int dimId = res.getIdentifier("xc_bottombar_height", "dimen", activity.getPackageName());
+                            tabH = dimId != 0 ? res.getDimensionPixelSize(dimId) : Math.round(56 * density);
                         }
                         int tabBottomMargin = 0;
                         ViewGroup.LayoutParams tlp = tabBar.getLayoutParams();
                         if (tlp instanceof ViewGroup.MarginLayoutParams) tabBottomMargin = ((ViewGroup.MarginLayoutParams) tlp).bottomMargin;
                         if (tabBottomMargin <= 0) {
-                            int dimId = activity.getResources().getIdentifier("xc_bottombar_margin_bottom", "dimen", activity.getPackageName());
-                            if (dimId != 0) tabBottomMargin = activity.getResources().getDimensionPixelSize(dimId);
+                            int dimId = res.getIdentifier("xc_bottombar_margin_bottom", "dimen", activity.getPackageName());
+                            if (dimId != 0) tabBottomMargin = res.getDimensionPixelSize(dimId);
                         }
                         bottomMargin = tabH + tabBottomMargin + Math.round(8 * density);
                     }
-                    ViewGroup.LayoutParams lp = sbView.getLayoutParams();
-                    if (lp instanceof FrameLayout.LayoutParams) {
-                        FrameLayout.LayoutParams flp = (FrameLayout.LayoutParams) lp;
-                        flp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
-                        flp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
-                        flp.bottomMargin = bottomMargin;
-                        sbView.setLayoutParams(flp);
-                    } else if (lp instanceof CoordinatorLayout.LayoutParams) {
-                        CoordinatorLayout.LayoutParams clp = (CoordinatorLayout.LayoutParams) lp;
-                        clp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
-                        clp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
-                        clp.bottomMargin = bottomMargin;
-                        sbView.setLayoutParams(clp);
+                }
+                ViewGroup.LayoutParams lp = sbView.getLayoutParams();
+                if (lp instanceof FrameLayout.LayoutParams) {
+                    FrameLayout.LayoutParams flp = (FrameLayout.LayoutParams) lp;
+                    flp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+                    flp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+                    flp.bottomMargin = bottomMargin;
+                    sbView.setLayoutParams(flp);
+                } else if (lp instanceof CoordinatorLayout.LayoutParams) {
+                    CoordinatorLayout.LayoutParams clp = (CoordinatorLayout.LayoutParams) lp;
+                    clp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+                    clp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+                    clp.bottomMargin = bottomMargin;
+                    sbView.setLayoutParams(clp);
+                }
+                // 层级钉死（2026-11-14 他亲口：提示必须在当前页面上面）：本条是挂进
+                // 宿主 Activity 内容框的普通子 View，无自有窗口、原本不设 Z，
+                // 在位与否全靠「最后追加」这一瞬——页面随后加进同框的浮层、
+                // 高 elevation 层都能直接盖住它（多页实报被盖住看不见）。
+                // 只抬绘制层级，不动位置/底色/字色/时长：translationZ 顶到页面层
+                // 达不到的高位（页面 elevation 均为 dp 级小值），抬 Z 后页面内容
+                // 无论先后都压不到它；空轮廓防抬 Z 附带投影改了样式。
+                // 2026-11-15 补：宿主为顶层窗时本手冗余但无害（窗本身已在最上），
+                // 回落 Activity 路径时仍是命根，保留不拆。
+                sbView.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                    @Override
+                    public void getOutline(View view, android.graphics.Outline outline) {
+                        outline.setEmpty();
                     }
-                    // 层级钉死（2026-11-14 他亲口：提示必须在当前页面上面）：本条是挂进
-                    // 宿主 Activity 内容框的普通子 View，无自有窗口、原本不设 Z，
-                    // 在位与否全靠「最后追加」这一瞬——页面随后加进同框的浮层、
-                    // 高 elevation 层都能直接盖住它（多页实报被盖住看不见）。
-                    // 只抬绘制层级，不动位置/底色/字色/时长：translationZ 顶到页面层
-                    // 达不到的高位（页面 elevation 均为 dp 级小值），抬 Z 后页面内容
-                    // 无论先后都压不到它；空轮廓防抬 Z 附带投影改了样式。
-                    sbView.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                });
+                sbView.setTranslationZ(4096f);
+                if (hosted) {
+                    bar.addCallback(new Snackbar.Callback() {
                         @Override
-                        public void getOutline(View view, android.graphics.Outline outline) {
-                            outline.setEmpty();
+                        public void onDismissed(Snackbar transientBottomBar, int event) {
+                            TopPromptWindow.releaseIfIdle();
                         }
                     });
-                    sbView.setTranslationZ(4096f);
-                    current = bar;
-                    bar.show();
-                    sbView.post(() -> sbView.bringToFront());
-                    return;
                 }
+                current = bar;
+                bar.show();
+                sbView.post(() -> sbView.bringToFront());
+                return;
             }
         } catch (Throwable ignored) {
         }

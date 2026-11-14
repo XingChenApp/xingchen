@@ -25,25 +25,129 @@ public class HkDetailBridge {
     }
 
     /**
-     * 点击下标一次性承接槽（face1#4 尾巴，簇3）：HkRouter.playRoute→
+     * 点击下标一次性承接槽（face1#4 尾巴，簇3；2026-11-15 身份绑定断根，
+     * 账 hk-player-seam-audit-20261115 毛病8）：HkRouter.playRoute→
      * resolveLazyRule 链的 MY_POSITION 取值在点击方（列表/选集面）手里，
      * play 标准入参（key/flag/id）不带下标、api/hk 层无现成载体可达。
-     * 点击方在发起播放前调 {@link #setClickPosition(int)} 放下标，
-     * HkRouter.playRoute 入口以 {@link #consumeClickPosition()} 取走
-     * （读后复位 -1，与 HkJsRuntime.setNextLazyPosition 的一次性语义
-     * 同形）；未放时恒 -1＝官 LazyRuleParser.parse 无 position 重载的
-     * 缺省实参。fragment 侧调用点留主线缝（见 fill-136b-c3-scope 分账）。
+     * 点击方在发起播放前调 {@link #setClickPosition(int, String, String)}
+     * 放下标（带规则名＋被点集址身份），HkRouter.playRoute 入口以
+     * {@link #consumeClickPosition(String, String)} 按身份取走（读后
+     * 复位 -1）；未放/身份不合时恒 -1＝官 LazyRuleParser.parse 无
+     * position 重载的缺省实参。
+     *
+     * <p>旧形是裸 int 全局单槽：无身份、无清口——预热/历史预解析/下一集
+     * 预加载等推测性解析与真播同抢一槽（预热先行时真播丢位），被分流
+     * 的起播（小说早分流等）又留残值被无关解析领走。现形三件：①身份
+     * 不合即残值，首个接触者清掉回 -1；②推测性解析（playerContentParseOnly
+     * 与 HkProxyPrewarm）经 begin/endClickPositionSuppressed 抑制对包裹，
+     * 期间 consume 不领不清（真播的槽留给真播）；③被分流/失败的起播经
+     * {@link #clearClickPosition} 主动清口，不留残值。</p>
      */
     private static volatile int clickPosition = -1;
+    private static volatile String clickPositionRule = "";
+    private static volatile String clickPositionUrl = "";
+    private static final ThreadLocal<Boolean> CLICK_POSITION_SUPPRESSED =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
 
-    public static void setClickPosition(int position) {
+    public static void setClickPosition(int position, String ruleTitle, String episodeUrl) {
+        clickPositionRule = ruleTitle == null ? "" : ruleTitle;
+        clickPositionUrl = episodeUrl == null ? "" : episodeUrl;
         clickPosition = position;
     }
 
-    public static int consumeClickPosition() {
+    public static int consumeClickPosition(String ruleTitle, String episodeUrl) {
+        if (Boolean.TRUE.equals(CLICK_POSITION_SUPPRESSED.get())) return -1;
         int p = clickPosition;
+        String r = clickPositionRule;
+        String u = clickPositionUrl;
+        clearClickPosition();
+        if (p < 0) return -1;
+        boolean match = (ruleTitle == null ? "" : ruleTitle).equals(r)
+                && (episodeUrl == null ? "" : episodeUrl).equals(u);
+        return match ? p : -1;
+    }
+
+    /** 起播被分流/失败等不经 playRoute 的收口：主动清槽，不留残值。 */
+    public static void clearClickPosition() {
         clickPosition = -1;
-        return p;
+        clickPositionRule = "";
+        clickPositionUrl = "";
+    }
+
+    /**
+     * 推测性解析抑制对（begin/end 须同线程 try/finally 配对）：抑制期间
+     * consumeClickPosition 恒回 -1 且不清槽——预热/预解析/预加载不是
+     * 真播，不许领走（也不许销毁）真播的点击位。begin 回旧值供 end 还原
+     * （嵌套安全）。
+     */
+    public static boolean beginClickPositionSuppressed() {
+        boolean prev = Boolean.TRUE.equals(CLICK_POSITION_SUPPRESSED.get());
+        CLICK_POSITION_SUPPRESSED.set(Boolean.TRUE);
+        return prev;
+    }
+
+    public static void endClickPositionSuppressed(boolean prev) {
+        CLICK_POSITION_SUPPRESSED.set(prev);
+    }
+
+    /**
+     * 直达历史行形态标记（毛病2，hk-player-seam-audit-20261115）：直达行
+     * 的形态（直达 vs 详情）旧形靠「行内 episodeUrl 与键中 id 相等」自证，
+     * 而 episodeUrl 每次切集都被改写——形态随之翻转、再入走错门。形态
+     * 改记在键的 id 段前缀上：键由 getHistoryKey 在建行时一次写定、播放
+     * 期从不改写，是行里唯一不动的字段。未带标记的旧行仍回退旧等值判
+     * （未翻转过的旧行判得对；已被翻转的旧行信息已失、无从恢复）。
+     */
+    public static final String DIRECT_KEY_MARK = "hkdirect:";
+
+    public static boolean isDirectKeyId(String keyId) {
+        return keyId != null && keyId.startsWith(DIRECT_KEY_MARK);
+    }
+
+    public static String stripDirectKeyMark(String keyId) {
+        if (keyId == null) return "";
+        return isDirectKeyId(keyId) ? keyId.substring(DIRECT_KEY_MARK.length()) : keyId;
+    }
+
+    /** 行形态判定（三处共用）：键带直达标记，或（旧行）集址与键 id 相等。 */
+    public static boolean isDirectForm(String keyId, String episodeUrl) {
+        if (isDirectKeyId(keyId)) return true;
+        return episodeUrl != null && !episodeUrl.isEmpty() && episodeUrl.equals(keyId);
+    }
+
+    /**
+     * 集址是 PlayData JSON（urls ≥2）时展开成逐线条目（线名取 PlayData
+     * 线名）；非 PlayData 或单线回 null（原条目照旧）。线名归一口径与
+     * HkListActivity.namesOf 同形（空名补「线路N」、重名后缀序号）——
+     * main 源集够不到 mobile 的 namesOf，此处同口径复刻，两路自此同名。
+     */
+    private static java.util.List<HkDetailItem> expandPlayDataItem(HkDetailItem di) {
+        String raw = di.getUrl() == null ? "" : di.getUrl().trim();
+        if (!raw.startsWith("{")) return null;
+        HkPlayData pd = HkHttpParser.getPlayData(raw);
+        if (pd == null || pd.getUrls() == null || pd.getUrls().size() < 2) return null;
+        java.util.List<String> names = new ArrayList<>();
+        java.util.Set<String> used = new java.util.HashSet<>();
+        for (int i = 0; i < pd.getUrls().size(); i++) {
+            String n = pd.getNames() != null && i < pd.getNames().size() ? pd.getNames().get(i) : "";
+            n = n == null ? "" : n.trim();
+            if (n.isEmpty()) n = "线路" + (i + 1);
+            if (!used.add(n)) n = n + " " + (i + 1);
+            used.add(n);
+            names.add(n);
+        }
+        java.util.List<HkDetailItem> out = new ArrayList<>();
+        for (int i = 0; i < pd.getUrls().size(); i++) {
+            HkDetailItem copy = new HkDetailItem();
+            copy.setTitle(di.getTitle());
+            copy.setPic(di.getPic());
+            copy.setDesc(di.getDesc());
+            copy.setColType(di.getColType());
+            copy.setUrl(HkHttpParser.expandLineUrl(pd, raw, i));
+            copy.setLine(names.get(i));
+            out.add(copy);
+        }
+        return out;
     }
 
     public static Vod toVod(HkRule rule, String itemUrl, HkDetail detail) {
@@ -76,6 +180,18 @@ public class HkDetailBridge {
                 HkChapters.collectEpisodeRuns(detail.getRawItems()), pageUrl)) {
             java.util.Map<String, List<HkDetailItem>> runByLine = new java.util.LinkedHashMap<>();
             for (HkDetailItem di : run) {
+                // 毛病3(iii)：集址本身是 PlayData 多线 JSON 时，收编期就按
+                // 线展开成逐线条目（线名＝PlayData 线名）——旧形整串塞进
+                // 条目自带的那一条线，播放时恒取首线、其余线（连带各自
+                // 请求头）结构上不可达。展开走 HkHttpParser.expandLineUrl，
+                // 与列表路同一打包口径。
+                java.util.List<HkDetailItem> expanded = expandPlayDataItem(di);
+                if (expanded != null) {
+                    for (HkDetailItem ex : expanded) {
+                        runByLine.computeIfAbsent(ex.getLine(), k -> new ArrayList<>()).add(ex);
+                    }
+                    continue;
+                }
                 String lineName = di.getLine() == null || di.getLine().isEmpty() ? "默认" : di.getLine();
                 runByLine.computeIfAbsent(lineName, k -> new ArrayList<>()).add(di);
             }

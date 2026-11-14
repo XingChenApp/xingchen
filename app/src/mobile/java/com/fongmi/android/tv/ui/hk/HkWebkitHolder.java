@@ -594,11 +594,35 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
     }
 
     public void initWebView(Activity activity) {
+        initWebViewInternal(activity, activity, true);
+    }
+
+    /**
+     * 背景嗅探宿主初始化（掉帧账 S1 落修，下一集预解析专用）：与 initWebView
+     * 同装配（settings/双 Client/全桥/各 handler 一字不差），只差两处宿主面：
+     * ①reference 只作存活/语境来源（可为 null，此时桥内各 act 门控按既有
+     * 「宿主不在位」口径自理，与前台页 finishing 时同形）；
+     * ②不登记 HkPlayerChooser 当前页 Wrapper——背景嗅探不是当前页，登记会
+     * 顶掉在播页自己的 Wrapper（头表来源口读错家），销毁时也无从注销起。
+     * WebView 本体由调用方以应用上下文创建（HkWebkitFetcher 取页一线同形：
+     * 脱窗、无宿主窗），页面 JS/注入/拦截的运行面与前台形逐项相同。
+     */
+    public void initWebViewBackground(Context context, Activity refActivity) {
+        initWebViewInternal(context, refActivity, false);
+    }
+
+    /** 本 holder 是否登记过当前页 Wrapper（背景形恒否）：onDestroy 据此决定注销。 */
+    private boolean wrapperRegistered;
+
+    private void initWebViewInternal(Context context, Activity refActivity, boolean registerWrapper) {
         if (reference != null) reference.clear();
-        reference = new WeakReference<>(activity);
+        // 背景形 refActivity 可为 null：装空引用而非 null 本体——桥内有直调
+        // reference.get() 的口（开页/唤起类），空引用回 null 走既有不在位口径，
+        // null 本体会在那些口上先炸 NullPointerException。
+        reference = new WeakReference<>(refActivity);
         if (Build.VERSION.SDK_INT >= 28) {
             String processName = android.app.Application.getProcessName();
-            if (!activity.getPackageName().equals(processName)) {
+            if (!context.getPackageName().equals(processName)) {
                 WebView.setDataDirectorySuffix(processName);
             }
         }
@@ -607,7 +631,10 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
         webView.setWebChromeClient(new ChromeClient());
         webView.setWebViewClient(new Client());
         jsBridgeHolder = new FyBridge(reference, new Wrapper());
-        HkPlayerChooser.registerCurrentWrapper(activity, jsBridgeHolder.getWrapper());
+        wrapperRegistered = registerWrapper && refActivity != null;
+        if (wrapperRegistered) {
+            HkPlayerChooser.registerCurrentWrapper(refActivity, jsBridgeHolder.getWrapper());
+        }
         if (bridgeOpenHandler != null) jsBridgeHolder.setOpenHandler(bridgeOpenHandler);
         if (bridgeEngine != null) jsBridgeHolder.setEngine(bridgeEngine);
         if (bridgePicHandler != null) jsBridgeHolder.setPicHandler(bridgePicHandler);
@@ -621,7 +648,9 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
         // 不摘时宿主存活而 holder 已毁的窗内，头表来源口会读到旧 Wrapper。
         try {
             Activity a = reference == null ? null : reference.get();
-            if (a != null && jsBridgeHolder != null) {
+            // 背景形（S1）从未登记过 Wrapper，注销口整段跳过——不许碰在播页
+            // 在同一 Activity 名下的登记（身份核对本会回否，此处再加一道显式门）。
+            if (a != null && jsBridgeHolder != null && wrapperRegistered) {
                 HkPlayerChooser.unregisterCurrentWrapper(a, jsBridgeHolder.getWrapper());
             }
         } catch (Throwable ignored) {

@@ -78,7 +78,7 @@ public class HkJuFetcher {
             HkJsRuntime rt = HkEngineManager.runtimeFor(host);
             HkEngineManager.ensureInit(rt);
             rt.setDetailParams(paramsOf(ch));
-            String v = rt.evalLazy(code, ch.juPageUrl == null ? "" : ch.juPageUrl);
+            String v = rt.evalLazy(code, ch.juPageUrl == null ? "" : ch.juPageUrl, -1);
             if (v == null) return "";
             v = v.trim();
             if (v.isEmpty() || "undefined".equalsIgnoreCase(v) || "null".equalsIgnoreCase(v)) return "";

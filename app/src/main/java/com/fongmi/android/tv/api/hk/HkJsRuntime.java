@@ -862,6 +862,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         try {
             rt.clearVarByRule(title);
             rt.clearModuleCache();
+            // S2 落修：规则已删，其名下定时器/任务再无合法消费方，同口清掉
+            // （删前它们靠归属索引定位，不波及别规则）。
+            rt.clearTimersForRule(title);
         } catch (Throwable ignored) {
         }
     }
@@ -998,20 +1001,32 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
      * 而不是默认的 pageUrl。set 后仅下一次 evalLazy 生效，读后清零。
      */
     private volatile String nextInputOverride;
-    /**
-     * 下一次 lazy 求值的 MY_POSITION 一次性值（face1#4）：官 LazyRuleParser
-     * 的 position 由点击位传入、parse 无 position 形时缺省 -1（其 parse
-     * 重载缺省实参逐字 -1）。主路 evalLazy 签名无 position 位，照
-     * nextInputOverride 的一次性通道形由宿主在求值前置入、evalRaw 读后
-     * 复位 -1；无人置入时恒 -1，与官缺省同值。
-     */
-    private volatile int nextLazyPosition = -1;
     /** JS 定时器（setTimeout/setInterval）：id → ScheduledFuture；回调统一提交回 JS 单线程执行。 */
     private final Map<Integer, ScheduledFuture<?>> jsTimers = new HashMap<>();
     private final ScheduledExecutorService timerScheduler = Executors.newScheduledThreadPool(1);
     private final AtomicInteger timerIdSeq = new AtomicInteger(1);
     /** 8.83 registerTask 定时任务：taskId(String) → ScheduledFuture；JS 字符串延迟单次执行。 */
     private final Map<String, ScheduledFuture<?>> jsTasks = new HashMap<>();
+    /**
+     * 定时器/任务的登记规则归属（掉帧账 S2 落修）：jsSetTimer 与 registerTask 的
+     * fire 闭包本就捕获登记规则（regRule），此处把同一归属落成 id → 规则键的
+     * 索引，供 {@link #clearTimersForRule(String)} 按规则清理——桥是全进程单台、
+     * 多规则共用，整表全清会误杀在用规则的定时器，故清理必须按归属分。
+     * 规则键口径与 HkEngineManager.ruleKey 同（标题优先、空则 url）；登记时
+     * 无规则（regRule==null）的条目不入索引，只能由 clearAllTimers/destroy 整清。
+     * 两索引分别随 jsTimers/jsTasks 同锁维护。
+     */
+    private final Map<Integer, String> jsTimerRules = new HashMap<>();
+    private final Map<String, String> jsTaskRules = new HashMap<>();
+
+    /** 定时器归属键：与 HkEngineManager.ruleKey 同口径（标题优先、空回 url、再空回 ""）。 */
+    private static String timerRuleKey(HkRule r) {
+        if (r == null) return "";
+        String title = r.getTitle();
+        if (title != null && !title.isEmpty()) return title;
+        String url = r.getUrl();
+        return url == null ? "" : url;
+    }
 
     /** QuickJS 风格的函数签名（Object[] args -> Object），供 putFunction 注册。 */
     private interface JsFunc {
@@ -2409,7 +2424,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                         if (destroyed) return null;
                         synchronized (jsTimers) {
                             if (!jsTimers.containsKey(id)) return null;
-                            if (!repeat) jsTimers.remove(id);
+                            if (!repeat) {
+                                jsTimers.remove(id);
+                                jsTimerRules.remove(id);
+                            }
                         }
                         if (regRule != null) {
                             this.rule = regRule;
@@ -2432,6 +2450,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     : timerScheduler.schedule(fire, delay, TimeUnit.MILLISECONDS);
             synchronized (jsTimers) {
                 jsTimers.put(id, f);
+                String ownerKey = timerRuleKey(regRule);
+                if (!ownerKey.isEmpty()) jsTimerRules.put(id, ownerKey);
             }
             return id;
         } catch (Throwable t) {
@@ -2454,6 +2474,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         ScheduledFuture<?> f;
         synchronized (jsTimers) {
             f = jsTimers.remove(id);
+            jsTimerRules.remove(id);
         }
         if (f != null) {
             try {
@@ -2501,6 +2522,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         synchronized (jsTimers) {
             copy = new HashMap<>(jsTimers);
             jsTimers.clear();
+            jsTimerRules.clear();
         }
         for (ScheduledFuture<?> f : copy.values()) {
             try {
@@ -2513,8 +2535,51 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         synchronized (jsTasks) {
             copy2 = new HashMap<>(jsTasks);
             jsTasks.clear();
+            jsTaskRules.clear();
         }
         for (ScheduledFuture<?> f : copy2.values()) {
+            try {
+                f.cancel(false);
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    /**
+     * 按规则清理定时器（掉帧账 S2 落修）：只取消归属为 ruleKey 的 setTimeout/
+     * setInterval 与 registerTask 条目，其余规则与无归属条目一概不动——桥是
+     * 全进程单台，退出某条规则/删规则时若整表全清，会误杀仍在用的别规则
+     * 定时器（如其页面还压在栈里、或其内容正在播）。语义与 onDestroy 的
+     * 「只清调度、不杀引擎」同层：引擎本体与 kv/模块账均不在此动。
+     * 调用点：HkEngineManager 的规则面归零口（该规则最后一个页面宿主销毁）
+     * 与 onRuleDeleted（规则已删）。ruleKey 口径见 timerRuleKey；空键直接回。
+     */
+    public void clearTimersForRule(String ruleKey) {
+        if (ruleKey == null || ruleKey.isEmpty()) return;
+        java.util.List<ScheduledFuture<?>> doomed = new java.util.ArrayList<>();
+        synchronized (jsTimers) {
+            java.util.Iterator<Map.Entry<Integer, String>> it = jsTimerRules.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<Integer, String> e = it.next();
+                if (ruleKey.equals(e.getValue())) {
+                    ScheduledFuture<?> f = jsTimers.remove(e.getKey());
+                    if (f != null) doomed.add(f);
+                    it.remove();
+                }
+            }
+        }
+        synchronized (jsTasks) {
+            java.util.Iterator<Map.Entry<String, String>> it = jsTaskRules.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<String, String> e = it.next();
+                if (ruleKey.equals(e.getValue())) {
+                    ScheduledFuture<?> f = jsTasks.remove(e.getKey());
+                    if (f != null) doomed.add(f);
+                    it.remove();
+                }
+            }
+        }
+        for (ScheduledFuture<?> f : doomed) {
             try {
                 f.cancel(false);
             } catch (Throwable ignored) {
@@ -3600,7 +3665,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // [JSEngine.smali] alias "error". D2: 完整实现。
         // o: String | JavaScriptException | RhinoException | ScriptableObject({fileName,lineNumber,lineSource})
         // 构造 "\n来源：\n代码：\n行数：\n详情：" 明细；超 2000 字截断；查 callbackMap：
-        // 有回调 -> callback.showErr(msg)；无 -> 宿主 Toast。
+        // 有回调 -> callback.showErr(msg)；无 -> 投 ToastEvent（宿主错误式呈现）。
         // ------------------------------------------------------------------
         putFunction("setError", args -> {
             setErrorImpl(args);
@@ -3805,12 +3870,17 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         putFunction("toast", args -> {
             final String msg = args != null && args.length > 0 ? argStr(args[0]) : "";
             Logger.t(TAG).d("toast: %s", msg);
-            // 照官：JSEngine.toast 投 ToastEvent 由宿主面承接（官 FilmListActivity
-            // .onToast：isOnPause 丢弃＋showErrorMsg 错误式呈现）；旧形直调
-            // ToastUtil 无宿主暂停门、被盖页求值照样弹到别页（面⑤ A7）。
-            // 咱家承接点在 HkArticleFragment.onToastEvent（落点迁移同 A1-A5）。
-            org.greenrobot.eventbus.EventBus.getDefault().post(
-                    new com.fongmi.android.tv.api.hk.event.home.ToastEvent(msg));
+            // 官 JSEngine.toast（8.83 smali 行 1322-1327）：runOnUI 直弹
+            // ToastMgr.shortBottomCenter——就是轻提示，与错误通道无关。
+            // ToastEvent 是 setError 无回调时的事件（官 JSEngine.setError
+            // 投、宿主 onToast 错误式呈现），两条通道不许混：136b A7 曾把
+            // 本函数改投 ToastEvent，普通提示被冒充成「规则执行过程中出现
+            // 错误」弹窗（2026-11-15 他真机点名），此处恢复 135 直弹形。
+            try {
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() ->
+                        ToastUtil.show(App.get(), msg, android.widget.Toast.LENGTH_SHORT));
+            } catch (Throwable ignored) {
+            }
             return null;
         });
         putFunction("log", args -> {
@@ -4248,11 +4318,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             if (args != null && args.length > 1 && argsNativeObjectAdjust(args[0]) instanceof String) {
                 Map<String, String> target = myVarsFor(args.length > 2 ? argStr(args[2]) : null);
                 target.put(myVarKeyFor(argStr(args[0]), args.length > 2 ? argStr(args[2]) : null), stringifyArg(args[1]));
-                // 取证日志（一个APP 分类案真机取证用，下版定案后可删）：只记规则标题/键/值，超长截断，抛错不影响主流程
-                try {
-                    String pv = stringifyArg(args[1]);
-                    SpiderDebug.log("hk", "putMyVar rule=%s key=%s value=%s", rule.getTitle(), argStr(args[0]), pv != null && pv.length() > 100 ? pv.substring(0, 100) + "…" : pv);
-                } catch (Throwable ignored) {}
+                // 逐次取证行已摘（掉帧账 S5 落修）：原「一个APP 分类案」取证
+                // 已定案，这行在 hk: 标签里占大头且每次写还多跑一遍
+                // stringifyArg 序列化，留在桥上纯属每发求值的固定税。
             }
             return null;
         });
@@ -4264,10 +4332,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             String rt = args.length > 2 ? argStr(args[2]) : null;
             Map<String, String> target = myVarsFor(rt);
             String v = target.get(myVarKeyFor((String) args[0], rt));
-            // 取证日志（一个APP 分类案真机取证用，下版定案后可删）：只记规则标题/键/读到的值，存里没读到标「空」，超长截断，抛错不影响主流程
-            try {
-                SpiderDebug.log("hk", "getMyVar rule=%s key=%s value=%s", rule.getTitle(), (String) args[0], v == null ? "空" : (v.length() > 100 ? v.substring(0, 100) + "…" : v));
-            } catch (Throwable ignored) {}
+            // 逐次取证行已摘（掉帧账 S5 落修）：w495 正文段 getMyVar 打行
+            // 1,286 行＝hk: 标签的 79%，读一次打一行纯属诊断噪声，定案后摘除；
+            // 诊断面靠入口/错误行保留，不靠逐次变量读写。
             if (v == null && args.length > 1) v = argStr(args[1]);
             return v == null ? "" : v;
         });
@@ -6050,6 +6117,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                                 synchronized (jsTasks) {
                                     if (!jsTasks.containsKey(taskId)) return null;
                                     jsTasks.remove(taskId); // 单次执行
+                                    jsTaskRules.remove(taskId);
                                 }
                                 if (regRule != null) {
                                     this.rule = regRule;
@@ -6080,6 +6148,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     // 同 id 覆盖：先取消旧的（8.83 SchedulePool.add 同 key 覆盖语义）
                     ScheduledFuture<?> old = jsTasks.put(taskId, f);
                     if (old != null) old.cancel(false);
+                    // 归属随覆盖更新（S2 落修）：新登记发的规则即本任务的归属
+                    String ownerKey = timerRuleKey(regRule);
+                    if (!ownerKey.isEmpty()) jsTaskRules.put(taskId, ownerKey);
+                    else jsTaskRules.remove(taskId);
                 }
                 Logger.t(TAG).d("registerTask(%s, %dms)", taskId, delay);
             } catch (Throwable e) {
@@ -6094,6 +6166,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 if (id != null) {
                     synchronized (jsTasks) {
                         ScheduledFuture<?> f = jsTasks.remove(id);
+                        jsTaskRules.remove(id);
                         if (f != null) f.cancel(false);
                     }
                     Logger.t(TAG).d("unRegisterTask(%s)", id);
@@ -10332,8 +10405,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
      * 两个形参（均为当前页面地址），不依赖 JS 闭包。返回代码求值结果的字符串；
      * 若求值为空则兜底取 {@code setResult} 收集到的第一条 url。</p>
      */
-    public String evalLazy(String jsCode, String pageUrl) throws Exception {
-        return evalLazyInternal(jsCode, pageUrl, true);
+    public String evalLazy(String jsCode, String pageUrl, int position) throws Exception {
+        return evalLazyInternal(jsCode, pageUrl, true, position);
     }
 
     /**
@@ -10346,7 +10419,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
      * 由调用方用 actionResultCount/snapshotActionResults 判定。
      */
     public String evalActionProbe(String jsCode, String pageUrl) throws Exception {
-        return evalLazyInternal(jsCode, pageUrl, false);
+        return evalLazyInternal(jsCode, pageUrl, false, -1);
     }
 
     /**
@@ -10354,7 +10427,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
      * input 与 CALLBACK_KEY、求值并以 argStr 收形——evalLazyInternal
      * 原内联段逐行抽出，与 evalLazyDry 共用，保证干跑与真跑同作用域同注入。
      */
-    private String evalRawInFreshScope(String jsCode, String pageUrl) throws Exception {
+    private String evalRawInFreshScope(String jsCode, String pageUrl, int position) throws Exception {
         // 环19 arm：lazy 在官形是独立一发 runScript，本发换鲜 scope。
         scope = assembleFreshScope();
         setContext(pageUrl);
@@ -10380,15 +10453,15 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // face1#4 对官：MY_POSITION 补进主路 lazy 装配——官 LazyRuleParser
         // .smali:115/:277 与转录路 HkLazyRuleParser:138/:174 同形：
         // generateMY("MY_POSITION", position)，Integer 走裸数支
-        // 「var MY_POSITION = <n>;\n」拼在正文前。取值走一次性通道
-        // nextLazyPosition（读后复位），缺省 -1＝官 parse 无 position
-        // 形的缺省实参。MY_URL 官同串里在 MY_POSITION 之前、咱家由
-        // setContext 属性已先行置入，序不冲突。
-        int lazyPosition = nextLazyPosition;
-        nextLazyPosition = -1;
+        // 「var MY_POSITION = <n>;\n」拼在正文前。position 由调用方形参
+        // 直传（2026-11-15 断根：旧形走 nextLazyPosition 一次性字段槽，
+        // 写读非原子——同规则共享运行时的预热/预取一发 evalLazy 即可把
+        // 值领走或覆写，槽已整件摘除）；无 position 语境的发恒传 -1＝官
+        // parse 无 position 形的缺省实参。MY_URL 官同串里在 MY_POSITION
+        // 之前、咱家由 setContext 属性已先行置入，序不冲突。
         Object r;
         try {
-            r = evalJs(getMyCallbackKey(cbKey) + generateMY("MY_POSITION", lazyPosition) + stripJsPrefix(jsCode));
+            r = evalJs(getMyCallbackKey(cbKey) + generateMY("MY_POSITION", position) + stripJsPrefix(jsCode));
         } catch (Exception e) {
             logEvalError("evalLazy", jsCode, e);
             throw e;
@@ -10397,13 +10470,13 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         return argStr(r).trim();
     }
 
-    private String evalLazyInternal(String jsCode, String pageUrl, boolean drainOnEmpty) throws Exception {
+    private String evalLazyInternal(String jsCode, String pageUrl, boolean drainOnEmpty, int position) throws Exception {
         final HkRule boundRule = this.rule;
         return submit(() -> {
             if (boundRule != null) this.rule = boundRule;
             syncKvToBoundRule();
             error = null;
-            String s = evalRawInFreshScope(jsCode, pageUrl);
+            String s = evalRawInFreshScope(jsCode, pageUrl, position);
             if (s.isEmpty() || "undefined".equals(s) || "null".equals(s)) {
                 if (!drainOnEmpty) return "";
                 List<HkItem> items = drainResults();
@@ -10453,7 +10526,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 String value = "";
                 boolean failed = false;
                 try {
-                    value = evalRawInFreshScope(jsCode, pageUrl);
+                    value = evalRawInFreshScope(jsCode, pageUrl, -1);
                 } catch (Exception e) {
                     failed = true;
                 } finally {
@@ -10478,11 +10551,11 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         }
     }
 
-    /** 带当前页规则的入口：先重绑再走原路（子页 lazy 求值的 MY_RULE 须为子页规则）。 */
+    /** 带当前页规则的入口：先重绑再走原路（子页 lazy 求值的 MY_RULE 须为子页规则）。子页求值无点击位语境，position 恒 -1。 */
     public String evalLazy(HkRule rule, String jsCode, String pageUrl) throws Exception {
         synchronized (ruleEvalLock) {
             bindRule(rule);
-            return evalLazy(jsCode, pageUrl);
+            return evalLazy(jsCode, pageUrl, -1);
         }
     }
 
@@ -10598,15 +10671,6 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
      */
     public void setNextInputOverride(String input) {
         this.nextInputOverride = input;
-    }
-
-    /**
-     * 设置下一次 lazy 求值的 MY_POSITION（face1#4，官 LazyRuleParser 的
-     * position 入参在主路的一次性通道同位）：仅下一次 evalRawInFreshScope
-     * 生效，读后复位 -1（官 parse 无 position 形的缺省值）。
-     */
-    public void setNextLazyPosition(int position) {
-        this.nextLazyPosition = position;
     }
 
     public boolean isRefreshToTop() {
@@ -14375,16 +14439,11 @@ private void setErrorImpl(Object[] args) {
         }
         final String msg = prefix + error;
         if (callback == null) {
-            try {
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(() ->
-                        ToastUtil.show(App.get(), msg, android.widget.Toast.LENGTH_LONG));
-            } catch (Throwable postFailed) {
-                Logger.t(TAG).e(postFailed, "setError toast post failed");
-                try {
-                    ToastUtil.show(App.get(), msg, android.widget.Toast.LENGTH_LONG);
-                } catch (Throwable ignored) {
-                }
-            }
+            // 官 JSEngine.setError 无回调支（源码行 1537-1540）：投
+            // ToastEvent 由宿主 onToast 错误式呈现，不直弹 toast。
+            // 咱家承接点 HkArticleFragment.onToastEvent。
+            org.greenrobot.eventbus.EventBus.getDefault().post(
+                    new com.fongmi.android.tv.api.hk.event.home.ToastEvent(msg));
         } else {
             callbackMap.remove(ck);
             try {

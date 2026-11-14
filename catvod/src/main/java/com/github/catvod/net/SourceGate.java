@@ -6,7 +6,9 @@ import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.SocketAddress;
 import java.net.URI;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -73,25 +75,63 @@ public final class SourceGate {
     }
 
     /**
-     * 在播会话归属（进程级单例）：同一时刻只有一个前台播放会话，播放器
-     * 取流线程（media3 OkHttp dispatcher）没有线程打点、host 又多为未登记的
-     * CDN 域名，靠回退猜测窗口外必漏（1.4.134 真机实证：py 源蜘蛛线程带
-     * 标记走节点全成、播放腿无归属判直连全灭）。由播放会话侧在起播时按
-     * 当前条目的源归属绑定、停播/释放时按值解绑——是确定归属，不是猜测，
-     * 故排在 host 认领之后（登记归属对自家 host 更精确）、近期回退之前。
+     * 在播会话归属：播放器取流线程（media3 OkHttp dispatcher）没有线程
+     * 打点、host 又多为未登记的 CDN 域名，靠回退猜测窗口外必漏（1.4.134
+     * 真机实证：py 源蜘蛛线程带标记走节点全成、播放腿无归属判直连全灭）。
+     * 由播放会话侧在起播时按当前条目的源归属绑定、停播/释放时按值解绑
+     * ——是确定归属，不是猜测，故排在 host 认领之后（登记归属对自家
+     * host 更精确）、近期回退之前。
+     * <p>
+     * 绑定按播放器（owner）各记一份，不共用一槽：主服务与短剧听书服务
+     * 各持一个播放器，会在对方在播期间起播/停播；旧单槽形下后绑者覆盖
+     * 先绑者、先停者按值清槽又把槽里（已是对方的）归属清掉，两头都丢
+     * （接缝普查毛病7）。消费侧（选择器）从请求本身分不出是哪台播放器
+     * 的取流，有效归属取在册绑定里最后绑定的一份（与旧形「最后绑定
+     * 为准」同口径）；某台停播只删自家那份，余下绑定继续生效，先起播
+     * 的那台不必重绑即恢复归属。
      */
+    private static final Object SESSION_LOCK = new Object();
+
+    /** owner（播放器实例）→ 该播放器的在播归属；插入序即绑定序，末位＝最近绑定。 */
+    private static final Map<Object, Mark> SESSION_MARKS = new LinkedHashMap<>();
+
+    /** 未传 owner 的收容键（防御口：真实播放器恒传自身为 owner）。 */
+    private static final Object NO_OWNER = new Object();
+
+    /** 有效在播归属（SESSION_MARKS 末位）的只读缓存，选择器热路径直读。 */
     private static volatile Mark sessionMark;
 
-    /** 绑定在播会话归属：kind 为空不绑。重复绑定以最后一次为准。 */
-    public static void bindSession(String kind, String id) {
+    /** 绑定在播会话归属：kind 为空不绑。同 owner 重复绑定以最后一次为准，并刷新其绑定序。 */
+    public static void bindSession(Object owner, String kind, String id) {
         if (kind == null || kind.isEmpty()) return;
-        sessionMark = new Mark(kind, id == null ? "" : id);
+        Object key = owner == null ? NO_OWNER : owner;
+        synchronized (SESSION_LOCK) {
+            SESSION_MARKS.remove(key);
+            SESSION_MARKS.put(key, new Mark(kind, id == null ? "" : id));
+            refreshSessionMark();
+        }
     }
 
-    /** 解绑：仅当当前会话归属与传入值一致才清，防旧会话收尾误清新会话。 */
-    public static void clearSession(String kind, String id) {
-        Mark s = sessionMark;
-        if (s != null && s.kind.equals(kind) && s.id.equals(id == null ? "" : id)) sessionMark = null;
+    /**
+     * 解绑：仅当该 owner 自家那份与传入值一致才删——防旧会话收尾误清
+     * 自家新绑定，更不许碰别台播放器的绑定。
+     */
+    public static void clearSession(Object owner, String kind, String id) {
+        Object key = owner == null ? NO_OWNER : owner;
+        synchronized (SESSION_LOCK) {
+            Mark s = SESSION_MARKS.get(key);
+            if (s != null && s.kind.equals(kind) && s.id.equals(id == null ? "" : id)) {
+                SESSION_MARKS.remove(key);
+                refreshSessionMark();
+            }
+        }
+    }
+
+    /** 有效归属＝在册绑定里最后绑定的一份；册空则无。须在 SESSION_LOCK 内调。 */
+    private static void refreshSessionMark() {
+        Mark last = null;
+        for (Mark m : SESSION_MARKS.values()) last = m;
+        sessionMark = last;
     }
 
     public static Mark session() {

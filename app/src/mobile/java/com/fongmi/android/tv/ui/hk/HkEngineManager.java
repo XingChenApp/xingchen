@@ -34,6 +34,14 @@ public final class HkEngineManager {
     /** 每规则文件上次见到的 mtime；与现文件不一致 = 规则已被新导入覆盖。 */
     private static final Map<String, Long> RULE_FILE_MTIMES = new ConcurrentHashMap<>();
     private static final ThreadLocal<HkRule> CURRENT_RULE = new ThreadLocal<>();
+    /**
+     * 每规则的活页面面数（掉帧账 S2 落修）：规则页宿主（HkListActivity /
+     * HkPageActivity）onCreate 记一面、onDestroy 销一面；归零＝该规则再无
+     * 页面在场，此时才清它名下的 JS 定时器/任务（HkJsRuntime.clearTimersForRule）。
+     * 播放页不算面：进播放时规则页还压在栈下（面数 ≥1），播中要用的刷新
+     * 定时器不会被误清；用户退完播放再退出规则页，归零清账。键口径 ruleKey。
+     */
+    private static final Map<String, Integer> RULE_SURFACES = new ConcurrentHashMap<>();
 
     private HkEngineManager() {
     }
@@ -105,6 +113,34 @@ public final class HkEngineManager {
             if (BRIDGE_INITIALIZED) return;
             rt.init();
             BRIDGE_INITIALIZED = true;
+        }
+    }
+
+    /** 规则页宿主创建时记一面（S2 落修）。rule 为空/无键不记。 */
+    public static void surfaceOpened(HkRule rule) {
+        String key = ruleKey(rule);
+        if (key.isEmpty()) return;
+        RULE_SURFACES.merge(key, 1, Integer::sum);
+    }
+
+    /**
+     * 规则页宿主销毁时销一面（S2 落修）：归零即该规则再无页面在场，清其
+     * 名下定时器/任务。计数下限钳 0（配对外的多销不许把别次打开的面销穿）。
+     * 桥未建时无定时器可清、只销账。
+     */
+    public static void surfaceClosed(HkRule rule) {
+        String key = ruleKey(rule);
+        if (key.isEmpty()) return;
+        boolean zero = RULE_SURFACES.compute(key, (k, v) -> {
+            if (v == null || v <= 1) return null;
+            return v - 1;
+        }) == null;
+        if (!zero) return;
+        HkJsRuntime rt = BRIDGE;
+        if (rt == null) return;
+        try {
+            rt.clearTimersForRule(key);
+        } catch (Throwable ignored) {
         }
     }
 

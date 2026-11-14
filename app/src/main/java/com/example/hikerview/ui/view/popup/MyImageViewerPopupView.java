@@ -564,12 +564,12 @@ public class MyImageViewerPopupView extends BasePopupView implements OnDragChang
         ImgUtil.savePic2Gallery(container.getContext(), imageLoader, url, new ImgUtil.OnSaveListener() {
             @Override
             public void success(List<String> list) {
-                Toast.makeText(getContext(), "保存成功", Toast.LENGTH_SHORT).show();
+                ToastMgr.shortBottomCenter(getContext(), "保存成功");
             }
 
             @Override
             public void failed(String error) {
-                Toast.makeText(getContext(), "保存失败：" + error, Toast.LENGTH_SHORT).show();
+                ToastMgr.shortBottomCenter(getContext(), "保存失败：" + error);
             }
         });
     }

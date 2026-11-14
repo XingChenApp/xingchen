@@ -122,6 +122,84 @@ public class HkListActivity extends AppCompatActivity
     public static void clearTempParentData() {
         tempParentData = null;
     }
+
+    // ===== 播放交接终点工具（掉帧批 ①，账 hk-player-jank-fix-20261115）=====
+    // startPlayerChapters 实现体已整体挪到交接执行器（分发器 HkDetailBridge
+    // 投递），但实现体末端的「打开目标面」动作必须在主线程发生。本工具把
+    // 终点动作同步回主线程执行：调用线程等到动作在主线程跑完才续行，故各
+    // 支原有的 try/catch 与回退分支（电台问询的布尔、听书改道失败落回原
+    // 分发）在结果已知处续行，与今天主线程同步形逐点同。宿主已销毁/正在
+    // 销毁时动作不执行、回 false（记名微差：今天同步形在页面销毁竞态里仍
+    // 会强行打开，改后静默丢弃并留一行日志——销毁中的页面本就不该再开
+    // 新面）。已在主线程时直执（保其他同步入口的原形）。
+
+    private static final Handler HANDOVER_MAIN = new Handler(Looper.getMainLooper());
+
+    /** 终点动作（无返回值形）：执行了回 true，宿主已销毁被丢弃回 false。 */
+    private static boolean runTerminalOnMain(Activity activity, Runnable action) {
+        Boolean done = callTerminalOnMain(activity, () -> {
+            action.run();
+            return Boolean.TRUE;
+        });
+        return Boolean.TRUE.equals(done);
+    }
+
+    /**
+     * 终点动作（带返回值形，如电台问询的认领布尔）：主线程执行并把结果
+     * 带回调用线程；宿主已销毁回 null（调用方按「未成」原语义续行）。
+     * 动作在主线程抛出的异常原样回传调用线程重抛（RuntimeException/Error
+     * 不包装；其余受检异常包一层 RuntimeException——各支的 catch(Throwable)
+     * 照样接住，仅日志字样多一层包装名，记名）。
+     */
+    private static <T> T callTerminalOnMain(Activity activity,
+                                            java.util.concurrent.Callable<T> action) {
+        if (activity != null && (activity.isFinishing() || activity.isDestroyed())) {
+            com.github.catvod.crawler.SpiderDebug.log("hk", "handover terminal dropped host-gone act=%s",
+                    activity.getClass().getSimpleName());
+            return null;
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            try {
+                return action.call();
+            } catch (Throwable t) {
+                throw asRuntime(t);
+            }
+        }
+        final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        final java.util.concurrent.atomic.AtomicReference<T> result =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        final java.util.concurrent.atomic.AtomicReference<Throwable> error =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        HANDOVER_MAIN.post(() -> {
+            try {
+                // 投递到执行之间宿主可能刚销毁：到点再查一次，口径同上。
+                if (activity != null && (activity.isFinishing() || activity.isDestroyed())) {
+                    com.github.catvod.crawler.SpiderDebug.log("hk", "handover terminal dropped host-gone-late act=%s",
+                            activity.getClass().getSimpleName());
+                    return;
+                }
+                result.set(action.call());
+            } catch (Throwable t) {
+                error.set(t);
+            } finally {
+                done.countDown();
+            }
+        });
+        try {
+            done.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
+        if (error.get() != null) throw asRuntime(error.get());
+        return result.get();
+    }
+
+    private static RuntimeException asRuntime(Throwable t) {
+        if (t instanceof RuntimeException) return (RuntimeException) t;
+        if (t instanceof Error) throw (Error) t;
+        return new RuntimeException(t);
+    }
     private static final AtomicBoolean STATICS_READY = new AtomicBoolean(false);
     private static volatile WeakReference<Activity> currentRef;
 
@@ -595,7 +673,9 @@ public class HkListActivity extends AppCompatActivity
                                 nKey, ns.bookTitle, cur.pic, "",
                                 ns.chapters.get(ns.chapterIndex).name,
                                 ns.chapters.get(ns.chapterIndex).url);
-                        ReadingRouter.openReading(activity, ns);
+                        // 终点动作回主线程（掉帧批 ①）：打开阅读器是开面动作，
+                        // 拼装在交接执行器、开面回主线程，见类头终点工具。
+                        runTerminalOnMain(activity, () -> ReadingRouter.openReading(activity, ns));
                     } catch (Throwable t) {
                         android.util.Log.e(TAG, "novel divert failed", t);
                     }
@@ -655,8 +735,12 @@ public class HkListActivity extends AppCompatActivity
                         com.fongmi.android.tv.api.hk.HkHistoryRecorder.recordOpened(
                                 aKey, album.title, album.coverUrl, album.hkLine,
                                 album.chapters.get(aIdx).name, album.chapters.get(aIdx).url);
-                        com.fongmi.android.tv.ui.activity.AudioBookActivity.start(
-                                activity, com.fongmi.android.tv.legado.LegadoAudio.put(album));
+                        // 终点动作回主线程（掉帧批 ①）：put 是纯数据登记留在
+                        // 执行器，start 开面回主线程；宿主已销毁被丢弃时照旧
+                        // return（终点丢弃口径，见类头终点工具）。
+                        String albumId = com.fongmi.android.tv.legado.LegadoAudio.put(album);
+                        runTerminalOnMain(activity,
+                                () -> com.fongmi.android.tv.ui.activity.AudioBookActivity.start(activity, albumId));
                         return;
                     } catch (Throwable t) {
                         android.util.Log.e(TAG, "audio divert failed", t);
@@ -671,8 +755,13 @@ public class HkListActivity extends AppCompatActivity
                 }
                 HkArticleFragment.HkChapter sel = chapters.get(selIdx);
                 String selUrl = playUrlForChapter(sel);
-                String selTitle = !TextUtils.isEmpty(sel.memoryTitle) ? sel.memoryTitle
-                        : (sel.title == null ? "" : sel.title);
+                // 集名口径统一（毛病10 N1）：交接名一律 title 优先——载荷
+                //  builders（buildFlagsPayload/扁平/电台表）全是 title 优先，
+                // 旧形此处 memoryTitle 优先与播放器选集表两副名（同文件
+                // playThunderLink 亦 title 优先，自相矛盾）。title 是官
+                // getChapters 的正形名，memoryTitle 只作列表页显示名。
+                String selTitle = !TextUtils.isEmpty(sel.title) ? sel.title
+                        : (sel.memoryTitle == null ? "" : sel.memoryTitle);
                 // 电台问询前置（定根账候选三）：认领信号两路（claimSignal，
                 // 页标题取交接 bundle 的 film、条目标题取选中集名）。规则名
                 // 命中（sig=1）：x5Play 地址不先开网页，剥壳后继续走下面的
@@ -699,9 +788,16 @@ public class HkListActivity extends AppCompatActivity
                             o.put("pic", ch.pic == null ? "" : ch.pic);
                             arr.put(o);
                         }
-                        if (com.fongmi.android.tv.ui.HkRadioRouter.routeHkWithTitles(activity,
-                                ruleTitle, film, selTitle, "默认", stripSel, selTitle,
-                                albumName, sel.pic == null ? "" : sel.pic, arr.toString(), selIdx)) {
+                        // 终点动作回主线程（掉帧批 ①）：问询含开面/认领，整支
+                        // 回主线程执行、布尔带回本处按原分支续行（未成落回原
+                        // 分流，一行不变）；宿主已销毁回 null 按未成处理。
+                        final int askIdx = selIdx;
+                        final String askRuleTitle = ruleTitle;
+                        Boolean routed = callTerminalOnMain(activity, () ->
+                                com.fongmi.android.tv.ui.HkRadioRouter.routeHkWithTitles(activity,
+                                        askRuleTitle, film, selTitle, "默认", stripSel, selTitle,
+                                        albumName, sel.pic == null ? "" : sel.pic, arr.toString(), askIdx));
+                        if (Boolean.TRUE.equals(routed)) {
                             return;
                         }
                     } catch (Throwable t) {
@@ -714,15 +810,17 @@ public class HkListActivity extends AppCompatActivity
                 // 余量是播放数据 JSON 的不分流承载页，照常走下方交接（播放器入口剥壳解载荷）
                 if (selUrl.startsWith("x5Play://") && !radioName
                         && !selUrl.substring("x5Play://".length()).trim().startsWith("{")) {
-                    openX5PlayPage(activity, sel.memoryTitle, selUrl.substring("x5Play://".length()));
+                    // 终点动作回主线程（掉帧批 ①）：开承载页回主线程执行。
+                    String x5Target = selUrl.substring("x5Play://".length());
+                    runTerminalOnMain(activity, () -> openX5PlayPage(activity, sel.memoryTitle, x5Target));
                     return;
                 }
                 if (radioName) {
                     com.github.catvod.crawler.SpiderDebug.log("hk", "x5 radio-ask chapters rule=%s", ruleTitle);
                     if (selUrl.startsWith("x5Play://")) selUrl = selUrl.substring("x5Play://".length());
                 }
-                String selName = !TextUtils.isEmpty(sel.memoryTitle) ? sel.memoryTitle
-                        : (sel.title == null ? "" : sel.title);
+                String selName = !TextUtils.isEmpty(sel.title) ? sel.title
+                        : (sel.memoryTitle == null ? "" : sel.memoryTitle);
                 // 播放器标题用页面标题：子列表页的活动标题就是被点视频名（dealRule 经 req.title 传入），
                 // 原版 PlayerChooser 用的正是这个 MTitle；一级列表页活动标题与规则名相同、不可用，回退选中集标题
                 String name = !TextUtils.isEmpty(mTitle) && !mTitle.equals(ruleTitle) ? mTitle : selName;
@@ -868,8 +966,16 @@ public class HkListActivity extends AppCompatActivity
                 // G8：被点章无图时封面回采详情头图（交接带入的 detailPic 兜底）；
                 // 简介/演职员/备注随交接带入播放页详情面（缺失为空串，不摆占位）。
                 String handoverPic = !TextUtils.isEmpty(sel.pic) ? sel.pic : detailPic;
-                VideoActivity.startHkPlay(activity, ruleTitle, startLineName, firstLineUrl, selName, name,
-                        handoverPic, payload, selIdx, detailContent, detailActor, detailDirector, detailRemarks);
+                // 终点动作回主线程（掉帧批 ①）：拼装到此为止全在交接执行器，
+                // 打开播放页回主线程执行（其内投屏登记等同步段随之在主线程，
+                // 量级远小于整表建模解析，见账 ① 接收侧记名）。
+                final int startIdx = selIdx;
+                final String startRuleTitle = ruleTitle;
+                final String startFirstUrl = firstLineUrl;
+                final String startPayload = payload;
+                runTerminalOnMain(activity, () -> VideoActivity.startHkPlay(activity, startRuleTitle, startLineName,
+                        startFirstUrl, selName, name, handoverPic, startPayload, startIdx,
+                        detailContent, detailActor, detailDirector, detailRemarks));
             }
 
             @Override
@@ -1720,68 +1826,26 @@ public class HkListActivity extends AppCompatActivity
         return out;
     }
 
-    /** 某集在某条线路下的实际地址：取 urls[线路]（越界回 urls[0]），该线路的请求头/字幕/分离音频/弹幕随址打包。 */
+    /** 某集在某条线路下的实际地址：本体已移入 HkHttpParser.expandLineUrl（列表路与详情路共用同一打包口径，毛病3(iv)），此处只留委托口。 */
     static String expandedUrl(HkPlayData pd, String rawUrl, int line) {
-        if (pd == null) return rawUrl;
-        java.util.List<String> urls = pd.getUrls();
-        if (urls == null || urls.isEmpty()) return rawUrl;
-        String u = urls.get(line < urls.size() ? line : 0);
-        u = u == null ? "" : u.trim();
-        if (u.isEmpty()) return rawUrl;
-        java.util.List<String> kvs = new java.util.ArrayList<>();
-        java.util.List<Map<String, String>> headers = pd.getHeaders();
-        if (headers != null && line < headers.size() && headers.get(line) != null) {
-            for (Map.Entry<String, String> e : headers.get(line).entrySet()) {
-                String k = e.getKey() == null ? "" : e.getKey().trim();
-                String v = e.getValue() == null ? "" : e.getValue().trim();
-                if (!k.isEmpty() && !v.isEmpty()) kvs.add(k + "@" + v);
-            }
-        }
-        if (pd.getHeader() != null && line == 0) {
-            for (Map.Entry<String, String> e : pd.getHeader().entrySet()) {
-                String k = e.getKey() == null ? "" : e.getKey().trim();
-                String v = e.getValue() == null ? "" : e.getValue().trim();
-                if (!k.isEmpty() && !v.isEmpty()) kvs.add(k + "@" + v);
-            }
-        }
-        // 附带字段随址打包（G49/G59）：subtitle/audioUrls/danmu 都在入参 pd 里
-        // （HkPlayData 9 字段、解析时按名直填），从 pd 直读——旧形 pd 无此三
-        // 字段才从原始串补读，字段补齐后补读绕路收净（F1 补改）。audioUrls
-        // 按线路取（越界回首条，与 urls 同口径）；lyric 环34 起同路入 mini 包
-        // ——回环解析 parsePlayJson 读 lyric 入 HkPlay、经 hkPlayerContent 入
-        // Result/PlaySpec 播放层（旧形「无消费面不入包」随终端消费补齐收净）。
-        String subtitle = pd.getSubtitle() == null ? "" : pd.getSubtitle().trim();
-        String audio = "";
-        java.util.List<String> audioUrls = pd.getAudioUrls();
-        if (audioUrls != null && !audioUrls.isEmpty()) {
-            String a = audioUrls.get(line < audioUrls.size() ? line : 0);
-            audio = a == null ? "" : a.trim();
-        }
-        String danmu = pd.getDanmu() == null ? "" : pd.getDanmu().trim();
-        String lyric = pd.getLyric() == null ? "" : pd.getLyric().trim();
-        if (kvs.isEmpty() && subtitle.isEmpty() && audio.isEmpty() && danmu.isEmpty() && lyric.isEmpty()) return u;
-        try {
-            JSONObject mini = new JSONObject();
-            JSONArray mu = new JSONArray();
-            mu.put(u);
-            mini.put("urls", mu);
-            if (!kvs.isEmpty()) {
-                JSONArray mh = new JSONArray();
-                for (String kv : kvs) mh.put(kv);
-                mini.put("headers", mh);
-            }
-            if (!subtitle.isEmpty()) mini.put("subtitle", subtitle);
-            if (!danmu.isEmpty()) mini.put("danmu", danmu);
-            if (!lyric.isEmpty()) mini.put("lyric", lyric);
-            if (!audio.isEmpty()) {
-                JSONArray ma = new JSONArray();
-                ma.put(audio);
-                mini.put("audioUrls", ma);
-            }
-            return mini.toString();
-        } catch (Exception e) {
-            return u;
-        }
+        return HkHttpParser.expandLineUrl(pd, rawUrl, line);
+    }
+
+    /**
+     * 一集在全局线名表第 line 条线下的自有线序（毛病4）：旧形 buildFlagsPayload
+     * 按裸下标取每集自己的 urls[line]——各集线名序/数互异时静默错线（B 线的
+     * 地址挂到 A 线名下、连带请求头错位）。现按线名对齐：本集线名表里查表
+     * 中线名的位置；本集无此线名（或本集本就单线）回 0＝本集主址（位置对齐
+     * 的结构要求下这是刻意的回退：该集在此线下只能以主址出演，不许拿别线
+     * 地址冒充）。表外线序（line 越界）原样回 line，交 expandLineUrl 的越界
+     * 回 0 口径处理。
+     */
+    static int episodeLineIndex(HkPlayData pd, java.util.List<String> lineNames, int line) {
+        if (pd == null || lineNames == null || line < 0 || line >= lineNames.size()) return line;
+        java.util.List<String> names = namesOf(pd);
+        if (names.size() <= 1) return 0;
+        int idx = names.indexOf(lineNames.get(line));
+        return idx >= 0 ? idx : 0;
     }
 
     private static String nz(String s) {
@@ -2103,7 +2167,10 @@ public class HkListActivity extends AppCompatActivity
                     JSONObject o = new JSONObject();
                     o.put("name", !TextUtils.isEmpty(ch.title) ? ch.title
                             : (ch.memoryTitle == null ? "" : ch.memoryTitle));
-                    o.put("url", expandedUrl(playDatas.get(i), rawUrls.get(i), line));
+                    // 毛病4：按线名对齐取本集自有线序，不再裸下标——各集
+                    // 线名序互异时旧形把别线地址/请求头挂到本线名下。
+                    o.put("url", expandedUrl(playDatas.get(i), rawUrls.get(i),
+                            episodeLineIndex(playDatas.get(i), lineNames, line)));
                     o.put("pic", ch.pic == null ? "" : ch.pic);
                     eps.put(o);
                 }

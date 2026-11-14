@@ -240,7 +240,17 @@ public final class HkEngineBridge implements HkArticleListModel.EngineBridge {
                     rule.getTitle(),
                     detail != null && !detail.isEmpty() ? detail : String.valueOf(e));
             Log.e(TAG, "hk error", e);
-            callback.error("解析失败", e.toString(), "404", e);
+            // 照官链：JSEngine.parseHome catch 后不把原异常上抛——转 setError
+            // （"运行出错：" + e.getMessage()），JsEngineBridge.showErr 再以
+            // callback.error("JS解析失败", msg, "404", null) 落页（throwable
+            // 恒 null、msg = 规则名 + "解析失败！" + 明细）。旧形直传
+            // e.toString()＋原异常，详情窗里就是整页 Java 堆栈（2026-11-15
+            // 他真机第二张截图），此处按官拼法：ExecutionException 先解包
+            // 到根因再取 message。
+            Throwable cause = e instanceof java.util.concurrent.ExecutionException
+                    && e.getCause() != null ? e.getCause() : e;
+            String msg = rule.getTitle() + "解析失败！运行出错：" + cause.getMessage();
+            callback.error("JS解析失败", msg, "404", null);
         }
     }
 

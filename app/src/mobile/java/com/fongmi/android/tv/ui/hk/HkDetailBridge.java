@@ -75,6 +75,21 @@ public class HkDetailBridge implements HkArticleFragment.DetailBridge {
         return t;
     });
 
+    /**
+     * 播放交接专设单线程执行器（掉帧批 ①，账 hk-player-jank-fix-20261115）：
+     * startPlayerChapters 的实现体（全表拼装/Gson/逐集解析/线名恢复）整体
+     * 投到这里串行跑，点击那一帧的主线程只剩投递。单线程＝多次点击的
+     * 拼装顺序与今天主线程串行完全一致、终态不变；同时护住实现体里非
+     * 线程安全的辅助件。实现体内的终点动作（打开播放页/阅读/听书/音乐/
+     * 电台问询）由实现体自己同步回主线程执行（见 HkListActivity 的终点
+     * 工具），本执行器只管拼装段。
+     */
+    private static final ExecutorService HANDOVER_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "hk-handover");
+        t.setDaemon(true);
+        return t;
+    });
+
     /** 当前列表页活动供给（宿主注入，与 HkEngineBridge.activityProvider 同源），供无 Context 入参的接缝使用。 */
     public static volatile Supplier<Activity> activityProvider;
 
@@ -439,7 +454,36 @@ public class HkDetailBridge implements HkArticleFragment.DetailBridge {
     @Override
     public void startPlayerChapters(Activity activity, List<HkArticleFragment.HkChapter> chapters,
                                     String pageUrl, String mTitle, Bundle extraData) {
-        hooks().startPlayerChapters(activity, chapters, pageUrl, mTitle, extraData);
+        startPlayerChapters(activity, chapters, pageUrl, mTitle, extraData, null);
+    }
+
+    /**
+     * 带交接前置段的选集交接（掉帧批 ①）：prepare 是调用点原本在主线程
+     * 同步做的交接组装（规则 Gson 序列化＋enrichHandover 全表扫），随任务
+     * 一起投到交接执行器、在实现体之前先跑，写进同一个 extraData——组装
+     * 结果与今天主线程同步形逐字一致，只是换了线程。prepare 为 null 即
+     * 无前置段（其余调用点的 bundle 已在主线程组好或为空，形态不变）。
+     * 任务在执行器上抛出的未捕获异常：记一行后回主线程原样重抛——今天
+     * 同步形下这类异常穿出点击回调走未捕获通道（clickItem 链无总 catch，
+     * 官同形），改后归宿不变，不许在后台线程静默吞掉。
+     */
+    @Override
+    public void startPlayerChapters(Activity activity, List<HkArticleFragment.HkChapter> chapters,
+                                    String pageUrl, String mTitle, Bundle extraData,
+                                    Runnable prepare) {
+        HANDOVER_EXECUTOR.execute(() -> {
+            try {
+                if (prepare != null) prepare.run();
+                hooks().startPlayerChapters(activity, chapters, pageUrl, mTitle, extraData);
+            } catch (Throwable t) {
+                SpiderDebug.forceLog("hk", "handover task failed err=%s", t.toString());
+                SNIFF_HANDLER.post(() -> {
+                    if (t instanceof RuntimeException) throw (RuntimeException) t;
+                    if (t instanceof Error) throw (Error) t;
+                    throw new RuntimeException(t);
+                });
+            }
+        });
     }
 
     @Override

@@ -1303,17 +1303,19 @@ public class PlayerManager implements ParseCallback {
     /**
      * 在播源归属绑定：起播关口（start/parse）把当前条目的源归属绑进节点
      * 决策层（SourceGate 会话层），播放器取流线程没有线程打点、流媒体 host
-     * 又多为未登记 CDN，靠它认源走节点；停播/释放按值解绑。归属解析不出
-     * （本地文件、听书/朗读合成 key）不绑，维持 host 认领与全局口径原裁决。
+     * 又多为未登记 CDN，靠它认源走节点；停播/释放按值解绑。绑定以本播放器
+     * 为 owner 各记一份——主服务与短剧听书服务各持一个本类实例，对方在播
+     * 期间起播/停播互不覆盖、互不清对方的绑定（接缝普查毛病7）。归属解析
+     * 不出（本地文件、听书/朗读合成 key）不绑，维持 host 认领与全局口径原裁决。
      */
     private void bindGateSession(String key) {
         unbindGateSession();
-        gateSession = ClashGate.bindPlayback(App.get(), key);
+        gateSession = ClashGate.bindPlayback(this, App.get(), key);
     }
 
     private void unbindGateSession() {
         if (gateSession == null) return;
-        ClashGate.unbindPlayback(gateSession);
+        ClashGate.unbindPlayback(this, gateSession);
         gateSession = null;
     }
 

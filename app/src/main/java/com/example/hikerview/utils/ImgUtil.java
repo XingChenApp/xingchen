@@ -91,12 +91,16 @@ public class ImgUtil {
     }
 
     public static Bitmap compressImage(Bitmap bitmap, int i, int i2) {
-        return Bitmap.createScaledBitmap(bitmap, i, i2, false);
+        // 尺寸下限收口（官原 passthrough 无此钳）：入参 ≤0 时 createScaledBitmap 必崩，钳到 1（只对非法入参生效）
+        return Bitmap.createScaledBitmap(bitmap, Math.max(1, i), Math.max(1, i2), false);
     }
 
     public static Drawable compressImage(Resources resources, Drawable drawable, int i, int i2) {
         Bitmap bitmap;
         Bitmap createScaledBitmap;
+        // 尺寸下限收口（同上）
+        i = Math.max(1, i);
+        i2 = Math.max(1, i2);
         return (!(drawable instanceof BitmapDrawable) || (bitmap = ((BitmapDrawable) drawable).getBitmap()) == null || (createScaledBitmap = Bitmap.createScaledBitmap(bitmap, i, i2, false)) == bitmap) ? drawable : new BitmapDrawable(resources, createScaledBitmap);
     }
 
@@ -422,7 +426,7 @@ public class ImgUtil {
 
                     @Override
                     public void onDenied() {
-                        Toast.makeText(context, "没有保存权限，保存功能无法使用！", Toast.LENGTH_SHORT).show();
+                        ToastMgr.shortBottomCenter(context, "没有保存权限，保存功能无法使用！");
                     }
                 })
                 .request();
@@ -439,7 +443,7 @@ public class ImgUtil {
 
                     @Override
                     public void onDenied() {
-                        Toast.makeText(context, "没有保存权限，保存功能无法使用！", Toast.LENGTH_SHORT).show();
+                        ToastMgr.shortBottomCenter(context, "没有保存权限，保存功能无法使用！");
                     }
                 })
                 .request();
@@ -462,7 +466,7 @@ public class ImgUtil {
 
                     @Override
                     public void onDenied() {
-                        Toast.makeText(context, "没有保存权限，保存功能无法使用！", Toast.LENGTH_SHORT).show();
+                        ToastMgr.shortBottomCenter(context, "没有保存权限，保存功能无法使用！");
                     }
                 })
                 .request();
@@ -540,7 +544,7 @@ public class ImgUtil {
                     savedList.add(target.getAbsolutePath());
                 } catch (IOException e) {
                     Timber.e(e);
-                    handler.post(() -> Toast.makeText(context, "没有保存权限，保存功能无法使用！", Toast.LENGTH_SHORT).show());
+                    handler.post(() -> ToastMgr.shortBottomCenter(context, "没有保存权限，保存功能无法使用！"));
                 }
             }
             if (completeListener != null) {

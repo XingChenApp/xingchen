@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.webkit.WebView;
 
+import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.api.hk.HkParserKit;
 
 import java.util.HashMap;
@@ -59,6 +60,20 @@ public class HkWebkitParser extends HkIWebViewParser {
         return newInstance().parse(activity, url, extra, consumer);
     }
 
+    /**
+     * 背景嗅探入口（掉帧账 S1 落修，下一集预解析专用）：与 parse0 同一解析器、
+     * 同一装配、同 ticket 口径，只换宿主——WebView 以应用上下文建（脱窗，
+     * HkWebkitFetcher 取页一线同形）、holder 走 initWebViewBackground
+     * （不登记当前页 Wrapper）；reference 语境取当下前台页（可为 null），
+     * 只作桥内门控的存活来源，不作窗口宿主。
+     */
+    public static synchronized boolean parseBackground0(String url, String extra,
+                                                        Consumer<String> consumer) {
+        if (!canParse(url)) return false;
+        destroy0();
+        return newInstance().parseBackground(url, extra, consumer);
+    }
+
     @Override
     public void destroy() {
         if (webViewHolder != null && webViewHolder.getWebView() != null) {
@@ -83,11 +98,21 @@ public class HkWebkitParser extends HkIWebViewParser {
 
     @Override
     public boolean parse(Activity activity, String url, String extra, Consumer<String> consumer) {
+        return parseHost(activity, activity, false, url, extra, consumer);
+    }
+
+    /** 背景形（S1）：宿主＝应用上下文，reference 语境＝当下前台页（可空）。 */
+    public boolean parseBackground(String url, String extra, Consumer<String> consumer) {
+        return parseHost(App.get(), App.activity(), true, url, extra, consumer);
+    }
+
+    private boolean parseHost(Context host, Activity refActivity, boolean background,
+                              String url, String extra, Consumer<String> consumer) {
         String stripped = HkStringUtil.replaceOnceIgnoreCase(url, "webRule://", "");
         String[] parts = stripped.split("@");
         destroy();
         if (parts.length < 2) {
-            HkRouteBlocker.toastShortBottom(activity, "规则有误！" + url);
+            HkRouteBlocker.toastShortBottom(host, "规则有误！" + url);
             return false;
         }
         this.consumer = consumer;
@@ -95,11 +120,12 @@ public class HkWebkitParser extends HkIWebViewParser {
         String jsExpr = HkParserKit.arrayToString(parts, 1, "@");
         String ticket = String.valueOf(hashCode());
         HkX5Extra x5Extra = generateExtra(extra, jsExpr, "webkit", ticket);
-        WebView webView = new WebView(activity);
+        WebView webView = new WebView(host);
         webViewHolder = new HkWebkitHolder();
         webViewHolder.setSniffMode(true);
         webViewHolder.setWebView(webView);
-        webViewHolder.initWebView(activity);
+        if (background) webViewHolder.initWebViewBackground(host, refActivity);
+        else webViewHolder.initWebView(refActivity);
         // G43：解析器即官 WebkitExecutor 位，补注册 fy_bridge_appd 并供给当前规则运行时作桥引擎面
         webViewHolder.registerExecutorBridge();
         try {

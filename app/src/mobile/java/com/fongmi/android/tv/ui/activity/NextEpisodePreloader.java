@@ -14,6 +14,7 @@ import com.fongmi.android.tv.player.PlayerHelper;
 import com.fongmi.android.tv.player.exo.NextEpisodeDataPrefetcher;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.PreloadSetting;
+import com.fongmi.android.tv.ui.hk.HkIWebViewParser;
 import com.fongmi.android.tv.utils.Task;
 import com.github.catvod.crawler.SpiderDebug;
 
@@ -96,6 +97,11 @@ public class NextEpisodePreloader {
             mTimestamp = System.currentTimeMillis();
         }
         Task.execute(() -> {
+            // 掉帧账 S1：预解析若走到 webRule/x5Rule 嗅探，宿主走背景形
+            // （应用上下文脱窗 WebView、不占在播页），不许再在正在播的
+            // VideoActivity 上起嗅探 WebView 与在播同屏跑。标记是线程本地、
+            // 全链同步直达嗅探口；finally 必复位，不许漏给池线程的下一件活。
+            HkIWebViewParser.setBackgroundSniff(true);
             try {
                 Result result = SiteApi.playerContentParseOnly(key, flag, episode.getUrl());
                 boolean stored = false;
@@ -108,6 +114,8 @@ public class NextEpisodePreloader {
                 }
                 if (stored) armDataPrefetch(spec, result);
             } catch (Throwable ignored) {
+            } finally {
+                HkIWebViewParser.setBackgroundSniff(false);
             }
         });
     }

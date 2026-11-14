@@ -66,10 +66,16 @@ public class HkProxyPrewarm {
         String ruleTitle = siteKey.substring(HkDetailBridge.KEY_PREFIX.length());
         if (TextUtils.isEmpty(ruleTitle)) return;
         EXEC.execute(() -> {
+            // 毛病8：预热是推测性解析——抑制点击位槽消费（本线程执行，
+            // begin/end 同线程配对）。旧形预热在 playHkDirect 里先于真播
+            // 同步发起、异步同抢一槽，真播的 MY_POSITION 间歇丢失。
+            boolean prevSuppressed = HkDetailBridge.beginClickPositionSuppressed();
             try {
                 runPrewarm(ruleTitle, episodeUrl);
             } catch (Throwable t) {
                 log("abort rule=%s err=%s", ruleTitle, t.getMessage());
+            } finally {
+                HkDetailBridge.endClickPositionSuppressed(prevSuppressed);
             }
         });
     }

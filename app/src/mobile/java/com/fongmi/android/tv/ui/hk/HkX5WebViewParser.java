@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.webkit.WebView;
 
+import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.api.hk.HkParserKit;
 
 import java.util.HashMap;
@@ -63,6 +64,14 @@ public class HkX5WebViewParser extends HkIWebViewParser {
         return newInstance().parse(activity, url, extra, consumer);
     }
 
+    /** 背景嗅探入口（掉帧账 S1 落修）：与 HkWebkitParser.parseBackground0 同口径。 */
+    public static synchronized boolean parseBackground0(String url, String extra,
+                                                        Consumer<String> consumer) {
+        if (!canParse(url)) return false;
+        destroy0();
+        return newInstance().parseBackground(url, extra, consumer);
+    }
+
     @Override
     public void destroy() {
         if (webViewHolder != null && webViewHolder.getWebView() != null) {
@@ -87,11 +96,21 @@ public class HkX5WebViewParser extends HkIWebViewParser {
 
     @Override
     public boolean parse(Activity activity, String url, String extra, Consumer<String> consumer) {
+        return parseHost(activity, activity, false, url, extra, consumer);
+    }
+
+    /** 背景形（S1）：宿主＝应用上下文，reference 语境＝当下前台页（可空）。 */
+    public boolean parseBackground(String url, String extra, Consumer<String> consumer) {
+        return parseHost(App.get(), App.activity(), true, url, extra, consumer);
+    }
+
+    private boolean parseHost(Context host, Activity refActivity, boolean background,
+                              String url, String extra, Consumer<String> consumer) {
         String stripped = HkStringUtil.replaceOnceIgnoreCase(url, "x5Rule://", "");
         String[] parts = stripped.split("@");
         destroy();
         if (parts.length < 2) {
-            HkRouteBlocker.toastShortBottom(activity, "规则有误！" + url);
+            HkRouteBlocker.toastShortBottom(host, "规则有误！" + url);
             return false;
         }
         this.consumer = consumer;
@@ -100,12 +119,13 @@ public class HkX5WebViewParser extends HkIWebViewParser {
         String ticket = String.valueOf(hashCode());
         HkX5Extra x5Extra = generateExtra(extra, jsExpr, "x5", ticket);
         // 原版：x5Extra.isDisableX5() 时 QbSdk.forceSysWebView() 后建 smtt WebView、再 unForceSysWebView()；星辰恒系统 WebView，等价覆盖。
-        WebView webView = new WebView(activity);
+        WebView webView = new WebView(host);
         webViewHolder = new HkWebkitHolder();
         webViewHolder.setSniffMode(true);
         webViewHolder.setX5Extra(x5Extra);
         webViewHolder.setWebView(webView);
-        webViewHolder.initWebView(activity);
+        if (background) webViewHolder.initWebViewBackground(host, refActivity);
+        else webViewHolder.initWebView(refActivity);
         // G43：解析器即官 WebkitExecutor 位，补注册 fy_bridge_appd 并供给当前规则运行时作桥引擎面
         webViewHolder.registerExecutorBridge();
         try {

@@ -585,14 +585,15 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             // 登记失败只影响投屏端点读态，不许牵连起播本体。
         }
         // 136b #4 尾：MY_POSITION 点击位——标准播放入口把被点集下标放进一次性
-        // 槽，HkRouter.playRoute 入口取走后经解析链在每段 lazy 求值前 setNextLazy
-        // Position（官宿主在点播时把 position 交引擎同位）。放在电台/音乐分流
-        // 之后：只有真走标准播放器的起播才放，免残值被下一回标准起播误领。
+        // 槽（带规则名＋被点集址身份，毛病8），HkRouter.playRoute 入口按
+        // 身份取走后经解析链以形参直传每段 lazy 求值（官宿主在点播时把
+        // position 交引擎同位）。放在电台/音乐分流之后：只有真走标准播放
+        // 器的起播才放，免残值被下一回标准起播误领。
         // 核查 136b P6 补门：本重载也被非海阔路借用（本地文件起播 ruleTitle=""
         // 走 7 参 selIdx=0），那条路不经 HkRouter.playRoute、槽值无人取走，
         // 残 0 会被下一回绕过本口的 playRoute（播放器内切集）误领——只许
         // 真海阔起播（ruleTitle 非空）放值。
-        if (ruleTitle != null && !ruleTitle.isEmpty()) HkDetailBridge.setClickPosition(selIdx);
+        if (ruleTitle != null && !ruleTitle.isEmpty()) HkDetailBridge.setClickPosition(selIdx, ruleTitle, episodeUrl);
         Intent intent = new Intent(activity, VideoActivity.class);
         intent.putExtra("key", HkDetailBridge.siteKey(ruleTitle));
         intent.putExtra("id", episodeUrl);
@@ -798,7 +799,16 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private String getHistoryKey() {
-        return getKey().concat(AppDatabase.SYMBOL).concat(getId()).concat(AppDatabase.SYMBOL) + VodConfig.getCid();
+        // 毛病2(a)：海阔直达行的形态（直达 vs 详情）记进键的 id 段前缀——
+        // 键是行里唯一在播放期从不改写的字段（行内 episodeUrl 每次切集
+        // 都被 updateHistory 改写，旧形靠它自证形态、切一次集就翻转，
+        // 再入被当详情行拿集址当详情址起播必死）。判定口收在
+        // HkDetailBridge.isDirectForm，历史页/收藏三处共用。
+        String id = getId();
+        if (HkDetailBridge.isHkKey(getKey()) && getIntent().getBooleanExtra("hk_direct_play", false)) {
+            id = HkDetailBridge.DIRECT_KEY_MARK + id;
+        }
+        return getKey().concat(AppDatabase.SYMBOL).concat(id).concat(AppDatabase.SYMBOL) + VodConfig.getCid();
     }
 
     @Override
@@ -1870,7 +1880,15 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private void playHkDirect() {
         showProgress();
         // 直接播放带选集（HkPageActivity 拼的列表选集）：先渲染线路/选集 UI，再解析当前集播放
-        setupDirectEpisodes("hk_episodes", "hk_episode_idx");
+        // 掉帧批 ① 接收侧：海阔载荷的 JSON→模型解析挪后台（setupDirectEpisodes
+        // 异步路），落地回主线程后才续行预热＋起播——顺序与今天同步形一致
+        // （选集 UI 先行、起播在后）；即决支（载荷空/仓失效/解析失败的提示
+        // 支）走同步返回 false，照原序在此续行，终态不变。
+        boolean takenAsync = setupDirectEpisodes("hk_episodes", "hk_episode_idx", () -> {
+            HkProxyPrewarm.prewarm(getKey(), getId());
+            playDirect(getKey(), Objects.toString(getIntent().getStringExtra("hk_line"), ""), getId());
+        });
+        if (takenAsync) return;
         String flag = Objects.toString(getIntent().getStringExtra("hk_line"), "");
         // P0 红果类预热：后台预解析当前集懒地址，命中本地代理则预下加密文件
         // （等价文章页 hgWarm 的下载部分；只对 127.0.0.1 代理形态生效，其它规则 no-op）
@@ -1917,7 +1935,190 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
      * （海阔播放数据按 names 展开的线路，集名各线路一致、切线路保持集序）。
      * 当前集按 idx 选中。海阔走 playerContent → HkRouter.play 解析；txt 走 playerContent(PUSH)。
      */
-    private void setupDirectEpisodes(String jsonKey, String idxKey) {
+    private boolean setupDirectEpisodes(String jsonKey, String idxKey) {
+        return setupDirectEpisodes(jsonKey, idxKey, null);
+    }
+
+    /**
+     * 直接播放选集装配分发（掉帧批 ① 接收侧）：海阔路（hk_episodes）的
+     * JSON→模型解析挪后台线程，其余直达路（txt/本地/115，载荷小）照旧走
+     * 同步本体。返回 true 表示海阔异步路已接管、调用方续行改由落地回调
+     * （afterApply）执行；false 表示已同步处理完（含海阔的即决支），调用
+     * 方照原序续行。
+     */
+    private boolean setupDirectEpisodes(String jsonKey, String idxKey, Runnable afterApply) {
+        if (!"hk_episodes".equals(jsonKey)) {
+            setupDirectEpisodesSync(jsonKey, idxKey);
+            return false;
+        }
+        return setupHkDirectEpisodesAsync(idxKey, afterApply);
+    }
+
+    /** 海阔直达载荷解析产出包：vod 为 null 即同步本体的「不成页」return 支；
+     * specs 是包内自有表，落地时才并入实例字段（实例表非线程安全）。 */
+    private static class HkDirectParse {
+        Vod vod;
+        String rerunRuleJson = "";
+        String rerunPrefix = "";
+        final java.util.Map<String, String[]> specs = new java.util.HashMap<>();
+    }
+
+    /**
+     * 海阔直达选集的异步装配：入参在主线程快照，整表 JSON→模型解析投
+     * Task 池，落地（线组规格落字段＋setDetail）回主线程。载荷空/仓失效
+     * 两支与同步本体同点即决（清零＋提示后回 false）；解析失败照同步形
+     * 记日志＋提示，续行（afterApply）照样执行——今天同步形下 setup 的
+     * catch 收口后 playHkDirect 的起播行照跑，终态不变。
+     */
+    private boolean setupHkDirectEpisodesAsync(String idxKey, Runnable afterApply) {
+        // G3 线组状态随载荷重建清零（与同步本体同点：开面即清，填在落地时）
+        mHkRerunRuleJson = "";
+        mHkRerunPrefix = "";
+        mHkRerunSpecs.clear();
+        mHkRerunLoading.clear();
+        mHkRerunPrevIndex = -1;
+        String json = getIntent().getStringExtra("hk_episodes");
+        String ref = getIntent().getStringExtra("hk_episodes_ref");
+        if (ref != null && !ref.isEmpty()) {
+            String parked = HK_EPISODES_STORE.get(ref);
+            if (parked != null) json = parked;
+            else if (TextUtils.isEmpty(json)) {
+                // 仓里取不到（进程重启/已被淘汰）不许静默无集：给可见提示（深挖 L-05）
+                Notify.show("选集数据已失效，请返回重新打开");
+                return false;
+            }
+        }
+        if (TextUtils.isEmpty(json)) return false;
+        final String jsonText = json;
+        final int selIdx = getIntent().getIntExtra(idxKey, 0);
+        final String name = getName();
+        final String pic = getPic();
+        final String hkContent = getIntent().getStringExtra("hk_content");
+        final String hkActor = getIntent().getStringExtra("hk_actor");
+        final String hkDirector = getIntent().getStringExtra("hk_director");
+        final String hkRemarks = getIntent().getStringExtra("hk_remarks");
+        final String hkLine = getIntent().getStringExtra("hk_line");
+        Task.executor().submit(() -> {
+            final HkDirectParse parsed;
+            try {
+                parsed = parseHkDirectEpisodes(jsonText, selIdx, name, pic,
+                        hkContent, hkActor, hkDirector, hkRemarks, hkLine);
+            } catch (Throwable e) {
+                SpiderDebug.log("video-flow", "direct episodes parse failed error=%s", e.getMessage());
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    Notify.show("选集数据解析失败，请返回重新打开");
+                    if (afterApply != null) afterApply.run();
+                });
+                return;
+            }
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                applyHkDirectParse(parsed);
+                if (afterApply != null) afterApply.run();
+            });
+        });
+        return true;
+    }
+
+    /** 海阔直达解析落地（主线程）：线组规格落实例字段，vod 成页才 setDetail。 */
+    private void applyHkDirectParse(HkDirectParse parsed) {
+        mHkRerunRuleJson = parsed.rerunRuleJson;
+        mHkRerunPrefix = parsed.rerunPrefix;
+        mHkRerunSpecs.clear();
+        mHkRerunSpecs.putAll(parsed.specs);
+        if (parsed.vod != null) setDetail(parsed.vod);
+    }
+
+    /**
+     * 海阔直达载荷的纯解析段：与同步本体海阔路逐点等价——G8 四件带入、
+     * flags 形（线组规格/占位集/真线名）与扁平形（hk_line 采信）全在内，
+     * 只把 getIntent 读换成入参快照、实例字段写换成产出包。
+     */
+    private static HkDirectParse parseHkDirectEpisodes(String json, int selIdx, String name, String pic,
+                                                       String hkContent, String hkActor, String hkDirector,
+                                                       String hkRemarks, String hkLine) throws Exception {
+        HkDirectParse out = new HkDirectParse();
+        Vod vod = new Vod();
+        vod.setName(name);
+        vod.setPic(pic);
+        if (!TextUtils.isEmpty(hkContent)) vod.setContent(hkContent);
+        if (!TextUtils.isEmpty(hkActor)) vod.setActor(hkActor);
+        if (!TextUtils.isEmpty(hkDirector)) vod.setDirector(hkDirector);
+        if (!TextUtils.isEmpty(hkRemarks)) vod.setRemarks(hkRemarks);
+        java.util.List<Flag> flags = new java.util.ArrayList<>();
+        if (json.trim().startsWith("{")) {
+            org.json.JSONObject root = new org.json.JSONObject(json);
+            out.rerunRuleJson = root.optString("hkRerunRule", "");
+            out.rerunPrefix = root.optString("hkPrefix", "");
+            org.json.JSONArray flagArr = root.optJSONArray("flags");
+            if (flagArr == null || flagArr.length() == 0) return out;
+            for (int fi = 0; fi < flagArr.length(); fi++) {
+                org.json.JSONObject fo = flagArr.optJSONObject(fi);
+                if (fo == null) continue;
+                String fname = fo.optString("name", "");
+                if (TextUtils.isEmpty(fname)) fname = "线路" + (fi + 1);
+                Flag flag = Flag.create(fname);
+                org.json.JSONArray eps = fo.optJSONArray("episodes");
+                if (eps != null) {
+                    for (int i = 0; i < eps.length(); i++) {
+                        org.json.JSONObject o = eps.optJSONObject(i);
+                        if (o == null) continue;
+                        String url = o.optString("url", "");
+                        if (TextUtils.isEmpty(url)) continue;
+                        String nm = o.optString("name", "");
+                        boolean fallbackName = TextUtils.isEmpty(nm);
+                        // 毛病10 N2：无名集回退名与详情路 toVod 同口径（第N集）
+                        if (fallbackName) nm = "第" + (flag.getEpisodes().size() + 1) + "集";
+                        Episode ep = Episode.create(nm, url);
+                        if (fallbackName) ep.setNumberName(true);
+                        if (fi == 0 && i == selIdx) ep.setSelected(true);
+                        flag.getEpisodes().add(ep);
+                    }
+                }
+                String rerun = fo.optString("rerun", "");
+                if (!rerun.isEmpty() && flag.getEpisodes().isEmpty()) {
+                    // G3 未加载线路：占位一集（地址是重跑凭据号、绝不进播放解析），
+                    // 切到此线或点占位集时由 HkLineRerun 按该线重跑取真集原地替换。
+                    String rref = "r" + fi;
+                    out.specs.put(rref, new String[]{rerun, fo.optString("extra", "")});
+                    flag.getEpisodes().add(Episode.create("加载中…",
+                            com.fongmi.android.tv.ui.hk.HkLineRerun.MARKER + rref));
+                }
+                if (!flag.getEpisodes().isEmpty()) flags.add(flag);
+            }
+            if (flags.isEmpty()) return out;
+            vod.setFlags(flags);
+            out.vod = vod;
+            return out;
+        }
+        org.json.JSONArray arr = new org.json.JSONArray(json);
+        if (arr.length() == 0) return out;
+        // 毛病10 L1：扁平载荷真线名只活在 hk_line 交接 extra 里，海阔路采信它
+        String flatLine = "默认";
+        if (!TextUtils.isEmpty(hkLine)) flatLine = hkLine;
+        Flag flag = Flag.create(flatLine);
+        for (int i = 0; i < arr.length(); i++) {
+            org.json.JSONObject o = arr.optJSONObject(i);
+            if (o == null) continue;
+            String url = o.optString("url", "");
+            if (TextUtils.isEmpty(url)) continue;
+            String nm = o.optString("name", "");
+            boolean fallbackName = TextUtils.isEmpty(nm);
+            if (fallbackName) nm = "第" + (flag.getEpisodes().size() + 1) + "集";
+            Episode ep = Episode.create(nm, url);
+            if (fallbackName) ep.setNumberName(true);
+            if (i == selIdx) ep.setSelected(true);
+            flag.getEpisodes().add(ep);
+        }
+        if (flag.getEpisodes().isEmpty()) return out;
+        flags.add(flag);
+        vod.setFlags(flags);
+        out.vod = vod;
+        return out;
+    }
+
+    private void setupDirectEpisodesSync(String jsonKey, String idxKey) {
         // G3 线组状态随载荷重建清零（换源重入时不许残留上一部的重跑规格）
         mHkRerunRuleJson = "";
         mHkRerunPrefix = "";
@@ -1972,7 +2173,11 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
                             if (TextUtils.isEmpty(url)) continue;
                             String nm = o.optString("name", "");
                             boolean fallbackName = TextUtils.isEmpty(nm);
-                            if (fallbackName) nm = String.format(java.util.Locale.getDefault(), "%02d", flag.getEpisodes().size() + 1);
+                            // 毛病10 N2：无名集回退名与详情路 toVod 同口径
+                            // （第N集）；非海阔直达（txt/本地等）维持 %02d。
+                            if (fallbackName) nm = "hk_episodes".equals(jsonKey)
+                                    ? ("第" + (flag.getEpisodes().size() + 1) + "集")
+                                    : String.format(java.util.Locale.getDefault(), "%02d", flag.getEpisodes().size() + 1);
                             Episode ep = Episode.create(nm, url);
                             if (fallbackName) ep.setNumberName(true);
                             if (fi == 0 && i == selIdx) ep.setSelected(true);
@@ -1997,7 +2202,15 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             }
             org.json.JSONArray arr = new org.json.JSONArray(json);
             if (arr.length() == 0) return;
-            Flag flag = Flag.create("默认");
+            // 毛病10 L1：海阔扁平载荷的真线名只活在 hk_line 交接 extra 里
+            // （列表路 currentLineNameOf 回收、详情路 it.getLine()），旧形
+            // 此处写死「默认」、播放器线路名恒假。hk 时采信 hk_line。
+            String flatLine = "默认";
+            if ("hk_episodes".equals(jsonKey)) {
+                String hl = getIntent().getStringExtra("hk_line");
+                if (!TextUtils.isEmpty(hl)) flatLine = hl;
+            }
+            Flag flag = Flag.create(flatLine);
             for (int i = 0; i < arr.length(); i++) {
                 org.json.JSONObject o = arr.optJSONObject(i);
                 if (o == null) continue;
@@ -2005,7 +2218,9 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
                 if (TextUtils.isEmpty(url)) continue;
                 String nm = o.optString("name", "");
                 boolean fallbackName = TextUtils.isEmpty(nm);
-                if (fallbackName) nm = String.format(java.util.Locale.getDefault(), "%02d", flag.getEpisodes().size() + 1);
+                if (fallbackName) nm = "hk_episodes".equals(jsonKey)
+                        ? ("第" + (flag.getEpisodes().size() + 1) + "集")
+                        : String.format(java.util.Locale.getDefault(), "%02d", flag.getEpisodes().size() + 1);
                 Episode ep = Episode.create(nm, url);
                 if (fallbackName) ep.setNumberName(true);
                 if (i == selIdx) ep.setSelected(true);
@@ -6805,7 +7020,23 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void restoreFlagSelectionWithoutPlayback() {
-        mFlagAdapter.setSelected(mHistory.getFlag());
+        // 毛病5：直达会话的界面线位须跟首播实参同线——旧形无条件激活
+        // 历史线，而首播（playHkDirect）播的是被点集所在线（交接 extra），
+        // 有异线历史时界面选中与实际在播分叉、要点一次才合。直达会话
+        // 里带预选集的线即被点线（setupDirectEpisodes 只给被点集打
+        // selected），优先激活它；集位由 syncSelectedEpisode 的预选守卫
+        // 保住（与「直达流保持被点选择」的既有设计意图同向）。详情会话
+        // 无预选集、口径不变。
+        Flag targetFlag = mHistory.getFlag();
+        if (isDirectPlaySession() && mFlagAdapter != null) {
+            for (Flag f : mFlagAdapter.getItems()) {
+                if (hasPreselectedEpisode(f)) {
+                    targetFlag = f;
+                    break;
+                }
+            }
+        }
+        mFlagAdapter.setSelected(targetFlag);
         Flag flag = getFlag();
         if (flag == null) return;
         syncSelectedEpisode(flag);

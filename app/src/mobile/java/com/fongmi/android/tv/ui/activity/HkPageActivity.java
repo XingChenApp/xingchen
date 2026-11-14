@@ -5125,6 +5125,19 @@ public class HkPageActivity extends BaseActivity {
             boolean refreshOnly = false;
             try {
                 if (url.contains("@lazyRule=") || url.contains("@rule=") || url.startsWith("js:")) {
+                    // 毛病8 反序断根：本处预解析就是需要 MY_POSITION 的那
+                    // 一发（官 dealLazyRule 语境）——先按身份（规则名＋被点
+                    // 集址）写槽再解析；旧形槽要等 startHkPlay 才写、本发
+                    // 恒读空/残值，后发的真播再把新值白领走。
+                    int clickPos = -1;
+                    for (int i = 0; i < detailItems.size(); i++) {
+                        if (detailItems.get(i) == it) {
+                            clickPos = i;
+                            break;
+                        }
+                    }
+                    com.fongmi.android.tv.api.hk.HkDetailBridge.setClickPosition(clickPos,
+                            currentRule == null ? "" : currentRule.getTitle(), url);
                     HkPlay play = getRouter().play(url, it.getExtra());
                     // dealLazyRule 收口同 playContentEpisode：只起副作用的
                     // 回调置 refreshOnly，不许拿未解析原串或 hiker://empty
@@ -5201,6 +5214,16 @@ public class HkPageActivity extends BaseActivity {
             boolean parseFailed = false;
             boolean refreshOnly = false;
             try {
+                // 毛病8 反序断根（同 playDetailEpisode）：先按身份写槽再解析。
+                int clickPos = -1;
+                for (int i = 0; i < snapshot.size(); i++) {
+                    if (snapshot.get(i) == it) {
+                        clickPos = i;
+                        break;
+                    }
+                }
+                com.fongmi.android.tv.api.hk.HkDetailBridge.setClickPosition(clickPos,
+                        currentRule == null ? "" : currentRule.getTitle(), url);
                 HkPlay play = getRouter().play(url, it.getExtra());
                 // 官 dealLazyRule 收口（账 heji-subrule-sort-20261114）：
                 // 回调只起了副作用（putMyVar + refreshPage，如容器设置页
@@ -5743,6 +5766,9 @@ public class HkPageActivity extends BaseActivity {
             boolean parseFailed = false;
             try {
                 if (url.contains("@lazyRule=") || url.contains("@rule=") || url.startsWith("js:")) {
+                    // 毛病8 反序断根（同 playDetailEpisode）：先按身份写槽再解析。
+                    com.fongmi.android.tv.api.hk.HkDetailBridge.setClickPosition(Math.max(0, videos.indexOf(it)),
+                            currentRule == null ? "" : currentRule.getTitle(), url);
                     HkPlay play = getRouter().play(url, it.getExtra());
                     if (!play.getUrl().isEmpty()) playUrl = play.getUrl();
                 }
@@ -6316,7 +6342,7 @@ public class HkPageActivity extends BaseActivity {
                     String target = "";
                     String evalErr = null;
                     try {
-                        target = getRouter().getEngine().getJsRuntime().evalLazy(code, "");
+                        target = getRouter().getEngine().getJsRuntime().evalLazy(code, "", -1);
                     } catch (Throwable e) {
                         evalErr = e.getMessage() == null || e.getMessage().isEmpty()
                                 ? "执行失败" : e.getMessage();

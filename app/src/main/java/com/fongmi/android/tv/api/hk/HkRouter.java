@@ -161,6 +161,15 @@ public class HkRouter {
                 // @lazyRule= 有结果但无法识别种类：如果结果是有效 HTTP URL，默认按直接播放处理，
                 // 避免落入 V4 空详情（官方 dealWithUrl 对未知 http URL 走 web 分流，不进 V4）
                 if (vt.toLowerCase().startsWith("http")) {
+                    // 毛病1：产出＝页址本身（降级吐回）时不许冒充直播址
+                    // ——w495 阅动漫直点死路即此门（交接址在入口已被改
+                    // 写、懒段吐回同址后经此门直喂播放器）。按解析失败
+                    // 收口，与播放路同判据（isLazyDegraded）。
+                    if (isLazyDegraded(vt, u.substring(0, lr))) {
+                        SpiderDebug.log("hk", "detail lazy degraded (page echoed) rule=%s host=%s", rule.getTitle(), hostOf(vt));
+                        detail.setLazyParseFailed(true);
+                        return detail;
+                    }
                     detail.setDirectPlayUrl(vt);
                     return detail;
                 }
@@ -353,7 +362,7 @@ public class HkRouter {
                 r = r.substring(3);
                 js = true;
             }
-            if (js) return engine.getJsRuntime().evalLazy(r, pageUrl);
+            if (js) return engine.getJsRuntime().evalLazy(r, pageUrl, -1);
             String html = getMarked(pageUrl);
             return engine.getSelector().evalField(html, r, pageUrl);
         } catch (Throwable e) {
@@ -365,7 +374,7 @@ public class HkRouter {
     /** 纯 js: 条目求值（$.toString 生成），期望返回真实 URL 字符串。 */
     private String evalEntryJs(String u) {
         try {
-            return engine.getJsRuntime().evalLazy(u.substring(3), u);
+            return engine.getJsRuntime().evalLazy(u.substring(3), u, -1);
         } catch (Throwable e) {
             Logger.t(TAG).d("entry js eval failed: %s", e.getMessage());
             return null;
@@ -449,6 +458,15 @@ public class HkRouter {
         }
         String scheme = schemeOf(u);
         if (scheme == null) return;
+        // 毛病1 出口侧：懒产出来源标记在身、且产出就是那一页本身
+        // （非媒体直链形）＝降级吐回的剧集网页——协议头合法也拦，
+        // 按未解析明错收口，不许喂给播放器当媒体（产出侧已拦一道，
+        // 此处是出口复核，绕过产出侧的同形产物同样出不去）。
+        String stagePage = out.getLazyStagePage();
+        if (!stagePage.isEmpty() && u.equals(stagePage) && !looksLikeMediaUrl(u)) {
+            SpiderDebug.log("hk", "play exit blocked lazy-degraded rule=%s host=%s", rule.getTitle(), hostOf(u));
+            throw new IllegalStateException("海阔懒解析未返回播放地址，请换一条试试");
+        }
         if (PLAYABLE_SCHEMES.contains(scheme)) return;
         // P2P 四形未标 playType 时（如懒函数直回 magnet）同为合法终形：
         // hkPlayerContent 的 isP2pPlayLink 门会按实际地址分流迅雷边下边播
@@ -482,13 +500,15 @@ public class HkRouter {
         HkPlay out = new HkPlay();
         if (episodeUrl == null) return out;
         // face1#4 尾巴（簇3）：点击下标一次性承接——点击方经
-        // HkDetailBridge.setClickPosition 预放、此处入口取走（读后
-        // 复位），沿 resolveLazyRule/applyLazyResult 形参链传递（与
-        // itemExtra 同形、不落实例字段防并发串位），每段懒发前调
-        // setNextLazyPosition 同值（官 dealLazyRule 成功回灌 clickItem
+        // HkDetailBridge.setClickPosition 预放（带规则名＋被点集址身份），
+        // 此处入口按身份取走（身份不合即残值、清掉回 -1；推测性解析经
+        // consume 抑制口不领不清除外），沿 resolveLazyRule/applyLazyResult
+        // 形参链传递（与 itemExtra 同形、不落实例字段防并发串位），每段
+        // 懒发以形参直传 evalLazy（官 dealLazyRule 成功回灌 clickItem
         // 时 position 不变、链式懒段段同位）。未放/无点击语境恒 -1＝
         // 官 parse 无 position 形的缺省实参，行为与接线前一致。
-        final int clickPos = HkDetailBridge.consumeClickPosition();
+        final int clickPos = HkDetailBridge.consumeClickPosition(
+                rule == null ? "" : rule.getTitle(), episodeUrl);
         String u = episodeUrl.trim();
         // -2. x5Play:// 剥壳（定根账 hk-sniff-route-miswire-20261113）：官家
         // x5Play 是播放器地址——PlayerChooser 三个 startPlayer 变体一律强制
@@ -672,7 +692,7 @@ public class HkRouter {
             else if (r.startsWith("js:")) r = r.substring(3);
             // 官方 LazyRuleParser.parseByJs：input = @lazyRule= 前的 URL 部分（lazyRule[0]）
             String prefix = tabUrl.substring(0, lr).trim();
-            engine.getJsRuntime().evalLazy(r, prefix.isEmpty() ? null : prefix);
+            engine.getJsRuntime().evalLazy(r, prefix.isEmpty() ? null : prefix, -1);
         } catch (Throwable e) {
             // 求值失败不许照常 return true 冒充成功：唯一调用方
             // HkPageActivity.onHeaderTabClick 对 evalTab 本就 try/catch 并
@@ -829,6 +849,9 @@ public class HkRouter {
      *                拿不到真实页面（如 js: 整段以自身为 MY_URL）时传空串。
      */
     private void applyLazyResult(String v, HkPlay out, int depth, String pageUrl, String itemExtra, int clickPos) {
+        // 毛病1：记下本段产出来源（净形页址），供出口 checkPlayExit
+        // 判降级产物；js: 整段形 pageUrl 为空、标记随之为空＝不启用。
+        out.setLazyStagePage(lazyPageClean(pageUrl));
         v = v.trim();
         // x5Play:// 剥壳（同 playRoute 入口，定根账 hk-sniff-route-miswire-20261113）：
         // 懒函数回 x5Play://{播放数据} 是包装型规则的标准回址，先剥壳再过下面的 JSON 门
@@ -867,8 +890,79 @@ public class HkRouter {
             resolveLazyRule(page, nextRule, out, depth + 1, itemExtra, clickPos);
             return;
         }
+        // 毛病1 产出侧：懒段产出＝页址本身（净形逐字相同）＝规则体残缺
+        // 时的降级吐回，不许当播放地址写进 out——playRoute 后续步骤
+        // （空 url 判定）会按既有「未返回播放地址」明错收口。
+        if (isLazyDegraded(v, pageUrl)) {
+            SpiderDebug.log("hk", "lazy degraded (page echoed) rule=%s host=%s", rule.getTitle(), hostOf(v));
+            return;
+        }
         out.setUrl(splitEnhancement(v, out));
         SpiderDebug.log("hk", "lazy resolved rule=%s -> %s", rule.getTitle(), hostOf(out.getUrl()));
+    }
+
+    /**
+     * JS 懒发入参页址清理（与 playRoute 步骤 2/2.5 对 u 的清理同口径：
+     * 拆 {@code ;} 增强——头已由 playRoute 步骤 2 收进 out，此处重拆只为
+     * 剥串、同值覆写无副作用；再剥 # 标记段）。起因（聚阅换集解析失败
+     * 案）：条目交接时 codeAndHeader 被 playUrlForChapter 拼回页面段
+     * （懒条目恒含 ;get），playRoute 步骤 4 传进本法的 pageUrl 是未拆
+     * 原串，JS 本体把 input 当真实页址 fetch——; 段不是地址的一部分、
+     * JS fetch 层（HkHttp.to）也不认增强语法，取回恒错页、解析回空。
+     * 被点集在点击流程已被解成净址直链、不经此路，故只有换集（兄弟集
+     * 原始懒串）中招。选择器支不经此清理：其 getMarked→HkHttp.get 自会
+     * 拆增强，两支入参口径由此分开，与官 LazyRuleParser 两支同形
+     * （js 支 input 为净址、选择器支以 url+codeAndHeader 拼接取页）。
+     * 链式懒段（applyLazyResult 递归入本法）页址已经此清理、重清为无操作。
+     */
+    private String cleanLazyPageUrl(String pageUrl, HkPlay out) {
+        if (pageUrl == null) return "";
+        String u = splitEnhancement(pageUrl, out);
+        int hash = u.indexOf('#');
+        if (hash >= 0) u = u.substring(0, hash).trim();
+        return u;
+    }
+
+    /** 纯串版拆 {@code ;} 增强（不写 out、无副作用）：与 splitEnhancement 的串处理同口径，只取 url 本体。 */
+    private static String stripEnhancementText(String u) {
+        if (u == null) return "";
+        int brace = u.indexOf('{');
+        int braceEnd = u.lastIndexOf('}');
+        if (brace > 0 && braceEnd > brace) {
+            u = (u.substring(0, brace) + u.substring(braceEnd + 1)).trim();
+        }
+        int semi = u.indexOf(';');
+        if (semi >= 0) u = u.substring(0, semi).trim();
+        return u;
+    }
+
+    /** 懒段页址的净形（与 cleanLazyPageUrl 同口径：拆增强＋剥 # 段），纯串版；另剥 @lazyRule= 尾，自足于整串入参。 */
+    private static String lazyPageClean(String pageUrl) {
+        String u = stripEnhancementText(pageUrl == null ? "" : pageUrl.trim());
+        int lr = u.indexOf("@lazyRule=");
+        if (lr >= 0) u = u.substring(0, lr).trim();
+        int hash = u.indexOf('#');
+        if (hash >= 0) u = u.substring(0, hash).trim();
+        return u;
+    }
+
+    /**
+     * 懒降级产物判定（毛病1，hk-player-seam-audit-20261115）：本段懒求值
+     * 的产出（净形）与喂给本段的页址净形逐字相同＝懒函数没解析出任何
+     * 东西、把剧集网页原样吐回——规则体远程取回失败/残缺时的降级形
+     * （w495 日志实证：产出是 200 text/html 网页、被当媒体直喂引擎，
+     * Exo/MPV 五试全灭；同集页面直点走新鲜求值不经此路、能播）。
+     * 豁免：产出或页址带 isVideo=true 标记（声明页址本身即视频）、或
+     * 页址形如媒体直链（懒包裹直链加头回吐原址是合法终形）。
+     */
+    private static boolean isLazyDegraded(String resolved, String pageRaw) {
+        if (resolved == null || pageRaw == null) return false;
+        if (resolved.contains("isVideo=true") || pageRaw.contains("isVideo=true")) return false;
+        String r = stripEnhancementText(resolved.trim());
+        int h = r.indexOf('#');
+        if (h >= 0) r = r.substring(0, h).trim();
+        if (r.isEmpty()) return false;
+        return r.equals(lazyPageClean(pageRaw)) && !looksLikeMediaUrl(r);
     }
 
     private void resolveLazyRule(String pageUrl, String ruleText, HkPlay out, int depth, String itemExtra, int clickPos) {
@@ -884,13 +978,11 @@ public class HkRouter {
             }
             String v;
             if (js) {
-                // face1#4 尾巴（簇3）：进懒发前把本链点击下标放进一次性
-                // 通道（每段同值，见 playRoute 入口注）；选择器支不求值
-                // JS、无 MY_POSITION，不放。evalJsPlay 的 evalLazy 不经
-                // 此处放值，其发恒缺省 -1（官 @rule=js:/js: 播放求值本
-                // 无 position 形）。
-                engine.getJsRuntime().setNextLazyPosition(clickPos);
-                v = engine.getJsRuntime().evalLazy(r, pageUrl);
+                // face1#4 尾巴（簇3）：本链点击下标以形参直传本发（每段
+                // 同值，见 playRoute 入口注）；选择器支不求值 JS、无
+                // MY_POSITION。evalJsPlay 的 evalLazy 恒传 -1（官
+                // @rule=js:/js: 播放求值本无 position 形）。
+                v = engine.getJsRuntime().evalLazy(r, cleanLazyPageUrl(pageUrl, out), clickPos);
             } else {
                 String html = getMarked(pageUrl);
                 v = engine.getSelector().evalField(html, r, pageUrl);
@@ -928,7 +1020,7 @@ public class HkRouter {
 
     private String evalJsPlay(String code, String pageUrl) {
         try {
-            return engine.getJsRuntime().evalLazy(code, pageUrl);
+            return engine.getJsRuntime().evalLazy(code, pageUrl, -1);
         } catch (Throwable e) {
             Logger.t(TAG).d("js play failed: %s", e.getMessage());
             SpiderDebug.log("hk", "js play failed rule=%s host=%s err=%s", rule.getTitle(), hostOf(pageUrl), String.valueOf(e));
@@ -1043,24 +1135,6 @@ public class HkRouter {
             Logger.t(TAG).d("play json failed: %s", e.getMessage());
             return false;
         }
-    }
-
-    /**
-     * P2 线路记忆（8.83 PlayerChooser.getSwitchIndex 语义）：键=规则名+剧集 id，
-     * 默认 0。供播放器内线路切换入口调用（当前桥路径暂无切换 UI，只记不换）。
-     */
-    private static final java.util.concurrent.ConcurrentHashMap<String, Integer> LINE_INDEX =
-            new java.util.concurrent.ConcurrentHashMap<>();
-
-    public static int lineIndex(String ruleTitle, String episodeId) {
-        if (ruleTitle == null || episodeId == null) return 0;
-        Integer i = LINE_INDEX.get(ruleTitle + "|" + episodeId);
-        return i == null ? 0 : Math.max(0, i);
-    }
-
-    public static void rememberLine(String ruleTitle, String episodeId, int index) {
-        if (ruleTitle == null || episodeId == null || index < 0) return;
-        LINE_INDEX.put(ruleTitle + "|" + episodeId, index);
     }
 
     /**

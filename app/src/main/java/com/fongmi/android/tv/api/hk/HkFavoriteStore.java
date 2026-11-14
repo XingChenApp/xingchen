@@ -112,9 +112,11 @@ public class HkFavoriteStore {
     /**
      * 由海阔历史行组收藏记录（收藏产生面的统一构建口：历史页长按与借面
      * 会话内的收藏动作共用）：键口径与详情页星标 onHkKeep 同——episodeUrl
-     * 存行自带的 vodId（详情形＝条目址、直达形＝集址），direct 按行上集址
-     * 与 vodId 是否相等判（与 HkHistoryActivity.openRecord 的 directForm
-     * 同一口径），线路名、标题、封面全随行。
+     * 存行自带的 vodId（详情形＝条目址、直达形＝集址），direct 走键标记
+     * 判定（HkDetailBridge.isDirectForm，与 HkHistoryActivity.openRecord
+     * 同一口径；毛病2(a)——旧形集址等值自证随切集翻转）。存入的 vodId
+     * 先剥直达标记：标记只活在历史键里，不许漏进收藏的地址字段。
+     * 线路名、标题、封面全随行。
      */
     public static HkFavorite fromHistory(History h) {
         if (h == null) return null;
@@ -126,8 +128,8 @@ public class HkFavoriteStore {
         String episodeUrl = h.getEpisodeUrl() == null ? "" : h.getEpisodeUrl();
         HkFavorite f = new HkFavorite();
         f.setRuleTitle(ruleTitle);
-        f.setEpisodeUrl(vodId);
-        f.setDirect(!episodeUrl.isEmpty() && episodeUrl.equals(vodId));
+        f.setEpisodeUrl(HkDetailBridge.stripDirectKeyMark(vodId));
+        f.setDirect(HkDetailBridge.isDirectForm(vodId, episodeUrl));
         f.setFlag(h.getVodFlag() == null ? "" : h.getVodFlag());
         f.setTitle(h.getVodName() == null ? "" : h.getVodName());
         f.setPicUrl(h.getVodPic() == null ? "" : h.getVodPic());

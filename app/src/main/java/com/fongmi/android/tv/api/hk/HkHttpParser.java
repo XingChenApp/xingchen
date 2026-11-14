@@ -457,6 +457,15 @@ public class HkHttpParser {
                         data.setNames(names);
                     } else if (data.getNames().size() > data.getUrls().size()) {
                         data.setNames(new ArrayList<>(data.getNames().subList(0, data.getUrls().size())));
+                    } else if (data.getNames().size() < data.getUrls().size()) {
+                        // 毛病3(i)：线名短于线数时旧形原样透传，下游按名数
+                        // 算线数即塌线（多出的线无名无面）。补齐到同长，
+                        // 补名口径与空名分支一致（线路N，N＝线序）。
+                        List<String> names = new ArrayList<>(data.getNames());
+                        for (int i = names.size(); i < data.getUrls().size(); i++) {
+                            names.add("线路" + (i + 1));
+                        }
+                        data.setNames(names);
                     }
                 }
                 return data;
@@ -471,6 +480,70 @@ public class HkHttpParser {
         data.setUrl(url.split(";")[0]);
         data.setHeader(getHeaders(url));
         return data;
+    }
+
+    /**
+     * 某集在某条线路下的实际地址（逐线打包，列表路与详情路共用——毛病3(iv)）：
+     * 取 urls[线路]（越界回 urls[0]），该线路的请求头/字幕/分离音频/弹幕/
+     * 歌词随址打成 mini PlayData JSON；无附带字段时回裸址。本体自
+     * HkListActivity.expandedUrl 原样移入（2026-11-15），HkListActivity
+     * 保留同名委托口，详情路 toVod 展开与列表路自此同一打包口径。
+     */
+    public static String expandLineUrl(HkPlayData pd, String rawUrl, int line) {
+        if (pd == null) return rawUrl;
+        List<String> urls = pd.getUrls();
+        if (urls == null || urls.isEmpty()) return rawUrl;
+        String u = urls.get(line < urls.size() ? line : 0);
+        u = u == null ? "" : u.trim();
+        if (u.isEmpty()) return rawUrl;
+        List<String> kvs = new ArrayList<>();
+        List<Map<String, String>> headers = pd.getHeaders();
+        if (headers != null && line < headers.size() && headers.get(line) != null) {
+            for (Map.Entry<String, String> e : headers.get(line).entrySet()) {
+                String k = e.getKey() == null ? "" : e.getKey().trim();
+                String v = e.getValue() == null ? "" : e.getValue().trim();
+                if (!k.isEmpty() && !v.isEmpty()) kvs.add(k + "@" + v);
+            }
+        }
+        if (pd.getHeader() != null && line == 0) {
+            for (Map.Entry<String, String> e : pd.getHeader().entrySet()) {
+                String k = e.getKey() == null ? "" : e.getKey().trim();
+                String v = e.getValue() == null ? "" : e.getValue().trim();
+                if (!k.isEmpty() && !v.isEmpty()) kvs.add(k + "@" + v);
+            }
+        }
+        String subtitle = pd.getSubtitle() == null ? "" : pd.getSubtitle().trim();
+        String audio = "";
+        List<String> audioUrls = pd.getAudioUrls();
+        if (audioUrls != null && !audioUrls.isEmpty()) {
+            String a = audioUrls.get(line < audioUrls.size() ? line : 0);
+            audio = a == null ? "" : a.trim();
+        }
+        String danmu = pd.getDanmu() == null ? "" : pd.getDanmu().trim();
+        String lyric = pd.getLyric() == null ? "" : pd.getLyric().trim();
+        if (kvs.isEmpty() && subtitle.isEmpty() && audio.isEmpty() && danmu.isEmpty() && lyric.isEmpty()) return u;
+        try {
+            org.json.JSONObject mini = new org.json.JSONObject();
+            org.json.JSONArray mu = new org.json.JSONArray();
+            mu.put(u);
+            mini.put("urls", mu);
+            if (!kvs.isEmpty()) {
+                org.json.JSONArray mh = new org.json.JSONArray();
+                for (String kv : kvs) mh.put(kv);
+                mini.put("headers", mh);
+            }
+            if (!subtitle.isEmpty()) mini.put("subtitle", subtitle);
+            if (!danmu.isEmpty()) mini.put("danmu", danmu);
+            if (!lyric.isEmpty()) mini.put("lyric", lyric);
+            if (!audio.isEmpty()) {
+                org.json.JSONArray ma = new org.json.JSONArray();
+                ma.put(audio);
+                mini.put("audioUrls", ma);
+            }
+            return mini.toString();
+        } catch (Exception e) {
+            return u;
+        }
     }
 
     /** PlayData 的 String 面收敛（面②#6）：标量字段 url/danmu/lyric/subtitle、

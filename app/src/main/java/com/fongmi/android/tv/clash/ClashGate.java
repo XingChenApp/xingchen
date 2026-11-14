@@ -106,9 +106,11 @@ public final class ClashGate {
     /**
      * 起播绑定：把当前条目的源归属绑进 SourceGate 会话层，播放器取流线程
      * 据此裁决（见 SourceGate.bindSession）。归属解析不出返回 null（不绑）。
-     * 返回值原样留给调用方，停播时交回 {@link #unbindPlayback(String[])} 按值解绑。
+     * owner 为起播的播放器本体：绑定按 owner 各记一份（主服务与短剧听书
+     * 服务各持一个播放器，互不覆盖，见 SourceGate 会话层注）。返回值原样
+     * 留给调用方，停播时连同 owner 交回 {@link #unbindPlayback(Object, String[])} 按值解绑。
      */
-    public static String[] bindPlayback(Context context, String key) {
+    public static String[] bindPlayback(Object owner, Context context, String key) {
         String[] attr = playbackAttribution(key);
         if (attr == null) return null;
         try {
@@ -131,7 +133,7 @@ public final class ClashGate {
             }
         } catch (Throwable ignored) {
         }
-        SourceGate.bindSession(attr[0], attr[1]);
+        SourceGate.bindSession(owner, attr[0], attr[1]);
         return attr;
     }
 
@@ -150,10 +152,10 @@ public final class ClashGate {
         }, "clash-playback-start").start();
     }
 
-    /** 停播解绑：按绑定时的归属值解绑（值不一致不清，防旧会话收尾误清新会话）。 */
-    public static void unbindPlayback(String[] attr) {
+    /** 停播解绑：只解 owner 自家那份且按绑定时的归属值核对（值不一致不清，防旧会话收尾误清新会话；别台的绑定不在此口射程内）。 */
+    public static void unbindPlayback(Object owner, String[] attr) {
         if (attr == null || attr.length < 2) return;
-        SourceGate.clearSession(attr[0], attr[1]);
+        SourceGate.clearSession(owner, attr[0], attr[1]);
     }
 
     public static void register(Context context) {

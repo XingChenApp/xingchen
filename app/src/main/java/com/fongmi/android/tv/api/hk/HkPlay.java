@@ -110,6 +110,22 @@ public class HkPlay {
      * 与 {@link HkDetail#isTabSwitch()} 同口径（详情预解析路的变化检测）。
      */
     private boolean refreshOnly;
+    /**
+     * 懒产出来源标记（毛病1，hk-player-seam-audit-20261115）：本结果由
+     * 哪一页喂出的懒段产出（净形页址，applyLazyResult 入口按段写入）。
+     * 出口 checkPlayExit 据此判「产出就是页址本身」的降级产物——那是
+     * 懒函数在规则体残缺时把剧集网页原样吐回的形态，绝不许当播放
+     * 地址出门。非懒产出恒空。
+     */
+    private String lazyStagePage = "";
+
+    public String getLazyStagePage() {
+        return lazyStagePage == null ? "" : lazyStagePage;
+    }
+
+    public void setLazyStagePage(String lazyStagePage) {
+        this.lazyStagePage = lazyStagePage == null ? "" : lazyStagePage;
+    }
 
     public String getUrl() {
         return url;

@@ -433,7 +433,20 @@ public class History implements Diffable<History> {
     }
 
     private History merge(List<History> items, boolean force) {
-        for (History item : items) if (item.shouldMerge(this, force)) item.copyTo(this).delete();
+        for (History item : items) {
+            if (!item.shouldMerge(this, force)) continue;
+            // 毛病2(c)：合并删行前先抢救进度——copyTo 只搬片头/片尾/速度，
+            // 被删行的 position 旧形直接丢弃（同集两行并成一行、活行没位、
+            // 删行有位时，再入从零播）。仅当两行是同一集（集址相等）且
+            // 本行无位、对方有位时过继 position（duration 对方有亦同带）。
+            if (getPosition() <= 0 && item.getPosition() > 0
+                    && !TextUtils.isEmpty(item.getEpisodeUrl())
+                    && item.getEpisodeUrl().equals(getEpisodeUrl())) {
+                setPosition(item.getPosition());
+                if (getDuration() <= 0 && item.getDuration() > 0) setDuration(item.getDuration());
+            }
+            item.copyTo(this).delete();
+        }
         return this;
     }
 
@@ -463,6 +476,22 @@ public class History implements Diffable<History> {
         return this;
     }
 
+    /**
+     * 毛病2(b) 进度过继守卫：本行是海阔直达行（键 id 段带直达标记）时，
+     * 进度只许随「同一集」过继——命中集址等于本行键中集址，或捐方行键
+     * 与本行键同集（详情路直达行键存解析后址、集表存原始址，两形并认）。
+     * 旧形只要同名行的任一集在当前集表里找得到就整行过继（连位置带集名
+     * 一起搬），第05集直达首播吃到第01集的切出位（w495 日志实证）。
+     * 非直达行（含全部普通站与海阔详情行）口径不变、恒放行。
+     */
+    private boolean directAdoptionAllowed(History donor, Episode found) {
+        if (!com.fongmi.android.tv.api.hk.HkDetailBridge.isDirectKeyId(getVodId())) return true;
+        String myId = com.fongmi.android.tv.api.hk.HkDetailBridge.stripDirectKeyMark(getVodId());
+        if (myId.isEmpty()) return true;
+        if (found != null && myId.equals(found.getUrl())) return true;
+        return myId.equals(com.fongmi.android.tv.api.hk.HkDetailBridge.stripDirectKeyMark(donor.getVodId()));
+    }
+
     public void findEpisode(List<Flag> flags) {
         if (flags.isEmpty()) return;
         setVodFlag(flags.get(0).getFlag());
@@ -477,6 +506,7 @@ public class History implements Diffable<History> {
             for (Flag flag : flags) {
                 Episode episode = flag.find(item.getEpisode(), true);
                 if (episode == null) continue;
+                if (!directAdoptionAllowed(item, episode)) continue;
                 item.copyTo(this);
                 setVodFlag(flag.getFlag());
                 setPosition(item.getPosition());

@@ -63,7 +63,8 @@ public final class HkGlideUtil {
         if (drawable instanceof BitmapDrawable) {
             Bitmap bitmap = ((BitmapDrawable) drawable).getBitmap();
             if (bitmap != null) {
-                Bitmap scaled = Bitmap.createScaledBitmap(bitmap, w, h, false);
+                // 尺寸下限收口（与 ImgUtil.compressImage 对齐）：入参 ≤0 必崩，钳到 1
+                Bitmap scaled = Bitmap.createScaledBitmap(bitmap, Math.max(1, w), Math.max(1, h), false);
                 if (scaled != bitmap) {
                     drawable = new BitmapDrawable(res, scaled);
                 }

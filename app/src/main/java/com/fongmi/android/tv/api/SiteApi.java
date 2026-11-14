@@ -944,16 +944,23 @@ public class SiteApi {
     @NonNull
     public static Result playerContentParseOnly(@NonNull String key, @NonNull String flag, @NonNull String id) throws Exception {
         boolean previous = HomePrewarm.playbackActive;
+        // 毛病8：纯解析（预解析/预加载/取文取址）是推测性解析——抑制
+        // 点击位槽的消费，真播放进槽的 MY_POSITION 不许被本路领走。
+        boolean prevSuppressed = HkDetailBridge.beginClickPositionSuppressed();
         try {
             return playerContent(key, flag, id);
         } finally {
+            HkDetailBridge.endClickPositionSuppressed(prevSuppressed);
             HomePrewarm.playbackActive = previous;
         }
     }
 
     @NonNull
     public static Result playerContent(@NonNull String key, @NonNull String flag, @NonNull String id, int playerType) throws Exception {
-        SpiderDebug.log("player", "key=%s,flag=%s,id=%s", key, flag, id);
+        // 入口行收窄（掉帧批 ④）：id 只记长度——海阔直达集的 id 是整份
+        // PlayData JSON/懒规则体（实测 5,101 字、单行可顶清洗上限），是全链
+        // 最贵的一行日志且落在起播/切集线程上；key/flag 与入口行本身保留。
+        SpiderDebug.log("player", "key=%s,flag=%s,idLen=%d", key, flag, id == null ? 0 : id.length());
         HomePrewarm.playbackActive = true; // 首页预热让路：播放/解析开始即暂停推进
         Source.get().stop();
         if (WebHomeInlineVodStore.KEY.equals(key)) return WebHomeInlineVodStore.player(flag, id);
@@ -1207,6 +1214,11 @@ public class SiteApi {
         // 阅读分流（小说规则）：直接返回阅读会话，正文在阅读器里懒取，不跑 play 分流链。
         // 视频规则不受影响（type 不是"小说"）。
         if (ReadingGate.isHkNovelRule(title)) {
+            // 毛病8 残值清口：本支在 router.play 之前分流，点击位槽不会被
+            // playRoute 消费——起播方（startHkPlay 的名字型预分流没拦住
+            // 本支：此判是类型口径）放进槽的下标若留着，会被下一发无关
+            // 解析按残值领走。此处主动清掉。
+            HkDetailBridge.clearClickPosition();
             Result novelResult = new Result();
             novelResult.setReadingSession(ReadingGate.fromHkNovel(title, "", null, 0));
             novelResult.setKey(key);
@@ -1261,14 +1273,16 @@ public class SiteApi {
             fallbackResult.setFlag(flag);
             return fallbackResult;
         }
-        // P2 多线路：按 (规则名,剧集) 记忆的线路下标取线（默认首线），
-        // 该线路的地址+请求头按下标取、不跨线路合并（8.83 getPlayData/getHeaders 语义）
-        int line = HkRouter.lineIndex(title, id);
+        // P2 多线路：桥路无切线 UI，线路在交接期已按线展开成独立 Flag
+        // （列表路 buildFlagsPayload 按线名对齐展开、详情路 toVod 按
+        // PlayData 逐线展开），play 产出的多线包恒取首线——旧形经
+        // HkRouter.lineIndex 读一张无人写过的记忆表（rememberLine 全树
+        // 零调用），恒 0 却装作可切线；记忆表已整件删净（毛病3(v)）。
         Result result = new Result();
-        result.setUrl(play.getUrl(line));
+        result.setUrl(play.getUrl(0));
         result.setParse(0);
         result.setFlag(flag);
-        java.util.Map<String, String> lineHeaders = play.getHeaders(line);
+        java.util.Map<String, String> lineHeaders = play.getHeaders(0);
         if (!lineHeaders.isEmpty()) result.setHeader(lineHeaders);
         // 规则解析出的字幕此前在 HkPlay 里带着、到这一步被丢掉（审计 P7）：
         // 照 8.83 PlayerChooser 把 subtitle 传进播放器的做法接到 Result 上。
@@ -1290,7 +1304,7 @@ public class SiteApi {
             // audioUrls[switchIndex]、越界回首条）——本线伴随只入本线一条，
             // PlaySpec 装配处再与主址合流；DLNA 首条口径在下方 updateMediaInfo
             // 保持不变。
-            result.setHkAudioUrls(com.fongmi.android.tv.player.engine.HkPlayCompanion.companionForLine(play.getAudioUrls(), line));
+            result.setHkAudioUrls(com.fongmi.android.tv.player.engine.HkPlayCompanion.companionForLine(play.getAudioUrls(), 0));
         }
         if (play.getLyric() != null && !play.getLyric().isEmpty()) {
             result.setHkLyric(play.getLyric());
@@ -1301,10 +1315,10 @@ public class SiteApi {
         // 磁力/电驴/thunder/ftp：播放器不认这些协议，直塞就是黑屏 0 KB/s。
         // 只拦这四类（HkRouter.isP2pPlayLink），走壳子已有的迅雷引擎边下边播；
         // 其余地址（http/m3u8 等）原样不动。失败时迅雷抛中文真错，不再黑屏无下文。
-        // 门按实际要播的线路地址判定（play.getUrl(line)，即上面 setUrl 的同一串），
+        // 门按实际要播的线路地址判定（play.getUrl(0)，即上面 setUrl 的同一串），
         // 不按默认线路地址判定：多线路时默认线与选中线 scheme 可能不同，旧写法会
         // 把选中线是 ftp 的漏过去（直塞黑屏），或把选中线是 http 的误送进 fetch。
-        if (HkRouter.isP2pPlayLink(play.getUrl(line))) {
+        if (HkRouter.isP2pPlayLink(play.getUrl(0))) {
             result.setUrl(Source.get().fetch(result, playerType));
         }
         SpiderDebug.log("player", "hk play resolved: %s", result.getUrl());

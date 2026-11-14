@@ -725,7 +725,7 @@ public class FileUtil {
 
                     @Override
                     public void onDenied() {
-                        Toast.makeText(context, "请授予文件存储权限！", Toast.LENGTH_SHORT).show();
+                        ToastMgr.shortBottomCenter(context, "请授予文件存储权限！");
                     }
                 })
                 .request();

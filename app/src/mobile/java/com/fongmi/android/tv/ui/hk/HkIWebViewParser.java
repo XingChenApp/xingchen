@@ -96,17 +96,41 @@ public abstract class HkIWebViewParser {
     private static final long SYNC_PARSE_TIMEOUT_MS = 45_000L;
 
     /**
+     * 背景嗅探标记（掉帧账 S1 落修）：下一集预解析链（NextEpisodePreloader）
+     * 在调 SiteApi 纯解析入口前置真、finally 复位；HkRouter 嗅探支走到
+     * parseSync 时据此选背景宿主。线程本地——预解析全链（预加载器池线程 →
+     * SiteApi → HkRouter.playRoute → resolveWebRule → 本处）在同一调用线程
+     * 同步直达，中途的懒求值是「提交 JS 线程等回」的同步形、回程仍在本线程，
+     * 标记不跨线程漏传；前台播放/切集链不置此标记，行为一字不变。
+     */
+    private static final ThreadLocal<Boolean> BACKGROUND_SNIFF = new ThreadLocal<>();
+
+    /** 置/清背景嗅探标记（false 即摘除，不在池线程上留残值）。 */
+    public static void setBackgroundSniff(boolean on) {
+        if (on) BACKGROUND_SNIFF.set(Boolean.TRUE);
+        else BACKGROUND_SNIFF.remove();
+    }
+
+    private static boolean isBackgroundSniff() {
+        return Boolean.TRUE.equals(BACKGROUND_SNIFF.get());
+    }
+
+    /**
      * 同步嗅探入口（HkRouter 播放路专用，与 UI 点击路共用同一解析器承载）：
      * 在主线程起解析器（全承载），调用线程同步等回址；超时/中断同收尾销毁本路解析器回 ""。
      * 契约与旧 HkWebkitFetcher.parseWebRule 同：成功回真实地址，空/超时/异常回 ""。
      * 主线程调用直接回 ""——回址正是经主线程投递的桥回调，同步等必死锁。
+     * 背景标记在场时（下一集预解析）走 parseBackground0：宿主换应用上下文
+     * 脱窗形、不要求在播页存活、holder 不登记当前页 Wrapper；解析器本体、
+     * 注入脚本、45 秒总帽、finishParse 路由与本前台形逐项相同。
      */
     public static String parseSync(String url, String extraJson) {
         final boolean x5 = HkX5WebViewParser.canParse(url);
         if (!x5 && !HkWebkitParser.canParse(url)) return "";
         if (Looper.myLooper() == Looper.getMainLooper()) return "";
-        Activity activity = App.activity();
-        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return "";
+        final boolean background = isBackgroundSniff();
+        final Activity activity = background ? null : App.activity();
+        if (!background && (activity == null || activity.isFinishing() || activity.isDestroyed())) return "";
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<String> result = new AtomicReference<>("");
         AtomicBoolean fired = new AtomicBoolean(false);
@@ -120,9 +144,11 @@ public abstract class HkIWebViewParser {
         EventBus.getDefault().register(router);
         try {
             new Handler(Looper.getMainLooper()).post(() -> {
-                boolean started = x5
-                        ? HkX5WebViewParser.parse0(activity, url, extraJson, consumer)
-                        : HkWebkitParser.parse0(activity, url, extraJson, consumer);
+                boolean started = background
+                        ? (x5 ? HkX5WebViewParser.parseBackground0(url, extraJson, consumer)
+                                : HkWebkitParser.parseBackground0(url, extraJson, consumer))
+                        : (x5 ? HkX5WebViewParser.parse0(activity, url, extraJson, consumer)
+                                : HkWebkitParser.parse0(activity, url, extraJson, consumer));
                 if (!started && fired.compareAndSet(false, true)) latch.countDown();
             });
             boolean done = false;
