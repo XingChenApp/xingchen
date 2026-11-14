@@ -101,6 +101,22 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
     private boolean noRecordHistory;
     private View notify_bg;
     private TextView notify_text;
+    /** notify 条的状态槽（布局 notify_queue）：B6 三档文案面承载（见 onCompleteBar）。 */
+    private TextView notify_queue;
+    // —— F14 阅读底部栏（view_read_bottom，官字段同名）：ViewStub 膨胀后绑定 ——
+    private View read_bottom_bg;
+    private TextView read_chapter;
+    private TextView read_chapter_count;
+    private TextView read_time;
+    private TextView read_power;
+    /** F5：mute.js 资产缓存（官 JSManager.getJsByFileName("mute") 的资产等价，读一次）。 */
+    private String muteJsCache;
+    /**
+     * C4：官 readMap（Map&lt;Integer, ReadPageData&gt;）——updateReadData 按页段把
+     * 同一 ReadPageData 实例逐位登记（键＝条目在展示表中的下标），onListScrolled
+     * 按 lastVisibleItem 取回驱动 updateReadChapter（见两法注）。
+     */
+    private final java.util.Map<Integer, ReadPageData> readMap = new java.util.HashMap<>();
     private String onCloseJS;
     private String onRefreshJS;
     private String originalPageUrl;
@@ -231,8 +247,10 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
      * 照抄原版 updateCacheCode（ArticleListFragment.smali:27854）：引擎 cacheCode0 发布的
      * CacheCode 事件。原版守卫为宿主是 FilmListActivity 且未 onPause、autoCacheMd5 非空；
      * 星辰宿主恒为 HkListActivity，等价收敛为页面 resumed 且键非空。
+     * 线程照官 POSTING（源行 1238-1248）：函数体只做 cacheCode 存值一件事、无任何
+     * UI 依赖（守卫均为状态读），投递线程同步执行与官同形（W4 F13 订正，原 MAIN）。
      */
-    @org.greenrobot.eventbus.Subscribe(threadMode = org.greenrobot.eventbus.ThreadMode.MAIN)
+    @org.greenrobot.eventbus.Subscribe(threadMode = org.greenrobot.eventbus.ThreadMode.POSTING)
     public void updateCacheCode(CacheCode event) {
         if (event == null || getActivity() == null || getActivity().isFinishing()) return;
         if (TextUtils.isEmpty(autoCacheMd5)) return;
@@ -249,7 +267,7 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
      * fragment 恒 resumed；后台页不收，防别页求值串入）。事件本身不带规则
      * 身份，残余面见 juzhi-seam-fix 账 G1 节。
      */
-    @org.greenrobot.eventbus.Subscribe(threadMode = org.greenrobot.eventbus.ThreadMode.MAIN)
+    // 136b 迁移：订阅已移宿主 HkListActivity（官落点），本法只作宿主订阅的委托目标，不再自挂 @Subscribe。
     public void onSetPageTitle(com.fongmi.android.tv.api.hk.event.home.SetPageTitleEvent event) {
         if (event == null || getActivity() == null || getActivity().isFinishing()) return;
         if (!isResumed()) return;
@@ -279,17 +297,32 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
     }
 
     /**
-     * 环40：官 SetPageParamsEvent 消费（同步半＋异步半）——同步：当前页规则
-     * setParams（模型求值读同一 DTO 对象，等价官 fragment.updateParams）；
-     * 官第三件「宿主规则串重序列化」咱家 DTO 是宿主规则的副本、无回指，
-     * 无法在此改写宿主串（形态差记名）。异步：历史＋收藏两记录改 params。
+     * 照官 ArticleListFragment.updateParams（源行 453-457）：DTO 与页面规则
+     * 两对象同写 params（A3 片段侧回写半，簇5a 补齐）——官宿主 onSetParams
+     * 先写宿主规则、再调本法写这两份；咱家两份都在 Fragment 手里，此处一并
+     * 落齐，后续以任一对象序列化（Gson.toJson）的 MY_RULE/编辑器形态都带
+     * 新参数。宿主 HkListActivity 手里的 rule 副本与其规则串不在本文件，
+     * 回写点见分账留缝（主线缝 A3-host）。
+     */
+    public void updateParams(String params) {
+        if (articleListRuleDTO != null) articleListRuleDTO.setParams(params);
+        if (articleListRule != null) articleListRule.setParams(params);
+    }
+
+    /**
+     * 环40：官 SetPageParamsEvent 消费（同步半＋异步半）——同步：经
+     * updateParams 写回本页两份规则对象（DTO＋articleListRule，簇5a A3
+     * 补齐，原只写 DTO 一份，articleListRule 序列化形态永带旧参数）；
+     * 官第三件「宿主规则串重序列化回写」（FilmListActivity.onSetParams
+     * 源行 781-783：ruleData 反解→setParams→toJSONString 回写宿主字段）
+     * 的对象在宿主手里，见分账留缝。异步：历史＋收藏两记录改 params（已落，不重复）。
      */
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onSetPageParams(SetPageParamsEvent event) {
         if (event == null || event.getParams() == null) return;
         if (getActivity() == null || getActivity().isFinishing() || !isResumed()) return;
         if (articleListRuleDTO == null) return;
-        articleListRuleDTO.setParams(event.getParams());
+        updateParams(event.getParams());
         String ruleUrl = articleListRuleDTO.getUrl();
         String pageTitle = intentTitle();
         String params = event.getParams();
@@ -301,10 +334,68 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
     }
 
     /**
+     * A6（W4）：官 OnReversePageEvent 消费——FilmListActivity.onSetReverse（源行
+     * 765-768，MAIN＋宿主 !isOnPause/!finishing 门）→reverseArticleList（源行
+     * 1089-1098）：当前页 params JSON 里写 hiker_reverse 布尔值后经 onSetParams
+     * 直调落参，再 post OnRefreshPageEvent(false) 整页重跑。咱家落点照 A3 迁移
+     * 先例落本 Fragment（门与 onSetPageParams 同形：存活＋resumed，宿主暂停时
+     * resumed 恒假、与官暂停门同效）；落参直调本页 onSetPageParams 走同一条
+     * params 更新路（DTO setParams＋历史/收藏异步写），不另写第二份。
+     * 链验证：plugin.js isPageReversed 读 MY_PARAMS["hiker_reverse"]，MY_PARAMS
+     * 唯一来源是规则 params 字段（HkJsRuntime generateMyParams）——重跑时模型以
+     * 已改 params 的 DTO 求值，倒序标记即达规则侧。
+     */
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onSetReverse(com.fongmi.android.tv.api.hk.event.home.OnReversePageEvent event) {
+        if (event == null) return;
+        if (getActivity() == null || getActivity().isFinishing() || !isResumed()) return;
+        if (articleListRuleDTO == null) return;
+        org.json.JSONObject params;
+        String current = articleListRuleDTO.getParams();
+        if (!TextUtils.isEmpty(current)) {
+            try {
+                params = new org.json.JSONObject(current);
+            } catch (Exception e) {
+                params = new org.json.JSONObject();
+            }
+        } else {
+            params = new org.json.JSONObject();
+        }
+        try {
+            params.put("hiker_reverse", event.isReverse());
+        } catch (Exception ignored) {
+        }
+        // 核查 136b P5 订正：官宿主单体故直调可达唯一消费者；咱家宿主/片段
+        // 分体，A3 的宿主半（HkListActivity 订阅）靠 EventBus 才收得到——
+        // 直调只落片段、宿主 rule/ruleData 永不更新（hiker_reverse 改参时
+        // 后续重开仍旧 params）。改 post 与 JS 正路同形：宿主＋片段双订
+        // 各行其半，片段侧即本法原直调目标、updateParams 幂等无害。
+        EventBus.getDefault().post(new SetPageParamsEvent(params.toString()));
+        EventBus.getDefault().post(
+                new com.fongmi.android.tv.api.hk.event.home.OnRefreshPageEvent(false));
+    }
+
+    /**
+     * A7（主线补落）：官 ToastEvent 消费——FilmListActivity.onToast（源行
+     * 691-694）：isOnPause→丢弃；否则 DebugUtil.showErrorMsg 错误式呈现。
+     * 咱家落点照 A1-A5 迁移先例放本 Fragment：门用本类 isOnPause()（宿主
+     * 暂停或 hint 假，W4 F15 同款），呈现走咱家 HkErrorUtil.showErrorMsg
+     * （DebugUtil 对等件）。旧形 JS toast() 直调 ToastUtil、无门乱弹已摘
+     * （生产方在 HkJsRuntime.toast 桥改投本事件）。
+     */
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onToastEvent(com.fongmi.android.tv.api.hk.event.home.ToastEvent event) {
+        if (event == null || event.message == null || event.message.isEmpty()) return;
+        if (getActivity() == null || getActivity().isFinishing()) return;
+        if (isOnPause()) return;
+        com.fongmi.android.tv.api.hk.HkErrorUtil.showErrorMsg(getActivity(), event.message, null);
+    }
+
+    /**
      * 环40：官 SetPagePicEvent 消费——同步：宿主 intent "picUrl" 改写（官同
      * 件；咱家页面图源即此 extra 的消费链）；异步：历史＋收藏两记录改 pic。
      */
-    @Subscribe(threadMode = ThreadMode.MAIN)
+    // 136b 迁移：订阅已移宿主 HkListActivity，本法只作委托目标。
     public void onSetPagePic(SetPagePicEvent event) {
         if (event == null || event.getUrl() == null) return;
         if (getActivity() == null || getActivity().isFinishing() || !isResumed()) return;
@@ -461,8 +552,8 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         notify_bg = root.findViewById(R.id.notify_bg);
         if (notify_bg != null) {
             notify_text = notify_bg.findViewById(R.id.notify_text);
-            View notifyQueue = notify_bg.findViewById(R.id.notify_queue);
-            if (notifyQueue != null) notifyQueue.setOnClickListener(v -> onNotifyQueueClick());
+            notify_queue = notify_bg.findViewById(R.id.notify_queue);
+            if (notify_queue != null) notify_queue.setOnClickListener(v -> onNotifyQueueClick());
             notify_bg.setOnClickListener(v -> onNotifyClick());
             notify_bg.setOnLongClickListener(v -> onNotifyLongClick());
         }
@@ -496,7 +587,11 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
      * 等价形态：本页可见、只差 resumed 这一步时不丢——记下 scrollTop，
      * resumed 后由 drainPendingHostRefresh 补跑一遍（与首拉窗补发同源：首拉
      * 未收尾的子格由 onFirstLoadSettled 触发补发，已收尾的子格由 onResume
-     * 触发补发）。本页不可见时仍按官忽略，只记日志不补发（旁格 B，另判）。
+     * 触发补发）。但记下只限宿主未暂停的真开页技术窗：宿主被播放页/子页
+     * 盖住（isOnPause）期间到的事件照官第一道门直接丢弃、不记不补——
+     * 否则看剧期间规则异步 machinery 发的刷新会被记下、回页 onResume
+     * 补跑成整页重载（他 2026-11-14 实证，账 hk-detail-return-reload-
+     * 20261114）。本页不可见时仍按官忽略，只记日志不补发（旁格 B，另判）。
      */
     @org.greenrobot.eventbus.Subscribe(threadMode = org.greenrobot.eventbus.ThreadMode.MAIN)
     public void onRefreshPage(com.fongmi.android.tv.api.hk.event.home.OnRefreshPageEvent event) {
@@ -508,6 +603,16 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
             // onResume 落地——两格都记下待补发，不丢（账
             // hk-rule-load-slow-20261114 §四格 A、§六）。
             if (!isResumed() && getUserVisibleHint()) {
+                // 宿主暂停门（照官，账 hk-detail-return-reload-20261114）：
+                // 宿主已被播放页/子页盖住时到的 refreshPage 按官丢弃，
+                // 不进记下支——记下只保宿主未暂停的真开页技术窗。
+                if (getActivity() instanceof HkListActivity
+                        && ((HkListActivity) getActivity()).isOnPause()) {
+                    SpiderDebug.log("hk", "onRefreshPage 宿主暂停丢弃 rule=%s scrollTop=%s settled=%s",
+                            articleListRule == null ? "" : articleListRule.getTitle(), event.isScrollTop(),
+                            firstLoadSettled);
+                    return;
+                }
                 pendingHostRefreshScrollTop = event.isScrollTop();
                 SpiderDebug.log("hk", "onRefreshPage 首拉窗记下待补发 rule=%s scrollTop=%s settled=%s",
                         articleListRule == null ? "" : articleListRule.getTitle(), event.isScrollTop(),
@@ -548,8 +653,116 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
     @Override
     public void onResume() {
         super.onResume();
+        // F5（簇5a）：本页重现＝官 MainActivity 页签切回本页的等价点——投
+        // OnPageChangeEvent（标题＝本页规则标题），由 onPageChange 订阅走
+        // holder 恢复。B1 的直转发已归并到事件路（见 onPause 注），此处
+        // 不再直调 webViewHolder.onResume()，防双路重复恢复/暂停。
+        postPageChangeSelf(true);
         // 首拉若在本页 resumed 之前就已落地，记下的 refreshPage 在此补发
         drainPendingHostRefresh();
+    }
+
+    /**
+     * B1＋F5（簇5a 相碰归并）：官 ArticleListFragment.onPause（源行
+     * 1085-1088）直调 webViewHolder.onPause()；官 OnPageChange（源行
+     * 889-903）对非当前页同样调 webView.onPause() 并先注 mute JS——两路
+     * 在官家是不同生产面（生命周期 vs 页签切换）。咱家宿主无 ViewPager
+     * 页签面，F5 的生产点即本页被子页/播放页盖住/重现的生命周期点，与
+     * B1 同点同动作：归并为单一事件路——onPause/onResume 只投
+     * OnPageChangeEvent，holder 的暂停（含 mute）/恢复只在 onPageChange
+     * 订阅里执行一遍，不再双路直转发（W4 B1 的 holder 本体保留在
+     * HkWebViewHolder，不动）。
+     */
+    @Override
+    public void onPause() {
+        super.onPause();
+        postPageChangeSelf(false);
+    }
+
+    /** F5 生产半：active＝本页成为当前页（投本页标题）；否则投 null（当前页已非本页）。 */
+    private void postPageChangeSelf(boolean active) {
+        String title = null;
+        if (active && articleListRuleDTO != null) title = articleListRuleDTO.getTitle();
+        EventBus.getDefault().post(
+                new com.fongmi.android.tv.api.hk.event.home.OnPageChangeEvent(title));
+    }
+
+    /**
+     * F5（簇5a）：照官 ArticleListFragment.onPageChange（源行 889-907，
+     * MAIN）——holder 在场且 WebView 已建时：事件标题与本页规则标题相等
+     * →webView.onResume()（经 holder）；不相等→先注 mute JS 再
+     * webView.onPause()（经 holder）。mute 法照官钉死：JSManager
+     * .getJsByFileName("mute") 取脚本、非空才 evaluateJavascript(js, null)
+     * ——咱家无 JSManager 用户脚本层，等价取资产 mute.js（HkWebkitHolder
+     * 桥内同资产同读法），读空不注（官同形）。官 8.83 另有「宿主为
+     * FilmListActivity 时跳过 mute/暂停支」的门：那是页签广播不扰独立页
+     * 的分工，咱家生产点是本页自身生命周期、无广播面，套此门事件恒
+     * 无效，故不落（差异记名见分账）。
+     * 后段（源行 901-907）照官：continuous/batch 投屏面在场且完成条
+     * 可见时——continuous 在场→清 continuousDlanMode 并以 hide 收条；
+     * 仅 batch→cancelDlan()。咱家完成条＝notify 条（B6 面，见
+     * onCompleteBar），可见性以 notify_bg 判。
+     */
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onPageChange(com.fongmi.android.tv.api.hk.event.home.OnPageChangeEvent event) {
+        if (event == null) return;
+        if (webViewHolder != null && webViewHolder.getWebView() != null) {
+            String myTitle = articleListRuleDTO == null ? null : articleListRuleDTO.getTitle();
+            if (TextUtils.equals(myTitle, event.getTitle())) {
+                webViewHolder.onResume();
+            } else {
+                String muteJs = muteJs();
+                if (!TextUtils.isEmpty(muteJs)) {
+                    webViewHolder.getWebView().evaluateJavascript(muteJs, null);
+                }
+                webViewHolder.onPause();
+            }
+        }
+        if (continuousDlanMode != -1 || batchDlanSelecting) {
+            if (notify_bg != null && notify_bg.getVisibility() == View.VISIBLE) {
+                if (continuousDlanMode != -1) {
+                    continuousDlanMode = -1;
+                    onCompleteBar("hide", null);
+                } else {
+                    cancelDlan();
+                }
+            }
+        }
+    }
+
+    /** F5：mute 脚本（资产 mute.js，官 JSManager "mute" 件的本树等价物），读后缓存。 */
+    private String muteJs() {
+        if (muteJsCache != null) return muteJsCache;
+        if (getContext() == null) return null;
+        try (java.io.InputStream in = getContext().getAssets().open("mute.js")) {
+            byte[] buf = new byte[in.available()];
+            int read = 0;
+            while (read < buf.length) {
+                int n = in.read(buf, read, buf.length - read);
+                if (n < 0) break;
+                read += n;
+            }
+            muteJsCache = new String(buf, 0, read, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception ignored) {
+            muteJsCache = "";
+        }
+        return muteJsCache;
+    }
+
+    /**
+     * F6（簇5a）：照官 ArticleListFragment.onRefresh（源行 1159-1161，
+     * MAIN）——getUserVisibleHint 为真→recyclerView.scrollToPosition(0)
+     * 回顶＋smartRefreshLayout.autoRefresh(200)。生产方在宿主（官
+     * MainActivity 双击当前页签等多处投递）：咱家宿主生产半已由簇5b
+     * 落在 HkListActivity 页签行（双击当前已选中签投递 event.home
+     * .OnRefreshEvent，与本订阅同类对位），本轮订阅半落齐即全链通。
+     */
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onRefresh(com.fongmi.android.tv.api.hk.event.home.OnRefreshEvent event) {
+        if (event == null) return;
+        if (!getUserVisibleHint()) return;
+        if (recyclerView != null) recyclerView.scrollToPosition(0);
+        if (smartRefreshLayout != null) smartRefreshLayout.autoRefresh(200);
     }
 
     /**
@@ -603,13 +816,13 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
      * isReadTheme 门此前因字段恒 false 未加（假接防线）；本批已由宿主
      * HkListActivity 在建 Fragment 时按 FilmListActivity.isReadTheme 口径
      * （url 含 #readTheme# 或 #autoReader#）调 setReadTheme 注入，门就此转真。
-     * title 支的 read_chapter 显示半无落点：阅读底部栏（view_read_bottom）
-     * 未移植、read_chapter View 不在本页装配里——该半记名；$64 持久化半
-     * （以 currentPageUrl 找历史/收藏、标题改章标题、time 刷新）在咱家由
-     * HkPageRecordStore 承载（环40 载体），若与显示半同门则永不生效、
-     * 等于假接，故只摘显示半、$64 半按 title 非空触发（与本订阅旧注的
-     * 处理口径一致）。咱载体以（url＋标题）为键：记录定位键随 $17/$64
-     * 改写漂移，本页以 pageRecordUrl/pageRecordTitle 两字段追踪（见下）。
+     * title 支（官源行 5399-5402）：read_chapter 在场且 title 非空→
+     * read_chapter.setText(title) 显示半（簇5a F14 补齐：view_read_bottom
+     * 已按官布局落、经 ensureReadBottom 膨胀绑定，见彼处注）＋$64 持久化
+     * 半（以 currentPageUrl 找历史/收藏、标题改章标题、time 刷新）在咱家
+     * 由 HkPageRecordStore 承载（环40 载体）。咱载体以（url＋标题）为键：
+     * 记录定位键随 $17/$64 改写漂移，本页以 pageRecordUrl/pageRecordTitle
+     * 两字段追踪（见下）。
      */
     @org.greenrobot.eventbus.Subscribe(threadMode = org.greenrobot.eventbus.ThreadMode.MAIN)
     public void onRefreshReadData(com.fongmi.android.tv.api.hk.event.rule.RefreshReadDataEvent event) {
@@ -617,6 +830,10 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         if (!isReadTheme) return;
         if (!TextUtils.equals(articleListRule.getTitle(), event.getId())) return;
         if (HkStringUtil.isNotEmpty(event.getTitle())) {
+            // F14 显示半（官源行 5400）：read_chapter.setText(title)——底部栏
+            // 未膨胀时先膨胀（updateReadLayout 的同路入口），膨胀失败不挡 $64。
+            ensureReadBottom();
+            if (read_chapter != null) read_chapter.setText(event.getTitle());
             // lambda$refreshReadData$64（HeavyTaskUtil.postTaskToQueue）
             String keyUrl = pageRecordUrl();
             String keyTitle = pageRecordTitle();
@@ -727,9 +944,12 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
      * 先按 desc 更新 holder 的模式/extra，再落高度——FLOAT 走页级容器定高（未挂载则挂载，不触发加载/刷新，
      * 对应原版 updateWebViewHeight 的职责）；LIST 把新 desc 同步进行内条目并重绑该行，行高由 bind 时重算。
      * 此前宿主侧无此订阅且 JS 侧是空实现，网页型规则恒停在默认小高（只剩顶部一小条）。
+     * F12（簇5a）：事件类已按官名改名 OnRefreshX5HeightEvent（旧名
+     * RefreshX5DescEvent 文件已删）；生产方 HkJsRuntime/HkWebkitHolder
+     * 仍以旧名投递，须主线原子改名后本订阅才接通（见分账置顶缝 F12）。
      */
     @org.greenrobot.eventbus.Subscribe(threadMode = org.greenrobot.eventbus.ThreadMode.MAIN)
-    public void onRefreshX5Desc(com.fongmi.android.tv.api.hk.event.rule.RefreshX5DescEvent event) {
+    public void onRefreshX5Height(com.fongmi.android.tv.api.hk.event.rule.OnRefreshX5HeightEvent event) {
         if (!isResumed() || event == null || webViewHolder == null) return;
         updateModeByDesc(event.getDesc());
         if (webViewHolder.getMode() == HkWebViewHolder.Mode.FLOAT) {
@@ -872,6 +1092,41 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         refresh();
     }
 
+    // F7（主线补落）：官 ArticleListFragment 三支滚动法（源行 1002-1017，
+    // 均 getUserVisibleHint 门）——scrollTop＝recyclerView.smoothScrollToPosition(0)
+    // 直调（官逐字）；scrollTopSmooth/scrollBottomSmooth 官走 scrollSmoothAuto
+    // 定制速度件，咱家无此件、以 smoothScrollToPosition 同位代（速度型差记名）。
+    public void scrollTop() {
+        if (!getUserVisibleHint() || recyclerView == null) return;
+        recyclerView.smoothScrollToPosition(0);
+    }
+
+    public void scrollTopSmooth() {
+        if (!getUserVisibleHint() || recyclerView == null) return;
+        recyclerView.smoothScrollToPosition(0);
+    }
+
+    public void scrollBottomSmooth() {
+        if (!getUserVisibleHint() || recyclerView == null || adapter == null) return;
+        int target = Math.max(0, adapter.getItemCount() - 1);
+        recyclerView.smoothScrollToPosition(target);
+    }
+
+    /**
+     * F7（主线补落）：官 OnTopEvent 订阅（ArticleListFragment 源行 881-884）：
+     * 宿主非 FilmListActivity 时 scrollTop()。咱家宿主对位：HkListActivity＝
+     * FilmListActivity 位、HkPageActivity＝MainActivity 位，故门＝宿主非
+     * HkListActivity 才响应（hikerPop.scrollToPageTop 的生产路经此达页）。
+     * 官宿主标题栏双击手势（FilmListActivity.setDoubleTab→scrollToTop/
+     * scrollToBottom 交替）在咱家无落点：HkListActivity 布局无标题栏视图
+     * （activity_hk_list.xml 实证），手势半停手记名（账 fix-batch-136）。
+     */
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onTopEvent(com.example.hikerview.event.OnTopEvent event) {
+        if (getActivity() instanceof HkListActivity) return;
+        scrollTop();
+    }
+
     /** 照抄原版 refresh()：回第一页；onRefreshJS 非空时先在后台跑该 JS（切片 2 补全后续），否则直接走模型。 */
     private void refresh() {
         page = 1;
@@ -973,6 +1228,61 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
     }
 
     /**
+     * 照官 ArticleListFragment.isOnPause（源行 1101-1104）：宿主暂停或本页
+     * hint 为假任一成立即真。宿主恒 HkListActivity，其 isOnPause 即官
+     * isActivityOnPause 在本树的落点。供 Blob 两订阅的暂停门共用（官同名私有法）。
+     */
+    private boolean isOnPause() {
+        if (getActivity() instanceof HkListActivity
+                && ((HkListActivity) getActivity()).isOnPause()) return true;
+        return !getUserVisibleHint();
+    }
+
+    /**
+     * F3（W4）：照官 ArticleListFragment.findItem（源行 4975-4984，POSTING）——
+     * 引擎 _findItem 经 ItemFindEvent 同步查已展示 adapter 表：门＝宿主存活
+     * （null/finishing 丢弃）＋adapter 非空＋展示列表非空；按 extra.id 等值扫
+     * 首命中，命中把条目回填事件并 countDown 闩锁（引擎侧在闩锁上同步等）。
+     * 未命中/门不过一律不 countDown（官同形，引擎等满回 null）。
+     * 事件类由 W3 路按固定契约新建（id/result/latch 字段），此处按契约直读。
+     */
+    @Subscribe(threadMode = ThreadMode.POSTING)
+    public void findItem(com.fongmi.android.tv.api.hk.event.rule.ItemFindEvent event) {
+        if (event == null) return;
+        if (getActivity() == null || getActivity().isFinishing()) return;
+        if (adapter == null || adapter.getList().isEmpty()) return;
+        for (HkItem item : adapter.getList()) {
+            if (item != null && TextUtils.equals(event.id, item.getExtra("id"))) {
+                event.result = item;
+                if (event.latch != null) event.latch.countDown();
+                return;
+            }
+        }
+    }
+
+    /**
+     * F4（W4）：照官 ArticleListFragment.findItems（源行 4992-5006，POSTING）——
+     * 引擎 _findItemsByCls 经 ClsItemsFindEvent 同步查已展示 adapter 表：门同
+     * findItem；以 hasCls 整词匹配（本类现行同款判据，源行 5011 对位）收集
+     * 全部命中，非空才回填 results 并 countDown，空结果不 countDown（官同形）。
+     * 事件类由 W3 路按固定契约新建（cls/results/latch 字段），此处按契约直读：
+     * results 已由生产方备好时追加、未备时整表赋值（两种契约形态都落同一结果）。
+     */
+    @Subscribe(threadMode = ThreadMode.POSTING)
+    public void findItems(com.fongmi.android.tv.api.hk.event.rule.ClsItemsFindEvent event) {
+        if (event == null) return;
+        if (getActivity() == null || getActivity().isFinishing()) return;
+        if (adapter == null || adapter.getList().isEmpty()) return;
+        List<HkItem> found = new ArrayList<>();
+        for (HkItem item : adapter.getList()) {
+            if (item != null && hasCls(item.getExtra("cls"), event.cls)) found.add(item);
+        }
+        if (found.isEmpty()) return;
+        event.results.addAll(found);
+        if (event.latch != null) event.latch.countDown();
+    }
+
+    /**
      * 照 8.83 ArticleListFragment.onItemModify 全支（源行 5019 起，lambda58/59/60）：
      * 前置门（宿主 null/finishing、adapter null、列表空 → return；其中 adapter/列表空
      * 一格 2026-11-14 起带 hkimage 落点日志，P2 观测）后四路——
@@ -981,8 +1291,13 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
      * 无命中 return，带 hkimage 落点日志）。锚恒为 extra.id：ADD/UPDATE 取 event.anchorId、
      * DELETE 单条取桩条目 extra.id，url 不参与（环30 D30-1 补全：此前只有
      * DELETE+cls 一支，展示后 updateItem/addItem/deleteItem 屏上恒无-op）。
+     * 投递形态照官（W4 F2 订正）：订阅 POSTING——事件在投递线程（引擎线程）
+     * 同步执行；三支的 UI 变更（删表＋通知）各经 runWaitUI 投主线程并阻塞
+     * 投递线程等落地（≤30s），引擎后续求值串行排在其后；DELETE+cls 支执行
+     * 后不 return、照官继续跌进 list 支与单条支（一件可多支叠加）。丢弃门
+     * （宿主 null/finishing、adapter 空）与官同形、位置不变。
      */
-    @Subscribe(threadMode = ThreadMode.MAIN)
+    @Subscribe(threadMode = ThreadMode.POSTING)
     public void onItemModify(ItemModifyEvent event) {
         if (event == null || event.getAction() == null) return;
         if (getActivity() == null || getActivity().isFinishing()) return;
@@ -995,13 +1310,13 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         }
         if (event.getAction() == ItemModifyEvent.Action.DELETE
                 && !TextUtils.isEmpty(event.getCls())) {
-            onItemModifyDeleteByCls(event.getCls());
-            return;
+            // lambda58 经 runWaitUI（官源行 5027）；执行后不 return，照官跌落。
+            runWaitUI(() -> onItemModifyDeleteByCls(event.getCls()));
         }
         if (event.getAction() == ItemModifyEvent.Action.DELETE
                 && event.getList() != null && !event.getList().isEmpty()) {
-            // lambda59 → batchDelete（复核订正 B5，见 onItemModifyBatchDelete）。
-            onItemModifyBatchDelete(event.getList());
+            // lambda59 → batchDelete（复核订正 B5，见 onItemModifyBatchDelete），经 runWaitUI 后 return（官源行 5073-5075）。
+            runWaitUI(() -> onItemModifyBatchDelete(event.getList()));
             return;
         }
         // lambda60 入口：定锚。
@@ -1021,6 +1336,13 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                     String.valueOf(event.getAction()), anchor, list.size());
             return;
         }
+        // lambda60 经 runWaitUI（官源行 5091）：锚扫在投递线程完成（官同位），
+        // 删改＋通知的 UI 体在主线程落地、投递线程等其完成。
+        runWaitUI(() -> onItemModifySingle(event, list, index, anchor));
+    }
+
+    /** lambda60 的 UI 线程体（经 onItemModify 的 runWaitUI 调用）：按锚位对单条做 ADD/DELETE/UPDATE。 */
+    private void onItemModifySingle(ItemModifyEvent event, List<HkItem> list, int index, String anchor) {
         try {
             if (index >= list.size()) return;
             switch (event.getAction()) {
@@ -1171,6 +1493,191 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
     }
 
     /**
+     * F15（W4）：照官 ArticleListFragment.blobDownloadCallback（源行 5381-5386，
+     * POSTING）——网页桥 downloadBlob 的落盘消费方（此前事件全树零消费、点了不落盘）。
+     * 门照官：事件已 finished 或本页暂停（isOnPause：宿主暂停或 hint 假）→丢弃；
+     * 否则先置 finished（多页同订时首到者认领，与官同形）→BlobDownloadHelper
+     * .blobDownloadCallbackAsync 落盘→UI 线程收尾关下载进度面（官 lambda$63：
+     * loadingPopupView 在场则 dismiss，本树以 dismissLoadingPopup 承载）。
+     */
+    @Subscribe(threadMode = ThreadMode.POSTING)
+    public void blobDownloadCallback(
+            com.fongmi.android.tv.api.hk.event.web.BlobDownloadEvent event) {
+        if (event == null || event.isFinished()) return;
+        if (isOnPause()) return;
+        event.setFinished(true);
+        android.content.Context context = getContext();
+        if (context != null) Task.execute(() -> blobDownloadSave(context, event));
+        if (getActivity() != null) getActivity().runOnUiThread(this::dismissLoadingPopup);
+    }
+
+    /**
+     * 官 BlobDownloadHelper.blobDownloadCallbackAsync 本体（smali lambda$12，
+     * 源行 131-164，后台线程）：headerMap 取 content-type；fileName 空或无扩展名
+     * 时空名先以 url 的 md5 顶替、再按 content-type 补扩展名；仍无扩展名→UI
+     * 线程 toast「获取文件格式失败」收尾；result 是 data URL 时取逗号后段，
+     * Base64 解码后写下载根目录（官 DownloadChooser.getRootPath＝
+     * getExternalFilesDir(null)+"/download"，DownloadConfig 源行 38）；
+     * 写成后 UI 线程收尾（lambda$11）：路径含 .apk 先走系统选择器处理该文件，
+     * 再 toast「下载完成」。扩展名换算官走 ShareUtil 自备 mime 表，咱家以
+     * MimeTypeMap 系统表等价（表源差记名）。
+     */
+    private void blobDownloadSave(android.content.Context context,
+                                  com.fongmi.android.tv.api.hk.event.web.BlobDownloadEvent event) {
+        String fileName = event.getFileName();
+        org.json.JSONObject headers = null;
+        if (!TextUtils.isEmpty(event.getHeaderMap())) {
+            try {
+                headers = new org.json.JSONObject(event.getHeaderMap());
+            } catch (Exception ignored) {
+            }
+        }
+        if (TextUtils.isEmpty(fileName) || !fileName.contains(".")) {
+            if (TextUtils.isEmpty(fileName)) fileName = md5Hex(event.getUrl());
+            if (headers != null && headers.has("content-type")) {
+                String mime = headers.optString("content-type", "");
+                int semi = mime.indexOf(';');
+                if (semi >= 0) mime = mime.substring(0, semi).trim();
+                String ext = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mime);
+                if (!TextUtils.isEmpty(ext)) fileName = fileName + "." + ext;
+            }
+        }
+        if (TextUtils.isEmpty(fileName) || !fileName.contains(".")) {
+            postBlobToast(context, "获取文件格式失败");
+            return;
+        }
+        String result = event.getResult() == null ? "" : event.getResult();
+        if (result.contains(",")) result = result.split(",")[1];
+        byte[] bytes = android.util.Base64.decode(result, android.util.Base64.DEFAULT);
+        java.io.File base = context.getExternalFilesDir(null);
+        if (base == null) base = context.getFilesDir();
+        java.io.File dir = new java.io.File(base, "download");
+        if (!dir.exists()) dir.mkdirs();
+        java.io.File out = new java.io.File(dir, fileName);
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(out)) {
+            fos.write(bytes);
+        } catch (Exception e) {
+            // 落盘失败不再无声（官任务线程裸抛即终，本树显形口径）：记真因并提示。
+            Log.e(TAG, "blobDownloadSave write failed", e);
+            postBlobToast(context, "下载失败");
+            return;
+        }
+        String path = out.getAbsolutePath();
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            if (path.contains(".apk")) dealBlobFileWithChooser(context, path);
+            com.fongmi.android.tv.utils.ToastUtil.show(context, "下载完成", android.widget.Toast.LENGTH_SHORT);
+        });
+    }
+
+    /** Blob 落盘的 UI 线程 toast（官 ThreadTool.runOnUI＋ToastMgr.shortBottomCenter）。 */
+    private void postBlobToast(android.content.Context context, String text) {
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() ->
+                com.fongmi.android.tv.utils.ToastUtil.show(context, text, android.widget.Toast.LENGTH_SHORT));
+    }
+
+    /** 官 ShareUtil.findChooserToDeal 等价：以系统选择器打开已落盘文件（apk 走安装）。 */
+    private static void dealBlobFileWithChooser(android.content.Context context, String path) {
+        try {
+            android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW);
+            String mime = path.toLowerCase(java.util.Locale.ROOT).endsWith(".apk")
+                    ? "application/vnd.android.package-archive"
+                    : android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(
+                            path.contains(".") ? path.substring(path.lastIndexOf('.') + 1) : "");
+            intent.setDataAndType(com.fongmi.android.tv.utils.FileUtil.getShareUri(path),
+                    TextUtils.isEmpty(mime) ? "*/*" : mime);
+            intent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    | android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(android.content.Intent.createChooser(intent, ""));
+        } catch (Exception e) {
+            com.fongmi.android.tv.utils.ToastUtil.show(context, "找不到对应的应用", android.widget.Toast.LENGTH_SHORT);
+        }
+    }
+
+    /** md5 十六进制（官 StringUtil.md5 同口径，供 Blob 无名文件顶替名）。 */
+    private static String md5Hex(String text) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("MD5")
+                    .digest((text == null ? "" : text).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(digest.length * 2);
+            for (byte b : digest) sb.append(String.format("%02x", b & 0xff));
+            return sb.toString();
+        } catch (Exception e) {
+            return String.valueOf(text == null ? 0 : text.hashCode());
+        }
+    }
+
+    /**
+     * F16（W4）：照官 ArticleListFragment.downloadBlobProgress（源行 5363-5375，
+     * MAIN）——网页桥 downloadBlobUpdate 的进度消费方（此前全树零消费）。
+     * 门照官：事件已 finished 或本页暂停→丢弃；否则置 finished；progress 为
+     * "100/100" 时关进度面，余者以「下载中...」＋progress 文案显/更新进度面
+     * （官 LoadingPopupView，本树以 loadingPopup 承载：已在显时只改文案）。
+     */
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void downloadBlobProgress(
+            com.fongmi.android.tv.api.hk.event.web.BlobDownloadProgressEvent event) {
+        if (event == null || event.isFinished()) return;
+        if (isOnPause()) return;
+        event.setFinished(true);
+        if ("100/100".equals(event.getProgress())) {
+            dismissLoadingPopup();
+            return;
+        }
+        String text = "下载中..." + (event.getProgress() == null ? "" : event.getProgress());
+        if (loadingPopup != null && loadingPopup.isShowing() && loadingPopupText != null) {
+            loadingPopupText.setText(text);
+        } else {
+            showLoadingPopup(text, false);
+        }
+    }
+
+    /**
+     * F17（W4）：照官 ArticleListFragment.onShowFileChooser（源行 5319-5326，
+     * POSTING）——行内 WebView 文件选择消费方：事件携带的 WebView 与本页
+     * holder 的 WebView 非同一实例→丢弃（官以 holder 身份合判，咱家 holder 与
+     * WebView 一对一、同效）；合→经 setFilePathCallback 存回调，起
+     * OPEN_DOCUMENT 选择器（ALLOW_MULTIPLE、全类型、Chooser、请求码 0x2383）。
+     * 回填支已在 onActivityResult 0x2383（选完把 Uri 数组回填 callback 并置空）。
+     */
+    @Subscribe(threadMode = ThreadMode.POSTING)
+    public void onShowFileChooser(
+            com.fongmi.android.tv.api.hk.event.home.ShowFileChooserEvent event) {
+        if (event == null || webViewHolder == null) return;
+        if (event.getWebView() != webViewHolder.getWebView()) return;
+        setFilePathCallback(event.getFilePathCallback());
+        android.content.Intent intent =
+                new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT);
+        intent.putExtra(android.content.Intent.EXTRA_ALLOW_MULTIPLE, true);
+        intent.setType("*/*");
+        startActivityForResult(android.content.Intent.createChooser(intent, "Chooser"), 0x2383);
+    }
+
+    /**
+     * F19（W4）：照官 ArticleListFragment.playChapter（源行 5212-5219，MAIN）——
+     * 远程切集的列表页消费方（此前唯一订阅在播放页 VideoActivity，列表页无
+     * 播放器时控制器 hasSubscriberForEvent 无人应答、远程从列表起播死）。
+     * 官门：PlayerChooser.hasPlayer 为真→return（归播放页）；咱家等价判据＝
+     * 宿主被盖住（isOnPause：播放页压在本页之上时宿主恒暂停）→不抢。
+     * 无播放器支照官唯一动作形：position==-1 且 continuousDlanMode 在场、
+     * continuousDlanHis 非空时，取其末位＋1 走 clickItem 起播；position 非 -1
+     * 官 Fragment 侧无动作（定位起播归播放页），照官不落。
+     */
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void playChapter(com.fongmi.android.tv.api.hk.event.video.PlayChapterEvent event) {
+        if (event == null) return;
+        if (getActivity() instanceof HkListActivity
+                && ((HkListActivity) getActivity()).isOnPause()) return;
+        if (event.getPosition() != -1) return;
+        if (continuousDlanMode == -1) return;
+        int next;
+        synchronized (continuousDlanHis) {
+            if (continuousDlanHis.isEmpty()) return;
+            next = continuousDlanHis.get(continuousDlanHis.size() - 1) + 1;
+        }
+        clickItem(null, next);
+    }
+
+    /**
      * 照 8.83 FilmListActivity.onSetLastChapterRule（源行 826-834）：setLastChapterRule
      * 事件由此消费——页面存活（未暂停/未 finishing）、rule 非空、当前页规则在手时，
      * 把当前页规则的 last_chapter_rule 改成本次值（G52；此前全树只有发送点、
@@ -1180,7 +1687,7 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
      * "title" 定位，params 非空才解析改 last_chapter_rule 再整串存回）——
      * 咱家由 HkPageRecordStore 收藏记录同形承载（G52 记名就此关账）。
      */
-    @Subscribe(threadMode = ThreadMode.MAIN)
+    // 136b 迁移：订阅已移宿主 HkListActivity，本法只作委托目标。
     public void onSetLastChapterRule(SetPageLastChapterRuleEvent event) {
         if (event == null || event.getRule() == null) return;
         if (getActivity() == null || getActivity().isFinishing() || !isResumed()) return;
@@ -1203,7 +1710,7 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
      * 不再多过 decode；长按官为 no-op。options2 的 icon 事件已带、咱家
      * HkCenterListPopup 无图标位，显示只走标题（记名）。
      */
-    @Subscribe(threadMode = ThreadMode.MAIN)
+    // 136b 迁移：订阅已移宿主 HkListActivity，本法只作委托目标。
     public void onShowSelectOptions(com.fongmi.android.tv.api.hk.event.rule.ShowSelectOptionsEvent event) {
         if (event == null) return;
         boolean hasOptions = event.getOptions() != null && !event.getOptions().isEmpty();
@@ -1680,7 +2187,13 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
             }
             return;
         }
-        lastSelectedPosition = position;
+        // 官 refreshLastClick0（源行 4532-4536）：title 非空时定位以 findPosByTitle
+        // 反查为准、空 title 才用传入 position——宿主回页复显以 (-1, title, 5)
+        // 调用（官 FilmListActivity.onResume 源行 1333）即靠此定位（B2/W4 补；
+        // 此前 title 被整段忽略，-1 调用恒无标可复）。
+        int pos = position;
+        if (!TextUtils.isEmpty(title)) pos = findPosByTitle(title);
+        lastSelectedPosition = pos;
         showLastClickMarkOnly();
     }
 
@@ -1697,8 +2210,108 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
 
     // —— 子系统占位（原版对应物不在移植范围内，已在施工图登记）——
 
-    /** 原版 updateReadData：阅读数据子系统不移植。 */
+    /**
+     * C4（簇5a）：照官 updateReadData（源行 4331-4382）补 readMap 记账半——
+     * 门＝isReadTheme 且列表非空；synchronized(readMap) 内：preSize 初值＝
+     * 当前 adapter 表长，isNew 时先 clear readMap 并 preSize 归 0；新建一份
+     * ReadPageData（size＝本批条数、preSize、pageNow＝当前 page），把同一
+     * 实例逐位 put 到 [preSize, preSize+size) 的每个下标键（官存法逐字）。
+     * chapter 半照官后段：宿主为列表页（官 FilmListActivity）且
+     * autoPageData 在场、page 不越 nextData 时，chapter＝条目标题＋"@@"
+     * ＋(currentPos＋page－1)，长度/类型门照官（非空且 ≤25 直接记；否则
+     * ≤100 且 isChapterType 才记），整段 try 包（官同）。
+     * 差记名：官进表前对 rich_text 标题非空条目走 splitRichText 拆分展开
+     * 再记账，咱家无 splitRichText 本体，本批按未拆分原表记账（size 与键
+     * 位随之与官拆分形有差，见分账 C4）。
+     */
     private void updateReadData(boolean isNew, List<HkItem> list) {
+        if (!isReadTheme || list == null || list.isEmpty()) return;
+        synchronized (readMap) {
+            int preSize = adapter == null ? 0 : adapter.getList().size();
+            if (isNew) {
+                readMap.clear();
+                preSize = 0;
+            }
+            ReadPageData data = new ReadPageData();
+            data.size = list.size();
+            data.preSize = preSize;
+            data.pageNow = page;
+            for (int i = preSize; i < preSize + data.size; i++) {
+                readMap.put(i, data);
+            }
+            try {
+                AutoPageData parent = autoPageData;
+                if (getActivity() instanceof HkListActivity && parent != null
+                        && parent.nextData != null && page <= parent.nextData.size()) {
+                    HkItem item = parent.nextData.get(page - 1);
+                    String chapter = (item.getTitle() == null ? "" : item.getTitle())
+                            + "@@" + (parent.currentPos + page - 1);
+                    if (!TextUtils.isEmpty(chapter) && chapter.length() <= 25) {
+                        data.chapter = chapter;
+                    } else if (chapter.length() <= 100 && isChapterType(item)) {
+                        data.chapter = chapter;
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "updateReadData chapter", e);
+            }
+        }
+    }
+
+    /** 官 chapterTypes 静态表（clinit 源行 313-317 的十个 col_type 码，逐字）。 */
+    private static final String[] CHAPTER_TYPES = {
+            HkColType.TEXT_1.code, HkColType.TEXT_CENTER_1.code, HkColType.TEXT_2.code,
+            HkColType.TEXT_3.code, HkColType.MOVIE_2.code, HkColType.PIC_2.code,
+            HkColType.TEXT_4.code, HkColType.TEXT_5.code, HkColType.FLEX_BUTTON.code,
+            HkColType.AVATAR.code
+    };
+
+    /** 照官 isChapterType（源行 3789-3791）：条目 type 命中 chapterTypes 任一即真。 */
+    private static boolean isChapterType(HkItem item) {
+        if (item == null) return false;
+        for (String t : CHAPTER_TYPES) {
+            if (t.equals(item.getType())) return true;
+        }
+        return false;
+    }
+
+    /**
+     * C4 消费半：照官 updateReadChapter（源行 4458-4482）——read_chapter
+     * 在场＋宿主为列表页＋autoPageData 在场才动；下标负数回 page-2（下限
+     * 0）；read_chapter 的 tag 与目标下标相等→已显同章直接 return（官去重）；
+     * 否则置 tag 后：chapterCount&gt;0 时 read_chapter_count 经 post 显
+     * 「(下标＋chapterStartIndex)/chapterCount」、否则 post 清空；
+     * read_chapter 显该章标题（经 getTitleText(title, false)，官
+     * DetailUIHelper 同位）。整段 try 包（官同，失败只记日志）。
+     */
+    private void updateReadChapter(int chapterIndex) {
+        try {
+            if (read_chapter == null) return;
+            if (!(getActivity() instanceof HkListActivity)) return;
+            AutoPageData parent = autoPageData;
+            if (parent == null || parent.nextData == null) return;
+            int idx = chapterIndex;
+            if (idx < 0) idx = Math.max(0, page - 2);
+            Object tag = read_chapter.getTag();
+            if (tag != null && tag.equals(idx)) return;
+            read_chapter.setTag(idx);
+            HkItem chap = parent.nextData.get(idx);
+            if (parent.chapterCount > 0) {
+                String countText = (idx + parent.chapterStartIndex) + "/" + parent.chapterCount;
+                if (read_chapter_count != null) {
+                    read_chapter_count.post(() -> {
+                        if (read_chapter_count != null) read_chapter_count.setText(countText);
+                    });
+                }
+            } else if (read_chapter_count != null) {
+                read_chapter_count.post(() -> {
+                    if (read_chapter_count != null) read_chapter_count.setText("");
+                });
+            }
+            read_chapter.setText(HkStringUtil.getTitleText(chap.getTitle(), false));
+        } catch (Exception e) {
+            Log.e(TAG, "updateReadChapter", e);
+        }
     }
 
     /** 原版 hookHomeData：小程序首页数据钩子，首页按用户令保持星辰现状、不接。 */
@@ -1713,8 +2326,65 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
     private void injectTextConfig(List<HkItem> list) {
     }
 
-    /** 原版 updateReadLayout：阅读底部栏不移植。 */
+    /**
+     * F14（簇5a）：照官 updateReadLayout（源行 4423-4426＋lambda$48 源行
+     * 4428-4447）落显示所需最小集——门＝isReadTheme；UI 线程膨胀
+     * view_read_bottom（宿主调度形态差：官经 ThreadTool.runOnUI 投递，
+     * 咱家 bindArrayToView 本就在 UI 线程链上、直调同果）后绑定四文本位
+     * 并按 TextConfig 定四位字色。官同段的其余件记名不落：延时 1 秒后
+     * 量高给 bodyContainer 垫底的调度形（咱家以 post 量高同果落，见
+     * ensureReadBottom）、底栏点击→showReadMenu（阅读菜单子系统未移植，
+     * 无落点）。
+     */
     private void updateReadLayout(List<HkItem> list) {
+        if (!isReadTheme) return;
+        ensureReadBottom();
+    }
+
+    /**
+     * F14：阅读底部栏膨胀＋绑定（官 lambda$updateReadLayout$48 本体）——
+     * read_bottom_bg 已绑定则整段跳过（官 if-nez 门同形）；否则把
+     * read_layout 的 ViewStub 置可见并膨胀（咱家 ViewStub.inflate() 与
+     * 官 findView 后 setVisibility(VISIBLE) 触发膨胀同果），依次绑定
+     * read_bottom_bg/read_chapter/read_chapter_count/read_time/read_power
+     * （官资源序逐字），字色照官：TextConfig.background 为 "#181818" 时
+     * 用 -0x4d4d4e、否则用 config.getTextColor()，四位同色。垫底照官
+     * lambda$46：bodyContainer 底 padding＝底栏实测高（官以 1 秒延时
+     * 调度量高，咱家以 post 在布局后量高，时机差记名）。
+     */
+    private void ensureReadBottom() {
+        if (read_bottom_bg != null || getView() == null || getContext() == null) return;
+        try {
+            View root = getView();
+            View stub = root.findViewById(R.id.read_layout);
+            if (stub instanceof android.view.ViewStub) {
+                ((android.view.ViewStub) stub).inflate();
+            } else if (stub != null) {
+                stub.setVisibility(View.VISIBLE);
+            }
+            read_bottom_bg = root.findViewById(R.id.read_bottom_bg);
+            if (read_bottom_bg == null) return;
+            read_chapter = root.findViewById(R.id.read_chapter);
+            read_chapter_count = root.findViewById(R.id.read_chapter_count);
+            read_time = root.findViewById(R.id.read_time);
+            read_power = root.findViewById(R.id.read_power);
+            com.example.hikerview.ui.home.model.TextConfig config =
+                    com.example.hikerview.ui.setting.model.SettingConfig.getTextConfig(getContext());
+            int color = "#181818".equals(config.getBackground())
+                    ? -0x4d4d4e : config.getTextColor();
+            if (read_chapter != null) read_chapter.setTextColor(color);
+            if (read_chapter_count != null) read_chapter_count.setTextColor(color);
+            if (read_time != null) read_time.setTextColor(color);
+            if (read_power != null) read_power.setTextColor(color);
+            read_bottom_bg.post(() -> {
+                View body = getView() == null ? null : getView().findViewById(R.id.bodyContainer);
+                if (body != null && read_bottom_bg != null) {
+                    body.setPadding(0, 0, 0, read_bottom_bg.getMeasuredHeight());
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "ensureReadBottom", e);
+        }
     }
 
     /**
@@ -1918,6 +2588,10 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                                  com.fongmi.android.tv.api.hk.HkRule rule) {
         android.app.Activity act = getActivity();
         if (act == null || act.isFinishing()) return;
+        // A9（W4）：官 ConfirmEvent 门（源行 855-858）——宿主 !isOnPause 才弹；
+        // 本接缝（ConfirmHandler 登记处 :1814 的唯一弹框点）补同门：宿主已被
+        // 播放页/子页盖住（isOnPause）时不弹，免得确认框串到别页之上。
+        if (act instanceof HkListActivity && ((HkListActivity) act).isOnPause()) return;
         act.runOnUiThread(() -> {
             android.app.Activity a = getActivity();
             if (a == null || a.isFinishing()) return;
@@ -2385,6 +3059,8 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
     private final java.util.concurrent.atomic.AtomicInteger dlanGeneration = new java.util.concurrent.atomic.AtomicInteger();
     private com.fongmi.android.tv.ui.hk.view.HkParseStatusPopup parseStatusListPopup;
     private android.app.Dialog loadingPopup;
+    /** loadingPopup 的文案 TextView（showLoadingPopup 建时登记，供 Blob 进度等在显时只改文案）。 */
+    private android.widget.TextView loadingPopupText;
 
     /** 照抄原版 clickItem(View, int)：青豆光影特例、input 条目（EditText 回填/高亮编辑/js 求值回灌）、余者转三参版。 */
     protected void clickItem(View view, int position) {
@@ -2534,6 +3210,10 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
             continuousDlan(position, lazySplit);
             return;
         }
+        // 聚阅小说/漫画子源章节点击改道：凭同页「扩展功能」条目 extra 的
+        // info.type 组阅读会话进阅读板块（契约账 juyue-subsource-materials），
+        // 不走下方 @rule= 子页通用渲染；未命中原链一行不动。
+        if (recordHistory && tryOpenJuReading(position)) return;
         String codeAndHeader = detailBridge == null ? ""
                 : detailBridge.getCodeAndHeader(
                         HkHttpParser_getUrlAppendUA(articleListRule.getUrl(), articleListRule.getUa()), lazySplit);
@@ -2627,6 +3307,47 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         if (pageOpener != null) pageOpener.openSubList(req);
     }
 
+    /**
+     * 聚阅小说/漫画子源章节改道（组会话在 ReadingGate.fromHkJuChapterClick，
+     * 凭条目 extra 的 chapterList＋info.type 分类）：命中后先按海阔历史行
+     * 恢复章序/章内进度（小说格，与 HkListActivity 小说支同口径），再建
+     * 记录（recordOpened 只落形不覆盖进度），开阅读器。会话只活内存、
+     * 进度回写海阔 History——不留痕口径与今晚分流线一致。
+     */
+    private boolean tryOpenJuReading(int position) {
+        try {
+            if (adapter == null || getActivity() == null) return false;
+            com.fongmi.android.tv.read.ReadingSession s =
+                    com.fongmi.android.tv.read.ReadingGate.fromHkJuChapterClick(
+                            adapter.getList(), position,
+                            articleListRule == null ? "" : articleListRule.getTitle(), myUrl);
+            if (s == null) return false;
+            com.fongmi.android.tv.bean.History row =
+                    com.fongmi.android.tv.api.hk.HkHistoryRecorder.findByKey(s.hkHistoryKey);
+            if (row != null && !TextUtils.isEmpty(row.getEpisodeUrl())) {
+                for (int i = 0; i < s.chapters.size(); i++) {
+                    if (row.getEpisodeUrl().equals(s.chapters.get(i).url)) {
+                        s.chapterIndex = i;
+                        s.chapterUrl = s.chapters.get(i).url;
+                        if (s.kind == com.fongmi.android.tv.read.ReadingSession.Kind.NOVEL
+                                && row.getPosition() > 0) {
+                            s.startFraction = (int) Math.min(row.getPosition(), 10000);
+                        }
+                        break;
+                    }
+                }
+            }
+            com.fongmi.android.tv.read.ReadingSession.Chapter cur = s.currentChapter();
+            com.fongmi.android.tv.api.hk.HkHistoryRecorder.recordOpened(
+                    s.hkHistoryKey, s.bookTitle, s.coverUrl, "", cur.name, cur.url);
+            com.fongmi.android.tv.read.ReadingRouter.openReading(getActivity(), s);
+            return true;
+        } catch (Throwable t) {
+            android.util.Log.e("HkArticleFragment", "juyue reading divert failed", t);
+            return false;
+        }
+    }
+
     /** 照抄原版 dealLazyRule + $13 回调：解析前弹"动态解析规则中，请稍候"（#noLoading# 除外），成功以 recordHistory=false 回灌 clickItem，失败仅关弹窗（错误原文由解析器侧弹）。 */
     private void dealLazyRule(View view, int position, String[] lazySplit, String codeAndHeader) {
         SpiderDebug.log("hk", "lazy click entry rule=%s pos=%d url=%s",
@@ -2686,6 +3407,7 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         android.widget.TextView tv = new android.widget.TextView(getContext());
         tv.setText(title);
         tv.setPadding(dpToPx(24), dpToPx(18), dpToPx(24), dpToPx(18));
+        loadingPopupText = tv;
         loadingPopup = new android.app.Dialog(getContext());
         loadingPopup.setContentView(tv);
         loadingPopup.setCancelable(false);
@@ -2695,6 +3417,7 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
     private void dismissLoadingPopup() {
         if (loadingPopup != null && loadingPopup.isShowing()) loadingPopup.dismiss();
         loadingPopup = null;
+        loadingPopupText = null;
     }
 
     /** 照抄原版 PageParser.isPageUrl。 */
@@ -3021,7 +3744,8 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                 synchronized (batchDlanParamsMapHistory) {
                     batchDlanParamsMapHistory.put(httpParams.getSort(), httpParams);
                 }
-                // 原版此处刷 CompleteToolBar 状态文「队列状态 (n)」；本树完成条无状态文面，计数在队列页内可见
+                // B6：原版此处刷 CompleteToolBar 状态文「队列状态 (n)」，落 notify 条状态槽（n＝本条序号 sort）
+                setStatusBarText("队列状态 (" + sort + ")");
             }
 
             @Override
@@ -3060,7 +3784,8 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                         if (notify_text != null) {
                             notify_text.setText("完成 (" + batchDlanParamsSet.size() + ")");
                         }
-                        // 原版同处还刷 CompleteToolBar 状态文「队列状态 (n)」，本树无此面
+                        // B6：原版同处还刷 CompleteToolBar 状态文「队列状态 (n)」，落 notify 条状态槽（n＝队列实存数）
+                        setStatusBarText("队列状态 (" + batchDlanParamsSet.size() + ")");
                         memoryPosition(position);
                     });
                 } else {
@@ -4408,9 +5133,55 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                 .show();
     }
 
-    /** 对应原版 showComplete/CompleteToolBar：宿主完成工具栏在桥绑定阶段承接；未接入时以 notify 条的显隐代替（仅 show 侧）。 */
+    /**
+     * B6（簇5a 裁定）：官 CompleteToolBar 本体（Kotlin RelativeLayout，
+     * 470 行 smali，inflate view_complete_bar：nav_back/tv_title/nav_status/
+     * nav_complete 四件＋OnNavClickListener 三回调 onBack/onComplete/
+     * onStatus）是宿主 FilmListActivity 布局里的工具栏件（宿主字段
+     * completeToolBar、getCompleteToolBar 经 ArticleListIsland 转手），其
+     * show/hide/update 三档由宿主 onComplete（FilmListActivity 源行
+     * 916-949）驱动并牵连宿主 toolbar/transition/沉浸顶距——整件移植的
+     * 落点在宿主不在本 Fragment，且本树宿主无此布局位。故本轮走文案面
+     * 对齐：三档落到本页既有 notify 条（其三槽点击已分别承接官三回调：
+     * notify_queue 点击＝onStatus 开队列页、notify_text 点击＝onComplete
+     * 走 completeDlan、长按＝onCancel），差记名：无 nav_back/tv_title 两
+     * 件、无宿主工具栏联动显隐。
+     * 三档照官宿主 onComplete 逐字：update→只改完成文（setCompleteText
+     * (eventMsg)）；hide→条 GONE＋完成文复位「完 成」＋状态文复位
+     * 「队列状态」；show→条 VISIBLE。
+     */
+    private void onCompleteBar(String tag, String msg) {
+        if (notify_bg == null || tag == null) return;
+        switch (tag) {
+            case "show":
+                notify_bg.setVisibility(View.VISIBLE);
+                break;
+            case "hide":
+                notify_bg.setVisibility(View.GONE);
+                setCompleteBarText("完 成");
+                setStatusBarText("队列状态");
+                break;
+            case "update":
+                setCompleteBarText(msg);
+                break;
+            default:
+                break;
+        }
+    }
+
+    /** B6：CompleteToolBar.setCompleteText 的 notify 条等价（完成槽 notify_text）。 */
+    private void setCompleteBarText(String text) {
+        if (notify_text != null) notify_text.setText(text);
+    }
+
+    /** B6：CompleteToolBar.setStatusText 的 notify 条等价（状态槽 notify_queue；空文案官置 INVISIBLE，咱家槽位兼队列钮、文本照写不隐藏，差记名）。 */
+    private void setStatusBarText(String text) {
+        if (notify_queue != null) notify_queue.setText(text);
+    }
+
+    /** 对应原版 showComplete/CompleteToolBar：走 B6 三档面（show 显条、hide 收条并复位两文案）。 */
     private void showComplete(boolean show) {
-        if (show && notify_bg != null) notify_bg.setVisibility(View.VISIBLE);
+        onCompleteBar(show ? "show" : "hide", null);
     }
 
     /** 照抄原版 getItemUrl：lazySplit[0] 为空或非 http 时，回退条目 extra 里的 url 字段（须非空且 http 开头）。 */
@@ -4651,6 +5422,20 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         this.isReadTheme = readTheme;
     }
 
+    /**
+     * C4：官 com.example.hikerview.ui.home.reader.ReadPageData 的片段内等价
+     * （readMap 的值型）——只取 $6/updateReadData/updateReadChapter 三处
+     * 真用到的四字段（size/preSize/pageNow/chapter），存法照官（同一实例
+     * 逐位登记进 readMap）。官类本体在 reader 子系统包、未移植，故不另建
+     * 文件、以内嵌类承载（记名）。
+     */
+    private static class ReadPageData {
+        int size;
+        int preSize;
+        int pageNow;
+        String chapter;
+    }
+
     /** 对应原版 AutoPageData（宿主在 dealRule 打开 #autoPage# 子列表时构造，子页 Fragment 经 setAutoPageData 注入）。 */
     public static class AutoPageData {
         public java.util.List<HkItem> nextData;
@@ -4790,13 +5575,46 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         }
     }
 
+    /**
+     * C3（W4）：照官 lambda$initView$4（源行 607-610）——快滚按压中把
+     * SmartRefreshLayout 的 overScrollDrag/overScrollBounce 关掉，且
+     * !cannotRefresh 时连下拉刷新一并关；松开全部恢复（官以 !pressed 一值
+     * 同写三项）。此前为空体存根，快滚拖动时下拉刷新/过滚动会抢手势。
+     */
     private void onFastScrollPressed(boolean pressed) {
+        if (smartRefreshLayout == null) return;
+        boolean enable = !pressed;
+        smartRefreshLayout.setEnableOverScrollDrag(enable);
+        smartRefreshLayout.setEnableOverScrollBounce(enable);
+        if (!cannotRefresh) smartRefreshLayout.setEnableRefresh(enable);
     }
 
     private void onFastScrollOffset(int offset) {
     }
 
+    /**
+     * C4（簇5a）：照官 ArticleListFragment$6.onScrolled（源行 1470-1493）
+     * 的 readMap 消费半——lastVisibleItem 已由 initAdapter 监听器在调入
+     * 前更新（官在 $6 内同位更新）；scrollPos 与之相等或其为负→不动；
+     * 否则记 scrollPos 并按该下标取 readMap：命中且 pageNow&gt;0→
+     * updateReadChapter(pageNow-1) 刷章名/计数（阅读进度显示记录）。
+     * 官同段其余两支记名不落：过半预载支（preloadNow 本体未移植）与
+     * memoryPageIndex 支（MemoryPageTask/MemoryReaderPageTask 记账件未
+     * 移植，其落点 updateReadMsg 的 read_time/read_power 刷新同缺，见
+     * 分账 C4）。宿主侧 setScrollListener 注入已由簇5b 落在
+     * HkListActivity（commitNow 前注入 hostScrollListener），本法经
+     * initAdapter 的内部监听直调、与宿主监听并存不相干。
+     */
     private void onListScrolled(int dx, int dy) {
+        int pos = lastVisibleItem;
+        if (scrollPos == pos || pos < 0) return;
+        scrollPos = pos;
+        ReadPageData data;
+        synchronized (readMap) {
+            data = readMap.get(pos);
+        }
+        if (data == null) return;
+        if (data.pageNow > 0) updateReadChapter(data.pageNow - 1);
     }
 
     private void onNotifyQueueClick() {
@@ -4903,8 +5721,8 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         }
         batchDlanParseCount.set(0);
         batchDlanParseSize.set(0);
-        if (notify_text != null) notify_text.setText("完 成");
-        if (notify_bg != null) notify_bg.setVisibility(View.GONE);
+        // B6 hide 档：收条＋完成文「完 成」＋状态文「队列状态」复位（官宿主 onComplete hide 同三件）
+        onCompleteBar("hide", null);
         if (mode != null && detailBridge != null) detailBridge.onBatchModeFinish(mode, count);
     }
 

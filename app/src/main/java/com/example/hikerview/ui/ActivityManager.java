@@ -14,12 +14,19 @@ import java.util.Stack;
  * 清该页的定时任务池，星辰引擎的定时任务按运行时作用域管理、无此口，
  * 此处不调；② 官 getMainActivity 找其 ui.home.MainActivity 实例，星辰无
  * 该类，改为返回栈底 Activity（即承载海阔页的宿主）。
+ * ③ getCurrentActivity 改按 resumed 取当前页（他 2026-11-14 层级线：提示窗
+ * 与报错必须落在当前页面之上）：官的创建序栈顶在转场与迟到提示时给到
+ * 已非顶层的页、窗随之沉到页面后面；咱家此口改为先给最近 resumed 的页，
+ * 创建序栈只作兜底，栈空时返回 null（官形 lastElement 会直接抛异常）。
  */
 public final class ActivityManager implements Application.ActivityLifecycleCallbacks {
 
     private static ActivityManager activityManager;
 
     private final Stack<Activity> activityStack = new Stack<>();
+
+    /** 最近 resumed 的页＝当前页（getCurrentActivity 的首选，见类头差异③）。 */
+    private volatile Activity resumedActivity;
 
     private ActivityManager() {
     }
@@ -82,7 +89,11 @@ public final class ActivityManager implements Application.ActivityLifecycleCallb
     }
 
     public Activity getCurrentActivity() {
-        return this.activityStack.lastElement();
+        Activity resumed = this.resumedActivity;
+        if (resumed != null && !resumed.isFinishing()) {
+            return resumed;
+        }
+        return this.activityStack.isEmpty() ? null : this.activityStack.lastElement();
     }
 
     public Activity getMainActivity() {
@@ -100,6 +111,9 @@ public final class ActivityManager implements Application.ActivityLifecycleCallb
     @Override
     public void onActivityDestroyed(Activity activity) {
         removeActivity(activity);
+        if (this.resumedActivity == activity) {
+            this.resumedActivity = null;
+        }
     }
 
     @Override
@@ -108,10 +122,14 @@ public final class ActivityManager implements Application.ActivityLifecycleCallb
 
     @Override
     public void onActivityResumed(Activity activity) {
+        this.resumedActivity = activity;
     }
 
     @Override
     public void onActivityPaused(Activity activity) {
+        if (this.resumedActivity == activity) {
+            this.resumedActivity = null;
+        }
     }
 
     @Override

@@ -88,6 +88,9 @@ public class HkRouter {
      */
     public HkDetail detail(String itemUrl, HkItem item, boolean fromSearch) {
         HkDetail detail = new HkDetail();
+        // 136b 分流线①：清上一发的当发规则抓取，本发的 JS 详情在
+        // parseDetailRaw 发内重抓（选择器支不抓、恒空，见 captureScopeRule）。
+        engine.getJsRuntime().clearLastParseDetailScopeRule();
         if (item != null) {
             detail.setTitle(item.getTitle());
             detail.setPic(item.getPic());
@@ -216,6 +219,7 @@ public class HkRouter {
                     detail.setPageUrl(pageUrl);
                     detail.setRawItems(jsItems);
                     classifyDetailItems(detail);
+                    captureScopeRule(detail);
                     return detail;
                 }
                 u = pageUrl;
@@ -270,7 +274,19 @@ public class HkRouter {
             throw new IllegalStateException("海阔详情加载失败：" + e.getMessage(), e);
         }
         classifyDetailItems(detail);
+        captureScopeRule(detail);
         return detail;
+    }
+
+    /** 136b 分流线①：把 parseDetailRaw 发内抓到的当发 MY_RULE 全文挂上详情
+     * （聚合容器＝被点子规则；独立规则＝其自身；选择器支/未抓到恒空）。
+     * 消费方 VideoActivity 详情就绪点据此做有效规则分类，与章节交接同口径。 */
+    private void captureScopeRule(HkDetail detail) {
+        try {
+            HkRule sr = engine.getJsRuntime().lastParseDetailScopeRule();
+            if (sr != null) detail.setScopeRuleJson(new com.google.gson.Gson().toJson(sr));
+        } catch (Throwable ignored) {
+        }
     }
 
     /**
@@ -414,6 +430,11 @@ public class HkRouter {
      */
     private void checkPlayExit(HkPlay out) {
         if (out == null) return;
+        // dealLazyRule 收口结果（refreshOnly）：回址已在 playRoute 清空、
+        // 语义是「重刷当前列表」，不许再按动作地址/未解析拦它（账
+        // heji-subrule-sort-20261114 次生问题：hiker://empty 被当播放
+        // 地址送的口子堵在分发层同处）。
+        if (out.isRefreshOnly()) return;
         if (!out.getPics().isEmpty()) return;
         if (!out.getPlayType().isEmpty()) return;
         String u = out.getUrl();
@@ -460,6 +481,14 @@ public class HkRouter {
     private HkPlay playRoute(String episodeUrl, String itemExtra) {
         HkPlay out = new HkPlay();
         if (episodeUrl == null) return out;
+        // face1#4 尾巴（簇3）：点击下标一次性承接——点击方经
+        // HkDetailBridge.setClickPosition 预放、此处入口取走（读后
+        // 复位），沿 resolveLazyRule/applyLazyResult 形参链传递（与
+        // itemExtra 同形、不落实例字段防并发串位），每段懒发前调
+        // setNextLazyPosition 同值（官 dealLazyRule 成功回灌 clickItem
+        // 时 position 不变、链式懒段段同位）。未放/无点击语境恒 -1＝
+        // 官 parse 无 position 形的缺省实参，行为与接线前一致。
+        final int clickPos = HkDetailBridge.consumeClickPosition();
         String u = episodeUrl.trim();
         // -2. x5Play:// 剥壳（定根账 hk-sniff-route-miswire-20261113）：官家
         // x5Play 是播放器地址——PlayerChooser 三个 startPlayer 变体一律强制
@@ -533,7 +562,23 @@ public class HkRouter {
         if (u.startsWith("video://")) u = u.substring(8).trim();
         // 4. @lazyRule=（已在步骤0提取）
         if (lazyRuleText != null) {
-            resolveLazyRule(lazyPageUrl, lazyRuleText, out, 0, itemExtra);
+            // 官 dealLazyRule 收口（账 heji-subrule-sort-20261114）：普通行
+            // @lazyRule= 回调里 putMyVar + refreshPage 的那类（轻合集容器
+            // 设置页排序两段式的第一点、启用/禁用翻转）只起副作用，靠重刷
+            // 当前列表让重渲后的新闭包生效，本身不是播放。与 detail() 的
+            // 变化检测同口径合并：求值前记 hadRefresh，求值后消费标记、
+            // 仅新产生才算命中（consume 保证只消费一次，不误判残留）。
+            // 命中即清掉回址置 refreshOnly 交调用方重刷——回址多为陪衬的
+            // hiker://empty，堵在此处不许再往下被当播放地址送（次生问题
+            // 同堵）；不进播放链，也不走下方「没出地址」的抛错。
+            boolean hadRefresh = engine.getJsRuntime().isRefreshRequested();
+            resolveLazyRule(lazyPageUrl, lazyRuleText, out, 0, itemExtra, clickPos);
+            if (engine.getJsRuntime().consumeRefreshRequest() && !hadRefresh) {
+                out.setUrl("");
+                out.setRefreshOnly(true);
+                SpiderDebug.log("hk", "lazy refresh-only rule=%s", rule.getTitle());
+                return out;
+            }
             // 照 8.83：懒解析没出地址就是失败、停住报错；
             // 旧代码继续拿剧集页地址走兜底，最终把网页塞给播放器（白屏/解析失败）。
             // 空结果不再回空 HkPlay：调用方（SiteApi.hkPlayerContent）会把空地址
@@ -567,7 +612,7 @@ public class HkRouter {
                     }
                     return out;
                 }
-                applyLazyResult(real, out, 0, pageUrl, itemExtra);
+                applyLazyResult(real, out, 0, pageUrl, itemExtra, clickPos);
                 if (out.isEmpty()) {
                     throw new IllegalStateException("海阔 @rule=js: 懒解析未返回播放地址，请换一条试试");
                 }
@@ -593,7 +638,7 @@ public class HkRouter {
                 return out;
             }
             // js: 整段以自身为 MY_URL 求值，没有真实宿主页面，产出页传空
-            applyLazyResult(real, out, 0, "", itemExtra);
+            applyLazyResult(real, out, 0, "", itemExtra, clickPos);
             if (out.isEmpty()) {
                 throw new IllegalStateException("海阔 js: 懒解析未返回播放地址，请换一条试试");
             }
@@ -783,7 +828,7 @@ public class HkRouter {
      *                结果是 pics 时记入 {@link HkPlay#setPageUrl}；调用方
      *                拿不到真实页面（如 js: 整段以自身为 MY_URL）时传空串。
      */
-    private void applyLazyResult(String v, HkPlay out, int depth, String pageUrl, String itemExtra) {
+    private void applyLazyResult(String v, HkPlay out, int depth, String pageUrl, String itemExtra, int clickPos) {
         v = v.trim();
         // x5Play:// 剥壳（同 playRoute 入口，定根账 hk-sniff-route-miswire-20261113）：
         // 懒函数回 x5Play://{播放数据} 是包装型规则的标准回址，先剥壳再过下面的 JSON 门
@@ -819,14 +864,14 @@ public class HkRouter {
             int hash = page.indexOf('#');
             if (hash >= 0) page = page.substring(0, hash).trim();
             SpiderDebug.log("hk", "lazy chain depth=%d rule=%s host=%s", depth + 1, rule.getTitle(), hostOf(page));
-            resolveLazyRule(page, nextRule, out, depth + 1, itemExtra);
+            resolveLazyRule(page, nextRule, out, depth + 1, itemExtra, clickPos);
             return;
         }
         out.setUrl(splitEnhancement(v, out));
         SpiderDebug.log("hk", "lazy resolved rule=%s -> %s", rule.getTitle(), hostOf(out.getUrl()));
     }
 
-    private void resolveLazyRule(String pageUrl, String ruleText, HkPlay out, int depth, String itemExtra) {
+    private void resolveLazyRule(String pageUrl, String ruleText, HkPlay out, int depth, String itemExtra, int clickPos) {
         try {
             String r = ruleText.trim();
             boolean js = false;
@@ -839,25 +884,35 @@ public class HkRouter {
             }
             String v;
             if (js) {
+                // face1#4 尾巴（簇3）：进懒发前把本链点击下标放进一次性
+                // 通道（每段同值，见 playRoute 入口注）；选择器支不求值
+                // JS、无 MY_POSITION，不放。evalJsPlay 的 evalLazy 不经
+                // 此处放值，其发恒缺省 -1（官 @rule=js:/js: 播放求值本
+                // 无 position 形）。
+                engine.getJsRuntime().setNextLazyPosition(clickPos);
                 v = engine.getJsRuntime().evalLazy(r, pageUrl);
             } else {
                 String html = getMarked(pageUrl);
                 v = engine.getSelector().evalField(html, r, pageUrl);
             }
             if (!TextUtils.isEmpty(v)) {
-                applyLazyResult(v, out, depth, pageUrl, itemExtra);
+                applyLazyResult(v, out, depth, pageUrl, itemExtra, clickPos);
             } else {
                 // 空结果也留痕到文件日志：规则解析失败（如福建兄妹抠不到 playUrl 时
                 // 懒函数抛错/回空）此前只进 logcat，他发来的日志里看不见、定不了案。
                 SpiderDebug.log("hk", "lazy play empty rule=%s host=%s", rule.getTitle(), hostOf(pageUrl));
             }
         } catch (Throwable e) {
+            // 收口照官（账 hk-two-cells-closed-20261114 定论）：官 evalJS 把
+            // 求值异常吞成 "error:…" 串回 LazyRuleParser 走失败回调——即本支
+            // 按空结果收场、解析链继续走它自己的终局（playRoute 步骤 4 的
+            // 无地址判定），不在半路抛横幅中止整条解析。官 lazy 里同样成立
+            // 不了的懒串（如裸调 getObjCode 的次元方舟那发，官同点
+            // ReferenceError）就该是这个结局：本支无地址、留痕返回。
+            // 旧形 catch 后重抛 IllegalStateException「海阔懒解析执行失败」
+            // 是自设显形口径，与 ⑥ 摘掉的子页 ParseException 同族，摘除。
             Logger.t(TAG).d("lazyRule failed: %s", e.getMessage());
             SpiderDebug.log("hk", "lazy play failed rule=%s host=%s err=%s", rule.getTitle(), hostOf(pageUrl), String.valueOf(e));
-            // 求值抛错不许留空 out 退回：playRoute 步骤 4 的空检只能管
-            // 「求值回空」，管不到「求值抛错后 out 残留半成品地址被出口
-            // 当可播放行」；与步骤 5/6 js 路同口径抛可见错（批 residual）。
-            throw new IllegalStateException("海阔懒解析执行失败，请换一条试试", e);
         }
     }
 

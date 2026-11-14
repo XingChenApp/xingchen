@@ -1257,7 +1257,10 @@ public class ReadingShelfActivity extends AppCompatActivity {
             // 普通页当成无名书源专辑按 legadoKey 找 Legado 源——来源身份
             // 就是在这一层被认丢的（2026-10-30 纠偏）。
             if (a.legadoKey.startsWith("hk:")) {
-                a.hkRule = a.legadoKey.substring(3);
+                // 容器听书：解析规则名优先取记录 ruleTitle，legadoKey 反推只作
+                // 旧记录兜底（与 ReadingRouter.openAudioRecord 同口径，理由见彼处）。
+                a.hkRule = r.ruleTitle != null && !r.ruleTitle.isEmpty()
+                        ? r.ruleTitle : a.legadoKey.substring(3);
                 a.hkLine = r.playFlag == null ? "" : r.playFlag;
             }
             a.sourceName = r.sourceName == null ? "" : r.sourceName;

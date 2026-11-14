@@ -24,6 +24,28 @@ public class HkDetailBridge {
         return key != null && key.startsWith(KEY_PREFIX);
     }
 
+    /**
+     * 点击下标一次性承接槽（face1#4 尾巴，簇3）：HkRouter.playRoute→
+     * resolveLazyRule 链的 MY_POSITION 取值在点击方（列表/选集面）手里，
+     * play 标准入参（key/flag/id）不带下标、api/hk 层无现成载体可达。
+     * 点击方在发起播放前调 {@link #setClickPosition(int)} 放下标，
+     * HkRouter.playRoute 入口以 {@link #consumeClickPosition()} 取走
+     * （读后复位 -1，与 HkJsRuntime.setNextLazyPosition 的一次性语义
+     * 同形）；未放时恒 -1＝官 LazyRuleParser.parse 无 position 重载的
+     * 缺省实参。fragment 侧调用点留主线缝（见 fill-136b-c3-scope 分账）。
+     */
+    private static volatile int clickPosition = -1;
+
+    public static void setClickPosition(int position) {
+        clickPosition = position;
+    }
+
+    public static int consumeClickPosition() {
+        int p = clickPosition;
+        clickPosition = -1;
+        return p;
+    }
+
     public static Vod toVod(HkRule rule, String itemUrl, HkDetail detail) {
         Vod vod = new Vod();
         vod.setId(itemUrl == null ? "" : itemUrl);

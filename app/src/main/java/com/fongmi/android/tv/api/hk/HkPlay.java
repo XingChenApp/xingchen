@@ -101,6 +101,15 @@ public class HkPlay {
     private String pageUrl = "";
     /** P1：ed2k/magnet/thunder/ftp 等特殊协议类型（透传给播放器前识别）。 */
     private String playType = "";
+    /**
+     * 官 dealLazyRule 收口标记（账 heji-subrule-sort-20261114）：本次
+     * {@code @lazyRule=} 求值只起副作用（putMyVar + refreshPage，如容器
+     * 设置页排序两段式的第一点、启用/禁用翻转），回址是陪衬值（多为
+     * {@code hiker://empty}），不是播放目标。置位时 url 已清空，调用方
+     * 应重刷当前列表让新闭包生效，不进播放链、也不许按「解析失败」报错。
+     * 与 {@link HkDetail#isTabSwitch()} 同口径（详情预解析路的变化检测）。
+     */
+    private boolean refreshOnly;
 
     public String getUrl() {
         return url;
@@ -217,6 +226,14 @@ public class HkPlay {
 
     public void setPlayType(String playType) {
         this.playType = playType == null ? "" : playType;
+    }
+
+    public boolean isRefreshOnly() {
+        return refreshOnly;
+    }
+
+    public void setRefreshOnly(boolean refreshOnly) {
+        this.refreshOnly = refreshOnly;
     }
 
     public boolean isEmpty() {

@@ -2,6 +2,7 @@ package com.fongmi.android.tv.read;
 
 import android.text.TextUtils;
 
+import com.fongmi.android.tv.api.hk.HkItem;
 import com.fongmi.android.tv.api.hk.HkPlay;
 import com.fongmi.android.tv.api.hk.HkRule;
 import com.fongmi.android.tv.api.hk.HkRuleManager;
@@ -124,14 +125,106 @@ public class ReadingGate {
         return t.startsWith("http://") || t.startsWith("https://");
     }
 
-    /** 海阔小说规则判定（type == "小说"，规则自声明，显式信号直认）。 */
+    /** 海阔小说规则判定（规则自声明 type 属阅读族小说格，显式信号直认）。 */
     public static boolean isHkNovelRule(String ruleTitle) {
-        if (TextUtils.isEmpty(ruleTitle)) return false;
+        return classifyHkTitle(ruleTitle) == HkReadKind.NOVEL;
+    }
+
+    /** 海阔听书规则判定（规则自声明 type 属阅读族听书格）。 */
+    public static boolean isHkAudioRule(String ruleTitle) {
+        return classifyHkTitle(ruleTitle) == HkReadKind.AUDIO;
+    }
+
+    /** 海阔阅读族分类（小说/听书同属阅读板块，两面分开）。 */
+    public enum HkReadKind {NONE, NOVEL, AUDIO}
+
+    /**
+     * 阅读族分类（规则对象版）：type=="小说" 直认小说；type=="read"/"阅读"
+     * 是官 RuleType 的阅读族总称（小说与听书同装一格），再按规则自身的
+     * 听书信号分小说与听书。其余 type 不是阅读族。
+     * 旧口径只认 type=="小说" 一词——在野规则（含容器子规则）声明的全是
+     * "read"，整族漏认、章节全落视频链（账 heji-subrule-routing）。
+     */
+    public static HkReadKind classifyHkRule(HkRule rule) {
+        if (rule == null) return HkReadKind.NONE;
+        String type = rule.getType() == null ? "" : rule.getType().trim();
+        if ("小说".equals(type)) return HkReadKind.NOVEL;
+        if ("read".equals(type) || "阅读".equals(type)) {
+            return looksAudioRule(rule) ? HkReadKind.AUDIO : HkReadKind.NOVEL;
+        }
+        return HkReadKind.NONE;
+    }
+
+    /** 阅读族分类（规则库版，按标题取独立导入的规则）。 */
+    public static HkReadKind classifyHkTitle(String ruleTitle) {
+        if (TextUtils.isEmpty(ruleTitle)) return HkReadKind.NONE;
+        try {
+            return classifyHkRule(HkRuleManager.get().getRule(ruleTitle));
+        } catch (Throwable ignored) {
+            return HkReadKind.NONE;
+        }
+    }
+
+    /** 规则自声明 type 原值（规则库版，无此规则回空串）。 */
+    public static String hkRuleType(String ruleTitle) {
+        if (TextUtils.isEmpty(ruleTitle)) return "";
         try {
             HkRule rule = HkRuleManager.get().getRule(ruleTitle);
-            return rule != null && "小说".equals(rule.getType());
+            return rule == null || rule.getType() == null ? "" : rule.getType();
         } catch (Throwable ignored) {
-            return false;
+            return "";
+        }
+    }
+
+    /**
+     * 听书信号（只在 read 族内部分流，误判也只在阅读板块内部）：
+     * 标题含听书字样直认；否则只扫规则自带页文本（pages）里的听书/音频
+     * 字样——子规则把站点名写在自带页页眉里的形（如「易听书网·音频站」）。
+     * 不扫 find/detail 正文：小说规则正文里有跨规则搜索串 type=听书 的
+     * 残留（拿别的源听书版搜同名书），扫了必误判（语料 7 条实测钉死）。
+     */
+    private static boolean looksAudioRule(HkRule rule) {
+        String title = rule.getTitle() == null ? "" : rule.getTitle();
+        if (title.contains("听书") || title.contains("有声") || title.contains("悦听")
+                || title.contains("听小说")) return true;
+        String pages = rule.getPages() == null ? "" : rule.getPages();
+        return pages.contains("听书") || pages.contains("音频") || pages.contains("有声");
+    }
+
+    /**
+     * 容器劫持页的有效规则：聚合容器（影视合集式）把被点子规则全文以
+     * base64 放在条目 extra.RULE 里、随开页透传进页规则的 params
+     * （JS 侧 MY_PARAMS 同源）。宿主分发只看页规则（＝容器壳，type 恒
+     * video/all）永远认不出子规则的 type——在此解码取子规则本体。
+     * 无 RULE/解码失败回 null，调用方回落页规则自身分类，原分发一行不变。
+     */
+    public static HkRule effectiveRule(HkRule pageRule) {
+        String json = effectiveRuleJson(pageRule);
+        if (json == null) return null;
+        try {
+            return new com.google.gson.Gson().fromJson(json, HkRule.class);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    /** 有效规则全文（解码后的子规则 JSON；无则 null）。 */
+    public static String effectiveRuleJson(HkRule pageRule) {
+        if (pageRule == null) return null;
+        String params = pageRule.getParams();
+        if (TextUtils.isEmpty(params)) return null;
+        try {
+            com.google.gson.JsonElement root = com.google.gson.JsonParser.parseString(params);
+            if (root == null || !root.isJsonObject()) return null;
+            com.google.gson.JsonElement r = root.getAsJsonObject().get("RULE");
+            if (r == null || !r.isJsonPrimitive()) return null;
+            String b64 = r.getAsString();
+            if (b64 == null || b64.isEmpty()) return null;
+            String json = new String(android.util.Base64.decode(b64, android.util.Base64.NO_WRAP),
+                    java.nio.charset.StandardCharsets.UTF_8);
+            return json.startsWith("{") ? json : null;
+        } catch (Throwable ignored) {
+            return null;
         }
     }
 
@@ -150,6 +243,168 @@ public class ReadingGate {
         s.referer = "";
         logDivert("divert kind=NOVEL rule=%s why=rule-type-novel", s.sourceName);
         return s;
+    }
+
+    // ---------------- 聚阅子源（续段求值） ----------------
+
+    /**
+     * 聚阅小说/漫画子源章节点击组会话（契约账 juyue-subsource-materials
+     * §四/§五）：详情页「扩展功能」条目的 extra 带 chapterList＋info
+     * （type=comic/novel、bookName、ruleName、parseCode、decode），章节
+     * 条目（extra.cls="Juloadlist playlist"）的 url 带 @rule=/@lazyRule=
+     * 续段码、extra.url 是章原址。分类只凭 info.type，不凭名字猜；同页
+     * 找不到带 chapterList 的兄弟条目就不改道（回 null，调用方走原链）。
+     * 章节表取同页已渲染的章节条目（与 chapterList 同一切片同序），每章
+     * 的续段载体（码/MY_URL 段/MY_PARAMS 原文）逐章带入会话，取数走
+     * HkJuFetcher 的续段求值口——实现经 jkdata 现取，不依赖注册表。
+     *
+     * @param pageItems    当前页全部条目（宿主适配器原序）
+     * @param clickedIndex 被点条目在 pageItems 中的下标
+     * @param hostRuleTitle 宿主规则名（聚阅；运行时绑定与历史键的解析名）
+     * @param pageUrl      详情页地址（历史键的 vodId 段，与再入同键）
+     */
+    public static ReadingSession fromHkJuChapterClick(List<HkItem> pageItems, int clickedIndex,
+                                                      String hostRuleTitle, String pageUrl) {
+        try {
+            if (pageItems == null || clickedIndex < 0 || clickedIndex >= pageItems.size()) return null;
+            HkItem clicked = pageItems.get(clickedIndex);
+            if (clicked == null) return null;
+            if (!juStr(juExtraObj(clicked), "cls").contains("Juloadlist")) return null;
+            String clickedUrl = clicked.getUrl() == null ? "" : clicked.getUrl();
+            if (!clickedUrl.contains("@rule=") && !clickedUrl.contains("@lazyRule=")) return null;
+            // 同页兄弟条目找分类与书信息（扩展功能条目）
+            com.google.gson.JsonObject info = null;
+            for (HkItem it : pageItems) {
+                com.google.gson.JsonObject ex = juExtraObj(it);
+                if (ex == null || !ex.has("chapterList") || !ex.has("info")) continue;
+                if (!ex.get("info").isJsonObject()) continue;
+                com.google.gson.JsonObject inf = ex.getAsJsonObject("info");
+                String t = juStr(inf, "type");
+                if ("comic".equals(t) || "novel".equals(t)) {
+                    info = inf;
+                    break;
+                }
+            }
+            if (info == null) return null;
+            String type = juStr(info, "type");
+            ReadingSession s = new ReadingSession();
+            s.juMode = true;
+            s.kind = "comic".equals(type) ? ReadingSession.Kind.COMIC : ReadingSession.Kind.NOVEL;
+            String ruleName = juStr(info, "ruleName");
+            s.sourceName = !ruleName.isEmpty() ? ruleName
+                    : (hostRuleTitle == null ? "" : hostRuleTitle);
+            s.ruleTitle = hostRuleTitle == null ? "" : hostRuleTitle;
+            s.bookTitle = juStr(info, "bookName");
+            s.coverUrl = juStr(info, "bookTopPic");
+            s.juDecode = juStr(info, "decode");
+            int clickedChapter = -1;
+            for (int i = 0; i < pageItems.size(); i++) {
+                HkItem it = pageItems.get(i);
+                if (it == null) continue;
+                String cls = juStr(juExtraObj(it), "cls");
+                if (!cls.contains("Juloadlist") || !cls.contains("playlist")) continue;
+                ReadingSession.Chapter ch = juChapterOf(it);
+                if (ch == null) continue;
+                if (i == clickedIndex) clickedChapter = s.chapters.size();
+                s.chapters.add(ch);
+            }
+            if (clickedChapter < 0 || s.chapters.isEmpty()) return null;
+            s.chapterIndex = clickedChapter;
+            ReadingSession.Chapter cur = s.currentChapter();
+            s.chapterUrl = cur.url;
+            if (s.bookTitle.isEmpty()) s.bookTitle = cur.name;
+            s.hkHistoryKey = com.fongmi.android.tv.api.hk.HkHistoryRecorder.keyOf(
+                    s.ruleTitle, pageUrl == null ? "" : pageUrl);
+            logDivert("divert kind=%s rule=%s why=juyue-subsource-info-type chapters=%d",
+                    s.kind, s.sourceName, s.chapters.size());
+            return s;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** 聚阅章节条目 → 会话章节（原址＋续段三件套）。 */
+    private static ReadingSession.Chapter juChapterOf(HkItem it) {
+        String url = it.getUrl() == null ? "" : it.getUrl();
+        com.google.gson.JsonObject ex = juExtraObj(it);
+        String raw = juStr(ex, "url");
+        String[] tail = juRuleTail(url);
+        String page = tail == null ? "" : tail[0];
+        String code = tail == null ? "" : tail[1];
+        if (raw.isEmpty()) raw = juRawFromPrefix(page);
+        if (raw.isEmpty() && tail == null) raw = url;
+        if (raw.isEmpty() && code.isEmpty()) return null;
+        String title = it.getTitle() == null ? "" : it.getTitle().replaceAll("<[^>]+>", "").trim();
+        ReadingSession.Chapter ch = new ReadingSession.Chapter(title, raw);
+        ch.pic = it.getPic() == null ? "" : it.getPic();
+        ch.juCode = code;
+        ch.juPageUrl = page;
+        ch.juParams = it.getExtra() == null ? "" : it.getExtra();
+        return ch;
+    }
+
+    /**
+     * 从条目 url 里拆续段：找尾部 @rule=/@lazyRule= 标记（其后须紧跟
+     * js:/.js:），返回 {MY_URL 段, 剥前缀后的 JS 码}；无此形回 null。
+     */
+    private static String[] juRuleTail(String url) {
+        if (TextUtils.isEmpty(url)) return null;
+        String[] markers = {"@rule=", "@lazyRule="};
+        for (String marker : markers) {
+            int from = 0;
+            while (true) {
+                int idx = url.indexOf(marker, from);
+                if (idx < 0) break;
+                String tail = url.substring(idx + marker.length()).trim();
+                String code = null;
+                if (tail.startsWith(".js:")) code = tail.substring(4);
+                else if (tail.startsWith("js:")) code = tail.substring(3);
+                if (code != null && !code.trim().isEmpty()) {
+                    return new String[]{url.substring(0, idx), code.trim()};
+                }
+                from = idx + marker.length();
+            }
+        }
+        return null;
+    }
+
+    /** MY_URL 段还原章原址：剥 hiker://empty## 头与 #readTheme# 等标记段。 */
+    private static String juRawFromPrefix(String page) {
+        if (TextUtils.isEmpty(page)) return "";
+        String p = page.trim();
+        if (p.startsWith("hiker://empty##")) p = p.substring("hiker://empty##".length());
+        else if (p.startsWith("hiker://empty#")) p = p.substring("hiker://empty#".length());
+        String[] cuts = {"#readTheme#", "#noRecordHistory#", "#autoPage#"};
+        int cut = -1;
+        for (String c : cuts) {
+            int i = p.indexOf(c);
+            if (i >= 0 && (cut < 0 || i < cut)) cut = i;
+        }
+        if (cut >= 0) p = p.substring(0, cut);
+        return p.trim();
+    }
+
+    /** 条目 extra 原文解析（原始 JSON 串；坏串回 null）。 */
+    private static com.google.gson.JsonObject juExtraObj(HkItem it) {
+        if (it == null) return null;
+        String extra = it.getExtra();
+        if (TextUtils.isEmpty(extra)) return null;
+        try {
+            com.google.gson.JsonElement e = com.google.gson.JsonParser.parseString(extra);
+            return e != null && e.isJsonObject() ? e.getAsJsonObject() : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static String juStr(com.google.gson.JsonObject o, String key) {
+        if (o == null || key == null || !o.has(key)) return "";
+        try {
+            com.google.gson.JsonElement e = o.get(key);
+            return e != null && e.isJsonPrimitive() ? e.getAsString() : "";
+        } catch (Throwable ignored) {
+            return "";
+        }
     }
 
     // ---------------- py ----------------

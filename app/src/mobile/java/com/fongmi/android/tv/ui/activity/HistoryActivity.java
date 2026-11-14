@@ -98,6 +98,12 @@ public class HistoryActivity extends BaseActivity implements HistoryAdapter.OnCl
 
     @Override
     public void onItemClick(History item) {
+        // 海阔条目分流回海阔再入实现：通用 start 拿 hk_ 键进 detailContent 无海阔
+        // 分支必死（2026-11-14 再入普查钉死），与 HkHistoryActivity 同一路。
+        if (History.isHk(item)) {
+            HkHistoryActivity.openRecord(this, item);
+            return;
+        }
         VideoActivity.start(this, item.getSiteKey(), item.getVodId(), item.getVodName(), item.getVodPic(), null, item.getWallPic());
     }
 

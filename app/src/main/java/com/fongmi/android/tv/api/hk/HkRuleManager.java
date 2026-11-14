@@ -320,6 +320,188 @@ public class HkRuleManager {
         return dir;
     }
 
+    // ── 规则本体 fastjson parseString 收敛（面②#3，136 批 W2） ──────────────
+    // 官入仓走 fastjson parseObject（ArticleListRuleModel.smali:430），其 String
+    // 字段反序列化（DefaultJSONParser.parseString）遇非串 token 一律宽容收敛、
+    // 永不抛 Expected-a-string；咱家 Gson 遇 BEGIN_OBJECT/BEGIN_ARRAY 直接整单
+    // 失败。本区与 HkJsRuntime.ruleFromJsJson/coerceStringFields 同源同形（该处
+    // 只服务 MY_RULE scope 一路），抽成全仓可复用的静态入口：凡裸 Gson 解
+    // HkRule 的入口（本类 parseJson/同名清理/getRules/getRule、订阅合并、
+    // mobile 三处资产/JS 规则入口）一律先经此收敛再交 Gson。收敛只碰 HkRule
+    // 的 String 字段（按 @SerializedName 匹配、反射读声明，新增 String 字段
+    // 自动纳入；@JsonAdapter 字段如 version 自有宽松适配器跳过）；纯串原样、
+    // null 原样、非 String 字段（weight 等）一字不动，末步走回 Gson 串路以
+    // 保非 String 字段的旧抛错语义（与 HkJsRuntime 同注：树路会静默截断）。
+
+    /** 规则 JSON 串 → HkRule（先收敛 String 字段再 Gson 串路解）。 */
+    public static HkRule parseRuleJson(String json) {
+        if (json == null) return null;
+        JsonElement el = JsonParser.parseString(json);
+        if (el != null && el.isJsonObject()) {
+            coerceRuleStringFields(el.getAsJsonObject());
+        }
+        if (el == null) return null;
+        return new Gson().fromJson(el.toString(), HkRule.class);
+    }
+
+    /** 规则 JSON 对象 → HkRule（同上；先深拷贝再收敛，不改调用方的对象——
+     * 订阅合并路的 obj 还要作落盘原文与 group 写回载体，原地收敛会把原文
+     * 里的复合值一并改写）。 */
+    public static HkRule parseRuleJson(JsonObject obj) {
+        if (obj == null) return null;
+        JsonObject copy = obj.deepCopy();
+        coerceRuleStringFields(copy);
+        return new Gson().fromJson(copy.toString(), HkRule.class);
+    }
+
+    /** 把 JSON 对象里 HkRule 的 String 型字段的非串值收敛成串：对象/数组→
+     * 官形 JSON 文本（fastJsonText），数字→官 parseString 词形
+     * （fastJsonScalarText），布尔→"true"/"false"；字符串与 null 原样不动。 */
+    public static void coerceRuleStringFields(JsonObject obj) {
+        for (java.lang.reflect.Field f : HkRule.class.getDeclaredFields()) {
+            if (f.getType() != String.class) continue;
+            if (f.isAnnotationPresent(com.google.gson.annotations.JsonAdapter.class)) continue;
+            com.google.gson.annotations.SerializedName sn =
+                    f.getAnnotation(com.google.gson.annotations.SerializedName.class);
+            String name = sn != null ? sn.value() : f.getName();
+            if (!obj.has(name)) continue;
+            JsonElement v = obj.get(name);
+            if (v == null || v.isJsonNull()) continue;
+            if (v.isJsonPrimitive() && v.getAsJsonPrimitive().isString()) continue;
+            if (v.isJsonObject() || v.isJsonArray()) obj.addProperty(name, fastJsonText(v));
+            else if (v.isJsonPrimitive() && v.getAsJsonPrimitive().isNumber())
+                obj.addProperty(name, fastJsonScalarText(v.getAsString()));
+            else obj.addProperty(name, v.getAsString());
+        }
+    }
+
+    /** 官 parseString 顶层口径的单值转串（面②各面共用）：串原样、数字→
+     * fastJsonScalarText 词形、布尔→"true"/"false"、对象/数组→fastJsonText
+     * JSON 文本；null/JsonNull 回 null。 */
+    public static String fastJsonValueText(JsonElement v) {
+        if (v == null || v.isJsonNull()) return null;
+        if (v.isJsonPrimitive()) {
+            if (v.getAsJsonPrimitive().isString()) return v.getAsString();
+            if (v.getAsJsonPrimitive().isNumber()) return fastJsonScalarText(v.getAsString());
+            return String.valueOf(v.getAsJsonPrimitive().getAsBoolean());
+        }
+        return fastJsonText(v);
+    }
+
+    /** 官 parseString 的数字支（与 HkJsRuntime.fastJsonScalarText 同文）：
+     * 整数词形逐字不变；浮点词形经 Double 归一（1.50→"1.5"、1e+21→"1.0E21"）。 */
+    private static String fastJsonScalarText(String raw) {
+        if (raw.indexOf('.') < 0 && raw.indexOf('e') < 0 && raw.indexOf('E') < 0) return raw;
+        return Double.toString(Double.parseDouble(raw));
+    }
+
+    /** 官 parseString 对对象/数组 token 的产出（与 HkJsRuntime.fastJsonText
+     * 同文）：先读成 HashMap/ArrayList 承载再按官序列化写出（键哈希序、
+     * 嵌套浮点经 NumberCodec 剥尾 ".0"、非有限数写 null）。 */
+    private static String fastJsonText(JsonElement el) {
+        StringBuilder sb = new StringBuilder();
+        writeFastJsonValue(toFastJsonValue(el), sb);
+        return sb.toString();
+    }
+
+    private static Object toFastJsonValue(JsonElement el) {
+        if (el == null || el.isJsonNull()) return null;
+        if (el.isJsonObject()) {
+            Map<String, Object> map = new java.util.HashMap<>(16);
+            for (Map.Entry<String, JsonElement> e : el.getAsJsonObject().entrySet()) {
+                map.put(e.getKey(), toFastJsonValue(e.getValue()));
+            }
+            return map;
+        }
+        if (el.isJsonArray()) {
+            List<Object> list = new ArrayList<>();
+            for (JsonElement c : el.getAsJsonArray()) list.add(toFastJsonValue(c));
+            return list;
+        }
+        com.google.gson.JsonPrimitive p = el.getAsJsonPrimitive();
+        if (p.isString()) return p.getAsString();
+        if (p.isBoolean()) return p.getAsBoolean();
+        String raw = p.getAsString();
+        if (raw.indexOf('.') >= 0 || raw.indexOf('e') >= 0 || raw.indexOf('E') >= 0) {
+            return Double.parseDouble(raw);
+        }
+        try {
+            return Long.parseLong(raw);
+        } catch (NumberFormatException ex) {
+            return new java.math.BigInteger(raw);
+        }
+    }
+
+    private static void writeFastJsonValue(Object v, StringBuilder sb) {
+        if (v == null) {
+            sb.append("null");
+        } else if (v instanceof String) {
+            writeFastJsonString((String) v, sb);
+        } else if (v instanceof Double) {
+            double d = (Double) v;
+            if (Double.isNaN(d) || Double.isInfinite(d)) {
+                sb.append("null");
+            } else {
+                String s = Double.toString(d);
+                if (s.endsWith(".0")) s = s.substring(0, s.length() - 2);
+                sb.append(s);
+            }
+        } else if (v instanceof Number || v instanceof Boolean) {
+            sb.append(v.toString());
+        } else if (v instanceof Map) {
+            sb.append('{');
+            boolean first = true;
+            for (Map.Entry<?, ?> e : ((Map<?, ?>) v).entrySet()) {
+                if (!first) sb.append(',');
+                first = false;
+                writeFastJsonString(String.valueOf(e.getKey()), sb);
+                sb.append(':');
+                writeFastJsonValue(e.getValue(), sb);
+            }
+            sb.append('}');
+        } else if (v instanceof List) {
+            sb.append('[');
+            boolean first = true;
+            for (Object c : (List<?>) v) {
+                if (!first) sb.append(',');
+                first = false;
+                writeFastJsonValue(c, sb);
+            }
+            sb.append(']');
+        }
+    }
+
+    /** 官 SerializeWriter 双引号串转义（与 HkJsRuntime.writeFastJsonString 同文）。 */
+    private static void writeFastJsonString(String s, StringBuilder sb) {
+        final char[] DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7',
+                '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+        sb.append('"');
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '"': sb.append("\\\""); break;
+                case '\\': sb.append("\\\\"); break;
+                case '\b': sb.append("\\b"); break;
+                case '\t': sb.append("\\t"); break;
+                case '\n': sb.append("\\n"); break;
+                case '\f': sb.append("\\f"); break;
+                case '\r': sb.append("\\r"); break;
+                case '\u2028': sb.append("\\u2028"); break;
+                default:
+                    if (c < 0x20 || (c >= 0x7F && c < 0xA0)) {
+                        sb.append("\\u");
+                        sb.append(DIGITS[(c >> 12) & 0xF]);
+                        sb.append(DIGITS[(c >> 8) & 0xF]);
+                        sb.append(DIGITS[(c >> 4) & 0xF]);
+                        sb.append(DIGITS[c & 0xF]);
+                    } else {
+                        sb.append(c);
+                    }
+            }
+        }
+        sb.append('"');
+    }
+
     /**
      * 从 JSON 文本解析规则：解析 → 校验，不落盘。
      *
@@ -337,7 +519,7 @@ public class HkRuleManager {
         }
         HkRule rule;
         try {
-            rule = new Gson().fromJson(t, HkRule.class);
+            rule = parseRuleJson(t);
         } catch (Exception e) {
             throw new IllegalArgumentException("规则 JSON 解析失败：" + e.getMessage());
         }
@@ -377,12 +559,11 @@ public class HkRuleManager {
         try {
             File[] files = getDir().listFiles((d, name) -> name.endsWith(".json"));
             if (files == null) return;
-            Gson gson = new Gson();
             for (File f : files) {
                 if (f.getName().equals(keepName)) continue;
                 try {
                     byte[] bytes = Files.readAllBytes(f.toPath());
-                    HkRule other = gson.fromJson(new String(bytes, StandardCharsets.UTF_8), HkRule.class);
+                    HkRule other = parseRuleJson(new String(bytes, StandardCharsets.UTF_8));
                     if (other != null && title.equals(other.getTitle())) f.delete();
                 } catch (Exception ignored) {
                 }
@@ -1709,7 +1890,6 @@ public class HkRuleManager {
         File dir = getDir();
         File[] files = dir.listFiles((d, name) -> name.endsWith(".json"));
         if (files == null) return list;
-        Gson gson = new Gson();
         // 同标题去重：保留最后落盘（mtime 最新）的那份，平局时标准文件名优先。
         // 旧口径「保留 listFiles 第一个」顺序不确定：目录里只要有同标题旧副本，
         // 就可能一直读旧的——导入新版看着没效果。此处只定取舍，物理清理由 saveRule 做。
@@ -1719,7 +1899,7 @@ public class HkRuleManager {
         for (File f : files) {
             try {
                 byte[] bytes = Files.readAllBytes(f.toPath());
-                HkRule rule = gson.fromJson(new String(bytes, StandardCharsets.UTF_8), HkRule.class);
+                HkRule rule = parseRuleJson(new String(bytes, StandardCharsets.UTF_8));
                 if (rule == null) continue;
                 // 标题脏数据（空/"undefined"/"null"）时用文件名回退，保证 tab 有名可显示
                 if (rule.getTitle().isEmpty()) {
@@ -1772,7 +1952,7 @@ public class HkRuleManager {
         if (!f.exists()) return null;
         try {
             byte[] bytes = Files.readAllBytes(f.toPath());
-            HkRule rule = new Gson().fromJson(new String(bytes, StandardCharsets.UTF_8), HkRule.class);
+            HkRule rule = parseRuleJson(new String(bytes, StandardCharsets.UTF_8));
             if (rule != null) rule.setEnabled(isEnabled(rule.getTitle()));
             return rule;
         } catch (Exception e) {

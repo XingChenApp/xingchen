@@ -11,6 +11,8 @@ import com.github.catvod.net.GlobalProxy;
 import com.github.catvod.net.SourceGate;
 import com.github.catvod.utils.Json;
 import com.google.common.net.HttpHeaders;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -1013,7 +1015,51 @@ public class HkHttp {
             com.github.catvod.crawler.SpiderDebug.log("hk", "fetch start host=%s", hu == null ? "?" : hu.host());
         } catch (Throwable ignored) {
         }
-        return callClient(url, req).newCall(getRequest(url, req, Headers.of(req.getHeader()), null));
+        Request request = getRequest(url, req, Headers.of(req.getHeader()), null);
+        logQmSendIfNeeded(request);
+        return callClient(url, req).newCall(request);
+    }
+
+    /**
+     * 七猫验签判别记名（2026-11-14 他点头后落）：qmplaylet 端点的请求出门前记一笔，
+     * 只记头名清单＋sign/qm-params 的长度与 SHA-256 尾 4 位哈希，不记任何明文值。
+     * 判别口径（账 hk-qimao-nodata §收口）：头名缺谁＝组装/运输丢头；哈希与规则
+     * 生成值对不上＝配对断；全对仍回验签失败＝机外路径（重定向剥 authorization）。
+     * 落点在 to/toRaw 共用的出门处，全规则共用、仅按 host 触发，不特判任何规则。
+     */
+    private static void logQmSendIfNeeded(Request request) {
+        try {
+            String host = request.url().host();
+            if (!host.endsWith("qmplaylet.com")) return;
+            Headers h = request.headers();
+            StringBuilder names = new StringBuilder();
+            for (String n : h.names()) {
+                if (names.length() > 0) names.append(',');
+                names.append(n);
+            }
+            String sign = h.get("sign");
+            String qm = h.get("qm-params");
+            com.github.catvod.crawler.SpiderDebug.log("hk",
+                    "qmsend host=%s names=[%s] signLen=%d signH4=%s qmLen=%d qmH4=%s",
+                    host, names.toString(),
+                    sign == null ? -1 : sign.length(), tailHash4(sign),
+                    qm == null ? -1 : qm.length(), tailHash4(qm));
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static String tailHash4(String v) {
+        if (v == null) return "-";
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(v.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : d) sb.append(String.format("%02x", b));
+            String hex = sb.toString();
+            return hex.substring(hex.length() - 4);
+        } catch (Throwable e) {
+            return "-";
+        }
     }
 
     /**
@@ -1029,7 +1075,9 @@ public class HkHttp {
             com.github.catvod.crawler.SpiderDebug.log("hk", "fetch start host=%s", hu == null ? "?" : hu.host());
         } catch (Throwable ignored) {
         }
-        return callClient(url, req).newCall(getRequest(url, req, Headers.of(req.getHeader()), rawBody));
+        Request request = getRequest(url, req, Headers.of(req.getHeader()), rawBody);
+        logQmSendIfNeeded(request);
+        return callClient(url, req).newCall(request);
     }
 
     /** to()/toRaw() 共用的 client 派生：按 Req 的 redirect/timeout 从 clientFor 派生本次调用的 client。 */
@@ -1148,7 +1196,7 @@ public class HkHttp {
 
     private static RequestBody getFormBody(Req req, Map<String, String> formParams) {
         FormBody.Builder builder = new FormBody.Builder();
-        Map<String, String> params = Json.toMap(req.getData());
+        Map<String, String> params = formParamsOf(req);
         formParams.putAll(params);
         for (String key : params.keySet()) builder.add(key, params.get(key));
         return builder.build();
@@ -1157,9 +1205,40 @@ public class HkHttp {
     private static RequestBody getFormDataBody(Req req) {
         String boundary = "--dio-boundary-" + new SecureRandom().nextInt(42949) + new SecureRandom().nextInt(67296);
         MultipartBody.Builder builder = new MultipartBody.Builder(boundary).setType(MultipartBody.FORM);
-        Map<String, String> params = Json.toMap(req.getData());
+        Map<String, String> params = formParamsOf(req);
         for (String key : params.keySet()) builder.addFormDataPart(key, params.get(key));
         return builder.build();
+    }
+
+    /**
+     * 表单参数组装（面②#7，136 批 W2）：Req.data 是 JsonElement（对象，或串化
+     * 的对象——经 catvod Json.safeObject 与旧 Json.toMap 同路取出对象本体，
+     * catvod Json 本体不动）。旧形 Json.toMap 的 safeString 把数组/对象值
+     * 静默吞成 ""、且串值被 trim；官 HttpHelper.buildParamStr 口径（见
+     * HkJsRuntime.buildParamStr 转写）：值是字符串原样、其它转 JSON 文本。
+     * 故逐键按 JsonElement 取值：串原样（不 trim）、数字/布尔保原始词形、
+     * 对象/数组→JSON 文本、null→"null"（buildParamStr 的 GSON.toJson 支
+     * 同形）；data 非对象时与旧形同为空表。键序按 data 原文序（LinkedHashMap）。
+     */
+    private static Map<String, String> formParamsOf(Req req) {
+        Map<String, String> params = new java.util.LinkedHashMap<>();
+        JsonObject obj = Json.safeObject(req.getData());
+        if (obj == null) return params;
+        for (Map.Entry<String, JsonElement> e : obj.entrySet()) {
+            JsonElement v = e.getValue();
+            String text;
+            if (v != null && v.isJsonPrimitive() && v.getAsJsonPrimitive().isString()) {
+                text = v.getAsString();
+            } else if (v == null) {
+                text = "null";
+            } else {
+                // JsonElement.toString 即 Gson 序列化：数字保词形、布尔
+                // true/false、对象/数组为 JSON 文本、JsonNull 为 "null"。
+                text = v.toString();
+            }
+            params.put(e.getKey(), text);
+        }
+        return params;
     }
 
     /**

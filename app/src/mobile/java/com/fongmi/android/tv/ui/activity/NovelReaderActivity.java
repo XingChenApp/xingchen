@@ -67,6 +67,7 @@ public class NovelReaderActivity extends AppCompatActivity {
     private TextView tvStatus;
     private TextView tvBack;
     private TextView tvToc;
+    private TextView tvFav;
     private TextView tvProgress;
     private TextView tvChapterBottom;
     private TextView tvChapterMid;
@@ -245,6 +246,7 @@ public class NovelReaderActivity extends AppCompatActivity {
         if (tvBack != null) tvBack.setTextColor(tfg);
         if (tvStatus != null) tvStatus.setTextColor(tfg);
         if (tvToc != null) tvToc.setTextColor(tfg);
+        if (tvFav != null) tvFav.setTextColor(tfg);
         if (tvContent != null) {
             tvContent.setTextColor(fg());
         }
@@ -291,8 +293,92 @@ public class NovelReaderActivity extends AppCompatActivity {
         toc.setOnClickListener(v -> showChapters());
         tvToc = toc;
         bar.addView(toc);
+
+        // 海阔会话专属收藏动作（2026-11-14 他亲定补齐产生面）：只借本面
+        // 阅读，收藏存海阔自家 HkFavoriteStore，不进阅读自家存档。
+        if (isHkSession()) {
+            TextView fav = new TextView(this);
+            fav.setText("收藏");
+            fav.setTextSize(14);
+            fav.setTextColor(topBarFg());
+            fav.setPadding(dp(12), dp(12), dp(12), dp(12));
+            fav.setOnClickListener(v -> toggleHkFavorite());
+            tvFav = fav;
+            bar.addView(fav);
+            refreshFavLabel();
+        }
         refreshTitle();
         return bar;
+    }
+
+    /**
+     * 本会话的收藏对象：优先按历史键取海阔历史行统一构建（与历史页长按
+     * 同口径）；无痕等无行时按会话自带的历史键拆解构建（站点段＝宿主
+     * 规则名、中间段＝vodId、vodId 命中章址即直达形）。
+     */
+    private com.fongmi.android.tv.api.hk.HkFavorite hkFavoriteProbe() {
+        try {
+            com.fongmi.android.tv.bean.History row =
+                    com.fongmi.android.tv.api.hk.HkHistoryRecorder.findByKey(session.hkHistoryKey);
+            if (row != null) {
+                com.fongmi.android.tv.api.hk.HkFavorite f =
+                        com.fongmi.android.tv.api.hk.HkFavoriteStore.fromHistory(row);
+                if (f != null) return f;
+            }
+            String key = session.hkHistoryKey == null ? "" : session.hkHistoryKey;
+            String sym = com.fongmi.android.tv.db.AppDatabase.SYMBOL;
+            int head = key.indexOf(sym);
+            if (head < 0) return null;
+            String siteKey = key.substring(0, head);
+            if (!siteKey.startsWith(com.fongmi.android.tv.api.hk.HkDetailBridge.KEY_PREFIX)) return null;
+            String rest = key.substring(head + sym.length());
+            int tail = rest.lastIndexOf(sym);
+            String vodId = tail >= 0 ? rest.substring(0, tail) : rest;
+            if (vodId.isEmpty()) return null;
+            com.fongmi.android.tv.api.hk.HkFavorite f =
+                    new com.fongmi.android.tv.api.hk.HkFavorite();
+            f.setRuleTitle(siteKey.substring(
+                    com.fongmi.android.tv.api.hk.HkDetailBridge.KEY_PREFIX.length()));
+            f.setEpisodeUrl(vodId);
+            boolean direct = false;
+            for (ReadingSession.Chapter ch : session.chapters) {
+                if (vodId.equals(ch.url)) {
+                    direct = true;
+                    break;
+                }
+            }
+            f.setDirect(direct);
+            f.setTitle(session.bookTitle);
+            f.setPicUrl(session.coverUrl);
+            f.setGroup(com.fongmi.android.tv.api.hk.HkFavoriteStore.DEFAULT_GROUP);
+            f.setTime(System.currentTimeMillis());
+            com.fongmi.android.tv.api.hk.HkRule rule =
+                    com.fongmi.android.tv.api.hk.HkRuleManager.get().getInstalledRule(f.getRuleTitle());
+            if (rule != null) f.setRuleUrl(rule.getUrl());
+            return f;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private void refreshFavLabel() {
+        if (tvFav == null) return;
+        com.fongmi.android.tv.api.hk.HkFavorite probe = hkFavoriteProbe();
+        boolean fav = probe != null && com.fongmi.android.tv.api.hk.HkFavoriteStore
+                .isFavorite(probe.getRuleTitle(), probe.getEpisodeUrl());
+        tvFav.setText(fav ? "已收藏" : "收藏");
+    }
+
+    private void toggleHkFavorite() {
+        com.fongmi.android.tv.api.hk.HkFavorite probe = hkFavoriteProbe();
+        if (probe == null) {
+            ToastUtil.show(this, "暂时无法收藏", Toast.LENGTH_SHORT);
+            return;
+        }
+        Boolean r = com.fongmi.android.tv.api.hk.HkFavoriteStore.toggle(probe);
+        ToastUtil.show(this, r == null ? "收藏失败" : (r ? "已加入收藏" : "已取消收藏"),
+                Toast.LENGTH_SHORT);
+        refreshFavLabel();
     }
 
     /** 顶栏灰字跟纸色走：浅纸深灰、深纸浅灰（透明底浮于内容上，对比度≥6）。 */
@@ -1118,9 +1204,14 @@ public class NovelReaderActivity extends AppCompatActivity {
             String t = com.fongmi.android.tv.legado.LegadoReading.fetchText(session.legadoKey, ch.url);
             if (!TextUtils.isEmpty(t)) return t;
         }
+        // 聚阅子源：章节自带 @rule= 续段码，走续段求值口现算（不经
+        // 规则 find_rule 抓页——子源正文只能由条目自带码求值得到）
+        if (com.fongmi.android.tv.read.HkJuFetcher.isJuChapter(session, ch)) {
+            return com.fongmi.android.tv.read.HkJuFetcher.fetchText(session, ch);
+        }
         // 海阔：按规则抓正文
         if (!TextUtils.isEmpty(session.ruleTitle) && !TextUtils.isEmpty(ch.url)) {
-            String t = HkNovelFetcher.fetchText(session.ruleTitle, ch.url);
+            String t = HkNovelFetcher.fetchText(session, ch.url);
             if (!TextUtils.isEmpty(t)) return t;
         }
         return "";
@@ -1487,6 +1578,16 @@ public class NovelReaderActivity extends AppCompatActivity {
      * 存进度：滚动位置在主线程取（要读视图），整 blob 的读写串行放单线程后台，
      * 不许在主线程做——记录里带正文快照时 blob 可达数 MB。
      */
+    /** 海阔形会话判据（与 ReadingRouter.openRecord 的记录分类同口径）：
+     *  有规则名、无 py 站点键、无 Legado 键、非本地书。 */
+    private boolean isHkSession() {
+        return session != null
+                && !TextUtils.isEmpty(session.ruleTitle)
+                && TextUtils.isEmpty(session.siteKey)
+                && TextUtils.isEmpty(session.legadoKey)
+                && TextUtils.isEmpty(session.localId);
+    }
+
     private void saveProgress() {
         // 换源已把本书交给新源：旧页退出存进度会按旧源键把旧书架记录写回来，不存
         if (session != null && session.shelfSuperseded) return;
@@ -1500,6 +1601,22 @@ public class NovelReaderActivity extends AppCompatActivity {
         long now = System.currentTimeMillis();
         if (now - lastSaveAt < 2000) return;
         lastSaveAt = now;
+        // 海阔小说不留痕（2026-11-14 他亲定）：进度不写 ReadingStore（阅读
+        // 自家书架从此看不见海阔的书），凭会话带入的历史键回写海阔自家
+        // History——集序＝当前章、position＝章内万分比，与旧记录同口径。
+        // 键缺失的海阔形会话（旧入口漏带）同样不许落回 ReadingStore。
+        if (session != null && isHkSession()) {
+            if (!TextUtils.isEmpty(session.hkHistoryKey)) {
+                try {
+                    com.fongmi.android.tv.api.hk.HkHistoryRecorder.updateProgress(
+                            session.hkHistoryKey, session.bookTitle, session.coverUrl, "",
+                            session.currentChapter().name, session.chapterUrl,
+                            Math.round(fraction * 10000));
+                } catch (Throwable ignored) {
+                }
+            }
+            return;
+        }
         try {
             ReadingStore.Record r = new ReadingStore.Record();
             r.kind = "NOVEL";

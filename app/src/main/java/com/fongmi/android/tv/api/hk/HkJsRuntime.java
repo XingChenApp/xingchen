@@ -100,7 +100,6 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     /** be()/batchExecute 真实实现后置 true，跨小程序内容搜索据此判断引擎是否就绪。 */
     public static volatile boolean BATCH_EXECUTE_READY = false;
     private static final Gson GSON = new Gson();
-    private static final Type MAP_LIST_TYPE = new TypeToken<List<Map<String, Object>>>() {}.getType();
     // 环43（批C3）：8.83 JSEngine.classloaders 同位——findJavaClass/loadJavaClass 经
     // DexClassLoader 加载过的 dex 加载器登记表，loadJavaInstance 未命中应用加载器时
     // 先依次试本表、再新建（官 loadJavaInstance smali 19244 同序）。
@@ -129,9 +128,36 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     private static class HkContextFactory extends ContextFactory {
         @Override
         protected Context makeContext() {
+            // dx 装载器安装·路一（官 RhinoAndroidHelper.enterContext 的不变量）：
+            // 官每次求值进门先判 hasGlobal 并 initGlobal(NoSecurityController)，
+            // 全局控制器在位后 JavaAdapter 生成类才走它的 createClassLoader
+            // （＝AndroidClassLoader/dx 翻译路）。咱家 enterRhino 镜像此前零调用
+            // 方、控制器从未装上，hk-dx.dex 与 HkAndroidClassLoader 全是死代码
+            // （面④普查 C3 定根）。装点收在 makeContext：本工厂是全进程唯一
+            // ContextFactory，任何 Context 的诞生都过此点，与官「有求值即已
+            // 装」同不变量；hasGlobal 判在前、双检锁内安装，只装一次。
+            installSecurityControllerOnce();
             Context cx = super.makeContext();
             cx.setInstructionObserverThreshold(10_000);
             return cx;
+        }
+
+        // dx 装载器安装·路二（官 AndroidContextFactory.createClassLoader
+        // 覆写，smali:38-54）：无全局控制器时 Context.createClassLoader 落
+        // 工厂本法，官直回 AndroidClassLoader(parent, cacheDir)；咱家
+        // HkAndroidClassLoader 单参构造自管缓存目录（面④ C2 本体同构已验）。
+        @Override
+        protected GeneratedClassLoader createClassLoader(ClassLoader parent) {
+            return new HkAndroidClassLoader(parent);
+        }
+
+        private static void installSecurityControllerOnce() {
+            if (SecurityController.hasGlobal()) return;
+            synchronized (HkContextFactory.class) {
+                if (!SecurityController.hasGlobal()) {
+                    SecurityController.initGlobal(new HkNoSecurityController());
+                }
+            }
         }
 
         @Override
@@ -313,6 +339,83 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
      * 即全进程一表、纯内存不落盘；putVar 系用裸键、putMyVar 系用
      * ruleTitle@key 共用此表。咱家运行时按规则多实例，故收成静态一表。 */
     private static final Map<String, String> varMap = new java.util.concurrent.ConcurrentHashMap<>();
+    /** 同规则函数库台账（懒发延续，2026-11-14 他亲令「补齐」，账
+     * hk-getobjcode-recheck-20261114 §6–§9）：规则在 parse/详情等发里经裸
+     * require（require0 家族把库代码评进当发全局的那几路：require 桥三路
+     * ＋requireCache 回调）装进全局的库源码，按规则标题分账、按首装序存、
+     * 按内容 md5 去重。懒发（evalRawInFreshScope）在 setContext 后、正文
+     * 前按序回放进本发 scope，使同一规则先前各发装过的顶层函数声明在本
+     * 发可见（聚阅次元方舟懒发裸调 getObjCode 案：其定义靠详情发里
+     * $.require('jiekou')→SrcJuMethod2→裸 require 装进详情发全局，鲜发
+     * 隔离下懒发恒缺位）。进程级静态一表，与 varMap 同级。不许硬编码任何
+     * 函数/库名、不许按规则特判：捕获只认通道（require0 家族评入点），
+     * 回放只认账里有无。方向单向：parse/详情/搜索/图片只喂账不回放，
+     * 懒方向（evalLazy/evalLazyDry/动作探针共用装配）才消费；键是标题、
+     * 不跨规则串。单规则封顶 32 条／合计 2MB，超限停收（内存卫生）。 */
+    private static final Map<String, List<String>> LIB_CARRY =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, Set<String>> LIB_CARRY_KEYS =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private static final int LIB_CARRY_MAX_PER_RULE = 32;
+    private static final int LIB_CARRY_MAX_CHARS = 2_000_000;
+
+    /** require0 家族把库代码评进当发全局之前记一笔账（只记源码本体，
+     * 记账成败不影响评入本身）。须在 JS 串行段内调用（桥回调本然）。 */
+    private void captureLibCarry(String code) {
+        try {
+            if (code == null || code.isEmpty()) return;
+            HkRule r = rule;
+            if (r == null) return;
+            String title = r.getTitle();
+            if (title == null || title.isEmpty()) return;
+            Set<String> keys = LIB_CARRY_KEYS.computeIfAbsent(title,
+                    k -> java.util.Collections.synchronizedSet(new java.util.HashSet<>()));
+            String key = md5(code);
+            synchronized (keys) {
+                if (keys.contains(key)) return;
+                List<String> list = LIB_CARRY.computeIfAbsent(title,
+                        k -> java.util.Collections.synchronizedList(new ArrayList<>()));
+                synchronized (list) {
+                    int total = code.length();
+                    for (String s : list) total += s.length();
+                    if (list.size() >= LIB_CARRY_MAX_PER_RULE || total > LIB_CARRY_MAX_CHARS) return;
+                    list.add(code);
+                }
+                keys.add(key);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** 懒发回放：把本规则台账按首装序逐条评入本发 scope。逐条吞错留痕
+     * 续跑——某条库的顶层若依赖本发没有的发别状态，只少它自己的声明，
+     * 不许连坐整发（官新版 scope 复用形本无重演；重演是咱家鲜发隔离下
+     * 的等价补法）。无账/异规则天然空过。 */
+    private void replayLibCarry(Scriptable target) {
+        try {
+            HkRule r = rule;
+            if (r == null || target == null) return;
+            String title = r.getTitle();
+            if (title == null || title.isEmpty()) return;
+            List<String> list = LIB_CARRY.get(title);
+            if (list == null) return;
+            List<String> snapshot;
+            synchronized (list) {
+                if (list.isEmpty()) return;
+                snapshot = new ArrayList<>(list);
+            }
+            for (String code : snapshot) {
+                try {
+                    evalIntoScope(target, code, "hk-libcarry");
+                } catch (Throwable t) {
+                    com.github.catvod.crawler.SpiderDebug.log("hk",
+                            "libcarry replay failed rule=%s err=%s", title, String.valueOf(t.getMessage()));
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     private final List<HkItem> results;
     /** 明细原始条目收集（parseDetailRaw 用，保留 line/col_type 等扩展字段）。 */
     private final List<Map<String, String>> rawResults = new ArrayList<>();
@@ -895,6 +998,14 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
      * 而不是默认的 pageUrl。set 后仅下一次 evalLazy 生效，读后清零。
      */
     private volatile String nextInputOverride;
+    /**
+     * 下一次 lazy 求值的 MY_POSITION 一次性值（face1#4）：官 LazyRuleParser
+     * 的 position 由点击位传入、parse 无 position 形时缺省 -1（其 parse
+     * 重载缺省实参逐字 -1）。主路 evalLazy 签名无 position 位，照
+     * nextInputOverride 的一次性通道形由宿主在求值前置入、evalRaw 读后
+     * 复位 -1；无人置入时恒 -1，与官缺省同值。
+     */
+    private volatile int nextLazyPosition = -1;
     /** JS 定时器（setTimeout/setInterval）：id → ScheduledFuture；回调统一提交回 JS 单线程执行。 */
     private final Map<Integer, ScheduledFuture<?>> jsTimers = new HashMap<>();
     private final ScheduledExecutorService timerScheduler = Executors.newScheduledThreadPool(1);
@@ -2158,7 +2269,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
      * 无自由 importClass/importPackage，与官鲜 scope 探针同形）＋整套 API
      * 注册＋_globalMap（与图片 scope 共用同一张进程表 imageGlobalMap，跨发
      * 官道）/rc4/javaContext/javaLoader＋initRequire（类级单例＋单基址）＋
-     * 每发评 allFunctions、CryptoJS、RequireUtils 嫁接段、Hikerurl.js。
+     * 每发评 allFunctions、RequireUtils 嫁接段、Hikerurl.js（CryptoJS
+     * 不预评、只 getCryptoJS() 按需，face1#10）。
      * 自造别名 globalMap0 随本批退役、不进鲜 scope（官只有 _globalMap）；
      * _base64 由 registerApi 装 HkMyBase64（记名适配，与官 put 名同物异）。
      * 调用点＝各自主路入口的 arm 处（parseListInternal/parseSearch/
@@ -2179,7 +2291,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         ScriptableObject.putProperty(fresh, "javaLoader",
                 Context.javaToJS(HkJsRuntime.class.getClassLoader(), fresh));
         // 环19 复核订正6：装配段失败即本发失败（官装配失败同形）——
-        // initRequire/CryptoJS/RequireUtils 嫁接/Hikerurl 任一评入失败或资产
+        // initRequire/RequireUtils 嫁接/Hikerurl 任一评入失败或资产
         // 缺失都直接抛出，不许静默缺 requirejs 或 $ 继续跑本发。
         initRequire(rhinoCx, fresh);
         installJavaAdapterShim(fresh);
@@ -2203,9 +2315,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         if (allFunctions != null && !allFunctions.isEmpty()) {
             evalIntoScope(fresh, allFunctions, "hk-allfunctions");
         }
-        String cryptoJs = loadAsset("aes.js");
-        if (TextUtils.isEmpty(cryptoJs)) throw new IllegalStateException("assembleFreshScope: aes.js asset missing");
-        evalIntoScope(fresh, cryptoJs, "hk-plugin");
+        // face1#10 对官：CryptoJS（aes.js）官任何域都不预评、只经
+        // getCryptoJS() 按需供给（咱家桥法在 registerApi 的 getCryptoJS，
+        // 回 aes.js 源码、规则 eval 后自用）。旧形每发预评＋缺资产即抛
+        // 整发作废，两头都与官分叉，整支摘除。
         evalIntoScope(fresh,
             "var com = (typeof com !== 'undefined') ? com : {};\n" +
             "com.example = com.example || {};\n" +
@@ -2223,6 +2336,43 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // config.<规则设置> 是规则面可见状态：旧常驻 scope 由 init 的 loadConfig
         // 挂入，鲜 scope 每发同挂当前绑定规则的那份（文件为跨发官道、值随发读）。
         loadConfigInto(fresh);
+        // goPreRule 发火（账 hk-getobjcode-recheck-20261114 §8 记名真缺）：
+        // 官每发 getMyRule 尾巴在 MY_RULE 立后第二遍 eval(getJsPlugin())，
+        // Hikerurl IIFE 尾 goPreRule 读 MY_RULE.preRule 的 @include 段逐行
+        // 装载（聚阅懒发即经此装 importGM→globalmap 的 GM）。咱家旧形
+        // Hikerurl 只在装配期评一遍、其时 MY_RULE 未入 scope，守卫恒空转，
+        // @include 装载在任何鲜发都不经此路发火。照官两遍形补第二遍：
+        // 先按 setContext 同式把 MY_RULE 置进本 scope（setContext 随后以
+        // 同值覆写、无冲突，与 MY_TICKET 装配先置同例），再评一遍
+        // Hikerurl.js。评入失败按装配既有纪律抛出（本发失败）。
+        try {
+            ScriptableObject.putProperty(fresh, "MY_RULE", parseJson(myRuleJson(rule)));
+        } catch (Throwable e) {
+            ScriptableObject.putProperty(fresh, "MY_RULE", rhinoCx.newObject(fresh));
+        }
+        evalIntoScope(fresh, hikerUrlJs, "hk-plugin");
+        // face1#8 尾评归位（簇3）：官串序＝allFunctions（串尾
+        // eval(getJsPlugin())）→getMyRule 尾双评（eval(getJsPlugin())＋
+        // eval(getJsLazyPlugin())）→前缀→正文。咱家装配对位：allFunctions
+        // 评后直评 Hikerurl.js 一遍即串尾评的承载位（串本体不拼尾评——
+        // Hikerurl 的 $require IIFE 装配期即读 RequireUtils 嫁接桩，尾评
+        // 若随 allFunctions 串在嫁接前跑必 ReferenceError，官无嫁接因其
+        // 为真 Java 类）；上方第二遍 Hikerurl 即 getMyRule 尾第一评
+        // （⑩-2）；此处补尾第二评 plugin.js（getJsLazyPlugin 本体），
+        // 不再搭首个 evalJs 的 ensurePluginIn 便车。plugin.js 首行改名支
+        // 读 MY_RULE＋_displayName：MY_RULE 已由上块置入，_displayName
+        // 照 setContext 同口径先置（setContext 随后同值覆写、无冲突），
+        // 与官 getMyRule 串内「MY_RULE＋_displayName 先于尾评」同序。
+        // 相碰：ensurePluginIn 以 storage0 在位为凭跳过——本发后续
+        // evalJs 不再重评 plugin.js，每发仍恰一遍（环20 双评防护不破）；
+        // parse/搜索正文头既有 eval(getJsPlugin()) 重评（环19/20）不动，
+        // Hikerurl 每发总评数 parse/搜索 3 遍、lazy/详情 2 遍（官 2 遍，
+        // 多出的一遍是正文头重评的既有成本，goPreRule 重复发火终态
+        // 一致，记名接受）；LIB_CARRY 回放自此在 plugin 已评入的环境
+        // 跑（与官正文期环境同形）。评入失败经 ensurePluginIn 直穿，
+        // 本发装配失败显形（与官串内 eval 失败同终局）。
+        putDisplayNameInto(fresh);
+        ensurePluginIn(fresh);
         return fresh;
     }
 
@@ -3233,7 +3383,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
 
     /**
      * 按当前页规则重绑（块一 W3 接缝）：宿主每次取常驻运行时求值前调用，
-     * 使 setContext 的 MY_RULE/MY_NAME/MY_HEADERS、findPageCode、handlePageRequest
+     * 使 setContext 的 MY_RULE/MY_HEADERS、findPageCode、handlePageRequest
      * 读到的恒是当前页规则而非实例创建时规则。与 8.83「引擎无规则字段、
      * 上下文随页现拼」等价。变量表/作用域等进程级状态不随重绑重置（同 title 同表，
      * 与 8.83 单例语义一致）。
@@ -3655,11 +3805,12 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         putFunction("toast", args -> {
             final String msg = args != null && args.length > 0 ? argStr(args[0]) : "";
             Logger.t(TAG).d("toast: %s", msg);
-            try {
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(() ->
-                        ToastUtil.show(App.get(), msg, android.widget.Toast.LENGTH_SHORT));
-            } catch (Throwable ignored) {
-            }
+            // 照官：JSEngine.toast 投 ToastEvent 由宿主面承接（官 FilmListActivity
+            // .onToast：isOnPause 丢弃＋showErrorMsg 错误式呈现）；旧形直调
+            // ToastUtil 无宿主暂停门、被盖页求值照样弹到别页（面⑤ A7）。
+            // 咱家承接点在 HkArticleFragment.onToastEvent（落点迁移同 A1-A5）。
+            org.greenrobot.eventbus.EventBus.getDefault().post(
+                    new com.fongmi.android.tv.api.hk.event.home.ToastEvent(msg));
             return null;
         });
         putFunction("log", args -> {
@@ -4014,6 +4165,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             String libUrl = argStr(args[0]);
             String code = loadLibLocal(libUrl);
             if (code != null) {
+                captureLibCarry(code);
                 return evalJsInScope(cx, callerScope, code, "hk-plugin");
             }
             if (libUrl != null && (libUrl.startsWith("http")
@@ -4026,6 +4178,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     @Override
                     public Object call(Context c, Scriptable s, Scriptable t, Object[] a) {
                         if (a == null || a.length == 0 || a[0] == null) return null;
+                        captureLibCarry(String.valueOf(a[0]));
                         return evalJsInScope(cx, callerScope, String.valueOf(a[0]), "hk-plugin");
                     }
                 };
@@ -4046,6 +4199,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                         libUrl, rule == null ? "" : rule.getTitle());
                 return null;
             }
+            captureLibCarry(code);
             return evalJsInScope(cx, callerScope, code, "hk-plugin");
         });
 
@@ -5082,8 +5236,16 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // MY_INDEX 与 js、input=选中标题回求值。第九阶段接线：解析走本仓
         // HkDetailBridge.SelectExtra（与条目点击路共用），post ShowSelectOptionsEvent，
         // 消费方 HkArticleFragment.onShowSelectOptions 弹 HkCenterListPopup 回求值。
-        // 官 canTouchUI 门咱家无对应面，记名。
         putFunction("showSelectOptions", args -> {
+            // face4 D3a 对官门：官本体（JSEngine.smali:25816）首步即
+            // canTouchUI(getRuleTitle(getString(ruleTitleKey)),
+            // "showSelectOptions")——二参形、200ms 窗（canTouchUI 二参
+            // 本体 smali:1711 恒转三参 0xc8；旧注记的「2 秒窗＋栈顶判」
+            // 在官包无据、此以 smali 为准订正），不过门直接 return、
+            // 不解析不 post。咱家隐参解析照 var/item 家族同口走
+            // resolveRuleTitle（包装路票据还原、直名路缺位补当前标题）。
+            if (!canTouchUI(resolveRuleTitle(args != null && args.length > 1 ? getString(args[1]) : null),
+                    "showSelectOptions")) return null;
             try {
                 if (args == null || args.length == 0 || args[0] == null) return null;
                 String json = stringifyArg(args[0]);
@@ -5096,9 +5258,8 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 // 环 25-5（硬门审计 B）：官对 JSONObject 入参无条件 toSelectExtra 后
                 // post、双空也发事件（弹窗空列表形）；旧形的双空门拦截把事件吞掉、
                 // 与官分叉，删。options 首项为对象时整组迁 options2、options 置空，
-                // 消费端走 options2 支（第九阶段复核订正，与本项不冲突）。官另有
-                // canTouchUI 频控门（2 秒窗＋Activity 栈顶判），咱家无对应面——
-                // 只记名不落（审计边界明定）。
+                // 消费端走 options2 支（第九阶段复核订正，与本项不冲突）。官
+                // canTouchUI 频控门已在本法首步落（face4 D3a，见上注）。
                 com.fongmi.android.tv.api.hk.event.rule.ShowSelectOptionsEvent ev =
                         new com.fongmi.android.tv.api.hk.event.rule.ShowSelectOptionsEvent();
                 ev.setTitle(extra.title);
@@ -5154,38 +5315,63 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         });
         // _findItem(id)：8.83（JSEngine.java:1280）按 id 查当前条目列表（ItemFindEvent 机制），
         // 找到返回条目对象、找不到 null。星辰旧实现恒 ""。
-        // 条目来源用运行时现有的当前列表持有处 results（id 存 extra.id，见 _findItemsByCls 同源）。
+        // 条目来源＝页面当前条目表、经 ItemFindEvent 由订阅方应答（F3，
+        // 见法内注；旧直读 results 工作表形已摘）。
         // returnType=JSON：原版桥接层 JSON.parse 后是真 JS 对象；此处把 Map 经 parseJson 转成
         // 带原型的真对象（1.3.42 UU 案同图），不用 Rhino 的 NativeJavaObject 包装。
         putFunction("_findItem", args -> {
-            // 环30：非串参抛官文案（JE findItem 格式门）；未命中回 null 与官
-            // "null" 串同形。表源（工作表 vs 官 adapter 表）与 3 秒时延差记名维持（D30-5）。
+            // 环30：非串参抛官文案（JE findItem 格式门），保留不动。
             if (args == null || args.length == 0 || !(argsNativeObjectAdjust(args[0]) instanceof String))
                 throw new RuntimeException("findItem：格式有误，请传入ID字符串");
             String id = (String) argsNativeObjectAdjust(args[0]);
-            for (HkItem it : currentItems()) {
-                if (id.equals(it.getExtra("id"))) {
-                    return parseJson(GSON.toJson(itemToFullMap(it)));
-                }
+            // F3 对官本体（JSEngine.smali:10030 _findItem）：不再直读咱家
+            // 工作表——建 ItemFindEvent post 到 EventBus.getDefault()
+            // （与本类其余事件同一总线、HkArticleFragment 订阅同一总线），
+            // 在 latch 上等应答，官时延口径 3 秒（smali:10049 恒 0x3
+            // SECONDS；D30-5 旧记名差由此销）。订阅方按 id 查页面当前
+            // 条目表、命中写 result 后 countDown；无订阅/未命中超时后
+            // result 仍 null、回 null 与官 "null" 串同形。命中仍走既有
+            // itemToFullMap+parseJson 转换回 JS 对象（returnType=JSON 同形）。
+            com.fongmi.android.tv.api.hk.event.rule.ItemFindEvent findEv =
+                    new com.fongmi.android.tv.api.hk.event.rule.ItemFindEvent(id);
+            EventBus.getDefault().post(findEv);
+            try {
+                findEv.latch.await(3, TimeUnit.SECONDS);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
             }
-            return null;
+            HkItem found = findEv.result;
+            if (found == null) return null;
+            return parseJson(GSON.toJson(itemToFullMap(found)));
         });
         // findItemsByCls/deleteItemByCls：按条目 extra.cls 匹配当前已收集结果
         // B35：8.83 _findItemsByCls 回 ArticleList 完整序列化（含 content/extra/type 等），此处按 HkItem 现有字段补齐
         // returnType=JSON：原版桥接层 JSON.parse 后是真数组，此处走 parseJson（1.3.42 UU 案同图）。
-        // 环30（D30-5）：判据改官 hasCls 整词包含（旧形等值匹配，聚阅多值 cls
-        // 'Juloadlist loading_gif' 恒回空）；非串参抛官文案；无命中回 null
-        // （官 UI 空结果不 countDown、引擎等满后回 "null" 串、桥 JSON.parse 成
-        // null——咱家表源是工作表、无 3 秒等待，时延与表源差记名维持）。
+        // 环30（D30-5）：判据为官 hasCls 整词包含、非串参抛官文案——两件
+        // 随 F4 事件化后落在订阅方（HkArticleFragment 按 cls 查页面表时
+        // 同判据），本法保留非串参格式门；无命中回 null（官 UI 空结果不
+        // countDown、引擎等满 3 秒后回 "null" 串、桥 JSON.parse 成 null）。
         putFunction("_findItemsByCls", args -> {
             if (args == null || args.length == 0 || !(argsNativeObjectAdjust(args[0]) instanceof String))
                 throw new RuntimeException("findItemsByCls：格式有误，请传入cls字符串");
             String cls = (String) argsNativeObjectAdjust(args[0]);
-            List<Map<String, Object>> out = new ArrayList<>();
-            for (HkItem it : currentItems()) {
-                if (hasCls(it.getExtra("cls"), cls)) out.add(itemToFullMap(it));
+            // F4 对官本体（JSEngine.smali _findItemsByCls）：同 _findItem
+            // 形——建 ClsItemsFindEvent post EventBus.getDefault()、latch
+            // 等 3 秒；订阅方命中集逐个加进 results 后 countDown。本法
+            // 不再直读工作表（D30-5 表源与时延差由此销）。
+            com.fongmi.android.tv.api.hk.event.rule.ClsItemsFindEvent findEv =
+                    new com.fongmi.android.tv.api.hk.event.rule.ClsItemsFindEvent(cls);
+            EventBus.getDefault().post(findEv);
+            try {
+                findEv.latch.await(3, TimeUnit.SECONDS);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
             }
-            if (out.isEmpty()) return null;
+            if (findEv.results.isEmpty()) return null;
+            List<Map<String, Object>> out = new ArrayList<>();
+            for (HkItem it : findEv.results) {
+                out.add(itemToFullMap(it));
+            }
             return parseJson(GSON.toJson(out));
         });
 
@@ -5288,12 +5474,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // openAppIntent(p, a, param, ruleTitleKey)：8.83 JSEngine.openAppIntent
         // （JE:20047 本体＋$16 确认＋$15 拼装，账 hk-fullchain-dig2 §3）。
         // 门序照官 §3.2：先取 ruleTitle，空→直回 Boolean.FALSE（不验
-        // p/a、不走任何门，C4 复核订正补落）；其后定型；宿主口径保留咱家
-        // HkAuthManager 授权门（已裁记名）——官的 canTouchUI 频控
-        // （1000ms、通过即占槽）与 $16 每回确认弹窗两件由授权门替代，
-        // 不落；官 latch 1 分钟是本体等 $16 确认
-        // 结果的结果锁存（await 后读 VarHolder），属确认机器、随门替代记名，
-        // 咱家授权门自带 120 秒 latch 同位承接。其余照 $15 原文落：
+        // p/a、不走任何门，C4 复核订正补落）；其后定型；授权门已于 136b
+        // 照官改定（HkAuthManager.checkOpenAppIntent：canTouchUI 1000ms
+        // 频控＋$16 每回确认＋latch 1 分钟结果锁存、无持久授权），本调用点
+        // 传 pkg 填准确认文案括号段。其余照 $15 原文落：
         // p/a 经 tryGetString 定型（非串抛「参数类型只能是字符串」穿桥成
         // JS 异常、不回 false——官定型在 $16 确认弹窗之前，咱家定型在
         // 标题空支之后、授权门之前，同位）；action 恒
@@ -5310,8 +5494,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             final String cls = hkTryGetString(args != null && args.length > 1 ? args[1] : null);
             try {
                 final boolean[] result = {false};
-                boolean allowed = HkAuthManager.checkAuth(ruleTitle, "openAppIntent",
-                        "打开其他应用", () -> {
+                boolean allowed = HkAuthManager.checkOpenAppIntent(ruleTitle, pkg, () -> {
                             android.content.Intent intent = new android.content.Intent();
                             intent.setAction(android.content.Intent.ACTION_VIEW);
                             intent.addFlags(0x10008000);
@@ -5376,9 +5559,18 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     if (a1 instanceof CharSequence) key = a1.toString();
                 }
                 if (TextUtils.isEmpty(key)) return null;
+                // 核查 136b P1 接通：确认后落点＝HkPublishHelper.publishRule
+                // （136b 簇1 已转写官 PublishHelper 全流程：publish_code 为空
+                // 走说明弹窗、余后台 parsePublishRule 求值用户 JS 自行提交，
+                // 官无写死后端）。规则对象经 argsNativeObjectAdjust 转 Java
+                // 值（与官 getMyRule(该对象) 的序列化口径对位）。
+                final Object ruleObj = args != null && args.length > 0
+                        && args[0] != null && !(args[0] instanceof Undefined)
+                        ? argsNativeObjectAdjust(args[0]) : null;
                 HkAuthManager.checkAuth(key, "publishRule",
                         "提交上传规则或口令到云仓库", () -> {
-                            // 官：确认后上传规则/口令到云仓库；星辰无对应后端，落点记名未落。
+                            HkPublishHelper.publishRule(
+                                    com.fongmi.android.tv.ai.AiActivityTracker.top(), ruleObj);
                         });
                 return null;
             } catch (Throwable e) {
@@ -5390,9 +5582,31 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // 敏感操作，需用户授权。options 为 JSON（含 dns/hosts 等）。
         putFunction("registerDNS", args -> {
             try {
-                String ruleTitle = rule != null ? rule.getTitle() : "";
-                boolean allowed = HkAuthManager.checkAuth(ruleTitle, "registerDNS",
-                        "设置自定义 DNS", () -> {
+                // 136b 改官链（JE:22478）：title 走 resolveRuleTitle(第二参)；
+                // getAuth→DISAGREE 直拒、NONE→post AuthBridgeEvent（标题＝
+                // 「自定义DNS解析（{options 键以、拼接}）」）→await 1 分钟→
+                // 回读仅 AGREE 执行。旧 checkAuth 直问＋SP 持久授权摘除。
+                String ruleTitle = resolveRuleTitle(args != null && args.length > 1
+                        ? getString(args[1]) : null);
+                String dnsKeys = "";
+                try {
+                    if (args != null && args.length > 0 && args[0] != null) {
+                        String j = stringifyArg(args[0]);
+                        if (j != null && j.startsWith("{")) {
+                            java.util.Iterator<String> kit = new org.json.JSONObject(j).keys();
+                            StringBuilder sb = new StringBuilder();
+                            while (kit.hasNext()) {
+                                if (sb.length() > 0) sb.append("、");
+                                sb.append(kit.next());
+                            }
+                            dnsKeys = sb.toString();
+                        }
+                    }
+                } catch (Throwable ignored) {
+                }
+                boolean allowed = authGate(ruleTitle, "registerDNS",
+                        "自定义DNS解析（" + dnsKeys + "）");
+                if (allowed) {
                             try {
                                 if (args != null && args.length > 0 && args[0] != null) {
                                     // 8.83 JSEngine.registerDNS → DohProvidersKt.registerDNS：
@@ -5414,12 +5628,12 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                                     }
                                 }
                             } catch (Throwable e) {
-                                // checkAuth 自吞 Runnable 异常，抛不出去：走用户
-                                // 可见提示＋错误日志，不许 DNS 没注册上还装作已注册。
+                                // 执行体异常走用户可见提示＋错误日志，不许 DNS
+                                // 没注册上还装作已注册。
                                 Logger.t(TAG).e(e, "registerDNS apply failed");
                                 hkToast("DNS 注册失败");
                             }
-                        });
+                }
                 return null;
             } catch (Throwable e) {
                 Logger.t(TAG).e(e, "registerDNS failed");
@@ -5430,18 +5644,18 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // 高敏感操作（可执行任意代码），需用户明确授权。
         putFunction("findJavaClass", args -> {
             try {
-                String ruleTitle = rule != null ? rule.getTitle() : "";
-                final Object[] result = {null};
-                boolean allowed = HkAuthManager.checkAuth(ruleTitle, "findJavaClass",
-                        "加载 Java 类", () -> {
-                            try {
-                                // 官 findJavaClass 以 Z=1 调 loadJavaInstance：回 Class 本身
-                                result[0] = resolveJavaClass(args, true);
-                            } catch (Throwable e) {
-                                Logger.t(TAG).d("findJavaClass failed: %s", e.getMessage());
-                            }
-                        });
-                return allowed ? result[0] : null;
+                // 136b 改官链（JE:16049）：title 走 resolveRuleTitle(第四参)；
+                // method 恒 "loadJavaClass"（与 loadJavaClass 共用一条裁决）；
+                // DISAGREE 直回 null、NONE→post AuthBridgeEvent（标题＝
+                // 「动态加载Java代码（{p}）」）→await 1 分钟→回读仅 AGREE 执行。
+                String ruleTitle = resolveRuleTitle(args != null && args.length > 3
+                        ? getString(args[3]) : null);
+                boolean allowed = authGate(ruleTitle, "loadJavaClass",
+                        "动态加载Java代码（" + (args != null && args.length > 0
+                                ? argStr(args[0]) : "") + "）");
+                if (!allowed) return null;
+                // 官 findJavaClass 以 Z=1 调 loadJavaInstance：回 Class 本身
+                return resolveJavaClass(args, true);
             } catch (Throwable e) {
                 Logger.t(TAG).d("findJavaClass failed: %s", e.getMessage());
                 return null;
@@ -5451,18 +5665,16 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // 高敏感操作（可执行任意代码），需用户明确授权。
         putFunction("loadJavaClass", args -> {
             try {
-                String ruleTitle = rule != null ? rule.getTitle() : "";
-                final Object[] result = {null};
-                boolean allowed = HkAuthManager.checkAuth(ruleTitle, "loadJavaClass",
-                        "从 URL 加载 Java 类", () -> {
-                            try {
-                                // 官 loadJavaClass 以 Z=0 调 loadJavaInstance：回实例（回落条件见 newInstanceOrClass）
-                                result[0] = resolveJavaClass(args, false);
-                            } catch (Throwable e) {
-                                Logger.t(TAG).d("loadJavaClass failed: %s", e.getMessage());
-                            }
-                        });
-                return allowed ? result[0] : null;
+                // 136b 改官链（JE:19007）：与 findJavaClass 同链同 method，
+                // 仅执行体 Z=0（回实例）。
+                String ruleTitle = resolveRuleTitle(args != null && args.length > 3
+                        ? getString(args[3]) : null);
+                boolean allowed = authGate(ruleTitle, "loadJavaClass",
+                        "动态加载Java代码（" + (args != null && args.length > 0
+                                ? argStr(args[0]) : "") + "）");
+                if (!allowed) return null;
+                // 官 loadJavaClass 以 Z=0 调 loadJavaInstance：回实例（回落条件见 newInstanceOrClass）
+                return resolveJavaClass(args, false);
             } catch (Throwable e) {
                 Logger.t(TAG).d("loadJavaClass failed: %s", e.getMessage());
                 return null;
@@ -5922,9 +6134,12 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // getMyType()：返回当前求值入口的类型（与 setResult 路由用的口径一致）。
         // 注意与 Java 侧生成注入串的 getMyType(String) 同名异义——那个只拼 var MY_TYPE。
         putFunction("getMyType", args -> currentMyType == null ? "" : currentMyType);
-        stub("getMyCallbackKey", "");
-        stub("getMyInput", "");
-        stub("getMyJs", "");
+        // face1#11 对官：getMyCallbackKey/getMyInput/getMyJs 是官 JSEngine
+        // 的 private 前缀生成器（Java 侧拼串用），JS 域根本无同名函数——
+        // 规则调到应是 ReferenceError。旧形注册成恒回 "" 的空桩＝伪供给、
+        // 行为与官相反，整支摘除（摘前已 grep 全树 assets 与咱家注入串：
+        // plugin.js/Hikerurl.js/其余资产零调用这三名；本类转录段的同名
+        // Java 私有法是拼串生成器、与 JS 注册无关，不受影响）。
         // syncExecute(task)：8.83 JSEngine.syncExecute（smali 26009-26128）真实现。
         // 同步方法；task 为 null/undefined 时 json 为空；argsNativeObjectAdjust(task, true)
         // 转 Map（原版 fastjson JSONObject，本项目等价 Map），取 "func"（BaseFunction）与
@@ -6432,7 +6647,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             // 此前以「星辰无 X5 内核」空实现，网页型规则的高度永远停在默认 240，只剩顶部一小条（2026-10-27 他真机点名）。
             String desc = args != null && args.length > 0 ? argStr(args[0]) : "";
             EventBus.getDefault().post(
-                    new com.fongmi.android.tv.api.hk.event.rule.RefreshX5DescEvent(desc));
+                    new com.fongmi.android.tv.api.hk.event.rule.OnRefreshX5HeightEvent(desc));
             return null;
         });
         putFunction("refreshX5WebView", args -> {
@@ -6685,6 +6900,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 @Override
                 public Object call(Context c, Scriptable s, Scriptable t, Object[] a) {
                     if (a == null || a.length == 0 || a[0] == null) return null;
+                    captureLibCarry(String.valueOf(a[0]));
                     return evalJsInScope(cx, callerScope, String.valueOf(a[0]), "hk-plugin");
                 }
             };
@@ -7387,6 +7603,22 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         sb.append('"');
     }
 
+    /**
+     * face2#2：pages 元素逐键收敛（官 JSONObject.getString 同语义）——
+     * 键缺失/JsonNull 回 null（＝该键不出）；字符串原样；数字保原文词形
+     * （JsonPrimitive 的 LazilyParsedNumber 直存原文，getAsString 不经
+     * Double 化）；布尔回 "true"/"false"；对象/数组回其 JSON 文本。
+     * handlePageRequest 与 findPageCode 两现场共用这一口，不许再经
+     * Map&lt;String,Object&gt; 回读（数字 Double 化＋复合值 Java toString）。
+     */
+    private static String pageFieldString(com.google.gson.JsonObject obj, String key) {
+        if (obj == null || !obj.has(key)) return null;
+        com.google.gson.JsonElement el = obj.get(key);
+        if (el == null || el.isJsonNull()) return null;
+        if (el.isJsonPrimitive()) return el.getAsString();
+        return el.toString();
+    }
+
     private String handlePageRequest(String url) {
         return handlePageRequest(url, null);
     }
@@ -7437,10 +7669,17 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             if (targetRule == null) return "";
             String pagesJson = targetRule.getPages();
             if (!TextUtils.isEmpty(pagesJson)) {
-                List<Map<String, Object>> pages = GSON.fromJson(pagesJson, MAP_LIST_TYPE);
-                if (pages != null) {
-                    for (Map<String, Object> p : pages) {
-                        if (path.equals(String.valueOf(p.get("path")))) {
+                // face2#2 第二现场对官：pages 逐键以 JsonElement 读——旧形
+                // 经 Map<String,Object> 回读后 String.valueOf，复合值出
+                // Java 式 {a=1.0} 垃圾串、数字出 3.0；官 JSONObject
+                // .getString 语义为串原样/数字原词形/复合值回 JSON 文本
+                // （pageFieldString 收敛，两现场共用）。
+                com.google.gson.JsonElement pagesRoot = com.google.gson.JsonParser.parseString(pagesJson);
+                if (pagesRoot != null && pagesRoot.isJsonArray()) {
+                    for (com.google.gson.JsonElement pageEl : pagesRoot.getAsJsonArray()) {
+                        if (!pageEl.isJsonObject()) continue;
+                        com.google.gson.JsonObject p = pageEl.getAsJsonObject();
+                        if (path.equals(pageFieldString(p, "path"))) {
                             // 环10 对官（8.83 fetchByHiker→JSON.toJSONString(pageRule)）：
                             // ArticleListPageRule 可序列化键只有 {col_type,name,parent,
                             // path,rule}——params 与 parentRule 两字段带
@@ -7449,14 +7688,14 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                             // params 与 parentRule 全量（整数经 Map 回读成 Double 数型
                             // 漂移），键集比官宽；改官窄键集：五键非空才出、全串值。
                             Map<String, Object> out = new LinkedHashMap<>();
-                            Object colType = p.get("col_type");
-                            if (colType != null) out.put("col_type", String.valueOf(colType));
-                            Object name = p.get("name");
-                            if (name != null) out.put("name", String.valueOf(name));
+                            String colType = pageFieldString(p, "col_type");
+                            if (colType != null) out.put("col_type", colType);
+                            String name = pageFieldString(p, "name");
+                            if (name != null) out.put("name", name);
                             if (parentTitle != null) out.put("parent", parentTitle);
                             out.put("path", path);
-                            Object ruleVal = p.get("rule");
-                            if (ruleVal != null) out.put("rule", String.valueOf(ruleVal));
+                            String ruleVal = pageFieldString(p, "rule");
+                            if (ruleVal != null) out.put("rule", ruleVal);
                             return GSON.toJson(out);
                         }
                     }
@@ -7494,12 +7733,15 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                         ? baseRule.getPages() : rule.getPages();
             }
             if (TextUtils.isEmpty(pagesJson)) return null;
-            List<Map<String, Object>> pages = GSON.fromJson(pagesJson, MAP_LIST_TYPE);
-            if (pages == null) return null;
-            for (Map<String, Object> p : pages) {
-                if (path.equals(String.valueOf(p.get("path")))) {
-                    Object r = p.get("rule");
-                    return r == null ? null : String.valueOf(r);
+            // face2#2 第二现场对官：同 handlePageRequest，逐键 JsonElement
+            // 读（pageFieldString），摘 Map 回读的 {a=1.0}/3.0 漂移。
+            com.google.gson.JsonElement pagesRoot = com.google.gson.JsonParser.parseString(pagesJson);
+            if (pagesRoot == null || !pagesRoot.isJsonArray()) return null;
+            for (com.google.gson.JsonElement pageEl : pagesRoot.getAsJsonArray()) {
+                if (!pageEl.isJsonObject()) continue;
+                com.google.gson.JsonObject p = pageEl.getAsJsonObject();
+                if (path.equals(pageFieldString(p, "path"))) {
+                    return pageFieldString(p, "rule");
                 }
             }
         } catch (Throwable e) {
@@ -7517,10 +7759,58 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             if (o instanceof Map) return (Map<String, Object>) o;
             String json = o instanceof NativeObject ? jsStringify(o) : String.valueOf(o).trim();
             if (!json.startsWith("{")) return null;
-            return GSON.fromJson(json, new com.google.gson.reflect.TypeToken<Map<String, Object>>() {}.getType());
+            // 数字词形（face2 #4/#5）：不用 Gson Map 路（数字 Double 化），
+            // 走 itemValueFromJson 树转换，口径与条目数组生产同一份。
+            com.google.gson.JsonElement el = com.google.gson.JsonParser.parseString(json);
+            if (el == null || !el.isJsonObject()) return null;
+            return itemObjectFromJson(el.getAsJsonObject());
         } catch (Throwable e) {
             return null;
         }
+    }
+
+    /**
+     * 条目面 Map 生产（face2 #4/#5·形态差）：官 convertToArticleList 全走
+     * fastjson getString——数字保原文词形（123→"123"、大整数不丢精度），
+     * extra 内嵌数字经 toJSONString 同样保词形。咱家旧路 GSON.fromJson
+     * (MAP_LIST_TYPE) 把一切数字读成 Double（123→"123.0"、大整数丢精度、
+     * extra 落盘变 {"id":123.0}，updateItem/_findItem 按 extra.id 锚匹配
+     * 静默不中）。改走 JsonElement 树：数字叶保留 JsonPrimitive（内含
+     * LazilyParsedNumber 原文字面）——str()/stringifyValue 取它即原文，
+     * GSON.toJson 写 extra 时按原始数字落盘。坏 JSON/非数组仍抛
+     * JsonSyntaxException（与旧 fromJson 同终局），JsonNull 回 null。
+     */
+    private static List<Map<String, Object>> itemMapsFromJson(String jsonArray) {
+        com.google.gson.JsonElement el = com.google.gson.JsonParser.parseString(jsonArray);
+        if (el == null || el.isJsonNull()) return null;
+        if (!el.isJsonArray()) throw new com.google.gson.JsonSyntaxException("item list is not a JSON array");
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (com.google.gson.JsonElement e : el.getAsJsonArray()) {
+            if (e != null && e.isJsonObject()) out.add(itemObjectFromJson(e.getAsJsonObject()));
+        }
+        return out;
+    }
+
+    private static Map<String, Object> itemObjectFromJson(com.google.gson.JsonObject obj) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        for (Map.Entry<String, com.google.gson.JsonElement> e : obj.entrySet()) {
+            m.put(e.getKey(), itemValueFromJson(e.getValue()));
+        }
+        return m;
+    }
+
+    private static Object itemValueFromJson(com.google.gson.JsonElement el) {
+        if (el == null || el.isJsonNull()) return null;
+        if (el.isJsonObject()) return itemObjectFromJson(el.getAsJsonObject());
+        if (el.isJsonArray()) {
+            List<Object> list = new ArrayList<>();
+            for (com.google.gson.JsonElement e : el.getAsJsonArray()) list.add(itemValueFromJson(e));
+            return list;
+        }
+        com.google.gson.JsonPrimitive p = el.getAsJsonPrimitive();
+        if (p.isString()) return p.getAsString();
+        if (p.isBoolean()) return p.getAsBoolean();
+        return p; // 数字：保留 JsonPrimitive（原文字面），不当 Double 读
     }
 
     /**
@@ -8180,6 +8470,121 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         m.put(key, value);
         if (!writeKvFile(f, m)) throw new RuntimeException("规则存档写入失败：" + title);
         postRuleModifiedEvent(title);
+    }
+
+    /** 136b：官 getAuth/updateAuth 的规则存在性（官按 title 查 LitePal 规则表）：
+     * 当前规则标题命中且台在，或已装规则表里有此标题。 */
+    private boolean authRuleExists(String title) {
+        if (title == null || title.isEmpty()) return false;
+        if (title.equals(currentRuleTitle())) return rule != null;
+        try {
+            return HkRuleManager.get().getInstalledRule(title) != null;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
+    private java.util.List<com.fongmi.android.tv.api.hk.event.AuthStorageItem> parseAuthItems(String plain) {
+        if (plain == null || plain.isEmpty()) return null;
+        try {
+            java.util.List<com.fongmi.android.tv.api.hk.event.AuthStorageItem> list = GSON.fromJson(plain,
+                    new com.google.gson.reflect.TypeToken<java.util.List<com.fongmi.android.tv.api.hk.event.AuthStorageItem>>() {
+                    }.getType());
+            return list;
+        } catch (Throwable e) {
+            return null;
+        }
+    }
+
+    /** 136b：8.83 JSEngine.getAuth(title, method)（JE:3106）逐支转写——规则不存在
+     * 抛「获取规则失败」；"i--" 时间戳串为 AES 密钥（缺失时以当前毫秒串建键，与官
+     * def 同值即写同支）；"_auth" 空回 AuthStorageItem(method, NONE)；余 aesDecode
+     * （AesUtil 路，即本类 aesUtilCrypt）解出 AuthStorageItem 数组按 method 命中回、
+     * 未命中回 NONE 件。存储载体＝本类 kv 的 "_auth"/"i--" 两键（官 LitePal 规则
+     * item 同位）。 */
+    private com.fongmi.android.tv.api.hk.event.AuthStorageItem getAuth(String title, String method) {
+        if (!authRuleExists(title)) throw new RuntimeException("获取规则失败");
+        String now = String.valueOf(System.currentTimeMillis());
+        String key = getItemNow("i--", now, title);
+        if (now.equals(key)) setItemNow("i--", now, title);
+        String authStr = getItemNow("_auth", "", title);
+        if (authStr == null || authStr.isEmpty()) {
+            return new com.fongmi.android.tv.api.hk.event.AuthStorageItem(method,
+                    com.fongmi.android.tv.api.hk.event.AuthBridgeEvent.AuthResult.NONE);
+        }
+        java.util.List<com.fongmi.android.tv.api.hk.event.AuthStorageItem> list =
+                parseAuthItems(aesUtilCrypt(false, key, authStr));
+        if (list != null) {
+            for (com.fongmi.android.tv.api.hk.event.AuthStorageItem item : list) {
+                if (item != null && method != null && method.equals(item.getMethod())) return item;
+            }
+        }
+        return new com.fongmi.android.tv.api.hk.event.AuthStorageItem(method,
+                com.fongmi.android.tv.api.hk.event.AuthBridgeEvent.AuthResult.NONE);
+    }
+
+    /** 136b：8.83 JSEngine.updateAuth(title, method, result)（JE:26308）逐支转写——
+     * 规则不存在静默返回；命中改 result、未命中追加、空表新建单件表，整表
+     * aesEncode 后 setItemNow("_auth")。宿主授权弹窗的回桥口（HkAuthBridgeHandler
+     * .ResultSink）经 HkListActivity 接到本法。加密失败（aesUtilCrypt 回 null）时
+     * 不落盘只记日志（官该路未定形，防写坏存量表）。 */
+    public void updateAuth(String title, String method,
+                           com.fongmi.android.tv.api.hk.event.AuthBridgeEvent.AuthResult result) {
+        if (!authRuleExists(title)) return;
+        String now = String.valueOf(System.currentTimeMillis());
+        String key = getItemNow("i--", now, title);
+        if (now.equals(key)) setItemNow("i--", now, title);
+        String authStr = getItemNow("_auth", "", title);
+        java.util.List<com.fongmi.android.tv.api.hk.event.AuthStorageItem> list = null;
+        if (authStr != null && !authStr.isEmpty()) {
+            list = parseAuthItems(aesUtilCrypt(false, key, authStr));
+        }
+        java.util.List<com.fongmi.android.tv.api.hk.event.AuthStorageItem> out;
+        if (list != null && !list.isEmpty()) {
+            boolean hit = false;
+            for (com.fongmi.android.tv.api.hk.event.AuthStorageItem item : list) {
+                if (item != null && method != null && method.equals(item.getMethod())) {
+                    item.setResult(result);
+                    hit = true;
+                    break;
+                }
+            }
+            if (!hit) {
+                list.add(new com.fongmi.android.tv.api.hk.event.AuthStorageItem(method, result));
+            }
+            out = list;
+        } else {
+            out = new java.util.ArrayList<>();
+            out.add(new com.fongmi.android.tv.api.hk.event.AuthStorageItem(method, result));
+        }
+        String enc = aesUtilCrypt(true, key, GSON.toJson(out));
+        if (enc == null) {
+            Logger.t(TAG).d("updateAuth encrypt failed title=%s method=%s", title, method);
+            return;
+        }
+        setItemNow("_auth", enc, title);
+    }
+
+    /** 136b：官三法（findJavaClass/loadJavaClass/registerDNS）共用的授权链
+     * （JE:16152/19136/22574 同构）：getAuth→DISAGREE 直拒；NONE→post
+     * AuthBridgeEvent＋await(1, MINUTES)→回读 getAuth→仅 AGREE 放行。 */
+    private boolean authGate(String title, String method, String eventTitle) {
+        com.fongmi.android.tv.api.hk.event.AuthBridgeEvent.AuthResult r =
+                getAuth(title, method).getResult();
+        if (r == com.fongmi.android.tv.api.hk.event.AuthBridgeEvent.AuthResult.DISAGREE) return false;
+        if (r == com.fongmi.android.tv.api.hk.event.AuthBridgeEvent.AuthResult.NONE) {
+            java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+            org.greenrobot.eventbus.EventBus.getDefault().post(
+                    new com.fongmi.android.tv.api.hk.event.AuthBridgeEvent(title, eventTitle, method, latch));
+            try {
+                latch.await(1, java.util.concurrent.TimeUnit.MINUTES);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+            r = getAuth(title, method).getResult();
+        }
+        return r == com.fongmi.android.tv.api.hk.event.AuthBridgeEvent.AuthResult.AGREE;
     }
 
     /** G43 网页桥的 BigTextDO 桶面（BigTextDO.smali getItem:812 / listItems:1317 /
@@ -9403,6 +9808,17 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             rhinoCx = Context.enter();
             rhinoCx.setOptimizationLevel(-1);
             rhinoCx.setLanguageVersion(200);
+            // face1#13 前置：官 JSEngine 构造器即建 allFunctions 串、image
+            // 域 evalJS 与其余三域同串同评；咱家图片单例不走 init()，此串
+            // 此前恒为缺省空串、image 域评无可评。照 init() 同公式在此建
+            // （getAllFunctions 纯反射生成、不依赖规则态，图单例可自建）。
+            try {
+                allFunctions = String.format(getAllFunctions(), HkJsRuntime.class.getName())
+                        + "\n var MY_UA = JSON.parse(getUaObject());\n var MOBILE_UA =  MY_UA.mobileUa;\n var PC_UA = MY_UA.pcUa";
+            } catch (Throwable t) {
+                Logger.t(TAG).e(t, "imageEngine build allFunctions");
+                allFunctions = "";
+            }
             return null;
         });
         try {
@@ -9509,9 +9925,29 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // 前缀串托底，无绑定即抛（此前被 catch 吞成 $ 残缺、只记日志）。
         String imgTicket = generateTicket(ruleTitle);
         ScriptableObject.putProperty(imageScope, "MY_TICKET", imgTicket == null ? "" : imgTicket);
+        // face1#5/#6 对官（官包 evalJS(InputStream) smali:13914 前缀段）：
+        // 每发新 UUID 的 CALLBACK_KEY 与 MY_TYPE='eval'——官以
+        // getMyCallbackKey/getMyType 串拼在正文前，咱家 lazy 路同形是
+        // 「属性先置＋串拼正文前」双写，此处照抄其形：属性在此先置（下方
+        // Hikerurl/plugin 评入期若调 allFunctions 包装函数，callbackKey/
+        // typeKey 覆写读到的就是本发值，与官 getMyRule 尾评插件时两名
+        // 已由前缀串定值同序），串在下方 code 拼装处补。
+        String imgCbKey = genUuid();
+        ScriptableObject.putProperty(imageScope, "CALLBACK_KEY", imgCbKey);
+        ScriptableObject.putProperty(imageScope, "MY_TYPE", "eval");
         long t0 = android.os.SystemClock.elapsedRealtime();
         String code = "";
         try {
+            // face1#13 对官：官 image eval 与 evalJSForObj 同构造——鲜
+            // scope 装配后先整串评 allFunctions（ScriptAPI/method_* 句柄
+            // ＋returnType 整形包装层），再评正文。咱家此前只有
+            // registerApiInto 裸名、整形层不在。此处照 assembleFreshScope
+            // 同路评入（串已由 initImageEngine 按 init 同公式建好）；
+            // 评入失败不内吞——穿到本法终局 catch 记日志回原图，与官
+            // evalJS catch 后回原 input 同终局。
+            if (allFunctions != null && !allFunctions.isEmpty()) {
+                cx.evaluateString(imageScope, allFunctions, "hk-allfunctions", 1, null);
+            }
             // 重求值 Hikerurl.js，确保 $ 完整可用
             try {
                 String hikerUrlJs = loadAsset("Hikerurl.js");
@@ -9533,6 +9969,19 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 Object myRuleObj = cx.evaluateString(imageScope,
                         "(" + myRuleJson(rule) + ")", "myRule", 1, null);
                 ScriptableObject.putProperty(imageScope, "MY_RULE", myRuleObj);
+                // face1#7 对官：_displayName 条件性——官 getMyRule 在
+                // MY_RULE 带 displayName 时才出 const；咱家 parse 域
+                // setContext 的条件放法是「非空才 putProperty」。此处以
+                // 刚装入的 MY_RULE 本体为准：其 displayName 非空才置，
+                // 空/无此键不置（plugin.js 改名支的 typeof 判据由此成立）。
+                try {
+                    Object dn = myRuleObj instanceof Scriptable
+                            ? ScriptableObject.getProperty((Scriptable) myRuleObj, "displayName") : null;
+                    if (dn instanceof String && !TextUtils.isEmpty((String) dn)) {
+                        ScriptableObject.putProperty(imageScope, "_displayName", dn);
+                    }
+                } catch (Throwable ignored) {
+                }
             } catch (Throwable t) {
                 Logger.t(TAG).d("evalImageJs: set MY_RULE failed: %s", t.getMessage());
             }
@@ -9571,7 +10020,23 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 Logger.t(TAG).d("evalImageJs: fileutil shim failed: %s", t.getMessage());
             }
             ScriptableObject.putProperty(imageScope, "input", Context.javaToJS(input, imageScope));
-            code = generateMyHeaders(headers) + getMyUrlJs(urlString) + getMyTitleJs(jsCode, ruleTitle) + ensureDollarShim() + wrapImageJs(jsCode);
+            // face1#5/#6 串形补齐：官前缀序＝getMyRule＋getMyType('eval')
+            // ＋getMyCallbackKey(新 UUID)＋正文；咱家 MY_RULE 已以属性
+            // 先装（见上），此处补后两段串拼在既有前缀之前（与 lazy 路
+            // evalJs(getMyCallbackKey(cbKey)+正文) 同形）。
+            // face1#14 裁定（簇3，语料证据见 fill-136b-c3-scope 分账）：
+            // 官图片重载前缀无 MY_URL/MY_HOME/MY_HEADERS/MY_TITLE 四件；
+            // 咱家旧形多供四件。语料（聚阅全目录）图片求值体逐个核：
+            // MY_URL/MY_HOME/MY_HEADERS 在图片体内零用名（MY_HOME 全库
+            // 唯一命中在 parse 域 httpHandle、MY_HEADERS 全库零命中）
+            // →三件摘除归官形；MY_TITLE 有图片体内用名实证（$().image
+            // 灰度体裸读 MY_TITLE，SrcJuPublic.js:1373/SrcJuSet.js:581
+            // 两副本）→单独保留记名（其 $().image 序列化前缀
+            // $.hiker.MY_TITLE 亦自供同值，宿主供值是直写 @js= 形与
+            // 提取回退的保底）。headers 形参自此在本法内不再消费
+            // （签名与调用方契约不动）。
+            code = getMyType("eval") + getMyCallbackKey(imgCbKey)
+                    + getMyTitleJs(jsCode, ruleTitle) + ensureDollarShim() + wrapImageJs(jsCode);
             Object r = cx.evaluateString(imageScope, code, "imageJs", 1, null);
             InputStream out = coerceImageStream(r, input, urlString);
             SpiderDebug.log("hkimage", "图片解密完成 host=%s 耗时=%dms 结果=%s",
@@ -9693,26 +10158,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         }
     }
 
-    /** 8.83 JSEngine.generateMY("MY_HEADERS", multimap) 语义。 */
-    private static String generateMyHeaders(Map<String, List<String>> headers) {
-        if (headers == null) return "var MY_HEADERS = null;\n";
-        try {
-            org.json.JSONObject o = new org.json.JSONObject();
-            for (Map.Entry<String, List<String>> e : headers.entrySet()) {
-                o.put(e.getKey(), new org.json.JSONArray(e.getValue()));
-            }
-            return "var my_headers = '" + escapeJsString(o.toString()) + "';\n var MY_HEADERS = JSON.parse(my_headers);\n";
-        } catch (Throwable t) {
-            return "var MY_HEADERS = null;\n";
-        }
-    }
-
-    /** 8.83 JSEngine.getMyUrl 语义：var MY_URL / var MY_HOME。 */
-    private static String getMyUrlJs(String url) {
-        if (url == null) url = "";
-        String esc = escapeJsString(url);
-        return "var MY_URL = '" + esc + "';\nvar MY_HOME = '" + getHomeUrl(esc) + "';\n";
-    }
+    // face1#14（簇3）：generateMyHeaders/getMyUrlJs 两生成器已随图片
+    // 前缀摘除一并删除（全树仅 evalImageJsInternal 一处消费，摘后无
+    // 引用；getHomeUrl 仍由转录段 getMyUrl 消费、保留）。
 
     /** 8.83 StringUtil.getHome 语义：scheme://dom。 */
     private static String getHomeUrl(String url) {
@@ -9727,7 +10175,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     }
 
     /**
-     * 图片 @js= 求值补裸全局 MY_TITLE。
+     * 图片 @js= 求值补裸全局 MY_TITLE。（face1#14 簇3 裁定保留记名：
+     * 官图片前缀无此件，但语料图片体内有裸用名实证，见 evalImageJsInternal
+     * 前缀处注与 fill-136b-c3-scope 分账；同批 MY_URL/MY_HOME/MY_HEADERS
+     * 三件无用名证据已摘除。）
      *
      * <p>规则 {@code $().image(fn)} 生成的代码体引用裸 {@code MY_TITLE}
      *（如 {@code $.require("data?rule=" + MY_TITLE)}），图片求值作用域若无此全局则报
@@ -9907,6 +10358,12 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // 环19 arm：lazy 在官形是独立一发 runScript，本发换鲜 scope。
         scope = assembleFreshScope();
         setContext(pageUrl);
+        // 同规则函数库延续（台账 LIB_CARRY）：同一规则先前各发经裸 require
+        // 装进各自全局的库源码，在本发 setContext 后、正文前按序回放——
+        // 懒发自此带着该规则的函数库进场（他 2026-11-14 亲令补齐）。只此
+        // 一路消费：evalLazy/evalLazyDry/动作探针共用本装配（同作用域同
+        // 注入的既有契约），parse/详情/搜索/图片的装配不回放。
+        replayLibCarry(scope);
         // 入口口令/输入框：若有一次性 input 覆盖（用户输入的文本），优先使用；
         // 否则按原逻辑用 pageUrl。读后清零，保证只生效一次。
         String inputVal = nextInputOverride != null ? nextInputOverride : (pageUrl == null ? "" : pageUrl);
@@ -9920,9 +10377,18 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // 官 evalJS 同形，见 dig2 件3 边界）。
         String cbKey = genUuid();
         ScriptableObject.putProperty(scope, "CALLBACK_KEY", cbKey);
+        // face1#4 对官：MY_POSITION 补进主路 lazy 装配——官 LazyRuleParser
+        // .smali:115/:277 与转录路 HkLazyRuleParser:138/:174 同形：
+        // generateMY("MY_POSITION", position)，Integer 走裸数支
+        // 「var MY_POSITION = <n>;\n」拼在正文前。取值走一次性通道
+        // nextLazyPosition（读后复位），缺省 -1＝官 parse 无 position
+        // 形的缺省实参。MY_URL 官同串里在 MY_POSITION 之前、咱家由
+        // setContext 属性已先行置入，序不冲突。
+        int lazyPosition = nextLazyPosition;
+        nextLazyPosition = -1;
         Object r;
         try {
-            r = evalJs(getMyCallbackKey(cbKey) + stripJsPrefix(jsCode));
+            r = evalJs(getMyCallbackKey(cbKey) + generateMY("MY_POSITION", lazyPosition) + stripJsPrefix(jsCode));
         } catch (Exception e) {
             logEvalError("evalLazy", jsCode, e);
             throw e;
@@ -10134,6 +10600,15 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         this.nextInputOverride = input;
     }
 
+    /**
+     * 设置下一次 lazy 求值的 MY_POSITION（face1#4，官 LazyRuleParser 的
+     * position 入参在主路的一次性通道同位）：仅下一次 evalRawInFreshScope
+     * 生效，读后复位 -1（官 parse 无 position 形的缺省值）。
+     */
+    public void setNextLazyPosition(int position) {
+        this.nextLazyPosition = position;
+    }
+
     public boolean isRefreshToTop() {
         return refreshToTop;
     }
@@ -10181,22 +10656,32 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         ScriptableObject.putProperty(scope, "MY_TYPE", myType == null ? "" : myType);
         ScriptableObject.putProperty(scope, "MY_CLASS_URL", myClassUrl == null ? "" : myClassUrl);
         ScriptableObject.putProperty(scope, "MY_CLASS_NAME", myClassName == null ? "" : myClassName);
-        // MY_NAME 照官值：官 JSEngine 不注入此名，唯一来源是 plugin.js 的
-        // windows.MY_NAME='海阔视界'（应用身份名）。旧形误填规则标题——同名
-        // 不同值：hk-plugin 层经共享 scope 链读到的恒是规则标题，规则侧以
-        // MY_NAME 判原版环境的检查在此恒落空（「请用原作者代码库」一族，
-        // 账 hiker-dollar-undefined-receipt-20261111 Q2）。改填官值；规则
-        // 标题的正经通道是 MY_RULE.title，不经此名。
-        ScriptableObject.putProperty(scope, "MY_NAME", "海阔视界");
+        // MY_NAME 归官单路（face1#12，簇3 裁定）：官 JSEngine 不注入此
+        // 名，唯一来源是 plugin.js:11 的 windows.MY_NAME='海阔视界'。
+        // 旧形宿主在此直放同值一份（双路同值）。摘直放的凭据：主路四域
+        // （parse/搜索/详情/lazy/action 探针/干跑/选择器独立发）每发
+        // assembleFreshScope 尾已把 plugin.js 评进本发 scope（face1#8
+        // 归位），且正文一律经 evalJsRooted 的 ensurePluginIn 守门——
+        // plugin 评入失败即整发失败，不存在「正文跑了、plugin 没评」
+        // 的状态；值同源（两处同为字面 '海阔视界'）。图片域不经
+        // setContext、其 MY_NAME 本就只靠 evalImageJsInternal 内
+        // plugin.js 评入供给，直放从未覆盖该域。故摘除归官单路；
+        // 规则标题的正经通道是 MY_RULE.title，不经此名。
         // 官方 generateMyParams：MY_PARAMS 是 JSON 对象不是字符串（空时为 {}）
-        try {
+        // 照 8.83 generateMyParams：整串 JSON.parse 一次，字符串值永远保持字符串。
+        // 曾自加「形似 JSON 的字符串还原成对象」的启发式，会把合法字符串参数
+        // 误变成对象/数组污染全部规则，已撤（类型保真靠 extra 管道本身）。
+        // face2#9 对官：坏 JSON 的去路——官把原文嵌入求值串、JSON.parse
+        // 当场抛、整发显形失败；旧形经 parseJson（自吞错回空对象）＋外层
+        // catch 再兜一层，坏参数静默变 {} 继续跑、症状与根因脱节。改直用
+        // NativeJSON.parse 不吞错：解析失败的 RhinoException 沿本发求值
+        // 失败路抛出（setContext 四个调用点——parseListInternal/
+        // parseSearch/evalRawInFreshScope/parseDetailRaw——全在 submit
+        // 串行段内，异常经 Future/既有 catch 收成求值失败、不崩进程）。
+        {
             String mp = myParams == null || myParams.isEmpty() ? "{}" : myParams;
-            // 照 8.83 generateMyParams：整串 JSON.parse 一次，字符串值永远保持字符串。
-            // 曾自加「形似 JSON 的字符串还原成对象」的启发式，会把合法字符串参数
-            // 误变成对象/数组污染全部规则，已撤（类型保真靠 extra 管道本身）。
-            ScriptableObject.putProperty(scope, "MY_PARAMS", parseJson(mp));
-        } catch (Throwable ignored) {
-            ScriptableObject.putProperty(scope, "MY_PARAMS", rhinoCx.newObject(scope));
+            Object mpv = NativeJSON.parse(rhinoCx, scope, mp, JSON_REVIVER);
+            ScriptableObject.putProperty(scope, "MY_PARAMS", mpv);
         }
         ScriptableObject.putProperty(scope, "MY_AREA", myArea == null ? "" : myArea);
         ScriptableObject.putProperty(scope, "MY_YEAR", myYear == null ? "" : myYear);
@@ -10239,6 +10724,12 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         } catch (Throwable e) {
             ScriptableObject.putProperty(scope, "MY_RULE", rhinoCx.newObject(scope));
         }
+        // face1#9 半件对官：官 MY_RULE 形态是「let my_rule 串→JSON.parse
+        // →my_rule 置 null」，终态恒为 MY_RULE 是对象、my_rule 为 null。
+        // 咱家对象直放无 my_rule 串那一步，在此补同终态：scope 属性
+        // my_rule 置 JS null（putProperty 存 Java null 与环24-11 簇二
+        // MY_RULE≡null 同式）。规则若自赋 my_rule 仍可覆写（全局属性形）。
+        ScriptableObject.putProperty(scope, "my_rule", null);
         // 环20 A：_displayName 主路注入（官 getMyRule 在 MY_RULE 串后、
         // MY_TICKET 前以 const 声明同值，JSEngine.smali:5045-5079）——
         // 仅 displayName 非空才注入：为空时官整段不拼、无此名，plugin.js
@@ -10631,7 +11122,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
      * extra 串原样／null 置 null／余 JSON 串化；type 恒 "video"（合成时置）。
      */
     private List<HkItem> buildSearchItems(String jsonArray) {
-        List<Map<String, Object>> list = GSON.fromJson(jsonArray, MAP_LIST_TYPE);
+        List<Map<String, Object>> list = itemMapsFromJson(jsonArray);
         if (list == null) return null;
         List<HkItem> out = new ArrayList<>(list.size());
         for (Map<String, Object> m : list) {
@@ -10719,7 +11210,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     /** 把 JSON 数组字符串解析为条目并追加到 results（collectResult 的实际落子逻辑）。 */
     private void appendResultItems(String jsonArray) {
         if (collectRaw) {
-            List<Map<String, Object>> list = GSON.fromJson(jsonArray, MAP_LIST_TYPE);
+            List<Map<String, Object>> list = itemMapsFromJson(jsonArray);
             if (list == null) return;
             for (Map<String, Object> m : list) {
                 Map<String, String> raw = new HashMap<>();
@@ -10736,7 +11227,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
 
     /** 条目数组 JSON → HkItem 表（8.83 convertToArticleList 字段口径逐项，只转换不落表）。 */
     private List<HkItem> buildResultItems(String jsonArray) {
-        List<Map<String, Object>> list = GSON.fromJson(jsonArray, MAP_LIST_TYPE);
+        List<Map<String, Object>> list = itemMapsFromJson(jsonArray);
         if (list == null) return null;
         List<HkItem> out = new ArrayList<>(list.size());
             for (Map<String, Object> m : list) {
@@ -10849,6 +11340,21 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
      * 执行详情的 js: 规则，返回原始条目（含 line/col_type 等扩展字段，M3）。
      * setResult 项约定：title/url/pic_url/desc + 可选 line（线路名）/col_type。
      */
+    /** 136b 分流线①：最近一发 parseDetailRaw 在发内（ambient scope 尚登记时）
+     * 抓到的 MY_RULE 本体——聚合容器详情劫持后它即被点子规则，供详情就绪点
+     * 做有效规则分类（历史/收藏再入够不着章节交接的补口）。发内写、入口清，
+     * 读方为 HkRouter.detail 的两处 V4 完成点；并发详情发互覆的残窗由消费方
+     * 以「标题与页规则不同或 params 解码命中」二次校验兜底。 */
+    private volatile HkRule lastParseDetailScopeRule;
+
+    public HkRule lastParseDetailScopeRule() {
+        return lastParseDetailScopeRule;
+    }
+
+    public void clearLastParseDetailScopeRule() {
+        lastParseDetailScopeRule = null;
+    }
+
     public List<Map<String, String>> parseDetailRaw(String jsCode, String myUrl) throws Exception {
         final HkRule boundRule = this.rule;
         return submit(() -> {
@@ -10858,6 +11364,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             results.clear();
             error = null;
             collectRaw = true;
+            lastParseDetailScopeRule = null;
             try {
                 // 环19 arm：详情求值同为独立一发，本发换鲜 scope。
                 scope = assembleFreshScope();
@@ -10867,6 +11374,13 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 String cbKey = genUuid();
                 ScriptableObject.putProperty(scope, "CALLBACK_KEY", cbKey);
                 evalJs(getMyCallbackKey(cbKey) + stripJsPrefix(jsCode));
+                // 发内抓当发 MY_RULE（劫持后的子规则本体）：必须在 ambient
+                // 登记注销前、本 callable 内读，出了 submit 就只剩主 scope
+                // 的宿主规则（2026-11-11 订正同理）。
+                try {
+                    lastParseDetailScopeRule = myRuleFromScope();
+                } catch (Throwable ignored) {
+                }
             } catch (Throwable e) {
                 // 详情页 JS 异常也要记录，供 V4 空态展示真实原因（之前只记 log，用户看到"0条线路"无法反馈）
                 error = jsErrorMsg(e);
@@ -11642,7 +12156,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     // G21：官 callbackMap 为 ConcurrentHashMap（JSEngine:56＋构造 :267-272）——
     // get(null) 抛 NPE 的官口径靠它成立（补正件三兜底层），同改并发安全。
     private final Map<String, JSEngineCallback<?>> callbackMap = new java.util.concurrent.ConcurrentHashMap<>();
-    private final Map<String, String> resCodeMap = new HashMap<>();
+    // 并发容器（2026-11-14 补）：回调线程 put、引擎线程 get 并发读写，
+    // 普通 HashMap 竞态会丢条目（callbackMap 早已是并发版，这张漏了）；
+    // 与官 JSEngine 的 ConcurrentHashMap 同口径。
+    private final Map<String, String> resCodeMap = new java.util.concurrent.ConcurrentHashMap<>();
     private final List<String> methodList = new ArrayList<>();
     /** 环19：官 initRequire 的 provider 是类级单例（双重检查锁），改 static 与官同级。 */
     private static volatile StrongCachingModuleScriptProvider cachingModuleScriptProvider;

@@ -26,6 +26,7 @@ public final class PlaybackMemoryMonitor {
     private volatile Context applicationContext;
     private PlaybackAutoContext.SessionToken scheduledSession;
     private ScheduledFuture<?> periodicFuture;
+    private boolean periodicSuspended;
     private long lastPssSampleAtElapsedMs;
 
     private PlaybackMemoryMonitor(PlaybackMemoryCoordinator coordinator) {
@@ -58,12 +59,29 @@ public final class PlaybackMemoryMonitor {
             cancelPeriodicLocked();
             scheduledSession = session;
             executor.execute(() -> sampleSafely(session, PlaybackAutoContext.MemoryTrigger.SESSION_START, null));
-            periodicFuture = executor.scheduleWithFixedDelay(
-                    () -> sampleSafely(session, PlaybackAutoContext.MemoryTrigger.PERIODIC, null),
-                    PERIODIC_SAMPLE_INTERVAL_MS,
-                    PERIODIC_SAMPLE_INTERVAL_MS,
-                    TimeUnit.MILLISECONDS);
+            if (!periodicSuspended) armPeriodicLocked(session);
             return true;
+        }
+    }
+
+    private void armPeriodicLocked(PlaybackAutoContext.SessionToken session) {
+        periodicFuture = executor.scheduleWithFixedDelay(
+                () -> sampleSafely(session, PlaybackAutoContext.MemoryTrigger.PERIODIC, null),
+                PERIODIC_SAMPLE_INTERVAL_MS,
+                PERIODIC_SAMPLE_INTERVAL_MS,
+                TimeUnit.MILLISECONDS);
+    }
+
+    /** 切后台静默（账 bg-silence-land-20261114 #4）：后台期停周期
+     * 采样（会话登记与起停逻辑不动），回前台按在册会话重臂。
+     * 后台音频会话存续期同受此 gate——采样是诊断件、停一夜不
+     * 影响播放本体。 */
+    public void setPeriodicSuspended(boolean suspended) {
+        synchronized (sessionLock) {
+            if (periodicSuspended == suspended) return;
+            periodicSuspended = suspended;
+            if (suspended) cancelPeriodicLocked();
+            else if (scheduledSession.active()) armPeriodicLocked(scheduledSession);
         }
     }
 

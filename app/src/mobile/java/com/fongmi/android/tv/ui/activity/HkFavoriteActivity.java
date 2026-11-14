@@ -9,6 +9,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -62,6 +63,17 @@ public class HkFavoriteActivity extends BaseActivity {
     private FavAdapter adapter;
     private String curGroup = "";
 
+    // 品类标签（2026-11-14 他亲定形态：收藏页按品类分签）。判据与直达
+    // 再入分流、海阔历史再入 openRecord 同一组合，见 kindOf。
+    private static final int KIND_VIDEO = 0;
+    private static final int KIND_NOVEL = 1;
+    private static final int KIND_AUDIO = 2;
+    private static final int KIND_MUSIC = 3;
+    private static final String[] KIND_LABELS = {"视频", "小说", "听书", "音乐"};
+    private int curKind = KIND_VIDEO;
+    private LinearLayout kindRow;
+    private final java.util.Map<String, Integer> kindCache = new java.util.HashMap<>();
+
     @Override
     protected ViewBinding getBinding() {
         binding = ActivityHkFavoriteBinding.inflate(getLayoutInflater());
@@ -88,6 +100,76 @@ public class HkFavoriteActivity extends BaseActivity {
         binding.rvFavorite.setLayoutManager(new LinearLayoutManager(this));
         adapter = new FavAdapter();
         binding.rvFavorite.setAdapter(adapter);
+        // 品类签行：程序化建行插在标题栏与分组签行之间（不动布局文件），
+        // 签形态与下方分组签同一套（选中金底 hk_group_tag、未选浅卡）。
+        float density = getResources().getDisplayMetrics().density;
+        HorizontalScrollView kindScroll = new HorizontalScrollView(this);
+        kindScroll.setHorizontalScrollBarEnabled(false);
+        kindScroll.setClipToPadding(false);
+        int pad16 = Math.round(16 * density);
+        kindScroll.setPadding(pad16, 0, pad16, 0);
+        kindRow = new LinearLayout(this);
+        kindRow.setOrientation(LinearLayout.HORIZONTAL);
+        kindScroll.addView(kindRow, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout rootLayout = (LinearLayout) binding.getRoot();
+        rootLayout.addView(kindScroll, 1, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        buildKindChips();
+    }
+
+    private void buildKindChips() {
+        if (kindRow == null) return;
+        kindRow.removeAllViews();
+        int dp8 = Math.round(8 * getResources().getDisplayMetrics().density);
+        int dp14 = Math.round(14 * getResources().getDisplayMetrics().density);
+        for (int k = 0; k < KIND_LABELS.length; k++) {
+            boolean selected = k == curKind;
+            TextView chip = new TextView(this);
+            chip.setText(KIND_LABELS[k]);
+            chip.setTextSize(14);
+            chip.setGravity(Gravity.CENTER);
+            chip.setPadding(dp14, dp8, dp14, dp8);
+            chip.setTextColor(selected ? 0xFF7A5A00 : 0xFF1A1D24);
+            chip.setBackgroundResource(selected ? R.drawable.hk_group_tag : R.drawable.dialog_option_card_light);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            lp.rightMargin = dp8;
+            final int kv = k;
+            chip.setOnClickListener(v -> {
+                curKind = kv;
+                buildKindChips();
+                applyFilter();
+            });
+            HkPressFeedback.attach(chip);
+            kindRow.addView(chip, lp);
+        }
+    }
+
+    /**
+     * 记录品类（收藏页标签过滤与直达再入分流共用一套判据，与海阔历史
+     * 再入 openRecord 同组合）：装机规则本体过 ReadingGate 阅读族分类 →
+     * 电台名口径归听书 → 声明 music 或音乐名口径归音乐 → 其余视频。
+     * 容器壳在宿主层恒视频（详情形进页后由 divert 按子规则再分类）；
+     * 规则已删除的记录归视频签，不凭空消失。按规则名缓存一轮。
+     */
+    private int kindOf(HkFavorite f) {
+        Integer cached = kindCache.get(f.getRuleTitle());
+        if (cached != null) return cached;
+        int kind = KIND_VIDEO;
+        HkRule rule = HkRuleManager.get().getInstalledRule(f.getRuleTitle());
+        if (rule != null) {
+            com.fongmi.android.tv.read.ReadingGate.HkReadKind rk =
+                    com.fongmi.android.tv.read.ReadingGate.classifyHkRule(rule);
+            if (rk == com.fongmi.android.tv.read.ReadingGate.HkReadKind.NOVEL) {
+                kind = KIND_NOVEL;
+            } else if (rk == com.fongmi.android.tv.read.ReadingGate.HkReadKind.AUDIO
+                    || com.fongmi.android.tv.ui.HkRadioRouter.looksRadio(f.getRuleTitle())) {
+                kind = KIND_AUDIO;
+            }
+        }
+        kindCache.put(f.getRuleTitle(), kind);
+        return kind;
     }
 
     @Override
@@ -99,6 +181,7 @@ public class HkFavoriteActivity extends BaseActivity {
     private void reload() {
         all.clear();
         all.addAll(HkFavoriteStore.list());
+        kindCache.clear();
         buildGroupChips();
         applyFilter();
     }
@@ -138,6 +221,7 @@ public class HkFavoriteActivity extends BaseActivity {
     private void applyFilter() {
         shown.clear();
         for (HkFavorite f : all) {
+            if (kindOf(f) != curKind) continue;
             if (TextUtils.isEmpty(curGroup) || curGroup.equals(f.getGroup())) shown.add(f);
         }
         adapter.notifyDataSetChanged();
@@ -148,6 +232,58 @@ public class HkFavoriteActivity extends BaseActivity {
         HkRule rule = HkRuleManager.get().getInstalledRule(f.getRuleTitle());
         if (rule == null) {
             Notify.show("该小程序已删除");
+            return;
+        }
+        // 直达播放页收藏的条目：存下的是集址，按直达支回放（与历史直达记录同一路）；
+        // 当条目址走详情链必空（2026-11-14 再入普查钉死）。
+        if (f.isDirect()) {
+            // 借面三类（小说/听书/音乐）的直达收藏：按行自带字段当场组装
+            // 单集会话/专辑/单曲队列，与海阔历史直达形再入同一组装法
+            // （2026-11-14 配套）；三支都按 keyOf（规则名，集址）算直达
+            // 形历史键带入，进度回写与海阔历史直达记录落同一行。详情形
+            // 收藏不在此分流：下方 startHk 进详情页后 divert 按有效规则
+            // 重新分类，四类全覆盖。
+            int favKind = kindOf(f);
+            String favLine = TextUtils.isEmpty(f.getFlag()) ? "默认" : f.getFlag();
+            if (favKind == KIND_NOVEL) {
+                com.fongmi.android.tv.read.ReadingSession ns =
+                        new com.fongmi.android.tv.read.ReadingSession();
+                ns.kind = com.fongmi.android.tv.read.ReadingSession.Kind.NOVEL;
+                ns.sourceName = f.getRuleTitle();
+                ns.ruleTitle = f.getRuleTitle();
+                ns.bookTitle = f.getTitle() == null ? "" : f.getTitle();
+                ns.coverUrl = f.getPicUrl() == null ? "" : f.getPicUrl();
+                ns.chapters.add(new com.fongmi.android.tv.read.ReadingSession.Chapter(
+                        ns.bookTitle, f.getEpisodeUrl()));
+                ns.chapterIndex = 0;
+                ns.chapterUrl = f.getEpisodeUrl();
+                // 直达形键与海阔历史直达记录同键：进度回写落同一行
+                ns.hkHistoryKey = com.fongmi.android.tv.api.hk.HkHistoryRecorder
+                        .keyOf(f.getRuleTitle(), f.getEpisodeUrl());
+                com.fongmi.android.tv.read.ReadingRouter.openReading(this, ns);
+                return;
+            }
+            if (favKind == KIND_AUDIO) {
+                com.fongmi.android.tv.legado.LegadoAudio.AudioAlbum album =
+                        new com.fongmi.android.tv.legado.LegadoAudio.AudioAlbum();
+                album.legadoKey = "hk:" + f.getRuleTitle();
+                album.hkRule = f.getRuleTitle();
+                album.hkLine = favLine;
+                album.sourceName = f.getRuleTitle();
+                album.title = f.getTitle() == null ? "" : f.getTitle();
+                album.coverUrl = f.getPicUrl() == null ? "" : f.getPicUrl();
+                album.chapters.add(new com.fongmi.android.tv.legado.LegadoAudio.Chapter(
+                        album.title, f.getEpisodeUrl()));
+                album.index = 0;
+                album.hkHistoryKey = com.fongmi.android.tv.api.hk.HkHistoryRecorder
+                        .keyOf(f.getRuleTitle(), f.getEpisodeUrl());
+                com.fongmi.android.tv.ui.activity.AudioBookActivity.start(this,
+                        com.fongmi.android.tv.legado.LegadoAudio.put(album));
+                return;
+            }
+            VideoActivity.startHkPlay(this, f.getRuleTitle(),
+                    TextUtils.isEmpty(f.getFlag()) ? "默认" : f.getFlag(),
+                    f.getEpisodeUrl(), f.getTitle(), f.getTitle(), f.getPicUrl());
             return;
         }
         // 直达那条内容（对齐 8.83 点收藏进 CUrl 页面）：用存下的 episodeUrl 走与规则内

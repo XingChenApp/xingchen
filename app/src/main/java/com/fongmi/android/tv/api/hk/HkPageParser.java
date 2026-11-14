@@ -133,20 +133,28 @@ public class HkPageParser {
         }
         HkRule next = new HkRule();
         String ruleTitle = null;
-        Map<String, String> paramsMap = null;
+        String paramsUrl = null;
         if (HkParserKit.isNotEmpty(paramsJson) && paramsJson.startsWith("{") && paramsJson.endsWith("}")) {
             try {
-                paramsMap = GSON.fromJson(paramsJson, new TypeToken<Map<String, String>>() {
-                }.getType());
-                if (paramsMap != null && paramsMap.containsKey("rule")) {
-                    ruleTitle = paramsMap.get("rule");
+                // 照官 JSONObject 形态（8.83 PageParser 原文，账
+                // hk-subpage-params-array-20261114）：fastjson parseObject
+                // 解成 JSONObject、rule/url 逐键 getString 取——值是任意
+                // JSON 形状都合法（extra 带 longClick/blockRules 等数组/
+                // 对象值是海阔常规写法），非串值按 getString 口径回其
+                // JSON 文本；整体解析失败吞掉置空、组页继续，官没有
+                // 「子页参数解析失败」这句。此前停在 Map<String,String>
+                // 强类型解：数组/对象值撞 BEGIN_ARRAY/BEGIN_OBJECT 抛
+                // 错、子页打不开，已摘。逐键转串口径与同文件 getUrl 的
+                // 复核订正7 逐键法同形（见 jsonGetString）。
+                com.google.gson.JsonElement root = com.google.gson.JsonParser.parseString(paramsJson);
+                if (root != null && root.isJsonObject()) {
+                    com.google.gson.JsonObject obj = root.getAsJsonObject();
+                    ruleTitle = jsonGetString(obj, "rule");
+                    paramsUrl = jsonGetString(obj, "url");
                 }
             } catch (Exception e) {
-                // 参数解析失败不许静默丢参继续拼页：本方法本就 throws
-                // ParseException、调用方（HkListActivity 等）对 ParseException
-                // 有弹消息的既有出口，抛出去显形（批 residual）。
+                // 官形：解析失败只留痕（官 Timber.e 对位），params 视为空。
                 Log.e(TAG, "getNextPage params parse failed", e);
-                throw new ParseException("子页参数解析失败：" + e.getMessage());
             }
         }
         HkPage pageRule = parsePageRule(rule, ruleTitle, url);
@@ -169,8 +177,8 @@ public class HkPageParser {
         Map<String, String> pageParams = pageRule.getParams();
         if (pageParams != null && pageParams.containsKey("url")) {
             next.setUrl(pageParams.get("url"));
-        } else if (paramsMap != null && paramsMap.containsKey("url") && paramsMap.get("url") != null) {
-            next.setUrl(paramsMap.get("url"));
+        } else if (paramsUrl != null) {
+            next.setUrl(paramsUrl);
         } else {
             next.setUrl(url);
         }
@@ -180,6 +188,24 @@ public class HkPageParser {
             next.setParams(paramsJson);
         }
         return next;
+    }
+
+    /**
+     * fastjson getString 口径逐键取串（与 getUrl 复核订正7 逐键法同形）：
+     * 串直回、数保原始字面、布尔转串、对象/数组回 JSON 文本；
+     * 键缺失或 JsonNull 回 null。
+     */
+    private static String jsonGetString(com.google.gson.JsonObject obj, String key) {
+        if (obj == null || !obj.has(key)) return null;
+        com.google.gson.JsonElement el = obj.get(key);
+        if (el == null || el.isJsonNull()) return null;
+        if (el.isJsonPrimitive()) {
+            com.google.gson.JsonPrimitive p = el.getAsJsonPrimitive();
+            if (p.isString()) return p.getAsString();
+            if (p.isNumber()) return p.getAsNumber().toString();
+            if (p.isBoolean()) return String.valueOf(p.getAsBoolean());
+        }
+        return el.toString();
     }
 
     public static String getUrl(String url, String paramsJson) {
@@ -267,8 +293,7 @@ public class HkPageParser {
             return list;
         }
         try {
-            List<HkPage> parsed = GSON.fromJson(rule.getPages(),
-                    TypeToken.getParameterized(List.class, HkPage.class).getType());
+            List<HkPage> parsed = parsePageListJson(rule.getPages());
             if (parsed != null) {
                 list.addAll(parsed);
             }
@@ -279,6 +304,48 @@ public class HkPageParser {
             Log.e(TAG, "getPageList parse failed rule=" + rule.getTitle(), e);
         }
         return list;
+    }
+
+    /**
+     * pages 定义解析（面②#2，136 批 W2）：官 ArticleListPageRule.params 带
+     * {@code @JSONField(deserialize=false)}——解析 pages 时根本不读 params；
+     * 其余标量字段经 fastjson parseString 收敛。咱家旧形 Gson 直解
+     * List&lt;HkPage&gt;：任一页 params 带数组/对象值、或 col_type/name/path/rule
+     * 为非串，整表抛错成空表、该规则全部子页瘫痪。改法：pages 为 JsonArray
+     * 时逐页预处理——params 键先摘掉不喂 Gson（定义 params 无消费方：
+     * parsePageRule 在读 params 前恒以 URL 参数 setParams 覆盖，见
+     * getNextPage:177 读的是运行期那份；其余 getPageList 消费方只读
+     * name/path/rule），其余 String 字段的非串值按 parseString 收敛成文本
+     * 再交 Gson。pages 非数组/坏 JSON 时走回旧直解路，失败仍由 getPageList
+     * 的 catch 成空表（官形契约不变）。
+     */
+    private static List<HkPage> parsePageListJson(String pages) {
+        com.google.gson.JsonElement el = null;
+        try {
+            el = com.google.gson.JsonParser.parseString(pages);
+        } catch (Exception ignored) {
+            // 坏 JSON 落回下方旧直解路抛错、由调用方 catch 收空表，与旧形同终态。
+        }
+        if (el == null || !el.isJsonArray()) {
+            return GSON.fromJson(pages,
+                    TypeToken.getParameterized(List.class, HkPage.class).getType());
+        }
+        String[] stringFields = {"col_type", "name", "path", "rule"};
+        for (com.google.gson.JsonElement item : el.getAsJsonArray()) {
+            if (item == null || !item.isJsonObject()) continue;
+            com.google.gson.JsonObject page = item.getAsJsonObject();
+            page.remove("params");
+            for (String field : stringFields) {
+                if (!page.has(field)) continue;
+                com.google.gson.JsonElement v = page.get(field);
+                if (v == null || v.isJsonNull()) continue;
+                if (v.isJsonPrimitive() && v.getAsJsonPrimitive().isString()) continue;
+                String text = HkRuleManager.fastJsonValueText(v);
+                if (text != null) page.addProperty(field, text);
+            }
+        }
+        return GSON.fromJson(el.toString(),
+                TypeToken.getParameterized(List.class, HkPage.class).getType());
     }
 
     /**

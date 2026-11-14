@@ -29,6 +29,19 @@ public class HkDetail {
     /** 详情页自身 URL（HkRouter 取数时写入）：选集分拣剔自链、提取本片编号用。 */
     private String pageUrl = "";
 
+    /** 136b 分流线①：详情 JS 发内抓到的当发 MY_RULE 全文（Gson 串）——聚合
+     * 容器里即被点子规则，供 VideoActivity 详情就绪点做有效规则分类；
+     * 非 JS 详情/未抓到为空串。 */
+    private String scopeRuleJson = "";
+
+    public String getScopeRuleJson() {
+        return scopeRuleJson;
+    }
+
+    public void setScopeRuleJson(String scopeRuleJson) {
+        this.scopeRuleJson = scopeRuleJson == null ? "" : scopeRuleJson;
+    }
+
     public String getPageUrl() {
         return pageUrl;
     }

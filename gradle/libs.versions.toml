@@ -34,6 +34,7 @@ notchScreenTool = "0.0.1"
 subsamplingScaleImageView = "3.10.0"
 
 androidGifDrawable = "1.2.31"
+androidsvg = "1.4"
 androidautosize = "1.2.1"
 brotli = "0.1.2"
 customactivityoncrash = "2.4.0"
@@ -108,6 +109,7 @@ notch-screen-tool = { group = "com.github.smarxpan", name = "NotchScreenTool", v
 subsampling-scale-image-view-androidx = { group = "com.davemorrissey.labs", name = "subsampling-scale-image-view-androidx", version.ref = "subsamplingScaleImageView" }
 
 android-gif-drawable = { group = "pl.droidsonroids.gif", name = "android-gif-drawable", version.ref = "androidGifDrawable" }
+androidsvg = { group = "com.caverock", name = "androidsvg-aar", version.ref = "androidsvg" }
 androidautosize = { group = "com.github.JessYanCoding", name = "AndroidAutoSize", version.ref = "androidautosize" }
 brotli = { group = "org.brotli", name = "dec", version.ref = "brotli" }
 customactivityoncrash = { group = "cat.ereza", name = "customactivityoncrash", version.ref = "customactivityoncrash" }

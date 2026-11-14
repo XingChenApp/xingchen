@@ -783,8 +783,10 @@ public final class HkDlanController {
     private static String saveJs(String body) {
         try {
             JsonObject obj = JsonParser.parseString(body == null ? "" : body).getAsJsonObject();
-            String name = obj.has("name") && !obj.get("name").isJsonNull() ? obj.get("name").getAsString() : null;
-            String content = obj.has("content") && !obj.get("content").isJsonNull() ? obj.get("content").getAsString() : null;
+            // 面②#8：name/content 改走 strOf 宽容读（旧形 getAsString 硬取，
+            // 值为对象/数组时整单保存失败；官走 fastjson 进 bean 收敛）。
+            String name = strOf(obj, "name");
+            String content = strOf(obj, "content");
             if (TextUtils.isEmpty(name)) {
                 return "{\"isSuccess\":false, \"errorMsg\":\"解析数据失败，插件名称不能为空\"}";
             }
@@ -867,12 +869,13 @@ public final class HkDlanController {
     private static String saveRule(String body) {
         try {
             JsonObject jo = JsonParser.parseString(body == null ? "" : body).getAsJsonObject();
-            String title = jo.has("title") && !jo.get("title").isJsonNull() ? jo.get("title").getAsString() : null;
+            // 面②#8：title/ua 同 saveJs 改走 strOf 宽容读（理由同上）。
+            String title = strOf(jo, "title");
             if (TextUtils.isEmpty(title)) {
                 return "{\"isSuccess\":false, \"errorMsg\":\"解析数据失败，标题不能为空\"}";
             }
             // ua 空 → MOBILE 码（官 saveRule:618-620）。
-            if (!jo.has("ua") || jo.get("ua").isJsonNull() || TextUtils.isEmpty(jo.get("ua").getAsString())) {
+            if (!jo.has("ua") || jo.get("ua").isJsonNull() || TextUtils.isEmpty(strOf(jo, "ua"))) {
                 jo.addProperty("ua", HkUaEnum.MOBILE.getCode());
             }
             String[][] groups = {
@@ -925,13 +928,17 @@ public final class HkDlanController {
         }
     }
 
+    /**
+     * 宽容读串（面②#8）：官 fastjson getString/parseString 口径——串原样、
+     * 数字保词形、布尔转串、对象/数组回 JSON 文本；键缺失/JsonNull 回 null。
+     * 旧形对复合值 getAsString 抛错被吞成 null（分组校验被跳过、path 读不到），
+     * 与官收敛分叉，改经 HkRuleManager.fastJsonValueText 统一口径。本法全部
+     * 消费点（saveRule 分组对/主址、saveJs、saveRule title/ua、stripPagePrefix
+     * 的 path）都是官 getString 语境，一并对齐。
+     */
     private static String strOf(JsonObject obj, String key) {
-        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) return null;
-        try {
-            return obj.get(key).getAsString();
-        } catch (Throwable t) {
-            return null;
-        }
+        if (obj == null || !obj.has(key)) return null;
+        return HkRuleManager.fastJsonValueText(obj.get(key));
     }
 
     /** 域名提取（官 HkStringUtil.getDom 的转写在 mobile 层、main 不可达，此处同口径本地形）。 */

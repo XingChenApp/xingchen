@@ -7,7 +7,10 @@ import com.alibaba.fastjson.annotation.JSONField;
  * 同口径——官 LitePal 基类与 @Column 注解摘除落纯模型，id 改自有
  * 字段；fastjson 注解（lastPlay 不序列化）照官保留。
  * ①团订正：DownloadTask 已逐字转写落位（ui/download），update 两重载
- * 在本批照官补落（见类尾）；以 DownloadTask 为参的构造一法仍未落、记名在案。
+ * 在本批照官补落（见类尾）。136 批续补：以 DownloadTask 为参的构造一法
+ * 已照官补落（见构造注）；官调用方 DownloadManager 的「.save()」持久化步
+ * 在本纯模型上无对应面（本类无 save 法、LitePal 基类已摘），由下载管理器
+ * 侧自理、不在本模型职责内，记名。
  */
 public class DownloadRecord {
 
@@ -40,6 +43,41 @@ public class DownloadRecord {
 
     public DownloadRecord() {
         this.failedReason = "";
+    }
+
+    /**
+     * 官 DownloadRecord(DownloadTask) 构造（DownloadRecord.smali:86，
+     * .line 56-75）字段表照官逐项：failedReason 先经无参构造置 ""；
+     * taskId/fileName/videoType/fileExtension/url/sourcePageUrl 直拷；
+     * sourcePageTitle 非 null 时置 FileUtil.getSimpleName(标题)（官构造支
+     * 无「以扩展名结尾才简化」的条件，与 update 法不同、照官各行其是）；
+     * size/totalDownloaded 取 task 的 AtomicLong.get()；status/failedReason/
+     * currentSpeed/lastClearSpeedTime/film/subtitle 直拷；saveTime 取
+     * System.currentTimeMillis()；rootPath 取 DownloadConfig.rootPath 静态值。
+     * 官 DownloadManager 两处「查不到记录时 new DownloadRecord(task).save()」
+     * 的构造落点即此；save 步见类头注。
+     */
+    public DownloadRecord(com.example.hikerview.ui.download.DownloadTask task) {
+        this();
+        this.taskId = task.getTaskId();
+        this.fileName = task.getFileName();
+        this.videoType = task.getVideoType();
+        this.fileExtension = task.getFileExtension();
+        this.url = task.getUrl();
+        this.sourcePageUrl = task.getSourcePageUrl();
+        if (task.getSourcePageTitle() != null) {
+            this.sourcePageTitle = com.example.hikerview.utils.FileUtil.getSimpleName(task.getSourcePageTitle());
+        }
+        this.size = task.getSize().get();
+        this.status = task.getStatus();
+        this.failedReason = task.getFailedReason();
+        this.totalDownloaded = task.getTotalDownloaded().get();
+        this.currentSpeed = task.getCurrentSpeed();
+        this.lastClearSpeedTime = task.getLastClearSpeedTime();
+        this.saveTime = System.currentTimeMillis();
+        this.film = task.getFilm();
+        this.subtitle = task.getSubtitle();
+        this.rootPath = com.example.hikerview.ui.download.DownloadConfig.rootPath;
     }
 
     public String getTaskId() {

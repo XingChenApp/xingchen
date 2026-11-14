@@ -10,6 +10,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.util.LongSparseArray;
 import android.webkit.CookieManager;
 
@@ -28,11 +29,13 @@ import com.example.hikerview.utils.PreferenceMgr;
 import com.example.hikerview.utils.StringUtil;
 import com.example.hikerview.utils.ToastMgr;
 import com.fongmi.android.tv.api.hk.HkDlanState;
+import com.fongmi.android.tv.api.hk.HkHttpParser;
 import com.fongmi.android.tv.api.hk.HkProxyServer;
 import com.fongmi.android.tv.ui.hk.HkArticleFragment;
 import com.fongmi.android.tv.ui.hk.HkDetailBridge;
 import com.fongmi.android.tv.ui.hk.HkPlayerChooser;
 import com.fongmi.android.tv.ui.hk.HkWebCarrier;
+import com.fongmi.android.tv.ui.hk.HkWebViewWrapper;
 import com.lxj.xpopup.XPopup;
 import com.lxj.xpopup.util.XPopupUtils;
 
@@ -58,9 +61,13 @@ import timber.log.Timber;
  * startPlayerChapters 侧的标题处理承接，本类不重复做。
  *
  * <p>未落记名（依赖在星辰无同职责等价物，见对官补缺口回执）：
- * decorateHeader(Activity 版）依赖官 MultiWindowManager.getCurrentWebView＋
- * WebViewHelper.getRequestHeaderMap＋HorizontalWebView.getRefererPolicy，
- * 均未落。
+ * decorateHeader(Activity 版）已于 136 批补落、E1 尾巴于 136b 簇2 接上可替换
+ * 来源口（见法注：官 WebViewHelper 挂 WebView 的请求头表/referer 策略在咱家
+ * 是 HkWebkitHolder 私有 Wrapper，经公开面只能走到 HkWebkitHolder、最后一跳
+ * 无公开取口，来源经 HkPlayerChooser.currentWrapper 的 provider/登记口取，
+ * 登记一行待主线在 HkWebkitHolder.initWebView 补、见 fill-136b-c2 分账）。
+ * startPlayer 八参已于 136 批补落分发本体、余 15 支第三方播放器起播本体于
+ * 136b 簇2 逐支照官转写落齐（见各 start* 法注与 fill-136b-c2 分账）。
  * startBolanAssist/startReex 及必需链段（initSubtitleUrl 字幕支、
  * startPlayerById 两形）已补落：官 RemoteServerManager/DlanUrlDTO/AndServer
  * 一面接本树既有等价物 HkDlanState（DTO 存储）＋HkProxyServer（起服/服务址，
@@ -663,6 +670,30 @@ public class PlayerChooser {
         return startPlayerById(context, title, url, playerName, extras, pkg, activity, null);
     }
 
+    /** 官 startPlayerById 六参形（同上 smali:6265，.line 1271）：转七参形、extras 传 null。 */
+    private static boolean startPlayerById(Context context, String title, String url,
+                                           String playerName, String pkg, String activity) {
+        return startPlayerById(context, title, url, playerName, null, pkg, activity);
+    }
+
+    /**
+     * 官各直建支共用的意图前段（startMxPlayer/startKMPlayer/startMoboPlayer 等
+     * 逐支同形段的合写）：ACTION_VIEW＋FilesInAppUtil.getUri 定 data、
+     * UrlDetector.isMusic 定 type（audio/* 或 video/*）、put "title"/"name"
+     * 两键（皆 title）、addFlags(0x10008000)。url 须已由调用支照官先过
+     * getThirdPlaySource（startPlayerById 本体亦自带此步、直建支在官本体逐支自带）。
+     */
+    private static Intent buildStandardViewIntent(Context context, String title, String url) {
+        Intent intent = new Intent();
+        intent.setAction("android.intent.action.VIEW");
+        intent.setDataAndType(FilesInAppUtil.getUri(context, url),
+                UrlDetector.isMusic(title, url) ? "audio/*" : "video/*");
+        intent.putExtra("title", title);
+        intent.putExtra("name", title);
+        intent.addFlags(0x10008000);
+        return intent;
+    }
+
     /**
      * 官 startPlayerById 八参形（同上 .line 1282-1308）：url 先 getThirdPlaySource；
      * ACTION_VIEW 意图以 FilesInAppUtil.getUri＋UrlDetector.isMusic 定 data/type
@@ -705,6 +736,560 @@ public class PlayerChooser {
         }
         ToastMgr.shortBottomCenter(context, "没有安装" + playerName + "！" + msg);
         return false;
+    }
+
+    /**
+     * 官 decorateHeader(Activity,String,String)（PlayerChooser.smali:626，
+     * .line 304-316）照官转写，第二参为页面址、第三参为资源址：当前 WebView
+     * 经 MultiWindowManager.getCurrentWebView 取、请求头表经
+     * WebViewHelper.getRequestHeaderMap(webView, url) 取（官静态形：WebView/
+     * helper 缺位回 null 表，WebViewHelper.smali:1014-1043）；try 内以 WebView
+     * 的 referer 策略算 referer、CookieManager 取 url 的 cookie、空且 referer
+     * 非空时改取 referer 的 cookie，异常只 Timber；尾 decorateHeader0(map,
+     * null, url, cookie)。getReferer/decorateHeader0 接 HkPlayerChooser 同名
+     * 转写（与本类 Map 版同一链；HkWebkitHolder.BridgeObject.getHeaderUrl
+     * :1885-1900 正是同链的咱家在位用例）。
+     * E1 尾巴（136b 簇2）：咱家等价持有件是 HkWebkitHolder 的私有内部类
+     * Wrapper（HkWebViewWrapper 实现：getRequestHeaderMap 回全表、
+     * getRefererPolicy 回策略）。公开面可达链已逐跳核过——Activity→
+     * FragmentManager→HkArticleFragment.getWebViewHolder()（公开）→
+     * HkWebViewHolder.getWebkitHolder()（公开）→HkWebkitHolder 到此止步：
+     * jsBridgeHolder 为 protected 字段、无公开 getter，Wrapper 实例只在
+     * FyBridge 内（其 getWrapper() 公开但 FyBridge 本体不可达），
+     * requestHeaderMap/refererPolicy 在 Holder 上亦无公开 getter。故来源改走
+     * HkPlayerChooser 的可替换口（currentWrapper：provider 优先、登记表兜底），
+     * 主线只须在 HkWebkitHolder.initWebView 建 FyBridge 后补一行登记
+     * （HkPlayerChooser.registerCurrentWrapper(activity,
+     * jsBridgeHolder.getWrapper())，见 fill-136b-c2 分账「主线缝」），本法与
+     * HkPlayerChooser 一字不用再改；登记未补/当前页无 Wrapper 时 map 与策略
+     * 皆 null，与官 helper 缺位形逐字同终局。
+     */
+    public static String decorateHeader(Activity activity, String pageUrl, String url) {
+        HkWebViewWrapper wrapper = HkPlayerChooser.currentWrapper(activity);
+        Map<String, String> map = null;
+        if (wrapper != null) {
+            Map<String, Map<String, String>> all = wrapper.getRequestHeaderMap();
+            map = all == null ? null : all.get(url);
+        }
+        String cookie = "";
+        try {
+            String policy = wrapper == null ? null : wrapper.getRefererPolicy();
+            String referer = HkPlayerChooser.getReferer(map, policy, pageUrl, url);
+            cookie = CookieManager.getInstance().getCookie(url);
+            if (StringUtil.isEmpty(cookie) && StringUtil.isNotEmpty(referer)) {
+                cookie = CookieManager.getInstance().getCookie(referer);
+            }
+        } catch (Exception e) {
+            Timber.e(e);
+        }
+        return HkPlayerChooser.decorateHeader0(map, null, url, cookie);
+    }
+
+    /**
+     * 官 startMxPlayer（PlayerChooser.smali:4058，.line 996-1041）照官转写：
+     * headers 非空时逐项另建两表——编码表（encodeUrl(k)+"="+encodeUrl(v)，
+     * 官寄存器在 putExtra 时被 "headers" 键覆写、该表实际未用，照官保留其
+     * 构建）与原样交替表（k,v,k,v…），"headers" 键 put 的是原样交替表的
+     * String[]（CollectionUtil.toStrArray）；字幕非空经 initSubtitleUrl 换址后
+     * put "subs"（Parcelable[]{Uri}）、"subs.name"（String[]{"外挂字幕"}）、
+     * "subs.enable"（Parcelable[]{Uri}）三键（MX 私有数组形逐字照官）。
+     * 目标两级：com.mxtech.videoplayer.ad/.ActivityScreen（包内类名
+     * com.mxtech.videoplayer.ad.ActivityScreen）先行，未装或起动异常（Timber
+     * 后留其 message）续试 com.mxtech.videoplayer.pro/
+     * com.mxtech.videoplayer.ActivityScreen，第二级异常时 message 拼
+     * 前值+"____"+新 message；终局 toast「没有安装MXPlayer！」+message 回
+     * false。encodeUrl 接本树 HttpParser 同名转写 HkHttpParser.encodeUrl。
+     */
+    private static boolean startMxPlayer(Context context, String title, String url,
+                                         Map<String, String> headers, String subtitle) {
+        url = getThirdPlaySource(url);
+        Intent intent = new Intent();
+        if (headers != null && !headers.isEmpty()) {
+            List<String> encodedPairs = new ArrayList<>();
+            List<String> rawPairs = new ArrayList<>();
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                encodedPairs.add(HkHttpParser.encodeUrl(entry.getKey())
+                        + "=" + HkHttpParser.encodeUrl(entry.getValue()));
+                rawPairs.add(entry.getKey());
+                rawPairs.add(entry.getValue());
+            }
+            intent.putExtra("headers", CollectionUtil.toStrArray(rawPairs));
+        }
+        if (StringUtil.isNotEmpty(subtitle)) {
+            String subtitleUrl = initSubtitleUrl(context, title, url, headers, subtitle);
+            intent.putExtra("subs", new Parcelable[]{Uri.parse(subtitleUrl)});
+            intent.putExtra("subs.name", new String[]{"外挂字幕"});
+            intent.putExtra("subs.enable", new Parcelable[]{Uri.parse(subtitleUrl)});
+        }
+        intent.setAction("android.intent.action.VIEW");
+        intent.setDataAndType(FilesInAppUtil.getUri(context, url),
+                UrlDetector.isMusic(title, url) ? "audio/*" : "video/*");
+        intent.putExtra("title", title);
+        intent.putExtra("name", title);
+        intent.addFlags(0x10008000);
+        String msg;
+        String adPkg = "com.mxtech.videoplayer.ad";
+        if (appInstalledOrNot(context, adPkg)) {
+            try {
+                intent.setComponent(new ComponentName(adPkg, "com.mxtech.videoplayer.ad.ActivityScreen"));
+                context.startActivity(intent);
+                return true;
+            } catch (Exception e) {
+                Timber.e(e);
+                msg = e.getMessage();
+            }
+        } else {
+            msg = "";
+        }
+        String proPkg = "com.mxtech.videoplayer.pro";
+        if (appInstalledOrNot(context, proPkg)) {
+            try {
+                intent.setComponent(new ComponentName(proPkg, "com.mxtech.videoplayer.ActivityScreen"));
+                context.startActivity(intent);
+                return true;
+            } catch (Exception e) {
+                Timber.e(e);
+                msg = msg + "____" + e.getMessage();
+            }
+        }
+        ToastMgr.shortBottomCenter(context, "没有安装MXPlayer！" + msg);
+        return false;
+    }
+
+    /** 官 startXPlayer（smali:7052，.line 1235）：六参 startPlayerById，名 "XPlayer"。 */
+    private static boolean startXPlayer(Context context, String title, String url) {
+        return startPlayerById(context, title, url, "XPlayer",
+                "video.player.videoplayer", "com.inshot.xplayer.activities.PlayerActivity");
+    }
+
+    /**
+     * 官 startKMPlayer（smali:3379，.line 1079-1117）照官转写：标准 VIEW 意图
+     * 三级试——①com.kmplayerpro/com.kmplayer.activity.VideoPlayerActivity；
+     * ②com.kmplayer/com.kmplayer.MainActivity（异常时 message 拼
+     * 前值+"____"+新 message）；③再查 com.kmplayerpro 在装时以
+     * （com.kmplayerpro, com.kmplayer.MainActivity）试（包/类跨配照官原文），
+     * 其异常 message 直接覆写。终局 toast「没有安装KMPlayer！」+message 回 false。
+     */
+    private static boolean startKMPlayer(Context context, String title, String url) {
+        url = getThirdPlaySource(url);
+        Intent intent = buildStandardViewIntent(context, title, url);
+        String msg;
+        String proPkg = "com.kmplayerpro";
+        if (appInstalledOrNot(context, proPkg)) {
+            try {
+                intent.setComponent(new ComponentName(proPkg, "com.kmplayer.activity.VideoPlayerActivity"));
+                context.startActivity(intent);
+                return true;
+            } catch (Exception e) {
+                Timber.e(e);
+                msg = e.getMessage();
+            }
+        } else {
+            msg = "";
+        }
+        String freePkg = "com.kmplayer";
+        if (appInstalledOrNot(context, freePkg)) {
+            try {
+                intent.setComponent(new ComponentName(freePkg, "com.kmplayer.MainActivity"));
+                context.startActivity(intent);
+                return true;
+            } catch (Exception e) {
+                Timber.e(e);
+                msg = msg + "____" + e.getMessage();
+            }
+        }
+        if (appInstalledOrNot(context, proPkg)) {
+            try {
+                intent.setComponent(new ComponentName(proPkg, "com.kmplayer.MainActivity"));
+                context.startActivity(intent);
+                return true;
+            } catch (Exception e) {
+                Timber.e(e);
+                msg = e.getMessage();
+            }
+        }
+        ToastMgr.shortBottomCenter(context, "没有安装KMPlayer！" + msg);
+        return false;
+    }
+
+    /**
+     * 官 startMoboPlayer（摩播，smali:3740，.line 1046-1074）照官转写：标准
+     * VIEW 意图两级试，同类 com.clov4r.android.nil.ui.activity.MainActivity——
+     * ①包 com.clov4r.android.nil.noad；②包 com.clov4r.android.nil（异常时
+     * message 拼前值+"____"+新 message）。终局 toast「没有安装MoboPlayer！」
+     * +message 回 false。
+     */
+    private static boolean startMoboPlayer(Context context, String title, String url) {
+        url = getThirdPlaySource(url);
+        Intent intent = buildStandardViewIntent(context, title, url);
+        String msg;
+        String cls = "com.clov4r.android.nil.ui.activity.MainActivity";
+        String noadPkg = "com.clov4r.android.nil.noad";
+        if (appInstalledOrNot(context, noadPkg)) {
+            try {
+                intent.setComponent(new ComponentName(noadPkg, cls));
+                context.startActivity(intent);
+                return true;
+            } catch (Exception e) {
+                Timber.e(e);
+                msg = e.getMessage();
+            }
+        } else {
+            msg = "";
+        }
+        String plainPkg = "com.clov4r.android.nil";
+        if (appInstalledOrNot(context, plainPkg)) {
+            try {
+                intent.setComponent(new ComponentName(plainPkg, cls));
+                context.startActivity(intent);
+                return true;
+            } catch (Exception e) {
+                Timber.e(e);
+                msg = msg + "____" + e.getMessage();
+            }
+        }
+        ToastMgr.shortBottomCenter(context, "没有安装MoboPlayer！" + msg);
+        return false;
+    }
+
+    /** 官 startQQPlayer（smali:6527，.line 1243）：六参 startPlayerById，名「QQ浏览器」。 */
+    private static boolean startQQPlayer(Context context, String title, String url) {
+        return startPlayerById(context, title, url, "QQ浏览器",
+                "com.tencent.mtt", "com.tencent.mtt.browser.video.H5VideoThrdcallActivity");
+    }
+
+    /** 官 startVLC（smali:6758，.line 1239）：六参 startPlayerById，名 "VLC"。 */
+    private static boolean startVLC(Context context, String title, String url) {
+        return startPlayerById(context, title, url, "VLC",
+                "org.videolan.vlc", "org.videolan.vlc.StartActivity");
+    }
+
+    /** 官 startUCPlayer（smali:6735，.line 1227）：六参 startPlayerById，名「UC浏览器」。 */
+    private static boolean startUCPlayer(Context context, String title, String url) {
+        return startPlayerById(context, title, url, "UC浏览器",
+                "com.UCMobile", "com.UCMobile.main.UCMobile");
+    }
+
+    /** 官 startUCIntlPlayer（smali:6712，.line 1231）：六参 startPlayerById，名「UC国际版」、类与 UC 支同名。 */
+    private static boolean startUCIntlPlayer(Context context, String title, String url) {
+        return startPlayerById(context, title, url, "UC国际版",
+                "com.UCMobile.intl", "com.UCMobile.main.UCMobile");
+    }
+
+    /**
+     * 官 startDDPlayPlayer（弹弹，smali:3210，.line 958-991）照官转写：VIEW
+     * 意图只 put "video_title"（不 put title/name）；包 com.xyoye.dandanplay
+     * 在装时同包三类依次试——①com.xyoye.player_component.ui.activities.
+     * player_intent.PlayerIntentActivity、②com.xyoye.dandanplay.ui.activities.
+     * play.PlayerManagerActivity、③com.xyoye.dandanplay.ui.activities.
+     * PlayerManagerActivity，前两级异常只 Timber（message 不留）、第三级留
+     * message；任一级起动成功回 true。终局 toast「没有安装弹弹Play！」+message
+     * 回 false。
+     */
+    private static boolean startDDPlayPlayer(Context context, String title, String url) {
+        url = getThirdPlaySource(url);
+        Intent intent = new Intent();
+        intent.setAction("android.intent.action.VIEW");
+        intent.setDataAndType(FilesInAppUtil.getUri(context, url),
+                UrlDetector.isMusic(title, url) ? "audio/*" : "video/*");
+        intent.putExtra("video_title", title);
+        intent.addFlags(0x10008000);
+        String pkg = "com.xyoye.dandanplay";
+        String msg = "";
+        if (appInstalledOrNot(context, pkg)) {
+            String[] classes = {
+                    "com.xyoye.player_component.ui.activities.player_intent.PlayerIntentActivity",
+                    "com.xyoye.dandanplay.ui.activities.play.PlayerManagerActivity",
+                    "com.xyoye.dandanplay.ui.activities.PlayerManagerActivity"
+            };
+            for (int i = 0; i < classes.length; i++) {
+                try {
+                    intent.setComponent(new ComponentName(pkg, classes[i]));
+                    context.startActivity(intent);
+                    return true;
+                } catch (Exception e) {
+                    Timber.e(e);
+                    if (i == classes.length - 1) {
+                        msg = e.getMessage();
+                    }
+                }
+            }
+        }
+        ToastMgr.shortBottomCenter(context, "没有安装弹弹Play！" + msg);
+        return false;
+    }
+
+    /**
+     * 官 startNPlayPlayer（smali:4421，.line 934-953）照官转写：VIEW 意图 put
+     * "fileName"/"file_name"（皆 title）与 "playPath"（url 串本体、非 Uri）；
+     * 包 com.newin.nplayer.pro、类 com.newin.nplayer.activities.BridgeActivity
+     * 单级试。终局 toast「没有安装nPlayer！」+message 回 false。
+     */
+    private static boolean startNPlayPlayer(Context context, String title, String url) {
+        url = getThirdPlaySource(url);
+        Intent intent = new Intent();
+        intent.setAction("android.intent.action.VIEW");
+        intent.setDataAndType(FilesInAppUtil.getUri(context, url),
+                UrlDetector.isMusic(title, url) ? "audio/*" : "video/*");
+        intent.putExtra("fileName", title);
+        intent.putExtra("file_name", title);
+        intent.putExtra("playPath", url);
+        intent.addFlags(0x10008000);
+        String msg;
+        String pkg = "com.newin.nplayer.pro";
+        if (appInstalledOrNot(context, pkg)) {
+            try {
+                intent.setComponent(new ComponentName(pkg, "com.newin.nplayer.activities.BridgeActivity"));
+                context.startActivity(intent);
+                return true;
+            } catch (Exception e) {
+                Timber.e(e);
+                msg = e.getMessage();
+            }
+        } else {
+            msg = "";
+        }
+        ToastMgr.shortBottomCenter(context, "没有安装nPlayer！" + msg);
+        return false;
+    }
+
+    /**
+     * 官 startWVCaster（smali:6874，.line 1247-1265）照官转写：extras 先照
+     * 波澜同式拼 "url"（file:/content// 开头经 FilesInAppUtil.getUri 换串）；
+     * headers 非空时逐项 putString 进新 Bundle、经 Consumer 在 startPlayerById
+     * 起动前 putExtra("android.media.intent.extra.HTTP_HEADERS", bundle)
+     * （官 lambda$startWVCaster$6，smali:2532）；字幕非空经 initSubtitleUrl
+     * 换址后 put "subtitle"；尾走八参 startPlayerById（名 "Web Video Caster"、
+     * 包 com.instantbits.cast.webvideo、类 com.instantbits.cast.webvideo.WebBrowser）。
+     */
+    private static boolean startWVCaster(Context context, String title, String url,
+                                         Map<String, String> headers, String subtitle) {
+        Map<String, String> extras = new HashMap<>();
+        String playUrl;
+        if (url.startsWith("file:") || url.startsWith("content") || url.startsWith("/")) {
+            playUrl = FilesInAppUtil.getUri(context, url).toString();
+        } else {
+            playUrl = url;
+        }
+        extras.put("url", playUrl);
+        Consumer<Intent> consumer = null;
+        if (headers != null && !headers.isEmpty()) {
+            Bundle headersBundle = new Bundle();
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                headersBundle.putString(entry.getKey(), entry.getValue());
+            }
+            consumer = intent -> intent.putExtra("android.media.intent.extra.HTTP_HEADERS", headersBundle);
+        }
+        if (StringUtil.isNotEmpty(subtitle)) {
+            String subtitleUrl = initSubtitleUrl(context, title, url, headers, subtitle);
+            extras.put("subtitle", subtitleUrl);
+        }
+        return startPlayerById(context, title, url, "Web Video Caster", extras,
+                "com.instantbits.cast.webvideo", "com.instantbits.cast.webvideo.WebBrowser", consumer);
+    }
+
+    /**
+     * 官 startLuaPlayer（smali:3618，.line 911-929）照官转写：VIEW 意图先 put
+     * "url" 与 "externalPlay:extractText" 两键、值皆为 title（照官寄存器原文，
+     * 非播放址）；再 setDataAndType＋addFlags(0x10008000)；包
+     * ms.dev.luaplayer_pro、类 ms.dev.activity.AVExternalActivity 单级试。
+     * 终局 toast「没有安装 Lua Player！」+message 回 false。
+     */
+    private static boolean startLuaPlayer(Context context, String title, String url) {
+        url = getThirdPlaySource(url);
+        Intent intent = new Intent();
+        intent.setAction("android.intent.action.VIEW");
+        intent.putExtra("url", title);
+        intent.putExtra("externalPlay:extractText", title);
+        intent.setDataAndType(FilesInAppUtil.getUri(context, url),
+                UrlDetector.isMusic(title, url) ? "audio/*" : "video/*");
+        intent.addFlags(0x10008000);
+        String msg;
+        String pkg = "ms.dev.luaplayer_pro";
+        if (appInstalledOrNot(context, pkg)) {
+            try {
+                intent.setComponent(new ComponentName(pkg, "ms.dev.activity.AVExternalActivity"));
+                context.startActivity(intent);
+                return true;
+            } catch (Exception e) {
+                Timber.e(e);
+                msg = e.getMessage();
+            }
+        } else {
+            msg = "";
+        }
+        ToastMgr.shortBottomCenter(context, "没有安装 Lua Player！" + msg);
+        return false;
+    }
+
+    /** 官 startKodi（smali:3595，.line 1206）：六参 startPlayerById，名 "Kodi"。 */
+    private static boolean startKodi(Context context, String title, String url) {
+        return startPlayerById(context, title, url, "Kodi",
+                "org.xbmc.kodi", "org.xbmc.kodi.Splash");
+    }
+
+    /**
+     * 官 startNextPlayer（smali:4548，.line 1210-1223）：与 startBolanAssist
+     * 同式拼 extras（"url" 换串/"header" fastjson 串/"subtitle" 换址后），尾走
+     * 七参 startPlayerById（名 "Next Player"、包 dev.anilbeesetti.nextplayer、
+     * 类 dev.anilbeesetti.nextplayer.feature.player.PlayerActivity）。
+     */
+    private static boolean startNextPlayer(Context context, String title, String url,
+                                           Map<String, String> headers, String subtitle) {
+        Map<String, String> extras = new HashMap<>();
+        String playUrl;
+        if (url.startsWith("file:") || url.startsWith("content") || url.startsWith("/")) {
+            playUrl = FilesInAppUtil.getUri(context, url).toString();
+        } else {
+            playUrl = url;
+        }
+        extras.put("url", playUrl);
+        if (headers != null) {
+            extras.put("header", JSON.toJSONString(headers));
+        }
+        if (StringUtil.isNotEmpty(subtitle)) {
+            String subtitleUrl = initSubtitleUrl(context, title, url, headers, subtitle);
+            extras.put("subtitle", subtitleUrl);
+        }
+        return startPlayerById(context, title, url, "Next Player", extras,
+                "dev.anilbeesetti.nextplayer", "dev.anilbeesetti.nextplayer.feature.player.PlayerActivity");
+    }
+
+    /**
+     * 官 startSystemPlayer（smali:6622，.line 1160-1171）照官转写：不用
+     * startPlayerById、无装机查——try 内新 Intent put "title"/"name"、
+     * setAction(ACTION_VIEW)、setFlags(3)（读/写 URI 授权位、是 setFlags 非
+     * addFlags）、setDataAndType 后直 startActivity；headers/subtitle 两参官
+     * 本体不用。异常 Timber 后 shortCenter toast「找不到系统播放器！」；
+     * 官尾恒回 true（异常支亦然），照官保留此终局。
+     */
+    private static boolean startSystemPlayer(Context context, String title, String url,
+                                             Map<String, String> headers, String subtitle) {
+        try {
+            Intent intent = new Intent();
+            intent.putExtra("title", title);
+            intent.putExtra("name", title);
+            intent.setAction("android.intent.action.VIEW");
+            intent.setFlags(3);
+            intent.setDataAndType(FilesInAppUtil.getUri(context, url),
+                    UrlDetector.isMusic(title, url) ? "audio/*" : "video/*");
+            context.startActivity(intent);
+        } catch (Exception e) {
+            Timber.e(e);
+            ToastMgr.shortCenter(context, "找不到系统播放器！");
+        }
+        return true;
+    }
+
+    /**
+     * 官 startPlayer 八参（PlayerChooser.smali:5793，.line 569-620）分发本体
+     * 照官转写，参义照官包内五参形调用点（smali:5723）：(Context, 播放器名,
+     * title, url, originalUrl, headers, subtitle, bundle)——url 先
+     * getThirdPlaySource＋getRealUrlForRemotedPlay 换播放址供第三方支，
+     * 内嵌支的 videourl 用 originalUrl；播放器名与 PlayerEnum 显示名逐字
+     * 比对分发（官为 playerName.equals(枚举名) 链）。
+     * 咱家逐支落点（分发序与入参逐支照官 .line 570-603）：MX→startMxPlayer、
+     * X→startXPlayer、KM→startKMPlayer、MO_BO→startMoboPlayer、QQ→
+     * startQQPlayer、VLC→startVLC、UC→startUCPlayer、UC_INTL→
+     * startUCIntlPlayer、DAN_DAN→startDDPlayPlayer、N→startNPlayPlayer、
+     * WEB_VIDEO_CASTER→startWVCaster、LUA→startLuaPlayer、KODI→startKodi、
+     * NEXT→startNextPlayer（以上 136b 簇2 逐支照官落，见各法注）、REEX→
+     * startReex、BO_LAN_ASSIST→startBolanAssist、SYSTEM→startSystemPlayer；
+     * 内嵌支（PLAYER_TWO 与未知名落穿）官开 VideoPlayerActivity（extras
+     * title/videourl=originalUrl/fromActivity=ctx.hashCode()、bundle 非空经
+     * checkSize 后存 extraDataBundle、UrlDetector.isMusic 时按
+     * resolveActivity 加窗旗），咱家播放宿主等价面＝HkDetailBridge
+     * .startPlayerSingle（与本类三参 startPlayer 同落点，bundle 的 extraData
+     * 语义在该路自理、不在此重建，记名）。各第三方支的官终局照原样：目标
+     * 未装回 false（SYSTEM 支官本体无装机查、恒回 true），不许落内嵌支冒充。
+     * 注：咱家比对向与官相反（枚举名.equals(playerId) 对官 playerId.equals
+     * (枚举名)）——playerId 为 null 时官抛 NPE、咱家落内嵌支，136 批既有口径，
+     * 本簇不动此点、记名在分账。
+     */
+    public static boolean startPlayer(Context context, String playerId, String title, String url,
+                                      String originalUrl, Map<String, String> headers,
+                                      String subtitle, Bundle bundle) {
+        String playUrl = getRealUrlForRemotedPlay(getThirdPlaySource(url));
+        if (PlayerEnum.MX_PLAYER.getName().equals(playerId)) {
+            return startMxPlayer(context, title, playUrl, headers, subtitle);
+        }
+        if (PlayerEnum.X_PLAYER.getName().equals(playerId)) {
+            return startXPlayer(context, title, playUrl);
+        }
+        if (PlayerEnum.KM_PLAYER.getName().equals(playerId)) {
+            return startKMPlayer(context, title, playUrl);
+        }
+        if (PlayerEnum.MO_BO_PLAYER.getName().equals(playerId)) {
+            return startMoboPlayer(context, title, playUrl);
+        }
+        if (PlayerEnum.QQ_PLAYER.getName().equals(playerId)) {
+            return startQQPlayer(context, title, playUrl);
+        }
+        if (PlayerEnum.VLC_PLAYER.getName().equals(playerId)) {
+            return startVLC(context, title, playUrl);
+        }
+        if (PlayerEnum.UC_PLAYER.getName().equals(playerId)) {
+            return startUCPlayer(context, title, playUrl);
+        }
+        if (PlayerEnum.UC_INTL_PLAYER.getName().equals(playerId)) {
+            return startUCIntlPlayer(context, title, playUrl);
+        }
+        if (PlayerEnum.DAN_DAN_PLAYER.getName().equals(playerId)) {
+            return startDDPlayPlayer(context, title, playUrl);
+        }
+        if (PlayerEnum.N_PLAYER.getName().equals(playerId)) {
+            return startNPlayPlayer(context, title, playUrl);
+        }
+        if (PlayerEnum.WEB_VIDEO_CASTER.getName().equals(playerId)) {
+            return startWVCaster(context, title, playUrl, headers, subtitle);
+        }
+        if (PlayerEnum.LUA_PLAYER.getName().equals(playerId)) {
+            return startLuaPlayer(context, title, playUrl);
+        }
+        if (PlayerEnum.KODI.getName().equals(playerId)) {
+            return startKodi(context, title, playUrl);
+        }
+        if (PlayerEnum.NEXT_PLAYER.getName().equals(playerId)) {
+            return startNextPlayer(context, title, playUrl, headers, subtitle);
+        }
+        if (PlayerEnum.REEX.getName().equals(playerId)) {
+            return startReex(context, title, playUrl, headers, subtitle);
+        }
+        if (PlayerEnum.BO_LAN_ASSIST.getName().equals(playerId)) {
+            return startBolanAssist(context, title, playUrl, headers, subtitle);
+        }
+        if (PlayerEnum.SYSTEM.getName().equals(playerId)) {
+            return startSystemPlayer(context, title, playUrl, headers, subtitle);
+        }
+        Activity activity = activityOf(context);
+        if (activity == null) {
+            return false;
+        }
+        new HkDetailBridge().startPlayerSingle(activity, title, originalUrl);
+        return true;
+    }
+
+    /**
+     * 官 LocalServerParser.getRealUrlForRemotedPlay 的咱家等价体
+     * HkDlanController.realUrlForRemotedPlay（api.hk 包内私有、跨包不可达）
+     * 的公式内联：空直回（null 回 ""）、video:// 剥前缀直回、http://127.0.0.1
+     * 前缀换局域网 IP（HkProxyServer.lanIp 接同链）；其 file:// 文件服务支
+     * （官本体在 DlanController 内亦无此支、由 getRealUrl 单独承接）不在此式内。
+     */
+    private static String getRealUrlForRemotedPlay(String url) {
+        if (StringUtil.isEmpty(url)) {
+            return url == null ? "" : url;
+        }
+        if (url.startsWith("video://")) {
+            return url.substring("video://".length());
+        }
+        if (url.startsWith("http://127.0.0.1")) {
+            String ip = HkProxyServer.lanIp();
+            if (StringUtil.isNotEmpty(ip)) {
+                return url.replace("127.0.0.1", ip);
+            }
+        }
+        return url;
     }
 
     private static Activity activityOf(Context context) {

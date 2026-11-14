@@ -110,6 +110,9 @@ public class ReadingRouter {
         s.chapterUrl = c.url;
         s.siteKey = r.siteKey == null ? "" : r.siteKey;
         s.legadoKey = r.legadoKey == null ? "" : r.legadoKey;
+        // 海阔容器子规则全文不再随记录带回（2026-11-14 不留痕新规：海阔小说
+        // 不写本店记录，全文改由分流处随会话直接带入，见 HkListActivity 与
+        // VideoActivity.divertHkRead 的 hkRuleJson 装配）。
         // 海阔记录的 sourceName 即规则名；py 源不走规则（ruleTitle 置空防误查）
         s.ruleTitle = TextUtils.isEmpty(s.siteKey) ? s.sourceName : "";
         // Legado 书源走 legadoKey 懒取，不许误进海阔规则链
@@ -345,7 +348,12 @@ public class ReadingRouter {
             // 海阔电台记录：legadoKey 是 "hk:<规则名>" 身份键，专辑要带回 hkRule 才走得通解析；
             // 线路名存在 playFlag 槽（AUDIO 记录无人读此字段），一并带回 hkLine
             if (a.legadoKey.startsWith("hk:")) {
-                a.hkRule = a.legadoKey.substring(3);
+                // 容器听书的 legadoKey 是子规则名（身份）、解析规则名另存 ruleTitle：
+                // 有 ruleTitle 优先用它，只有旧记录才退回 legadoKey 反推（独立规则/
+                // 电台两者同名不受影响）。反推到子规则名时按名取不到已装规则必死
+                // （2026-11-14 再入普查钉死）。
+                a.hkRule = r.ruleTitle != null && !r.ruleTitle.isEmpty()
+                        ? r.ruleTitle : a.legadoKey.substring(3);
                 a.hkLine = r.playFlag == null ? "" : r.playFlag;
             }
             a.sourceName = r.sourceName == null ? "" : r.sourceName;

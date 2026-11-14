@@ -306,13 +306,20 @@ public class TtsReadActivity extends Activity
             }
         }
 
+        /** 海阔书的朗读会话判据（与阅读页同口径）：有规则名、无站点/Legado 键、非本地。 */
+        private boolean isHkJob() {
+            return !TextUtils.isEmpty(ruleTitle) && TextUtils.isEmpty(siteKey)
+                    && TextUtils.isEmpty(legadoKey) && TextUtils.isEmpty(localId);
+        }
+
         @Override public void close(Context ctx, PlaybackService svc) {
             int pos = 0;
             try {
                 pos = (int) svc.player().getPosition();
             } catch (Throwable ignored) {
             }
-            try {
+            // 海阔书：进度不落 ReadingStore（不留痕新规，理由见页内 saveProgress）
+            if (!isHkJob()) try {
                 ReadingStore.Record r = null;
                 for (ReadingStore.Record x : ReadingStore.list()) {
                     if ("TTS".equals(x.kind)
@@ -1309,6 +1316,12 @@ public class TtsReadActivity extends Activity
     }
 
     private void saveProgress() {
+        // 海阔书的朗读进度不落 ReadingStore（2026-11-14 不留痕新规，与阅读器
+        // 同口径）：续听位置只活在本会话内；海阔历史里的阅读进度归阅读页
+        // 管，朗读的毫秒位置不往小说的万分比字段里混写。
+        if (job != null && !TextUtils.isEmpty(job.ruleTitle)
+                && TextUtils.isEmpty(job.siteKey) && TextUtils.isEmpty(job.legadoKey)
+                && TextUtils.isEmpty(job.localId)) return;
         try {
             ReadingSession.Chapter c = job.chapters.get(Math.min(ci, job.chapters.size() - 1));
             ReadingStore.Record r = findRecord();

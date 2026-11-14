@@ -54,8 +54,8 @@ android {
         applicationId "com.XingChen.tv"
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
-        versionCode 218
-        versionName "1.4.135"
+        versionCode 219
+        versionName "1.4.136"
         buildConfigField "String", "BUILD_TIME", "\"${buildTime}\""
         buildConfigField "String", "BUILD_TAG", "\"${releaseTag}\""
         buildConfigField "String", "GIT_REVISION", "\"${gitRevision}\""
@@ -264,6 +264,7 @@ dependencies {
     implementation libs.constraintlayout
     implementation libs.webkit
     implementation libs.android.gif.drawable
+    implementation libs.androidsvg
     implementation libs.jsoup
     implementation libs.htmlcleaner
     implementation libs.junrar

@@ -29,6 +29,7 @@ import com.fongmi.android.tv.player.Source;
 import com.fongmi.android.tv.read.ReadingGate;
 import com.fongmi.android.tv.read.ReadingSession;
 import com.fongmi.android.tv.setting.PlayerSetting;
+import com.fongmi.android.tv.ui.hk.HkEngineManager;
 import com.fongmi.android.tv.utils.PushNameClean;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Sniffer;
@@ -95,6 +96,10 @@ public class SiteApi {
         if (api == null) return null;
         String key = site.getKey();
         if (PluginKinds.HTML.equals(PluginKinds.kindOfKey(key))) return SourceProxyPolicy.KIND_HTML;
+        // js 同口径按前缀认领（核查 136 ⑨ 补）：动态 JS 源的 api 恒是本地
+        // .js/.wv 路径、原子串支已盖；api 无后缀（远程址）时靠前缀兜住，
+        // 否则 kind 落 VOD、按 js 记的开关条目永不对位。
+        if (PluginKinds.JS.equals(PluginKinds.kindOfKey(key))) return SourceProxyPolicy.KIND_JS;
         String a = api.toLowerCase();
         if (a.contains(".py")) return SourceProxyPolicy.KIND_PY;
         if (a.contains(".js") || a.contains(".wv")) return SourceProxyPolicy.KIND_JS;
@@ -132,6 +137,7 @@ public class SiteApi {
         if (siteKey != null) {
             if (siteKey.startsWith("py_")) return SourceProxyPolicy.KIND_PY;
             if (siteKey.startsWith("html_")) return SourceProxyPolicy.KIND_HTML;
+            if (siteKey.startsWith("js_")) return SourceProxyPolicy.KIND_JS;
             String k = siteKey.toLowerCase();
             if (k.contains(".py")) return SourceProxyPolicy.KIND_PY;
             if (k.contains(".js") || k.contains(".wv")) return SourceProxyPolicy.KIND_JS;
@@ -1080,6 +1086,20 @@ public class SiteApi {
             // 防止上次残留污染本次 lazyRule 的 input。
             try {
                 router.getEngine().getJsRuntime().setNextInputOverride(null);
+            } catch (Throwable ignored) {
+            }
+            // 冷再入保鲜（账 hk-music-read-reopen-20261114 §六）：路由缓存
+            // 命中时，构造期那次 runtimeFor 规则绑定不会重跑，而共享桥的
+            // 当前规则绑定是进程一份、其间早被别的规则的页面逐抓换走；
+            // play 的 lazy 求值在调用时刻捕获运行时绑定（evalLazyInternal
+            // 捕获 boundRule 后在串行段内重申），绑着旧规则时 lazy 在错
+            // 作用域里求值回空——海阔页内能播、退出后从音乐历史/收藏
+            // 冷再播同一条播不了即此形。取用即按本路由规则重绑，与构造
+            // 期 runtimeFor 的绑定同口径（页内逐抓在每发取数前显式置本
+            // 页规则的保鲜同形），不新造机制；失败不拦取用（与上方清
+            // input 覆盖同纪律），绑定真失败时求值按既有失败面显形。
+            try {
+                HkEngineManager.runtimeFor(router.getRule());
             } catch (Throwable ignored) {
             }
             return router;

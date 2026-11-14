@@ -96,8 +96,23 @@ public class ToastUtil {
                         clp.bottomMargin = bottomMargin;
                         sbView.setLayoutParams(clp);
                     }
+                    // 层级钉死（2026-11-14 他亲口：提示必须在当前页面上面）：本条是挂进
+                    // 宿主 Activity 内容框的普通子 View，无自有窗口、原本不设 Z，
+                    // 在位与否全靠「最后追加」这一瞬——页面随后加进同框的浮层、
+                    // 高 elevation 层都能直接盖住它（多页实报被盖住看不见）。
+                    // 只抬绘制层级，不动位置/底色/字色/时长：translationZ 顶到页面层
+                    // 达不到的高位（页面 elevation 均为 dp 级小值），抬 Z 后页面内容
+                    // 无论先后都压不到它；空轮廓防抬 Z 附带投影改了样式。
+                    sbView.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                        @Override
+                        public void getOutline(View view, android.graphics.Outline outline) {
+                            outline.setEmpty();
+                        }
+                    });
+                    sbView.setTranslationZ(4096f);
                     current = bar;
                     bar.show();
+                    sbView.post(() -> sbView.bringToFront());
                     return;
                 }
             }

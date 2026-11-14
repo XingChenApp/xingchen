@@ -59,8 +59,13 @@ public class HkCloudClip {
     public static String upload(String ruleJson, int clipNum) throws Exception {
         switch (clipNum) {
             case 1: return pastebinUpload(ruleJson);
-            case 2: return netcutUpload(ruleJson);
-            case 5: return cmdUpload(ruleJson);
+            // 云2/云5 的导出不在本类：云2 走 HkRuleManager.exportAsCloudCode
+            // （textdb 专用形）、云5 走 exportAsCmdImCode（cmd.im Location 形）。
+            // 本类旧有的 netcut 形与 cmd.im /api/save 形是无 UI 调用方的潜伏死
+            // 实现（官无 /api/save 形、实测 404；netcut 接口已 301 跳文档页），
+            // 已摘除防误接（账 hk-export-clouds-audit-20261114）。
+            case 2: throw new IllegalArgumentException("云2 导出走 HkRuleManager.exportAsCloudCode");
+            case 5: throw new IllegalArgumentException("云5 导出走 HkRuleManager.exportAsCmdImCode");
             case 6: return pastemeUpload(ruleJson);
             case 7: return notemsUpload(ruleJson);
             case 9: return txtpadUpload(ruleJson);
@@ -107,19 +112,8 @@ public class HkCloudClip {
     }
 
     // ---------- 云2: netcut.cn ----------
-
-    private static String netcutUpload(String content) throws Exception {
-        String noteId = "hk" + System.currentTimeMillis() % 1000000;
-        FormBody body = new FormBody.Builder()
-                .add("note_id", noteId)
-                .add("note_content", content)
-                .build();
-        String resp = post("https://netcut.cn/api/note2/create/", body, null);
-        if (resp == null || !resp.contains("success")) {
-            throw new Exception("NetCut 上传失败: " + resp);
-        }
-        return "https://netcut.cn/p/" + noteId;
-    }
+    // 上传形（netcutUpload）已摘除：接口 301 跳文档页已死、当前 UI 无调用方，
+    // 云2 导出活通道是 HkRuleManager 的 textdb 专用形（见 upload() 注）。
 
     private static String netcutDownload(String code) throws Exception {
         String id = lastPath(code);
@@ -130,17 +124,9 @@ public class HkCloudClip {
     }
 
     // ---------- 云5: cmd.im ----------
-
-    private static String cmdUpload(String content) throws Exception {
-        FormBody body = new FormBody.Builder()
-                .add("content", content)
-                .build();
-        String resp = post("https://cmd.im/api/save", body, null);
-        String url = jsonString(resp, "url");
-        if (url == null) url = jsonString(resp, "key");
-        if (url == null) throw new Exception("Cmd 上传失败: " + resp);
-        return url.startsWith("http") ? url : "https://cmd.im/" + url;
-    }
+    // 上传形（cmdUpload，POST /api/save）已摘除：官 CmdImporter 无此形、实测
+    // 404、当前 UI 无调用方；云5 导出活通道是 HkRuleManager.exportAsCmdImCode
+    // 的 Location 形（见 upload() 注）。下方 cmdDownload 是该活形的取回侧。
 
     private static String cmdDownload(String code) throws Exception {
         String id = lastPath(code);
@@ -158,16 +144,44 @@ public class HkCloudClip {
         java.util.Map<String, String> headers = new java.util.HashMap<>();
         headers.put("Referer", "https://pasteme.tyrantg.com/");
         String resp = post("https://pasteme.tyrantg.com/api/create", body, headers);
-        String id = jsonString(resp, "id");
-        if (id == null) id = jsonString(resp, "key");
-        if (id == null) throw new Exception("Pasteme 上传失败: " + resp);
-        return "https://pasteme.tyrantg.com/" + id;
+        // 成功判据照官 BailanImporter$1：回包解 BailanResponse，data.path 非空即
+        // 成功（不查 return_code）；取件号只认 data.path。旧判据找顶层 id/key，
+        // 真回包无此二字段、每次成功必误判失败（账 hk-pasteme-export-misjudge）。
+        String path = pastemeDataPath(resp);
+        if (path == null || path.isEmpty()) throw new Exception("Pasteme 上传失败: " + resp);
+        // 返回形态对齐官方口令（导入侧 HkRuleManager 认此形）：云6oooole/xxxxxx/{path}
+        // 本路上传密码恒空、无 @{pwd} 尾（官设有密码时才加）。
+        return "云6oooole/xxxxxx/" + path;
+    }
+
+    /** Pasteme 信封取件号：data.path（回包 {return_code,result_code,data:{path,...}}）。 */
+    private static String pastemeDataPath(String resp) {
+        try {
+            com.google.gson.JsonElement root = com.google.gson.JsonParser.parseString(resp);
+            if (root == null || !root.isJsonObject()) return null;
+            com.google.gson.JsonElement data = root.getAsJsonObject().get("data");
+            if (data == null || !data.isJsonObject()) return null;
+            com.google.gson.JsonElement path = data.getAsJsonObject().get("path");
+            return path != null && path.isJsonPrimitive() ? path.getAsString() : null;
+        } catch (Throwable e) {
+            return null;
+        }
     }
 
     private static String pastemeDownload(String code) throws Exception {
         String id = lastPath(code);
         String resp = get("https://pasteme.tyrantg.com/api/getContent/" + id, null);
-        String c = jsonString(resp, "content");
+        // 内容在信封 data 字段（字符串本体），照官 BailanBodyResponse.data 取；
+        // 旧法找顶层 content、真回包无此成员、恒失败（同上账）。
+        String c = null;
+        try {
+            com.google.gson.JsonElement root = com.google.gson.JsonParser.parseString(resp);
+            if (root != null && root.isJsonObject()) {
+                com.google.gson.JsonElement data = root.getAsJsonObject().get("data");
+                if (data != null && data.isJsonPrimitive()) c = data.getAsString();
+            }
+        } catch (Throwable ignored) {
+        }
         if (c == null) throw new Exception("Pasteme 下载失败");
         return c;
     }

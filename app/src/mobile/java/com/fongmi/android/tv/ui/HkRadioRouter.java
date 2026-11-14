@@ -162,6 +162,15 @@ public class HkRadioRouter {
             }
             if (!found) start = Math.max(0, Math.min(selIdx, album.chapters.size() - 1));
             album.index = start;
+            // 海阔历史（2026-11-14 他亲定：海阔历史必有数据）：直达形
+            // （vodId＝被点集址，与收藏直达形同键）建记录并把键带入专
+            // 辑——听书页据它恢复/回写进度；此前电台直达从不在海阔历
+            // 史留行，历史页里找不到播过的电台。
+            album.hkHistoryKey = com.fongmi.android.tv.api.hk.HkHistoryRecorder
+                    .keyOf(ruleTitle, episodeUrl);
+            com.fongmi.android.tv.api.hk.HkHistoryRecorder.recordOpened(
+                    album.hkHistoryKey, album.title, album.coverUrl, album.hkLine,
+                    album.chapters.get(start).name, album.chapters.get(start).url);
             AudioBookActivity.start(activity, LegadoAudio.put(album));
             try {
                 SpiderDebug.log("hk", "routeHk claimed rule=%s chapters=%d start=%d",
@@ -216,6 +225,17 @@ public class HkRadioRouter {
                 return false;
             }
             album.index = 0;
+            // 海阔历史（同 routeHkGo 口径）：详情形键＝本页 vodId（intent
+            // 的 id，与 VideoActivity.getHistoryKey 同值），建记录带键。
+            String detailId = activity.getIntent() == null ? ""
+                    : activity.getIntent().getStringExtra("id");
+            if (detailId != null && !detailId.isEmpty()) {
+                album.hkHistoryKey = com.fongmi.android.tv.api.hk.HkHistoryRecorder
+                        .keyOf(ruleTitle, detailId);
+                com.fongmi.android.tv.api.hk.HkHistoryRecorder.recordOpened(
+                        album.hkHistoryKey, album.title, album.coverUrl, album.hkLine,
+                        album.chapters.get(0).name, album.chapters.get(0).url);
+            }
             AudioBookActivity.start(activity, LegadoAudio.put(album));
             try {
                 SpiderDebug.log("hk", "routeHkDetail claimed rule=%s chapters=%d",

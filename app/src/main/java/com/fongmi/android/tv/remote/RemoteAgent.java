@@ -62,6 +62,14 @@ public final class RemoteAgent {
         RemoteAgentService.stop(App.get());
     }
 
+    /** 切后台静默（账 bg-silence-land-20261114 #2）：全部会话停轮询
+     * ＋关长连，登记与 keepOnline 前台服务本体都保留；回前台调
+     * start() 按配置重起（会话 start 幂等、配置外会话在 start 里
+     * 顺带销账，语义与开机路径一致）。 */
+    public synchronized void suspendSessions() {
+        for (Session session : sessions.values()) session.suspend();
+    }
+
     public boolean isRunning() {
         return !sessions.isEmpty();
     }
@@ -129,6 +137,16 @@ public final class RemoteAgent {
             future = null;
             closeWebSocket();
             log("session stopped origin=%s", serverOrigin);
+        }
+
+        /** 切后台静默（账 bg-silence-land-20261114 #2）：与 stop 同样
+         * 停轮询＋关长连，但会话登记留在 RemoteAgent 表里，回前台
+         * 由 start() 的 session.start() 幂等重臂，不走 stop 的销账。 */
+        private synchronized void suspend() {
+            if (future != null) future.cancel(false);
+            future = null;
+            closeWebSocket();
+            log("session suspended origin=%s", serverOrigin);
         }
 
         private void pollSafely() {

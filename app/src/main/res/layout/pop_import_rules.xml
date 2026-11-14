@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 照官 8.83 布局原样重建（apktool 官包 res/layout/pop_import_rules.xml）：导入模式选择弹窗 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_round_all"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:lines="1"
+            android:maxLines="1"
+            android:padding="15.0dip"
+            android:text="请选择导入模式"
+            android:textColor="@color/blackText"
+            android:textSize="18.0sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10.0dip"
+        android:layout_marginEnd="10.0dip"
+        android:layout_marginBottom="15.0dip"
+        android:gravity="start"
+        android:minHeight="44.0dip"
+        android:text="删除已有规则即导入后所有规则均变成合集中规则；默认会覆盖规则，但不会更新规则的分组信息"
+        android:textColor="@color/blackText"
+        android:textSize="16.0sp" />
+
+    <CheckBox
+        android:id="@+id/checkbox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="5.0dip"
+        android:layout_marginEnd="5.0dip"
+        android:layout_marginBottom="5.0dip"
+        android:text="自动备份所有规则"
+        android:textColor="@color/blackText"
+        android:textColorHint="@color/tabText2"
+        android:textSize="16.0sp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:layout_marginStart="10.0dip"
+        android:layout_marginEnd="10.0dip"
+        android:layout_marginBottom="10.0dip"
+        android:text="将自动备份在视界的backup文件夹内，在数据备份与同步里面可以恢复备份"
+        android:textSize="12.0sp" />
+
+    <TextView
+        android:id="@+id/showDetailView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:layout_marginStart="10.0dip"
+        android:layout_marginEnd="10.0dip"
+        android:layout_marginBottom="10.0dip"
+        android:paddingTop="3.0dip"
+        android:paddingBottom="3.0dip"
+        android:textColor="@color/gray_text2"
+        android:textSize="14.0sp" />
+
+    <View
+        android:id="@+id/xpopup_divider"
+        android:layout_width="match_parent"
+        android:layout_height="0.5dip"
+        android:background="@color/_xpopup_list_divider" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="50.0dip"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tv_cancel"
+            android:layout_width="0.0dip"
+            android:layout_height="match_parent"
+            android:layout_weight="1.0"
+            android:background="?android:attr/selectableItemBackground"
+            android:gravity="center"
+            android:paddingTop="10.0dip"
+            android:paddingBottom="10.0dip"
+            android:text="逐个导入"
+            android:textColor="@color/black_666"
+            android:textSize="16.0sp" />
+
+        <View
+            android:id="@+id/xpopup_divider_h"
+            android:layout_width="0.5dip"
+            android:layout_height="match_parent"
+            android:background="#ffeeeeee" />
+
+        <TextView
+            android:id="@+id/tv_confirm"
+            android:layout_width="0.0dip"
+            android:layout_height="match_parent"
+            android:layout_weight="1.0"
+            android:background="?android:attr/selectableItemBackground"
+            android:gravity="center"
+            android:paddingTop="10.0dip"
+            android:paddingBottom="10.0dip"
+            android:text="覆盖导入"
+            android:textColor="@color/black_666"
+            android:textSize="16.0sp" />
+    </LinearLayout>
+</LinearLayout>

@@ -33,15 +33,37 @@ public class HkNovelFetcher {
     private HkNovelFetcher() {
     }
 
-    /** 同步抓取章节正文（调用方保证在后台线程）。 */
+    /** 同步抓取章节正文（调用方保证在后台线程；按标题从规则库取规则）。 */
     public static String fetchText(String ruleTitle, String chapterUrl) {
         if (TextUtils.isEmpty(ruleTitle) || TextUtils.isEmpty(chapterUrl)) return "";
-        try {
-            HkRule rule = HkRuleManager.get().getRule(ruleTitle);
-            if (rule == null) {
-                SpiderDebug.log("reading", "novel fetch no rule: %s", ruleTitle);
-                return "";
+        HkRule rule = HkRuleManager.get().getRule(ruleTitle);
+        if (rule == null) {
+            SpiderDebug.log("reading", "novel fetch no rule: %s", ruleTitle);
+            return "";
+        }
+        return fetchText(rule, chapterUrl);
+    }
+
+    /**
+     * 会话版：会话带子规则全文（容器劫持子规则不在规则库里）时按全文建
+     * 规则对象抓正文；无全文回落按标题查库的旧口。
+     */
+    public static String fetchText(ReadingSession session, String chapterUrl) {
+        if (session != null && session.hkRuleJson != null && !session.hkRuleJson.isEmpty()) {
+            try {
+                HkRule rule = new com.google.gson.Gson().fromJson(session.hkRuleJson, HkRule.class);
+                if (rule != null) return fetchText(rule, chapterUrl);
+            } catch (Throwable ignored) {
             }
+        }
+        return fetchText(session == null ? "" : session.ruleTitle, chapterUrl);
+    }
+
+    /** 同步抓取章节正文（规则对象版；容器子规则与独立规则共用本体）。 */
+    public static String fetchText(HkRule rule, String chapterUrl) {
+        if (rule == null || TextUtils.isEmpty(chapterUrl)) return "";
+        String ruleTitle = rule.getTitle() == null ? "" : rule.getTitle();
+        try {
             // 节点打点：归属当前规则（kind=hk、id=规则名），与「按源定向」海阔栏一致。
             com.github.catvod.net.SourceGate.Mark prevMark =
                     com.github.catvod.net.SourceGate.push(

@@ -20,11 +20,22 @@ public final class PlaybackRemoteSyncer {
     private static final Runnable PERIODIC = new Runnable() {
         @Override
         public void run() {
+            if (suspended) {
+                markPending();
+                return;
+            }
             Task.execute(() -> syncDue(false));
             App.post(this, TimeUnit.MINUTES.toMillis(5));
         }
     };
     private static boolean started;
+
+    // 切后台静默（账 bg-silence-land-20261114 #1）：退后台停周期
+    // 帖链；后台期到来的 syncDue 触发收成一口——只记 pending 旗、
+    // 不发火，回前台由 resume 补发一轮并续帖。手动 sync(id) 是
+    // 设置弹窗里的前台用户动作，不在此 gate 内。
+    private static volatile boolean suspended;
+    private static boolean pendingDue;
 
     private PlaybackRemoteSyncer() {
     }
@@ -32,11 +43,36 @@ public final class PlaybackRemoteSyncer {
     public static void start() {
         if (started) return;
         started = true;
-        App.post(PERIODIC, TimeUnit.SECONDS.toMillis(3));
+        if (!suspended) App.post(PERIODIC, TimeUnit.SECONDS.toMillis(3));
         Task.execute(() -> syncDue(true));
     }
 
+    public static synchronized void suspend() {
+        suspended = true;
+        App.removeCallbacks(PERIODIC);
+    }
+
+    public static void resume() {
+        boolean flush;
+        synchronized (PlaybackRemoteSyncer.class) {
+            suspended = false;
+            flush = pendingDue;
+            pendingDue = false;
+        }
+        if (!started) return;
+        App.post(PERIODIC, TimeUnit.MINUTES.toMillis(5));
+        if (flush) Task.execute(() -> syncDue(false));
+    }
+
+    private static synchronized void markPending() {
+        pendingDue = true;
+    }
+
     public static void syncDue(boolean startup) {
+        if (suspended) {
+            markPending();
+            return;
+        }
         if (!ViewingRecordSyncStore.isEnabled() || Setting.isIncognito()) return;
         long now = System.currentTimeMillis();
         for (RemoteSyncConfig config : PlaybackRemoteSyncStore.list()) {

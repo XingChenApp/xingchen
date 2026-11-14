@@ -686,6 +686,11 @@ public class ComicReaderActivity extends AppCompatActivity {
             } catch (Throwable ignored) {
             }
         }
+        // 2d. 聚阅子源：章节自带 @rule= 续段码，走续段求值口取图
+        // （求值回 pics:// 或章页地址，与 pics 形承接面同口，不经 router.play）
+        if (com.fongmi.android.tv.read.HkJuFetcher.isJuChapter(session, ch)) {
+            return com.fongmi.android.tv.read.HkJuFetcher.fetchImages(session, ch);
+        }
         // 3. 海阔：router.play 取 pics
         if (!TextUtils.isEmpty(session.ruleTitle) && !TextUtils.isEmpty(ch.url)) {
             try {

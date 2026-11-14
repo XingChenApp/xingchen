@@ -58,6 +58,9 @@ public class ReadingStore {
         public String bookUrl = "";
         /** 海阔改道来源的规则名（节点归属换算用）。 */
         public String ruleTitle = "";
+        // 原 hkRuleJson 字段已收（2026-11-14 不留痕新规）：海阔小说不再写
+        // 本店记录，容器子规则全文改随会话带入（ReadingSession.hkRuleJson），
+        // 记录侧无的放矢。老存量里的同名键由 Gson 读时自然忽略、无碍。
         /** 连载追更：上次查到的总章节数。 */
         public int totalChapters = 0;
         /** 连载追更：上次检查时间（节流用）。 */

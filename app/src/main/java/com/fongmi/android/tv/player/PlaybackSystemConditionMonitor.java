@@ -39,6 +39,7 @@ public final class PlaybackSystemConditionMonitor {
     private volatile PowerManager powerManager;
     private PlaybackAutoContext.SessionToken scheduledSession;
     private ScheduledFuture<?> periodicFuture;
+    private boolean periodicSuspended;
     private boolean networkCallbackRegistered;
     private boolean receiverRegistered;
     private ThermalRegistration thermalRegistration;
@@ -119,12 +120,28 @@ public final class PlaybackSystemConditionMonitor {
             registerListenersLocked(session);
             executor.execute(() -> sampleSafely(
                     session, PlaybackAutoContext.SystemConditionTrigger.SESSION_START));
-            periodicFuture = executor.scheduleWithFixedDelay(
-                    () -> sampleSafely(session, PlaybackAutoContext.SystemConditionTrigger.PERIODIC),
-                    PERIODIC_SAMPLE_INTERVAL_MS,
-                    PERIODIC_SAMPLE_INTERVAL_MS,
-                    TimeUnit.MILLISECONDS);
+            if (!periodicSuspended) armPeriodicLocked(session);
             return true;
+        }
+    }
+
+    private void armPeriodicLocked(PlaybackAutoContext.SessionToken session) {
+        periodicFuture = executor.scheduleWithFixedDelay(
+                () -> sampleSafely(session, PlaybackAutoContext.SystemConditionTrigger.PERIODIC),
+                PERIODIC_SAMPLE_INTERVAL_MS,
+                PERIODIC_SAMPLE_INTERVAL_MS,
+                TimeUnit.MILLISECONDS);
+    }
+
+    /** 切后台静默（账 bg-silence-land-20261114 #5）：后台期只停
+     * 周期采样；网络回调/系统广播是事件驱动、零轮询成本，不摘，
+     * 会话登记与起停逻辑不动。回前台按在册会话重臂。 */
+    public void setPeriodicSuspended(boolean suspended) {
+        synchronized (sessionLock) {
+            if (periodicSuspended == suspended) return;
+            periodicSuspended = suspended;
+            if (suspended) cancelPeriodicLocked();
+            else if (scheduledSession.active()) armPeriodicLocked(scheduledSession);
         }
     }
 

@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -82,7 +83,25 @@ public class Proxy115 extends NanoHTTPD {
         this.cookieJar = cookieJar;
         this.cleaner = Executors.newSingleThreadScheduledExecutor();
         // 定期清理过期 token
-        this.cleaner.scheduleAtFixedRate(this::cleanExpired, 30, 30, TimeUnit.SECONDS);
+        this.cleanerFuture = this.cleaner.scheduleAtFixedRate(this::cleanExpired, 30, 30, TimeUnit.SECONDS);
+    }
+
+    private volatile ScheduledFuture<?> cleanerFuture;
+
+    /** 切后台静默（账 bg-silence-land-20261114 #6）：后台期停这条
+     * 30 秒轮转（代理监听本体不动），回前台重排。注：cleanExpired
+     * 本体是空方法（TTL 已按下方本注摘除），轮转纯空转，停它零
+     * 功能代价；排着只为与前台形制一致，不另删调度本体。 */
+    public void suspendCleaner() {
+        ScheduledFuture<?> future = cleanerFuture;
+        if (future != null) future.cancel(false);
+        cleanerFuture = null;
+    }
+
+    public void resumeCleaner() {
+        if (cleanerFuture != null && !cleanerFuture.isCancelled()) return;
+        if (cleaner.isShutdown()) return;
+        cleanerFuture = cleaner.scheduleAtFixedRate(this::cleanExpired, 30, 30, TimeUnit.SECONDS);
     }
 
     public static Proxy115 peekInstance() {

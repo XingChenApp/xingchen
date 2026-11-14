@@ -1,3 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 阅读子系统未移植（用户范围外）：view_read_bottom 仅作 ViewStub 占位，阅读模式触发时不展开实际控件。 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" />
+<!-- 照官 8.83 view_read_bottom（官包 res/layout/view_read_bottom.xml 原文）：阅读底部栏。
+     read_bottom_bg 横排四文本位：read_chapter（章节名，权重占满）/read_chapter_count（章序计数）/
+     read_time（时刻）/read_power（电量）。背景 shape_top_border_trans 本树 main 资源在位。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:gravity="center_vertical" android:layout_gravity="bottom" android:orientation="horizontal" android:id="@id/read_bottom_bg" android:background="@drawable/shape_top_border_trans" android:paddingTop="5.0dip" android:paddingBottom="5.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content" android:paddingStart="5.0dip" android:paddingEnd="5.0dip">
+    <TextView android:ellipsize="end" android:id="@id/read_chapter" android:layout_width="0.0dip" android:layout_height="wrap_content" android:maxLines="1" android:lines="1" android:singleLine="true" android:layout_weight="1.0" android:layout_marginStart="5.0dip" />
+    <TextView android:id="@id/read_chapter_count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:lines="1" android:layout_marginStart="5.0dip" />
+    <TextView android:id="@id/read_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="5.0dip" />
+    <TextView android:id="@id/read_power" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="5.0dip" android:layout_marginEnd="5.0dip" />
+</LinearLayout>

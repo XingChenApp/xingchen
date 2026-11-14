@@ -21,6 +21,7 @@ import com.fongmi.android.tv.remote.RemoteAgent;
 import com.fongmi.android.tv.setting.ProxySetting;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.utils.AdBlock;
+import com.fongmi.android.tv.utils.BackgroundSilence;
 import com.fongmi.android.tv.utils.DanmakuSearchListFocusFixer;
 import com.fongmi.android.tv.utils.NsdDeviceDiscovery;
 import com.fongmi.android.tv.utils.Notify;
@@ -118,6 +119,9 @@ public class App extends Application implements Application.ActivityLifecycleCal
         // 口径与 startBackgroundServices 的注释一致：非主进程什么都不起，
         // 只留 Application 本体供系统在该进程拉起页面（崩溃页/恢复页）。
         if (!PlaybackRecoveryMonitor.isMainProcess(this)) return;
+        // 海阔借面存量清理（2026-11-14 不留痕新规）：新版首启把音乐/阅读
+        // 自家存档里的海阔旧痕清掉（一次性、后台跑、判据见 HkTraceCleanup）。
+        com.fongmi.android.tv.api.hk.HkTraceCleanup.kick(this);
         // 海阔 LitePal 存储层不在启动链初始化（2026-11-14 他亲定口径）：官把
         // LitePal.initialize 放在 Application 是因为官整包就是海阔；咱家海阔是
         // 模块，初始化收口到模块一次性接线点 HkListActivity.ensureStatics，
@@ -156,6 +160,11 @@ public class App extends Application implements Application.ActivityLifecycleCal
         // ActivityManager.getInstance().getCurrentActivity() 取当前页，
         // 栈靠这份登记喂（类在主源集 com.example.hikerview.ui）。
         registerActivityLifecycleCallbacks(com.example.hikerview.ui.ActivityManager.getInstance());
+        // 切后台全静默（账 bg-silence-land-20261114）：在本类前后台
+        // 确认点挂统一收/放——退后台停各模块的周期发火（同步轮询/
+        // 远程会话/诊断采样/代理清理/网页取数件）并放闲置缓存与短剧
+        // 泊台，回前台按各模块既有入口续行。此处只登记听者、无动作。
+        BackgroundSilence.install();
         // 上游 App 同位置：启动即登记运行时包安装／卸载广播，RuntimeModule.refresh()
         // 靠它感知外置包变化；ModuleViewModel 各自的接收器只跟自己那块模块。
         RuntimeReceiver.register(this);
@@ -217,6 +226,18 @@ public class App extends Application implements Application.ActivityLifecycleCal
         Thread t = new Thread(() -> {
             long last = android.os.SystemClock.elapsedRealtime();
             while (true) {
+                // 切后台静默：后台期泊住不打 tick，回来由前台确认
+                // 点 notify 续打；后台窗在续打后的 tick gap 里显形，
+                // 与原「冻结窗钉秒」用途不冲突（账 bg-silence-land #3）。
+                synchronized (heartbeatGate) {
+                    while (!foreground) {
+                        try {
+                            heartbeatGate.wait();
+                        } catch (InterruptedException e) {
+                            return;
+                        }
+                    }
+                }
                 try {
                     Thread.sleep(2000);
                 } catch (InterruptedException e) {
@@ -340,9 +361,32 @@ public class App extends Application implements Application.ActivityLifecycleCal
         if (listener != null) appBackgroundListeners.add(listener);
     }
 
+    // 整应用回前台听者（与退后台听者对称，在 onActivityStarted 的
+    // 0→1 确认点统一分发）：切后台静默批（账 bg-silence-land
+    // -20261114）的各模块靠这一对听者停/续自己的周期发火，状态
+    // 旗 isForeground 与听者同刻翻转，供轮询件自查（诊断 tick 等）。
+    private static final java.util.List<Runnable> appForegroundListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public static void addAppForegroundListener(Runnable listener) {
+        if (listener != null) appForegroundListeners.add(listener);
+    }
+
+    private static volatile boolean foreground;
+
+    public static boolean isForeground() {
+        return foreground;
+    }
+
+    /** 定音心跳泊车闸：退后台确认点落 foreground=false 后心跳线
+     * 程在此泊住、不再打 tick；回前台确认点 notify 续打（切后台
+     * 静默批，账 bg-silence-land-20261114 #3）。 */
+    private static final Object heartbeatGate = new Object();
+
     private final Runnable appBackgroundLogTask = () -> {
         if (startedActivityCount == 0 && appForegroundLogged) {
             appForegroundLogged = false;
+            foreground = false;
             appLog("app background");
             for (Runnable listener : appBackgroundListeners) {
                 try {
@@ -359,7 +403,17 @@ public class App extends Application implements Application.ActivityLifecycleCal
             handler.removeCallbacks(appBackgroundLogTask);
             if (!appForegroundLogged) {
                 appForegroundLogged = true;
+                foreground = true;
+                synchronized (heartbeatGate) {
+                    heartbeatGate.notifyAll();
+                }
                 appLog("app foreground");
+                for (Runnable listener : appForegroundListeners) {
+                    try {
+                        listener.run();
+                    } catch (Throwable ignored) {
+                    }
+                }
             }
         }
     }

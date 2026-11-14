@@ -23,6 +23,17 @@ public class ReadingSession {
         public String name = "";
         public String url = "";
         public String pic = "";
+        /**
+         * 聚阅子源续段求值载体（仅 juMode 会话）：条目渲染 url 里 @rule=/
+         * @lazyRule= 后的 JS 码（已剥 js: 前缀）。取正文/图列时在宿主规则
+         * （聚阅）运行时里以本章 extra 为 MY_PARAMS 现算——子源实现经
+         * jkdata/getObjCode 现取，不依赖本机注册表。无码为空串（恒等形）。
+         */
+        public String juCode = "";
+        /** 续段求值的 MY_URL：条目 url 中 @rule=/@lazyRule= 之前的整段。 */
+        public String juPageUrl = "";
+        /** 条目 extra 原文 JSON（求值时作 MY_PARAMS，含 url=章原址）。 */
+        public String juParams = "";
 
         public Chapter() {
         }
@@ -47,6 +58,26 @@ public class ReadingSession {
     public String text = "";
     /** 海阔懒取：规则名。 */
     public String ruleTitle = "";
+    /** 容器子规则的小说会话：子规则全文（不在规则库里，抓正文时按此建规则对象）。 */
+    public String hkRuleJson = "";
+    /**
+     * 海阔历史键（2026-11-14 不留痕新规）：分流处建会话时按海阔 History
+     * 键形写死带入——阅读器存进度时凭它把进度回写海阔自家 History，
+     * 不再写 ReadingStore。非海阔会话恒空。
+     */
+    public String hkHistoryKey = "";
+    /**
+     * 聚阅小说/漫画子源会话（章节取数走「续段求值」口，见 HkJuFetcher）：
+     * 分类凭详情条目 extra 的 info.type（comic/novel），不凭名字猜；
+     * 章节载体在各 Chapter 的 juCode/juPageUrl/juParams。
+     */
+    public boolean juMode = false;
+    /**
+     * 聚阅漫画图片解密函数串（详情 extra 的 info.decode，子源 parse.imgdec
+     * 产物）：本批只随会话携带——图片管线尚无按会话解密的钩，带加密图的
+     * 子源仍会出破图，记名残格（账 heji-subrule-routing §九）。
+     */
+    public String juDecode = "";
     /** 懒取键：章节地址。 */
     public String chapterUrl = "";
     /** 图片防盗链 Referer（海阔规则页地址）。 */

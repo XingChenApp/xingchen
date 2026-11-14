@@ -5,6 +5,11 @@ import android.util.Log;
 
 import com.fongmi.android.tv.api.hk.util.HkCodeUtil;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -16,6 +21,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import okhttp3.Call;
@@ -59,6 +65,18 @@ public class HkHttpParser {
     public static void setJsBridge(JsBridge bridge) {
         jsBridge = bridge;
     }
+
+    /**
+     * webview 取数支的共享执行池（对应官 HeavyTaskUtil 的共享池语义）：
+     * 旧形每调一次 get() 新建一条 singleThreadExecutor 且从不 shutdown，
+     * 每次 webview 取数漏一条常驻线程；改进程级共享缓存池（守护线程）。
+     */
+    private static final ExecutorService WEBVIEW_EXECUTOR =
+            Executors.newCachedThreadPool(r -> {
+                Thread t = new Thread(r, "hk-http-webview");
+                t.setDaemon(true);
+                return t;
+            });
 
     /** okgo HttpParams 的最小替代（仅 8.83 用到的 put 语义）。 */
     public static class HttpParams {
@@ -417,7 +435,19 @@ public class HkHttpParser {
         }
         if (url.startsWith("{") && url.endsWith("}")) {
             try {
-                HkPlayData data = GSON.fromJson(url, HkPlayData.class);
+                // 面②#6：官 PlayData 经 fastjson 解析，String 字段/元素/Map 值
+                // 走 parseString 收敛；咱家旧形 Gson 直解，header 值或 urls
+                // 元素为数字/对象即整包抛错、回退成整串 JSON 当 url 静默坏播。
+                // 先树预处理收敛再走 Gson 串路（字段集见 coercePlayDataObject）。
+                JsonElement el = JsonParser.parseString(url);
+                HkPlayData data;
+                if (el != null && el.isJsonObject()) {
+                    JsonObject obj = el.getAsJsonObject();
+                    coercePlayDataObject(obj);
+                    data = GSON.fromJson(obj.toString(), HkPlayData.class);
+                } else {
+                    data = GSON.fromJson(url, HkPlayData.class);
+                }
                 if (data.getUrls() != null && !data.getUrls().isEmpty()) {
                     if (data.getNames() == null || data.getNames().isEmpty()) {
                         List<String> names = new ArrayList<>();
@@ -441,6 +471,63 @@ public class HkHttpParser {
         data.setUrl(url.split(";")[0]);
         data.setHeader(getHeaders(url));
         return data;
+    }
+
+    /** PlayData 的 String 面收敛（面②#6）：标量字段 url/danmu/lyric/subtitle、
+     * 串表 urls/names/audioUrls 的元素、header 与 headers 各 Map 的值，
+     * 非串一律按官 parseString 收敛成文本（复合→JSON 文本、数字→官词形、
+     * 布尔→"true"/"false"）；串与 null 原样不动，Map 键恒为 JSON 串不动。 */
+    private static void coercePlayDataObject(JsonObject obj) {
+        coercePlayStringField(obj, "url");
+        coercePlayStringField(obj, "danmu");
+        coercePlayStringField(obj, "lyric");
+        coercePlayStringField(obj, "subtitle");
+        coercePlayStringList(obj, "urls");
+        coercePlayStringList(obj, "names");
+        coercePlayStringList(obj, "audioUrls");
+        JsonElement header = obj.get("header");
+        if (header != null && header.isJsonObject()) coercePlayStringMapValues(header.getAsJsonObject());
+        JsonElement headers = obj.get("headers");
+        if (headers != null && headers.isJsonArray()) {
+            for (JsonElement h : headers.getAsJsonArray()) {
+                if (h != null && h.isJsonObject()) coercePlayStringMapValues(h.getAsJsonObject());
+            }
+        }
+    }
+
+    private static void coercePlayStringField(JsonObject obj, String key) {
+        if (!obj.has(key)) return;
+        JsonElement v = obj.get(key);
+        if (v == null || v.isJsonNull()) return;
+        if (v.isJsonPrimitive() && v.getAsJsonPrimitive().isString()) return;
+        String text = HkRuleManager.fastJsonValueText(v);
+        if (text != null) obj.addProperty(key, text);
+    }
+
+    private static void coercePlayStringList(JsonObject obj, String key) {
+        JsonElement v = obj.get(key);
+        if (v == null || !v.isJsonArray()) return;
+        JsonArray arr = v.getAsJsonArray();
+        for (int i = 0; i < arr.size(); i++) {
+            JsonElement e = arr.get(i);
+            if (e == null || e.isJsonNull()) continue;
+            if (e.isJsonPrimitive() && e.getAsJsonPrimitive().isString()) continue;
+            String text = HkRuleManager.fastJsonValueText(e);
+            if (text != null) arr.set(i, new JsonPrimitive(text));
+        }
+    }
+
+    /** 单个头表对象（header 本体或 headers 的一个元素）的全部值收敛。 */
+    private static void coercePlayStringMapValues(JsonObject mapObj) {
+        List<String> keys = new ArrayList<>();
+        for (Map.Entry<String, JsonElement> e : mapObj.entrySet()) keys.add(e.getKey());
+        for (String k : keys) {
+            JsonElement v = mapObj.get(k);
+            if (v == null || v.isJsonNull()) continue;
+            if (v.isJsonPrimitive() && v.getAsJsonPrimitive().isString()) continue;
+            String text = HkRuleManager.fastJsonValueText(v);
+            if (text != null) mapObj.addProperty(k, text);
+        }
     }
 
     public static String getPlayUrlWithHeader(String url) {
@@ -467,10 +554,14 @@ public class HkHttpParser {
                 options.put("headers", headers);
                 options.put("timeout", 10000);
                 final String noScheme = HkParserKit.replaceOnceIgnoreCase(decodedUrl, "webview://", "");
-                Executors.newSingleThreadExecutor().execute(() -> {
+                WEBVIEW_EXECUTOR.execute(() -> {
                     try {
                         String code = bridge.fetchCodeByWebView(noScheme, options);
-                        callBack.onSuccess(decodedUrl, code);
+                        // 官 HttpParser lambda$get$0：onSuccess 回的是剥掉
+                        // webview:// 前缀的地址（与 fetchCodeByWebView 入参
+                        // 同一串）；旧形回带前缀的 decodedUrl，下游 storeUrl/
+                        // findList 拿到的页址与官不一致，本次订正。
+                        callBack.onSuccess(noScheme, code);
                     } catch (Exception e) {
                         Log.e(TAG, "webview get", e);
                         callBack.onFailure(500, e.toString());

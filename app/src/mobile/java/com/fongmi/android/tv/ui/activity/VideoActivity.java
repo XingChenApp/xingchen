@@ -584,6 +584,15 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         } catch (Throwable ignored) {
             // 登记失败只影响投屏端点读态，不许牵连起播本体。
         }
+        // 136b #4 尾：MY_POSITION 点击位——标准播放入口把被点集下标放进一次性
+        // 槽，HkRouter.playRoute 入口取走后经解析链在每段 lazy 求值前 setNextLazy
+        // Position（官宿主在点播时把 position 交引擎同位）。放在电台/音乐分流
+        // 之后：只有真走标准播放器的起播才放，免残值被下一回标准起播误领。
+        // 核查 136b P6 补门：本重载也被非海阔路借用（本地文件起播 ruleTitle=""
+        // 走 7 参 selIdx=0），那条路不经 HkRouter.playRoute、槽值无人取走，
+        // 残 0 会被下一回绕过本口的 playRoute（播放器内切集）误领——只许
+        // 真海阔起播（ruleTitle 非空）放值。
+        if (ruleTitle != null && !ruleTitle.isEmpty()) HkDetailBridge.setClickPosition(selIdx);
         Intent intent = new Intent(activity, VideoActivity.class);
         intent.putExtra("key", HkDetailBridge.siteKey(ruleTitle));
         intent.putExtra("id", episodeUrl);
@@ -1700,6 +1709,14 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
                         long cost = System.currentTimeMillis() - detailStartTime;
                         SpiderDebug.log("video-flow", "detail finish cost=%dms hk rule=%s", cost, ruleTitle);
                         detailFinishTime = System.currentTimeMillis();
+                        // 136b 分流线①：容器读/听/乐三支在详情就绪点补问询（历史/
+                        // 收藏再入走本路、不经章节交接，此前三支够不着、全落视频
+                        // 详情）。判据与交接同口径：详情发内抓到的当发 MY_RULE
+                        // 解有效规则分类；未命中回落下方电台/音乐名口径原链。
+                        if (divertHkRead(rule, ruleTitle, detail, vod)) {
+                            finish();
+                            return;
+                        }
                         // 海阔电台改道：电台规则整表交听书播放器（优先于音乐改道，
                         // 「电台」同在音乐识别表里）
                         if (com.fongmi.android.tv.ui.HkRadioRouter.routeHkDetail(VideoActivity.this, ruleTitle, vod)) {
@@ -1719,6 +1736,131 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
                 });
             }
         }).start();
+    }
+
+    /**
+     * 136b 分流线①：历史/收藏再入的容器读/听/乐三支（与 HkListActivity 章节
+     * 交接同口径）。有效规则＝详情发内抓到的当发 MY_RULE（HkDetail.scopeRuleJson，
+     * 容器里即被点子规则；其 params 带 extra.RULE 时经 ReadingGate 再解一层），
+     * 抓不到/同名时回落库中规则本体（独立导入的 read/music 规则即其自身）。
+     * 章节面取 Vod 首个有集线路；线路名取该线路的 show/flag（交接的单线名同位）。
+     * 命中任一支返回 true（调用方 finish）；失败只记日志回 false 落原分发。
+     */
+    private boolean divertHkRead(HkRule rule, String ruleTitle, HkDetail detail, Vod vod) {
+        try {
+            HkRule scopeRule = null;
+            String scopeJson = detail == null ? "" : detail.getScopeRuleJson();
+            if (!TextUtils.isEmpty(scopeJson)) {
+                try {
+                    scopeRule = new com.google.gson.Gson().fromJson(scopeJson, HkRule.class);
+                } catch (Throwable ignored) {
+                }
+            }
+            HkRule effRule = null;
+            String effJson = "";
+            if (scopeRule != null) {
+                effRule = com.fongmi.android.tv.read.ReadingGate.effectiveRule(scopeRule);
+                if (effRule != null) {
+                    effJson = com.fongmi.android.tv.read.ReadingGate.effectiveRuleJson(scopeRule);
+                } else if (!TextUtils.isEmpty(scopeRule.getTitle())
+                        && !scopeRule.getTitle().equals(ruleTitle)) {
+                    effRule = scopeRule;
+                    effJson = scopeJson;
+                }
+            }
+            HkRule cand = effRule != null ? effRule : rule;
+            if (cand == null || vod == null) return false;
+            String idTitle = !TextUtils.isEmpty(cand.getTitle()) ? cand.getTitle() : ruleTitle;
+            Flag flag = null;
+            if (vod.getFlags() != null) {
+                for (Flag f : vod.getFlags()) {
+                    if (f != null && f.getEpisodes() != null && !f.getEpisodes().isEmpty()) {
+                        flag = f;
+                        break;
+                    }
+                }
+            }
+            if (flag == null) return false;
+            String lineName = !TextUtils.isEmpty(flag.getShow()) ? flag.getShow()
+                    : (!TextUtils.isEmpty(flag.getFlag()) ? flag.getFlag() : "默认");
+            com.fongmi.android.tv.read.ReadingGate.HkReadKind kind =
+                    com.fongmi.android.tv.read.ReadingGate.classifyHkRule(cand);
+            if (kind == com.fongmi.android.tv.read.ReadingGate.HkReadKind.NOVEL) {
+                com.fongmi.android.tv.read.ReadingSession ns =
+                        new com.fongmi.android.tv.read.ReadingSession();
+                ns.kind = com.fongmi.android.tv.read.ReadingSession.Kind.NOVEL;
+                ns.sourceName = idTitle;
+                ns.ruleTitle = idTitle;
+                ns.hkRuleJson = effJson == null ? "" : effJson;
+                ns.bookTitle = vod.getName() == null ? "" : vod.getName();
+                ns.coverUrl = vod.getPic() == null ? "" : vod.getPic();
+                for (Episode ep : flag.getEpisodes()) {
+                    ns.chapters.add(new com.fongmi.android.tv.read.ReadingSession.Chapter(
+                            ep.getName() == null ? "" : ep.getName(),
+                            ep.getUrl() == null ? "" : ep.getUrl()));
+                }
+                if (ns.chapters.isEmpty()) return false;
+                ns.chapterIndex = 0;
+                ns.chapterUrl = ns.currentChapter().url;
+                if (TextUtils.isEmpty(ns.bookTitle)) ns.bookTitle = ns.currentChapter().name;
+                // 海阔历史（2026-11-14 他亲定双规，与文章页分流同口径）：
+                // 本页的视频记录本会由 checkHistoryUi 落——分流条目改走借
+                // 面后那条链不再经手，记录在此补建；进度恢复改读本页历
+                // 史行（集址对位＋万分比），不再读 ReadingStore。
+                String dKey = getHistoryKey();
+                ns.hkHistoryKey = dKey;
+                com.fongmi.android.tv.bean.History dh =
+                        com.fongmi.android.tv.api.hk.HkHistoryRecorder.findByKey(dKey);
+                if (dh != null && !TextUtils.isEmpty(dh.getEpisodeUrl())) {
+                    for (int i = 0; i < ns.chapters.size(); i++) {
+                        if (dh.getEpisodeUrl().equals(ns.chapters.get(i).url)) {
+                            ns.chapterIndex = i;
+                            ns.chapterUrl = ns.chapters.get(i).url;
+                            if (dh.getPosition() > 0) {
+                                ns.startFraction = (int) Math.min(dh.getPosition(), 10000);
+                            }
+                            break;
+                        }
+                    }
+                }
+                com.fongmi.android.tv.api.hk.HkHistoryRecorder.recordOpened(
+                        dKey, ns.bookTitle, ns.coverUrl, "",
+                        ns.chapters.get(ns.chapterIndex).name,
+                        ns.chapters.get(ns.chapterIndex).url);
+                com.fongmi.android.tv.read.ReadingRouter.openReading(this, ns);
+                return true;
+            }
+            if (kind == com.fongmi.android.tv.read.ReadingGate.HkReadKind.AUDIO) {
+                com.fongmi.android.tv.legado.LegadoAudio.AudioAlbum album =
+                        new com.fongmi.android.tv.legado.LegadoAudio.AudioAlbum();
+                album.legadoKey = "hk:" + idTitle;
+                album.hkRule = ruleTitle;
+                album.hkLine = lineName;
+                album.sourceName = idTitle;
+                album.title = vod.getName() == null ? "" : vod.getName();
+                album.coverUrl = vod.getPic() == null ? "" : vod.getPic();
+                for (Episode ep : flag.getEpisodes()) {
+                    album.chapters.add(new com.fongmi.android.tv.legado.LegadoAudio.Chapter(
+                            ep.getName() == null ? "" : ep.getName(),
+                            ep.getUrl() == null ? "" : ep.getUrl()));
+                }
+                if (album.chapters.isEmpty()) return false;
+                album.index = 0;
+                // 海阔历史（同小说格口径）：键带入专辑，听书页据它恢复
+                // 章序/位置并回写进度；记录在此补建。
+                album.hkHistoryKey = getHistoryKey();
+                com.fongmi.android.tv.api.hk.HkHistoryRecorder.recordOpened(
+                        album.hkHistoryKey, album.title, album.coverUrl, album.hkLine,
+                        album.chapters.get(0).name, album.chapters.get(0).url);
+                AudioBookActivity.start(this,
+                        com.fongmi.android.tv.legado.LegadoAudio.put(album));
+                return true;
+            }
+            return false;
+        } catch (Throwable t) {
+            android.util.Log.e("VideoActivity", "hk read divert failed", t);
+            return false;
+        }
     }
 
     /**
@@ -3740,6 +3882,11 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         HkFavorite f = new HkFavorite();
         f.setRuleTitle(ruleTitle);
         f.setEpisodeUrl(episodeUrl);
+        // 直达播放页里 episodeUrl（getId）是集址不是条目址：打直达标记＋存线路名，
+        // 收藏页再入按直达支回放；不打标会被当条目址走 startHk→detail，
+        // 集址当详情页址解析必空（2026-11-14 再入普查钉死）。
+        f.setDirect(getIntent().getBooleanExtra("hk_direct_play", false));
+        f.setFlag(mHistory != null && mHistory.getVodFlag() != null ? mHistory.getVodFlag() : "");
         f.setTitle(hkKeepTitle());
         f.setPicUrl(hkKeepPic());
         f.setGroup(HkFavoriteStore.DEFAULT_GROUP);

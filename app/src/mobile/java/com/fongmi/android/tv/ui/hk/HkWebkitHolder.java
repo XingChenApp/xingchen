@@ -33,7 +33,8 @@ import com.fongmi.android.tv.api.hk.HkJsRuntime;
 import com.fongmi.android.tv.api.hk.HkLoading;
 import com.fongmi.android.tv.api.hk.event.OnBackEvent;
 import com.fongmi.android.tv.api.hk.event.home.OnRefreshPageEvent;
-import com.fongmi.android.tv.api.hk.event.rule.RefreshX5DescEvent;
+import com.fongmi.android.tv.api.hk.event.home.ShowFileChooserEvent;
+import com.fongmi.android.tv.api.hk.event.rule.OnRefreshX5HeightEvent;
 import com.fongmi.android.tv.api.hk.event.web.BlobDownloadEvent;
 import com.fongmi.android.tv.api.hk.event.web.BlobDownloadProgressEvent;
 import com.fongmi.android.tv.api.hk.event.web.FindMagnetsEvent;
@@ -606,6 +607,7 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
         webView.setWebChromeClient(new ChromeClient());
         webView.setWebViewClient(new Client());
         jsBridgeHolder = new FyBridge(reference, new Wrapper());
+        HkPlayerChooser.registerCurrentWrapper(activity, jsBridgeHolder.getWrapper());
         if (bridgeOpenHandler != null) jsBridgeHolder.setOpenHandler(bridgeOpenHandler);
         if (bridgeEngine != null) jsBridgeHolder.setEngine(bridgeEngine);
         if (bridgePicHandler != null) jsBridgeHolder.setPicHandler(bridgePicHandler);
@@ -614,6 +616,16 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
 
     public void onDestroy() {
         HkWebViewHelper.removeServiceWorkerClient(this);
+        // 核查 136b E1 补注销：initWebView 登记的当前页 Wrapper 在此摘除
+        // （unregister 仅当登记在案的正是本 Wrapper 才清，不误清别页新登记）；
+        // 不摘时宿主存活而 holder 已毁的窗内，头表来源口会读到旧 Wrapper。
+        try {
+            Activity a = reference == null ? null : reference.get();
+            if (a != null && jsBridgeHolder != null) {
+                HkPlayerChooser.unregisterCurrentWrapper(a, jsBridgeHolder.getWrapper());
+            }
+        } catch (Throwable ignored) {
+        }
         if (getWebView() == null) return;
         getWebView().onPause();
         getWebView().destroy();
@@ -851,6 +863,21 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
     // —— $1 WebChromeClient ——
 
     private class ChromeClient extends WebChromeClient {
+
+        /**
+         * 行内 WebView 文件上传（<input type=file>）：官 WebChromeClient 同名覆写把
+         * (holder, callback) 包成 ShowFileChooserEvent 发 EventBus，列表页 Fragment
+         * 订阅后存回调并起系统选择器（官 ArticleListFragment.onShowFileChooser，
+         * 源行 5319-5326）；咱家身份以 WebView 实例承载（见 ShowFileChooserEvent 注）。
+         * 回 true 表示已接管；不接管时系统 WebView 无默认选择器、上传恒死。
+         */
+        @Override
+        public boolean onShowFileChooser(WebView webView,
+                                         android.webkit.ValueCallback<android.net.Uri[]> filePathCallback,
+                                         FileChooserParams fileChooserParams) {
+            EventBus.getDefault().post(new ShowFileChooserEvent(webView, filePathCallback, fileChooserParams));
+            return true;
+        }
 
         @Override
         public void onProgressChanged(WebView view, int newProgress) {
@@ -1538,7 +1565,7 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
 
             @JavascriptInterface
             public void refreshX5Desc(String desc) {
-                EventBus.getDefault().post(new RefreshX5DescEvent(desc));
+                EventBus.getDefault().post(new OnRefreshX5HeightEvent(desc));
             }
 
             @JavascriptInterface

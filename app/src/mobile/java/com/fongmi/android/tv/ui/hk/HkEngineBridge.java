@@ -5,10 +5,12 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import com.fongmi.android.tv.api.hk.HkCommonParser;
+import com.fongmi.android.tv.api.hk.HkHttpParser;
 import com.fongmi.android.tv.api.hk.HkItem;
 import com.fongmi.android.tv.api.hk.HkJsRuntime;
 import com.fongmi.android.tv.api.hk.HkLazyRuleParser;
 import com.fongmi.android.tv.api.hk.HkRule;
+import com.fongmi.android.tv.api.hk.HkWebkitFetcher;
 import com.github.catvod.crawler.SpiderDebug;
 
 import java.util.List;
@@ -30,10 +32,63 @@ public final class HkEngineBridge implements HkArticleListModel.EngineBridge {
     /** HkLazyRuleParser.parse 需要 Activity（错误弹窗/加载弹窗），由宿主注入当前列表页。 */
     public static volatile Supplier<Activity> activityProvider;
 
+    /**
+     * HkHttpParser 的 JS 桥（对应 8.83 HttpParser 直调 JSEngine 单例的那条路）：
+     * 移植时 HkHttpParser 把单例直调改成了可注入静态桥却从未注入，桥恒 null，
+     * `.js:` 三支（URL 本体/查询参数/请求头）与 webview:// 取数支全程空转——
+     * 容器子规则首页地址恒是 `.js:` 形（indexUrl 取数时现算真地址、现读分类
+     * 选择），桥不通则每次取数只打站点根页，分类/翻页永不变（账
+     * heji-subrule-category-20261114）。在此与其它引擎接缝同处装配。
+     */
+    private static final HkHttpParser.JsBridge HTTP_JS_BRIDGE = new HkHttpParser.JsBridge() {
+        @Override
+        public String evalJs(String js, String input) {
+            // 官形钉死（8.83 HttpParser.smali 三处调用点 2318/2839/2967）：
+            // 取数线程直调 JSEngine.evalJS(js, input) 两参形（decode=true），
+            // 引擎在调用线程现开 Context 求值——不进运行时 submit 串行段
+            // （那是 parseList/parseSearch 等全装配入口的面，官 evalJS 不在其列；
+            // 且取数发生在模型 IO 线程/懒解析调用线程，提交串行段再 .get()
+            // 只会平添死等）。当前规则经 HkEngineManager 的 ThreadLocal 通道
+            // 定位：模型取数前已在同线程把指针置到本页规则（列表/搜索模型
+            // parse 入口），懒解析路 parseLazyRule 入口同置。
+            HkRule rule = HkEngineManager.currentRule();
+            HkJsRuntime rt = rule != null ? HkEngineManager.runtimeFor(rule)
+                    : HkJsRuntime.sharedBridge();
+            if (rt == null) {
+                // 进程内还没有任何规则加载过（无从求值）：回 input 原样，
+                // 与桥未接时「段不求值」的退化同级，不把脚本尾巴漏进地址/头。
+                return input;
+            }
+            try {
+                HkEngineManager.ensureInit(rt);
+            } catch (Exception e) {
+                // 与运行时 evalJS 自身的失败形对齐（"error:"+msg），不回 null
+                // 让调用方把 null 拼进地址。
+                Log.e(TAG, "HkHttpParser.evalJs 引擎初始化失败", e);
+                return "error:" + e.getMessage();
+            }
+            return rt.evalJS(js, input);
+        }
+
+        @Override
+        public String fetchCodeByWebView(String url, Map<String, Object> options) {
+            // 现成件：运行时自身的 fetchCodeByWebView API 同走这一份。
+            return HkWebkitFetcher.fetchCodeByWebView(url, options);
+        }
+
+        @Override
+        public boolean canWebViewParse(String url) {
+            // 8.83 WebkitFetcher.Companion.canParse 原文（官包 smali 亲读）：
+            // 非空且以 "webview://" 开头（大小写敏感）。
+            return url != null && !url.isEmpty() && url.startsWith("webview://");
+        }
+    };
+
     private final Context appContext;
 
     public HkEngineBridge(Context context) {
         appContext = context.getApplicationContext();
+        HkHttpParser.setJsBridge(HTTP_JS_BRIDGE);
         HkUrlDetector.init(appContext);
         HkHomeParser.jsListParser = HkEngineBridge::parseHomeJs;
         HkHomeParser.errorLogger = (msg, rule) -> log(msg, rule);

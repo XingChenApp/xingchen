@@ -6,6 +6,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.bean.Keep;
 import com.fongmi.android.tv.db.AppDatabase;
 import com.google.gson.Gson;
@@ -106,6 +107,61 @@ public class HkFavoriteStore {
 
     public static boolean isFavorite(String ruleTitle, String episodeUrl) {
         return find(ruleTitle, episodeUrl) != null;
+    }
+
+    /**
+     * 由海阔历史行组收藏记录（收藏产生面的统一构建口：历史页长按与借面
+     * 会话内的收藏动作共用）：键口径与详情页星标 onHkKeep 同——episodeUrl
+     * 存行自带的 vodId（详情形＝条目址、直达形＝集址），direct 按行上集址
+     * 与 vodId 是否相等判（与 HkHistoryActivity.openRecord 的 directForm
+     * 同一口径），线路名、标题、封面全随行。
+     */
+    public static HkFavorite fromHistory(History h) {
+        if (h == null) return null;
+        String siteKey = h.getSiteKey() == null ? "" : h.getSiteKey();
+        if (!siteKey.startsWith(HkDetailBridge.KEY_PREFIX)) return null;
+        String ruleTitle = siteKey.substring(HkDetailBridge.KEY_PREFIX.length());
+        String vodId = extractVodId(h);
+        if (TextUtils.isEmpty(ruleTitle) || TextUtils.isEmpty(vodId)) return null;
+        String episodeUrl = h.getEpisodeUrl() == null ? "" : h.getEpisodeUrl();
+        HkFavorite f = new HkFavorite();
+        f.setRuleTitle(ruleTitle);
+        f.setEpisodeUrl(vodId);
+        f.setDirect(!episodeUrl.isEmpty() && episodeUrl.equals(vodId));
+        f.setFlag(h.getVodFlag() == null ? "" : h.getVodFlag());
+        f.setTitle(h.getVodName() == null ? "" : h.getVodName());
+        f.setPicUrl(h.getVodPic() == null ? "" : h.getVodPic());
+        f.setGroup(DEFAULT_GROUP);
+        f.setTime(System.currentTimeMillis());
+        HkRule rule = HkRuleManager.get().getInstalledRule(ruleTitle);
+        if (rule != null) f.setRuleUrl(rule.getUrl());
+        return f;
+    }
+
+    /** 历史键 = 站点段@@@vodId@@@cid；vodId 本身可能含 @@@（如带 @lazyRule 的地址），按首尾剥（与 HkHistoryActivity.extractVodId 同口径）。 */
+    private static String extractVodId(History h) {
+        String key = h.getKey() == null ? "" : h.getKey();
+        String siteKey = h.getSiteKey() == null ? "" : h.getSiteKey();
+        String sym = AppDatabase.SYMBOL;
+        if (siteKey.isEmpty() || !key.startsWith(siteKey + sym)) {
+            return h.getVodId() == null ? "" : h.getVodId();
+        }
+        String rest = key.substring(siteKey.length() + sym.length());
+        int tail = rest.lastIndexOf(sym);
+        return tail >= 0 ? rest.substring(0, tail) : rest;
+    }
+
+    /**
+     * 收藏切换（与详情页星标 onHkKeep 同语义）：已收藏→取消回 false；
+     * 未收藏→存入回 true；入参非法或写盘失败回 null。
+     */
+    public static Boolean toggle(HkFavorite fav) {
+        if (fav == null || TextUtils.isEmpty(fav.getRuleTitle())
+                || TextUtils.isEmpty(fav.getEpisodeUrl())) return null;
+        if (find(fav.getRuleTitle(), fav.getEpisodeUrl()) != null) {
+            return remove(fav.getRuleTitle(), fav.getEpisodeUrl()) ? Boolean.FALSE : null;
+        }
+        return addOrUpdate(fav) ? Boolean.TRUE : null;
     }
 
     /** 新增或更新（同键覆盖，时间刷新）。盘上数据解析失败时中止并回 false，不覆盖旧档。 */

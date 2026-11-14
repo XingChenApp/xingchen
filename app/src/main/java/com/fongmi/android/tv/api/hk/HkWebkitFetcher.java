@@ -9,9 +9,13 @@ import android.webkit.WebViewClient;
 
 import com.fongmi.android.tv.App;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -27,6 +31,31 @@ import java.util.regex.Pattern;
  * 星辰实现：在主线程创建 WebView（WebView 必须在主线程），用 CountDownLatch 同步等待。
  */
 public class HkWebkitFetcher {
+
+    // 切后台静默（账 bg-silence-land-20261114 #7）：在册登记——本类
+    // 的 WebView 每调现建、错误/完成路自毁，但纯超时路不毁、残件
+    // 会续载。登记只为切后台时把在册的全毁掉（等待线程走既有
+    // 超时/错误收口）；弱引用集，正常自毁的件不留尸。
+    private static final Set<WebView> LIVE_VIEWS =
+            Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+
+    private static void registerLive(WebView webView) {
+        if (webView != null) LIVE_VIEWS.add(webView);
+    }
+
+    /** 切后台调用（须主线程，BackgroundSilence 分发点即主线程）：
+     * 在册 WebView 全 destroy 并清册。新调用只来自前台流，后台
+     * 不新起，本口无需回前台恢复。 */
+    public static void destroyLiveOnBackground() {
+        List<WebView> snapshot;
+        synchronized (LIVE_VIEWS) {
+            snapshot = new ArrayList<>(LIVE_VIEWS);
+            LIVE_VIEWS.clear();
+        }
+        for (WebView webView : snapshot) {
+            try { webView.destroy(); } catch (Throwable ignored) {}
+        }
+    }
 
     private static final int DEFAULT_TIMEOUT = 30000;
     private static final int MIN_TIMEOUT = 1000;
@@ -57,6 +86,7 @@ public class HkWebkitFetcher {
             WebView webView = null;
             try {
                 webView = new WebView(App.get());
+                registerLive(webView);
                 webView.getSettings().setJavaScriptEnabled(true);
                 webView.getSettings().setDomStorageEnabled(true);
                 webView.getSettings().setBlockNetworkImage(true);
@@ -173,6 +203,7 @@ public class HkWebkitFetcher {
             WebView webView = null;
             try {
                 webView = new WebView(App.get());
+                registerLive(webView);
                 webView.getSettings().setJavaScriptEnabled(true);
                 webView.getSettings().setDomStorageEnabled(true);
                 applyUa(webView, options);

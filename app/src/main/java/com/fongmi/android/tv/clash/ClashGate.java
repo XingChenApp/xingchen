@@ -69,8 +69,11 @@ public final class ClashGate {
      * 播放会话归属解析：站点 key → {kind, id}，与取数侧打点同口径。
      * hk_ 直达 key 的 id 取规则名（key 拼法 hk_&lt;规则名&gt;，历史键带 @@@
      * 后缀时在分隔符处截断），与 HkRouter 播放分流的打点 (hk, 规则名) 对齐；
-     * 其余 key 必须能在配置里查到站点才认——查不到（听书/朗读的合成 key、
-     * 本地文件等）返回 null 不绑定，保住 host 认领与全局口径的原有裁决。
+     * 点播 key 进门时同为历史键（站点键@@@vodId@@@cid，VideoActivity
+     * .getHistoryKey 两端同形、与源种类无关），同样在首个分隔符处截出
+     * 站点键再查再绑（py/js/html 三类同路）；其余 key 必须能在配置里查到
+     * 站点才认——查不到（听书/朗读的合成 key、本地文件等）返回 null 不
+     * 绑定，保住 host 认领与全局口径的原有裁决。
      */
     public static String[] playbackAttribution(String key) {
         if (key == null || key.isEmpty()) return null;
@@ -81,15 +84,23 @@ public final class ClashGate {
             if (title.isEmpty()) return null;
             return new String[]{SourceProxyPolicy.KIND_HK, title};
         }
+        // 135 只给 hk 截后缀、点播键原样透传：绑定的 id 恒为历史键，与单源
+        // 开关表（站点键）永不对位，播放腿（含 seek 新开连接）恒判
+        // not-enabled 直连（定根账 player-node-seek-stillfail-20261114）。
+        int at = key.indexOf(AppDatabase.SYMBOL);
+        String siteKey = at >= 0 ? key.substring(0, at) : key;
+        if (siteKey.isEmpty()) return null;
         Site site = null;
         try {
-            site = VodConfig.get().getSite(key);
+            site = VodConfig.get().getSite(siteKey);
         } catch (Throwable ignored) {
         }
-        if (site == null) return null;
-        String kind = SiteApi.proxyKindForKey(key);
+        // VodConfig.getSite 查不中返回空 Site 而非 null（其 key 为 null），
+        // 以此判命中——旧形 site==null 拦截恒落空，任何键都被绑成历史键全文。
+        if (site == null || site.getKey() == null || site.getKey().isEmpty()) return null;
+        String kind = SiteApi.proxyKindForKey(siteKey);
         if (kind == null || kind.isEmpty()) return null;
-        return new String[]{kind, key};
+        return new String[]{kind, siteKey};
     }
 
     /**

@@ -461,7 +461,10 @@ public class HkHomeSubService {
             for (JsonElement el : arr) {
                 if (el == null || !el.isJsonObject()) continue;
                 JsonObject obj = el.getAsJsonObject();
-                HkRule jo = GSON.fromJson(obj, HkRule.class);
+                // 面②#3：官订阅入仓走 fastjson parseObject 收敛，裸 Gson 遇
+                // String 字段复合值整批回滚；改走收敛入口（内部深拷贝，
+                // obj 原文还要作落盘文本，不许原地改写）。
+                HkRule jo = HkRuleManager.parseRuleJson(obj);
                 if (jo == null) continue;
                 joObjects.add(obj);
                 joRules.add(jo);
@@ -499,7 +502,7 @@ public class HkHomeSubService {
                 if (existing.getVersion() >= joVersion) continue;
                 // 保留旧 group 后覆盖：group 写回 JO 对象再落盘，其余字段照 JO。
                 obj.addProperty("group", existing.getGroup());
-                HkRule merged = GSON.fromJson(obj, HkRule.class);
+                HkRule merged = HkRuleManager.parseRuleJson(obj);
                 try {
                     env.saveRule(merged, obj.toString());
                     installed.put(title, merged);

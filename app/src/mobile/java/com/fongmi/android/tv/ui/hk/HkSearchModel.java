@@ -113,6 +113,10 @@ public class HkSearchModel {
             pageUrl = "hiker://empty";
         }
         final String requestUrl = pageUrl;
+        // 取数前在本线程把当前规则指针置到本搜索规则：与列表模型同口径——
+        // HkHttpParser 的 .js: 求值桥经此通道定位运行时，翻页发此前指针是
+        // Task 池线程的残留值（账 heji-subrule-category-20261114 落码节）。
+        HkEngineManager.setCurrentRule(engine.toRule());
         // 补登记最终请求 host：入口处登记的是 search_url 模板的 host，模板经
         // parsePageClassUrl/proxyUrl 改写后最终请求 host 可能与模板不同，届时认领
         // 按最终 host 查表落空、搜索首发又绕回直连（与列表路同口径补登）。

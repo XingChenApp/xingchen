@@ -24,6 +24,12 @@ public class HkFavorite {
     private String picUrl = "";
     @SerializedName("group")
     private String group = "";
+    /** 在直达播放页收藏的：episodeUrl 存的是集址不是条目址，再入走直达支回放。 */
+    @SerializedName("direct")
+    private boolean direct;
+    /** 直达收藏当时的线路名（再入直达支用）。 */
+    @SerializedName("flag")
+    private String flag = "";
     @SerializedName("time")
     private long time;
 
@@ -73,6 +79,22 @@ public class HkFavorite {
 
     public void setGroup(String group) {
         this.group = group == null ? "" : group;
+    }
+
+    public boolean isDirect() {
+        return direct;
+    }
+
+    public void setDirect(boolean direct) {
+        this.direct = direct;
+    }
+
+    public String getFlag() {
+        return flag;
+    }
+
+    public void setFlag(String flag) {
+        this.flag = flag == null ? "" : flag;
     }
 
     public long getTime() {

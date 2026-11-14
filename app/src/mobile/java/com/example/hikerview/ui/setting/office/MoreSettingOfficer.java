@@ -35,7 +35,9 @@ import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.api.hk.HkHttpHelper;
 import com.fongmi.android.tv.api.hk.HkJsRuntime;
 import com.fongmi.android.tv.api.hk.HkRule;
+import com.fongmi.android.tv.api.hk.HkRuleManager;
 import com.fongmi.android.tv.ui.hk.HkListActivity;
+import com.fongmi.android.tv.utils.XingChenDoh;
 import com.fongmi.android.tv.ui.hk.HkWebCarrier;
 import com.google.gson.Gson;
 import com.lxj.xpopup.XPopup;
@@ -97,7 +99,12 @@ import timber.log.Timber;
  * HkHttp.client()/imageClient() 构建位在 main 源集、本类在 mobile
  * 源集，直调将使 leanback flavor 断编，且用户 DoH 消费已由壳子
  * 统一链 XingChenDoh→HkHttp.applyDoh 承担、不叠第二套分发，详见
- * worknotes/hk-14-fill-parts/c4.md）、show 两重载
+ * worknotes/hk-14-fill-parts/c4.md；写侧已于 2026-11-14 簇4补齐：
+ * handle 的「自定义DNS解析」支以独立入口 showDnsSetting 落在本类
+ * （见下「DNS 设置写侧」段：12 选项/键名/文案照官 handle 支逐字，
+ * 写键后经 XingChenDoh 同步路使 HkHttp 当场消费，同步步官无、记名
+ * 于法注与分账 fill-136b-c4-host.md），handle 分发本体仍随设置框架
+ * 缺位停手）、show 两重载
  * （BaseSettingActivity 无真等价设置入口）、showMagnetEngine
  * （TorrentEngineBean 与 libtorrent4j 链无、libtorrent4j 不在已批
  * 引库名单）。
@@ -385,6 +392,219 @@ public final class MoreSettingOfficer {
         }
     }
 
+    // —— DNS 设置写侧（2026-11-14 簇4补齐，官源 MoreSettingOfficer.handle 的
+    // 「自定义DNS解析」支：handle 本体 smali:8177-8371＋选择回调
+    // handle$lambda$10 smali:1695-1965＋自定义输入回调 handle$lambda$10$lambda$8
+    // smali:2181-2294＋重启回调 $lambda$7/$lambda$9 smali:2296-2350） ——
+
+    /** 官 handle「自定义DNS解析」支的展示选项（.line 196-207，序逐字）。 */
+    private static final String[] DNS_OPTIONS = {
+            "智能", "禁用", "阿里AliDNS", "腾讯DNSPod", "360", "Cloudflare",
+            "Google", "AdGuard", "Quad9", "Quad 101", "自定义DoH", "使用说明 & 全局自定义"
+    };
+
+    /**
+     * 官 handle 的「自定义DNS解析」支本体（框架 handle 无，本支以独立入口
+     * 落在本类的设置项体系内——search()/show() 的条目名「自定义DNS解析」
+     * 已在位，宿主设置面接线时调本法即可，见分账）：读
+     * PreferenceMgr.getString(context, "custom", "dns", "智能")，展示名逐个
+     * replace("阿里","").replace("腾讯","") 得存储值表，当前值在表中的下标
+     * 作 asBottomList 的 checkedPosition（官 .line 211-215 同形）；弹窗
+     * borderRadius=dpToPx(16)、标题即条目名。
+     */
+    public final void showDnsSetting(final Activity context) {
+        String current = PreferenceMgr.getString(App.get(), "custom", "dns", "智能");
+        List<String> storedValues = new ArrayList<>();
+        for (String option : DNS_OPTIONS) {
+            storedValues.add(option.replace("阿里", "").replace("腾讯", ""));
+        }
+        int checked = storedValues.indexOf(current);
+        OnSelectListener listener = (position, text) -> onDnsOptionSelected(context, text);
+        new XPopup.Builder(context)
+                .borderRadius((float) DisplayUtil.dpToPx(context, 16))
+                .asBottomList("自定义DNS解析", DNS_OPTIONS, null, checked, listener)
+                .show();
+    }
+
+    /**
+     * 官 handle$lambda$10（选择回调，按选中文本分发）：
+     * 「使用说明 & 全局自定义」→说明确认弹窗；「自定义DoH」→输入弹窗；
+     * 余项→存储值＝文本 replace("阿里","").replace("腾讯","") 写
+     * "custom"/"dns"，再弹重启确认（「智能」头文案不同，余为「设置成功」）。
+     * 写键后另经壳子既有同步路把等价 DoH 同步进 XingChenDoh（见
+     * syncDnsToShell 注），官无此步、记名于分账。
+     */
+    private void onDnsOptionSelected(final Activity context, String text) {
+        if (text == null) {
+            return;
+        }
+        if ("使用说明 & 全局自定义".equals(text)) {
+            new XPopup.Builder(context)
+                    .borderRadius((float) DisplayUtil.dpToPx(context, 16))
+                    .asConfirm(text,
+                            "自定义DNS解析可以解决部分网络问题，如运营商劫持、恶意广告泛滥等，建议国内大陆用户选AliDNS、DNSPod、360等国内DNS，否则可能出现访问不了的情况。另外这里的自定义DNS只对除网页浏览之外的请求有效，因为软件使用系统WebView内核来浏览网页，请求由系统发出，因此要想全局自定义DNS解析，只能在手机系统设置中搜索私人DNS（或加密DNS），设置DNS主机域名，具体如何设置可以在浏览器中搜索教程，不过这个自定义会影响整个手机系统",
+                            "复制可选主机域名", "确定",
+                            () -> {
+                            },
+                            () -> showDnsHostCopyList(context),
+                            false)
+                    .show();
+            return;
+        }
+        if ("自定义DoH".equals(text)) {
+            String dnsCustom = PreferenceMgr.getString(App.get(), "custom", "dnsCustom", "");
+            OnInputConfirmListener listener = input -> onDnsCustomInput(context, text, input);
+            new XPopup.Builder(context)
+                    .borderRadius((float) DisplayUtil.dpToPx(context, 16))
+                    .asInputConfirm(text, "注意仅支持DNS-over-HTTPS", dnsCustom, null, listener)
+                    .show();
+            return;
+        }
+        String value = text.replace("阿里", "").replace("腾讯", "");
+        PreferenceMgr.put(context, "custom", "dns", value);
+        syncDnsToShell(context, value, null);
+        String head = "智能".equals(text)
+                ? "已设置为智能模式，对容易被劫持的网站使用自定义DNS，其它网站不启用"
+                : "设置成功";
+        showDnsRestartConfirm(context, head + "，需要重启软件才能生效，是否立即重启？");
+    }
+
+    /**
+     * 官 handle$lambda$10$lambda$6（「复制可选主机域名」支）：底部列表
+     * [AliDNS, DNSPod, 360, 18bit]（官 asBottomList 的 checkedPosition 字面
+     * 5＝无选中），点选经 ClipboardUtil.copyToClipboard 复制主机域名
+     * （咱家无 ClipboardUtil 类，以系统 ClipboardManager 等价承接）：
+     * AliDNS→dns.alidns.com、DNSPod→dot.pub、360→dot.360.cn、18bit→dns.18bit.cn。
+     */
+    private void showDnsHostCopyList(final Activity context) {
+        String[] names = {"AliDNS", "DNSPod", "360", "18bit"};
+        OnSelectListener listener = (position, text) -> {
+            if (text == null) {
+                return;
+            }
+            String host;
+            switch (text) {
+                case "AliDNS":
+                    host = "dns.alidns.com";
+                    break;
+                case "DNSPod":
+                    host = "dot.pub";
+                    break;
+                case "360":
+                    host = "dot.360.cn";
+                    break;
+                case "18bit":
+                    host = "dns.18bit.cn";
+                    break;
+                default:
+                    return;
+            }
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
+                    context.getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard != null) {
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(null, host));
+            }
+        };
+        new XPopup.Builder(context)
+                .borderRadius((float) DisplayUtil.dpToPx(context, 16))
+                .asBottomList(null, names, null, 5, listener)
+                .show();
+    }
+
+    /**
+     * 官 handle$lambda$10$lambda$8（自定义 DoH 输入回调）：输入为空直回；
+     * 不以 "https" 开头 toast「链接格式不对，注意仅支持DNS-over-HTTPS，
+     * 必须https开头」；余写 "custom"/"dns"＝选中文本（"自定义DoH"）、
+     * "custom"/"dnsCustom"＝输入值，再弹重启确认（文案「设置成功，需要
+     * 重启软件才能生效，是否立即重启？」）。
+     */
+    private void onDnsCustomInput(final Activity context, String selectedText, String input) {
+        if (input == null || input.length() == 0) {
+            return;
+        }
+        if (!input.startsWith("https")) {
+            ToastMgr.shortCenter(context, "链接格式不对，注意仅支持DNS-over-HTTPS，必须https开头");
+            return;
+        }
+        PreferenceMgr.put(context, "custom", "dns", selectedText);
+        PreferenceMgr.put(context, "custom", "dnsCustom", input);
+        syncDnsToShell(context, selectedText, input);
+        showDnsRestartConfirm(context, "设置成功，需要重启软件才能生效，是否立即重启？");
+    }
+
+    /** 官重启确认弹窗（标题「温馨提示」、borderRadius=dpToPx(16)、asConfirm 单钮形）；确认回调＝killProcess＋System.exit(0)（官 $lambda$7/$lambda$9 逐字）。 */
+    private void showDnsRestartConfirm(final Activity context, String content) {
+        OnConfirmListener restart = () -> {
+            android.os.Process.killProcess(android.os.Process.myPid());
+            System.exit(0);
+        };
+        new XPopup.Builder(context)
+                .borderRadius((float) DisplayUtil.dpToPx(context, 16))
+                .asConfirm("温馨提示", content, restart)
+                .show();
+    }
+
+    /**
+     * 咱家同步步（官无此步，记名）：官 "custom"/"dns" 的唯一读者是 loadDns，
+     * 而咱家 HkHttp 构建位不直调 loadDns（mobile/main 源集隔离＋leanback
+     * 断编，④团已记名）——海阔请求的实际 DoH 消费走壳子统一链
+     * XingChenDoh.apply→HkHttp.applyDoh（同步路在位）。故写键后把等价选择
+     * 同步进 XingChenDoh 的存储（Setting "doh"），使新 handle 写的值当场
+     * 被 HkHttp 消费、不成死键：内置三家走 XingChenDoh.setIndex（腾讯=1/
+     * 阿里=2/360=3），其余具名家与自定义DoH 按 DohProvidersKt 的端点 URL
+     * 组 Doh 写入并 apply；「智能」清 Doh 回系统档（HkHttp.applyDoh 口径：
+     * 未指定 DoH＝智能档、dnsAuto 开）；「禁用」同样清 Doh——咱家无「系统
+     * 解析＋关 autoDns」的独立档，禁用与智能在消费侧同落系统档，此差记名。
+     */
+    private void syncDnsToShell(Context context, String storedValue, String customUrl) {
+        try {
+            switch (storedValue) {
+                case "智能":
+                case "禁用":
+                    XingChenDoh.setIndex(context, 0);
+                    break;
+                case "DNSPod":
+                    XingChenDoh.setIndex(context, 1);
+                    break;
+                case "AliDNS":
+                    XingChenDoh.setIndex(context, 2);
+                    break;
+                case "360":
+                    XingChenDoh.setIndex(context, 3);
+                    break;
+                case "Cloudflare":
+                    putShellDoh(context, "Cloudflare", "https://cloudflare-dns.com/dns-query");
+                    break;
+                case "Google":
+                    putShellDoh(context, "Google", "https://dns.google/dns-query");
+                    break;
+                case "AdGuard":
+                    putShellDoh(context, "AdGuard", "https://dns-unfiltered.adguard.com/dns-query");
+                    break;
+                case "Quad9":
+                    putShellDoh(context, "Quad9", "https://dns.quad9.net/dns-query");
+                    break;
+                case "Quad 101":
+                    putShellDoh(context, "Quad 101", "https://dns.twnic.tw/dns-query");
+                    break;
+                case "自定义DoH":
+                    if (customUrl != null && customUrl.length() != 0) {
+                        putShellDoh(context, "自定义DoH", customUrl);
+                    }
+                    break;
+                default:
+                    break;
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void putShellDoh(Context context, String name, String url) {
+        com.fongmi.android.tv.setting.Setting.putDoh(
+                new com.github.catvod.bean.Doh().name(name).url(url).toString());
+        XingChenDoh.apply(context);
+    }
+
     // —— 隐私空间链（2026-11-14 ③团补齐，官源 MoreSettingOfficer.smali） ——
 
     /**
@@ -585,7 +805,7 @@ public final class MoreSettingOfficer {
             return;
         }
         String privacyJson = getAssetsString(App.get(), "privacy.json");
-        HkRule rule = new Gson().fromJson(privacyJson, HkRule.class);
+        HkRule rule = HkRuleManager.parseRuleJson(privacyJson);
         HkJsRuntime.getInstance().putVar2("zzf_&9", "1");
         Intent intent = new Intent(context, HkListActivity.class);
         HkListActivity.putTempRule(intent, new Gson().toJson(rule));
@@ -714,7 +934,7 @@ public final class MoreSettingOfficer {
     public final void showToolsView(Context context) {
         try {
             String toolsJson = getAssetsString(context, "tools.json");
-            HkRule rule = new Gson().fromJson(toolsJson, HkRule.class);
+            HkRule rule = HkRuleManager.parseRuleJson(toolsJson);
             Intent intent = new Intent(context, HkListActivity.class);
             HkListActivity.putTempRule(intent, toolsJson);
             intent.putExtra("title", rule.getTitle());

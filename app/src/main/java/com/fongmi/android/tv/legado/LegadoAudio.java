@@ -29,6 +29,12 @@ public class LegadoAudio {
         /** 海阔电台专辑：规则名/线路名（非空时章节地址走海阔解析，与 legadoKey 分家）。 */
         public String hkRule = "";
         public String hkLine = "";
+        /**
+         * 海阔历史键（2026-11-14 不留痕新规）：建专辑的分流处写死带入——
+         * 听书页存进度凭它回写海阔自家 History，不再写 ReadingStore。
+         * 非海阔专辑恒空。
+         */
+        public String hkHistoryKey = "";
         public String sourceName = "";
         public String title = "";
         public String coverUrl = "";

@@ -139,6 +139,25 @@ public class HkWebViewHolder {
     }
 
     /**
+     * 对位 8.83 ArticleWebViewHolder.onPause（源行 1766-1768）：官本体只把
+     * floatVideoController.onPause() 转发下去——咱家无悬浮播放器件（记名，
+     * 同 F11 悬浮重弹半缺），该支无落点；行内 WebView 本体的暂停在官家由
+     * 同类另一面承担（lambda 源行 473-474：pause 时 webView.onPause()）。
+     * 咱家系统 WebView 同名 API 直对位：holder 在场且 WebView 已建才调，
+     * 未建时无可暂停（与官 floatVideoController==null 时跳过同形）。
+     */
+    public void onPause() {
+        WebView wv = getWebView();
+        if (wv != null) wv.onPause();
+    }
+
+    /** 对位 8.83 ArticleWebViewHolder.onResume（源行 1772-1774），口径同 onPause。 */
+    public void onResume() {
+        WebView wv = getWebView();
+        if (wv != null) wv.onResume();
+    }
+
+    /**
      * 照原版 updateWebView 的创建点语义：新建 WebView → 交 HkWebkitHolder 配置（initWebView）→ 加载。
      * 视频条目（isVideoItem）加载 videoUrl（带 videoHeaders），普通条目加载 url。
      */

@@ -253,6 +253,13 @@ public class HkArticleListModel {
             final Callback target = effectiveCallback;
             final int finalPage = page;
             final String finalFindRule = findRule;
+            // 取数前在本线程把当前规则指针置到本页规则：HkHttpParser 的 .js:
+            // 求值桥经 HkEngineManager 的 ThreadLocal 通道定位运行时/本页 pages，
+            // 第一页此前只靠 parsePreRule 里的 runtimeFor 顺带置位，翻页与
+            // 无 preRule 的发指针是缓存池线程的残留值（可能指着上一条规则），
+            // .js: 求值会按错规则的 pages 找页代码。此处与 parseLazyRule 入口
+            // 的 setCurrentRule 同口径，每发取数前显式置本页规则。
+            HkEngineManager.setCurrentRule(rule);
             HkHttpParser.parseSearchUrlForHtml(pageUrl, new HkHttpParser.OnSearchCallBack() {
                 @Override
                 public void onFailure(int code, String msg) {

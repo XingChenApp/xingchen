@@ -35,4 +35,10 @@
     <item type="id" name="hk_dynamic_bg" />
     <!-- 实验室 tab：底栏注册表（XcBottomBar）按 id 引用，在此预声明 -->
     <item type="id" name="lab" />
+    <!-- 阅读底栏（136b F14 照官转写 view_read_bottom.xml）：官布局五位全用 @id/ 引用形，官包靠其他布局声明成立，咱家须在此预声明 -->
+    <item type="id" name="read_bottom_bg" />
+    <item type="id" name="read_chapter" />
+    <item type="id" name="read_chapter_count" />
+    <item type="id" name="read_time" />
+    <item type="id" name="read_power" />
 </resources>

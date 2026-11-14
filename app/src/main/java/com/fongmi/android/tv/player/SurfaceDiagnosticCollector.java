@@ -26,7 +26,13 @@ public final class SurfaceDiagnosticCollector implements SurfaceHolder.Callback 
     private String trace = "none", resizeOperation = "none";
     private final PixelDiagnosticProbe pixelProbe = new PixelDiagnosticProbe();
     private final Runnable tick = new Runnable() {
-        @Override public void run() { snapshot("periodic"); if (playerView != null) handler.postDelayed(this, 5000); }
+        @Override public void run() {
+            // 切后台静默（账 bg-silence-land-20261114 #11）：后台期
+            // 跳过采样本体（像素探针＋写盘都是白耗），帖链保留、
+            // 回前台自续——诊断件只停活儿、不动它的绑解生命周期。
+            if (com.fongmi.android.tv.App.isForeground()) snapshot("periodic");
+            if (playerView != null) handler.postDelayed(this, 5000);
+        }
     };
 
     public void bind(PlayerView view, String trace) {

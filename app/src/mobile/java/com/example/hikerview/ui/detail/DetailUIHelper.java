@@ -9,6 +9,7 @@ import com.example.hikerview.model.ViewCollection;
 import com.example.hikerview.ui.browser.util.CollectionUtil;
 import com.example.hikerview.ui.home.FilmListActivity;
 import com.fongmi.android.tv.api.hk.HkRule;
+import com.fongmi.android.tv.api.hk.HkRuleManager;
 import com.fongmi.android.tv.ui.hk.HkDetailBridge;
 import com.fongmi.android.tv.ui.hk.HkStringUtil;
 import com.google.gson.Gson;
@@ -141,7 +142,11 @@ public class DetailUIHelper {
                 if (scope == null) scope = cx.initStandardObjects();
                 Object json = NativeJSON.stringify(cx, scope, obj, null, null);
                 if (json == null) return null;
-                return new Gson().fromJson(json.toString(), HkRule.class);
+                // 面②#3：与 myRuleFromScope 同一收敛口径落到实处——经
+                // HkRuleManager.parseRuleJson 先按官 parseString 收敛
+                // String 字段（复合值→JSON 文本）再解，裸 Gson 遇
+                // MY_RULE.params={} 等复合值整单回 null。
+                return HkRuleManager.parseRuleJson(json.toString());
             } catch (Exception ignored) {
                 return null;
             }

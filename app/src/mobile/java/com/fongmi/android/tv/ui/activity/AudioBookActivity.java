@@ -24,6 +24,8 @@ import android.widget.Toast;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.Player;
 
+import com.fongmi.android.tv.api.hk.HkHistoryRecorder;
+import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.legado.LegadoAudio;
 import com.fongmi.android.tv.legado.LegadoException;
 import com.fongmi.android.tv.player.PlayerManager;
@@ -98,17 +100,40 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
         // 地址对得上」时才采信；位置则认「记录的章＝将要播的章」——书架
         // 续播是单章重建专辑（只有存档那一章），存档章序号是全表序号、
         // 必然越界，旧写法把位置连坐丢掉、每次从头重听（2026-10-30 实证）。
-        ReadingStore.Record r = findRecord();
-        if (r != null) {
-            if (r.chapterIndex >= 0 && r.chapterIndex < album.chapters.size()
-                    && (r.chapterUrl == null || r.chapterUrl.isEmpty()
-                        || r.chapterUrl.equals(album.chapters.get(r.chapterIndex).url))) {
-                album.index = r.chapterIndex;
+        // 海阔专辑不查 ReadingStore（2026-11-14 不留痕新规）：进度住所改
+        // 海阔自家 History——按记录里的集址在全表里对位定章，position 即
+        // 章内毫秒，采信口径与下方记录版一致（记录的章＝将要播的章才认）。
+        if (!album.hkRule.isEmpty()) {
+            History hh = hkHistoryRecord();
+            if (hh != null) {
+                int idx = -1;
+                for (int i = 0; i < album.chapters.size(); i++) {
+                    String u = album.chapters.get(i).url;
+                    if (u != null && u.equals(hh.getEpisodeUrl())) {
+                        idx = i;
+                        break;
+                    }
+                }
+                if (idx >= 0) album.index = idx;
+                LegadoAudio.Chapter cur = album.current();
+                if (cur != null && (album.chapters.size() == 1
+                        || (hh.getEpisodeUrl() != null && hh.getEpisodeUrl().equals(cur.url)))) {
+                    resumeMs = Math.max(0, hh.getPosition());
+                }
             }
-            LegadoAudio.Chapter cur = album.current();
-            if (cur != null && (album.chapters.size() == 1
-                    || (r.chapterUrl != null && r.chapterUrl.equals(cur.url)))) {
-                resumeMs = Math.max(0, r.position);
+        } else {
+            ReadingStore.Record r = findRecord();
+            if (r != null) {
+                if (r.chapterIndex >= 0 && r.chapterIndex < album.chapters.size()
+                        && (r.chapterUrl == null || r.chapterUrl.isEmpty()
+                            || r.chapterUrl.equals(album.chapters.get(r.chapterIndex).url))) {
+                    album.index = r.chapterIndex;
+                }
+                LegadoAudio.Chapter cur = album.current();
+                if (cur != null && (album.chapters.size() == 1
+                        || (r.chapterUrl != null && r.chapterUrl.equals(cur.url)))) {
+                    resumeMs = Math.max(0, r.position);
+                }
             }
         }
         bindPlaybackService();
@@ -280,6 +305,13 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
 
     /** detached 真关闭时的落盘（静态，只用快照＋位置，不碰页实例）。 */
     static void saveDetached(Context ctx, LegadoAudio.AudioAlbum a, int pos) {
+        // 海阔专辑进度只回海阔自家 History（2026-11-14 不留痕新规），不写
+        // ReadingStore。此前在此给记录写 playFlag/ruleTitle 的两行随之收
+        // 掉：海阔听书不再落本店记录，那两槽只剩阅读自家来源在用。
+        if (a != null && !a.hkRule.isEmpty()) {
+            writeHkHistoryProgress(a, pos);
+            return;
+        }
         try {
             LegadoAudio.Chapter c = a.current();
             if (c == null) return;
@@ -300,8 +332,6 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
             r.chapterIndex = a.index;
             r.chapterUrl = c.url;
             r.legadoKey = a.legadoKey;
-            // 海阔电台：线路名借 playFlag 槽落盘（与 saveProgress 同口径）
-            if (!a.hkRule.isEmpty()) r.playFlag = a.hkLine;
             r.position = Math.max(0, pos);
             r.updatedAt = System.currentTimeMillis();
             ReadingStore.save(r);
@@ -560,6 +590,11 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
             ReadingShelfActivity.start(this);
             finish();
         }));
+        // 海阔专辑专属收藏动作（2026-11-14 他亲定补齐产生面）：只借本面
+        // 播放，收藏存海阔自家 HkFavoriteStore，不进阅读自家存档。
+        if (album != null && album.hkRule != null && !album.hkRule.isEmpty()) {
+            sheet.addView(sheetItem("☆", "收藏", v -> toggleAlbumFavorite()));
+        }
 
         setContentView(root);
         refreshChapterLabel();
@@ -678,6 +713,66 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
         l.setPadding(0, dp(4), 0, 0);
         item.addView(l);
         return item;
+    }
+
+    /**
+     * 海阔专辑的收藏切换：优先按历史键/站点+书名取海阔历史行统一构建
+     * （与历史页长按同口径）；无行时按专辑自带的历史键拆解构建
+     * （中间段＝vodId、vodId 命中章址即直达形、线路名随专辑）。
+     */
+    private void toggleAlbumFavorite() {
+        com.fongmi.android.tv.bean.History row = null;
+        try {
+            row = HkHistoryRecorder.findByKey(album.hkHistoryKey);
+            if (row == null) row = HkHistoryRecorder.findBySiteAndName(album.hkRule, album.title);
+        } catch (Throwable ignored) {
+        }
+        com.fongmi.android.tv.api.hk.HkFavorite probe = row != null
+                ? com.fongmi.android.tv.api.hk.HkFavoriteStore.fromHistory(row)
+                : albumFavoriteProbe();
+        if (probe == null) {
+            ToastUtil.show(this, "暂时无法收藏", Toast.LENGTH_SHORT);
+            return;
+        }
+        Boolean r = com.fongmi.android.tv.api.hk.HkFavoriteStore.toggle(probe);
+        ToastUtil.show(this, r == null ? "收藏失败" : (r ? "已加入收藏" : "已取消收藏"),
+                Toast.LENGTH_SHORT);
+    }
+
+    private com.fongmi.android.tv.api.hk.HkFavorite albumFavoriteProbe() {
+        try {
+            String key = album.hkHistoryKey == null ? "" : album.hkHistoryKey;
+            String sym = com.fongmi.android.tv.db.AppDatabase.SYMBOL;
+            int head = key.indexOf(sym);
+            if (head < 0) return null;
+            String rest = key.substring(head + sym.length());
+            int tail = rest.lastIndexOf(sym);
+            String vodId = tail >= 0 ? rest.substring(0, tail) : rest;
+            if (vodId.isEmpty()) return null;
+            com.fongmi.android.tv.api.hk.HkFavorite f =
+                    new com.fongmi.android.tv.api.hk.HkFavorite();
+            f.setRuleTitle(album.hkRule);
+            f.setEpisodeUrl(vodId);
+            boolean direct = false;
+            for (LegadoAudio.Chapter ch : album.chapters) {
+                if (vodId.equals(ch.url)) {
+                    direct = true;
+                    break;
+                }
+            }
+            f.setDirect(direct);
+            f.setFlag(album.hkLine == null ? "" : album.hkLine);
+            f.setTitle(album.title == null ? "" : album.title);
+            f.setPicUrl(album.coverUrl == null ? "" : album.coverUrl);
+            f.setGroup(com.fongmi.android.tv.api.hk.HkFavoriteStore.DEFAULT_GROUP);
+            f.setTime(System.currentTimeMillis());
+            com.fongmi.android.tv.api.hk.HkRule rule =
+                    com.fongmi.android.tv.api.hk.HkRuleManager.get().getInstalledRule(album.hkRule);
+            if (rule != null) f.setRuleUrl(rule.getUrl());
+            return f;
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     // ================= 音色卡（真名单，不写死假数据） =================
@@ -1015,6 +1110,32 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
 
     // ================= 进度/书架（复用 ReadingStore） =================
 
+    /** 海阔专辑的历史记录定位：优先会话带入的历史键，缺键时按解析名＋书名扫描。 */
+    private History hkHistoryRecord() {
+        if (album == null) return null;
+        History h = HkHistoryRecorder.findByKey(album.hkHistoryKey);
+        if (h == null) h = HkHistoryRecorder.findBySiteAndName(album.hkRule, album.title);
+        return h;
+    }
+
+    /** 海阔听书进度回写（存进度的唯一去处）：集序＝当前章、position＝章内毫秒。 */
+    private static void writeHkHistoryProgress(LegadoAudio.AudioAlbum a, int pos) {
+        try {
+            if (a == null) return;
+            LegadoAudio.Chapter c = a.current();
+            if (c == null) return;
+            String key = a.hkHistoryKey;
+            if (key == null || key.isEmpty()) {
+                History h = HkHistoryRecorder.findBySiteAndName(a.hkRule, a.title);
+                if (h != null) key = h.getKey();
+            }
+            if (key == null || key.isEmpty()) return;
+            HkHistoryRecorder.updateProgress(key, a.title, a.coverUrl,
+                    a.hkLine, c.name, c.url, Math.max(0, pos));
+        } catch (Throwable ignored) {
+        }
+    }
+
     private ReadingStore.Record findRecord() {
         try {
             for (ReadingStore.Record r : ReadingStore.list()) {
@@ -1027,6 +1148,16 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
     }
 
     private void saveProgress() {
+        // 海阔听书不留痕（2026-11-14 他亲定）：进度回写海阔自家 History，
+        // 不写 ReadingStore——听书书架从此看不见海阔的书。此前在此给记录
+        // 写 playFlag（线路）与 ruleTitle（解析名）的两行随之收掉：海阔
+        // 听书不再落本店记录，那两槽只剩阅读自家来源在用；线路与解析名
+        // 本来就随专辑会话活在内存、海阔历史行上也有 vodFlag 一份。
+        if (album != null && !album.hkRule.isEmpty()) {
+            writeHkHistoryProgress(album,
+                    mService == null ? 0 : (int) player().getPosition());
+            return;
+        }
         try {
             LegadoAudio.Chapter c = album.current();
             if (c == null) return;
@@ -1040,9 +1171,6 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
             r.chapterIndex = album.index;
             r.chapterUrl = c.url;
             r.legadoKey = album.legadoKey;
-            // 海阔电台：线路名借 playFlag 槽落盘（AUDIO 记录无人读此字段），
-            // 续播重建专辑时带回 hkLine，海阔解析不丢线路
-            if (!album.hkRule.isEmpty()) r.playFlag = album.hkLine;
             r.position = mService == null ? 0 : (int) player().getPosition();
             r.updatedAt = System.currentTimeMillis();
             ReadingStore.save(r);
