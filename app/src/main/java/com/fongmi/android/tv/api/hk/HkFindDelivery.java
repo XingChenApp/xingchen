@@ -22,11 +22,28 @@ import java.util.concurrent.ConcurrentHashMap;
  * 按本发 CALLBACK_KEY 登记 Sink，setResult 一族经 deliver/deliverPre 交付，
  * 入口在求值结束后摘 Sink 并按交付序合成返回表（PRE 段在前、AFTER 段追加，
  * 与官消费端 ArticleListFragment.onSuccess 的分段口径一致）。
+ *
+ * 求值中途回页通道（S3 补面，账 juyue-subrule-full-gap S3 钉根）：官
+ * callbackHomeResult 在求值中途就调注册回调 onSuccess(phase, list)——PRE
+ * 段当场回页上屏，随后脚本的 deleteItemByCls 才有活表可删，正式交付再以
+ * AFTER 段追加。咱家旧形只有记账、求值期间没有回页通道，占位条目躺在汇点
+ * 里、删除事件到页面时无对象可删（占位永不撤）。故 Sink 可挂一只分段监听：
+ * deliverPre 记账后、deliver 打出 AFTER 段时，同步（求值线程）把该段递给
+ * 监听——与官回调同位同时机；无监听时行为与旧形逐字一致（合成返回表）。
  */
 public final class HkFindDelivery {
 
     public static final String PHASE_PRE = "ARTICLE_LIST_PRE";
     public static final String PHASE_AFTER = "ARTICLE_LIST_AFTER";
+
+    /**
+     * 分段交付监听（官 callbackHomeResult 注册回调的 onSuccess 同位）：PRE 段
+     * 在求值中途触发、AFTER 段在正式交付触发，均在求值线程同步回调；载荷为
+     * 该段条目的副本。phase=null 的单段正式交付不经此口（调用方走合成返回表）。
+     */
+    public interface SegmentListener {
+        void onSegment(String phase, List<HkItem> items);
+    }
 
     /** 一次交付：phase 标记（PRE/AFTER/null）＋本段条目。 */
     public static final class Delivery {
@@ -46,10 +63,23 @@ public final class HkFindDelivery {
         private final List<Delivery> deliveries = new ArrayList<>();
         private final List<HkItem> items = new ArrayList<>();
         private boolean closed;
+        private volatile SegmentListener segmentListener;
 
         Sink(String key, String type) {
             this.key = key;
             this.type = type;
+        }
+
+        /** 挂分段监听（parse 入口在本发登记后挂、随汇点摘除失效）；null 即无通道。 */
+        public void setSegmentListener(SegmentListener listener) {
+            this.segmentListener = listener;
+        }
+
+        /** 把一段交付同步递给监听（求值线程）；无监听/空载荷（记账形）不递。 */
+        void notifySegment(String phase, List<HkItem> payload) {
+            SegmentListener listener = segmentListener;
+            if (listener == null || payload == null) return;
+            listener.onSegment(phase, new ArrayList<>(payload));
         }
 
         public String key() {
@@ -116,6 +146,9 @@ public final class HkFindDelivery {
         if (sink == null || sink.isClosed()) return false;
         preCalled.add(sink.key());
         sink.add(PHASE_PRE, payload);
+        // 求值中途回页（官 onSuccess(PRE) 同位）：占位段先上屏，后续条目修改
+        // 事件才有活表可删（S3）。监听回调在求值线程同步跑完才继续求值。
+        sink.notifySegment(PHASE_PRE, payload);
         return true;
     }
 
@@ -130,6 +163,9 @@ public final class HkFindDelivery {
         sink.add(phase, payload);
         sink.close();
         sinks.remove(sink.key(), sink);
+        // 分段收口（官 onSuccess(AFTER) 同位）：本发有 PRE 段时正式段经通道
+        // 追加回页，调用方不再整表重绑（合成表含已删占位、重绑会令其复活）。
+        if (PHASE_AFTER.equals(phase)) sink.notifySegment(phase, payload);
         return true;
     }
 

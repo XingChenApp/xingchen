@@ -90,7 +90,7 @@ public final class PlaybackProgressWriter {
                 batch.add(PlaybackProgressApplyResult.failed((PlaybackProgressInput) null, "请求体不能为空"));
             } else if (config != null && !config.matchesSite(input.siteKey)) {
                 batch.add(PlaybackProgressApplyResult.skipped(input, input.targetHistoryKey(targetCid(input)), "站点不匹配", 0));
-            } else if (!TextUtils.isEmpty(input.configKey) && targetCid(input) <= 0) {
+            } else if (!TextUtils.isEmpty(input.configKey) && targetCid(input) < 0) {
                 batch.add(PlaybackProgressApplyResult.skipped(input, input.historyKey, "接口不匹配", 0));
             } else {
                 batch.add(applyInternal(input, tombstones, true));
@@ -128,7 +128,7 @@ public final class PlaybackProgressWriter {
         if (input == null) return PlaybackProgressApplyResult.failed((PlaybackProgressInput) null, "请求体不能为空");
         input.normalize();
         int cid = targetCid(input);
-        if (cid <= 0) return PlaybackProgressApplyResult.skipped(input, input.historyKey, "接口不匹配", 0);
+        if (cid < 0) return PlaybackProgressApplyResult.skipped(input, input.historyKey, "接口不匹配", 0);
         long remoteUpdatedAt = input.updatedAt;
         long deletedAt = PlaybackDeleteTombstoneStore.latest(tombstones, input.configKey, cid,
                 input.historyKey, input.siteKey, input.vodId);
@@ -183,7 +183,7 @@ public final class PlaybackProgressWriter {
         input.normalize();
         if (!matchesFilter(input, filter)) return PlaybackProgressApplyResult.skipped(input, input.historyKey, "站点不匹配");
         int cid = targetCid(input);
-        if (cid <= 0) return PlaybackProgressApplyResult.skipped(input, input.historyKey, "接口不匹配");
+        if (cid < 0) return PlaybackProgressApplyResult.skipped(input, input.historyKey, "接口不匹配");
         if (remote && input.deletedAt <= 0) return PlaybackProgressApplyResult.failed(input, "远端删除记录缺少deletedAt");
         if (!remote && input.isAllScope() && !input.confirm) return PlaybackProgressApplyResult.failed(input, "全量清理需要confirm=true");
         if (input.isSiteScope() && TextUtils.isEmpty(input.siteKey)) return PlaybackProgressApplyResult.failed(input, "按站点清理需要siteKey");
@@ -283,17 +283,18 @@ public final class PlaybackProgressWriter {
         return items.get(0);
     }
 
+    // 目标 cid 解析口径（与删除口同形）：cid 是分区键、0 是
+    // 合法值（存量行键尾 @@@0、读路 dao.find(0,…)）；只有
+    // 「带了 configKey 却查无此接口」才是真未知，回 -1。
+    // 旧形以 0 同时表未知与 0 号接口，下游 cid<=0 门把 0 号
+    // 接口的删除/写入全数误杀（账 hk-clear-confirm-dead）。
     private static int targetCid(PlaybackProgressInput input) {
-        int cid = PlaybackConfigIdentity.cidForKey(input.configKey);
-        if (cid > 0) return cid;
-        if (!TextUtils.isEmpty(input.configKey)) return 0;
+        if (!TextUtils.isEmpty(input.configKey)) return PlaybackConfigIdentity.resolveCidForKey(input.configKey);
         return input.cid > 0 ? input.cid : VodConfig.getCid();
     }
 
     private static int targetCid(PlaybackProgressDeleteInput input) {
-        int cid = PlaybackConfigIdentity.cidForKey(input.configKey);
-        if (cid > 0) return cid;
-        if (!TextUtils.isEmpty(input.configKey)) return 0;
+        if (!TextUtils.isEmpty(input.configKey)) return PlaybackConfigIdentity.resolveCidForKey(input.configKey);
         if (input.cid > 0) return input.cid;
         try {
             int index = input.historyKey.lastIndexOf(AppDatabase.SYMBOL);

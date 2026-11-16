@@ -9,6 +9,7 @@ import androidx.room.RoomDatabase;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.bean.Device;
+import com.fongmi.android.tv.bean.DownloadRecord;
 import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.bean.Keep;
 import com.fongmi.android.tv.bean.Live;
@@ -17,6 +18,7 @@ import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.bean.Track;
 import com.fongmi.android.tv.db.dao.ConfigDao;
 import com.fongmi.android.tv.db.dao.DeviceDao;
+import com.fongmi.android.tv.db.dao.DownloadRecordDao;
 import com.fongmi.android.tv.db.dao.HistoryDao;
 import com.fongmi.android.tv.db.dao.KeepDao;
 import com.fongmi.android.tv.db.dao.LiveDao;
@@ -33,10 +35,10 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-@Database(entities = {Keep.class, Site.class, Live.class, Track.class, Config.class, Device.class, History.class, PlaybackDeleteTombstone.class}, version = AppDatabase.VERSION)
+@Database(entities = {Keep.class, Site.class, Live.class, Track.class, Config.class, Device.class, History.class, PlaybackDeleteTombstone.class, DownloadRecord.class}, version = AppDatabase.VERSION)
 public abstract class AppDatabase extends RoomDatabase {
 
-    public static final int VERSION = 45;
+    public static final int VERSION = 46;
     public static final String NAME = "tv";
     public static final String SYMBOL = "@@@";
 
@@ -150,6 +152,7 @@ public abstract class AppDatabase extends RoomDatabase {
                 .addMigrations(Migrations.MIGRATION_42_43)
                 .addMigrations(Migrations.MIGRATION_43_44)
                 .addMigrations(Migrations.MIGRATION_44_45)
+                .addMigrations(Migrations.MIGRATION_45_46)
                 .allowMainThreadQueries().build();
     }
 
@@ -172,4 +175,6 @@ public abstract class AppDatabase extends RoomDatabase {
 
 
 
+
+    public abstract DownloadRecordDao getDownloadRecordDao();
 }

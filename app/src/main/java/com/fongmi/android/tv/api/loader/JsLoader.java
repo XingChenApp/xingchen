@@ -196,6 +196,7 @@ public class JsLoader {
     }
 
     public Spider getSpider(String key, String api, String ext, String jar) {
+        BaseLoader.noteSpiderFailCause(null);
         try {
             return spiders.computeIfAbsent(key, k -> {
                 Spider spider = null;
@@ -212,8 +213,10 @@ public class JsLoader {
                     if (isInterrupted(e)) {
                         // 被取消（顶替/销毁/外层超时打断等待）：不是 init 失败，
                         // 不打失败日志与堆栈；销毁与不缓存口径与失败相同。
+                        BaseLoader.noteSpiderFailCause(BaseLoader.SpiderFailCause.CREATE_CANCELLED);
                         SpiderDebug.log("JsLoader", "JS spider init cancelled: key=%s api=%s", key, api);
                     } else {
+                        BaseLoader.noteSpiderFailCause(BaseLoader.SpiderFailCause.CREATE_FAILED);
                         SpiderDebug.log("JsLoader", "JS spider init failed: key=%s api=%s", key, api);
                         SpiderDebug.log("JsLoader", e);
                         e.printStackTrace();

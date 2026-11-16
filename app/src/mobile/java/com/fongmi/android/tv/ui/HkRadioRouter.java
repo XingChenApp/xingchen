@@ -167,7 +167,8 @@ public class HkRadioRouter {
             // 辑——听书页据它恢复/回写进度；此前电台直达从不在海阔历
             // 史留行，历史页里找不到播过的电台。
             album.hkHistoryKey = com.fongmi.android.tv.api.hk.HkHistoryRecorder
-                    .keyOf(ruleTitle, episodeUrl);
+                    .keyOfDirect(ruleTitle, episodeUrl,
+                            com.fongmi.android.tv.api.hk.HkDetailBridge.KIND_AUDIO);
             com.fongmi.android.tv.api.hk.HkHistoryRecorder.recordOpened(
                     album.hkHistoryKey, album.title, album.coverUrl, album.hkLine,
                     album.chapters.get(start).name, album.chapters.get(start).url);

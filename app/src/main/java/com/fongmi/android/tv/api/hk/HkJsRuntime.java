@@ -349,9 +349,11 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
      * $.require('jiekou')→SrcJuMethod2→裸 require 装进详情发全局，鲜发
      * 隔离下懒发恒缺位）。进程级静态一表，与 varMap 同级。不许硬编码任何
      * 函数/库名、不许按规则特判：捕获只认通道（require0 家族评入点），
-     * 回放只认账里有无。方向单向：parse/详情/搜索/图片只喂账不回放，
-     * 懒方向（evalLazy/evalLazyDry/动作探针共用装配）才消费；键是标题、
-     * 不跨规则串。单规则封顶 32 条／合计 2MB，超限停收（内存卫生）。 */
+     * 回放只认账里有无。消费面：懒方向（evalLazy/evalLazyDry/动作探针
+     * 共用装配）＋列表 parse 域（parseListInternal，S1 补面：@rule= 子页
+     * 脚本预设方法库在位、子页域建立时同位补入，账 juyue-subrule-full-gap
+     * S1）；详情/搜索/图片仍只喂账不回放。键是标题、不跨规则串。单规则
+     * 封顶 32 条／合计 2MB，超限停收（内存卫生）。 */
     private static final Map<String, List<String>> LIB_CARRY =
             new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<String, Set<String>> LIB_CARRY_KEYS =
@@ -501,6 +503,22 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     /** 桥层装配口：find 求值前置入页面回调、求值后置 null 清除。 */
     public void setBindObjectToViewListener(BindObjectToViewListener listener) {
         this.bindObjectListener = listener;
+    }
+
+    /**
+     * S3 求值中途回页通道的宿主承接面（官 callbackHomeResult 注册回调的
+     * onSuccess 同位）：列表 parse 求值期间，PRE 段与正式 AFTER 段经
+     * HkFindDelivery 的分段监听同步递到本监听、由桥层（HkEngineBridge.
+     * parseHomeJs）转页面 bindArrayToView 分段落表。装配口径与
+     * bindObjectListener 同族：桥层在 parse 前置入、后置 null 清除，
+     * parseListInternal 在提交时捕获成本发局部、任务内挂到本发汇点上；
+     * 未置时（如 HkEngine 同步路）无通道、交付只记账走合成返回表（旧形）。
+     */
+    private volatile HkFindDelivery.SegmentListener findSegmentListener;
+
+    /** 桥层装配口：列表 parse 求值前置入分段承接、求值后置 null 清除。 */
+    public void setFindSegmentListener(HkFindDelivery.SegmentListener listener) {
+        this.findSegmentListener = listener;
     }
     /** refreshPage 请求标记（JS 线程写，宿主线程读后清零）。 */
     private volatile boolean refreshRequested;
@@ -9555,6 +9573,9 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // 任务局部，任务内只读/只写局部捕获，字段本体不再被任务读。
         final String boundResBody = evalResCodeBody;
         final BindObjectToViewListener boundListener = bindObjectListener;
+        // S3 回页通道承接面同口径提交时捕获（与 boundListener 同族）：任务内
+        // 只把捕获值挂到本发汇点，字段本体不被任务读、不被任务清。
+        final HkFindDelivery.SegmentListener boundSegListener = findSegmentListener;
         java.util.concurrent.Future<List<HkItem>> future = submit(() -> {
             if (boundRule != null) this.rule = boundRule;
             syncKvToBoundRule();
@@ -9592,6 +9613,14 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                 // $.exports、Module._cache 不再残留进本发。
                 scope = assembleFreshScope();
                 setContext(myUrl);
+                // 同规则函数库延续（台账 LIB_CARRY，S1 补面）：子页 parse 域
+                // 与懒发同位回放——@rule= 子页脚本（如聚阅 erji）预设方法库
+                // 已在位（官靠持久作用域跨求值泄漏），鲜 scope 隔离下子页域
+                // 建立时同位补入，否则 erji 首碰的方法库顶层名（cachepath/
+                // getObjCode）当场 ReferenceError、封面点了没反应（账
+                // juyue-subrule-full-gap S1 钉根）。回放只认账里有无、逐条
+                // 吞错续跑，与懒发回放同一口（evalRawInFreshScope）。
+                replayLibCarry(scope);
                 try {
                     // 8.83 parseHome 同款：每次求值注入 fresh CALLBACK_KEY 并登记正文表
                     //（正文=预抓正文，HkEngine.home() 经 setEvalResCodeBody 传入；
@@ -9609,6 +9638,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     findSink = findDelivery.register(cbKey, "home");
                     if (cbKey != null) findRegisteredKeys.add(cbKey);
                     activeFindSink.set(findSink);
+                    // S3 求值中途回页通道：本发汇点挂上提交时捕获的分段承接——
+                    // PRE 段记账后即经它回页上屏、正式 AFTER 段经它追加，删除
+                    // 事件自此有活表可删（账 juyue-subrule-full-gap S3 钉根）。
+                    if (boundSegListener != null) findSink.setSegmentListener(boundSegListener);
                     // 8.83 parseHome 的求值串以 getMyRule 前缀起头，前缀里的
                     // eval(getJsPlugin())/eval(getJsLazyPlugin()) 每发重评 Hikerurl.js/
                     // plugin.js——$ 与 $.require 的 Module 缓存随本发全新。此前本路只拼
@@ -10433,9 +10466,10 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         setContext(pageUrl);
         // 同规则函数库延续（台账 LIB_CARRY）：同一规则先前各发经裸 require
         // 装进各自全局的库源码，在本发 setContext 后、正文前按序回放——
-        // 懒发自此带着该规则的函数库进场（他 2026-11-14 亲令补齐）。只此
-        // 一路消费：evalLazy/evalLazyDry/动作探针共用本装配（同作用域同
-        // 注入的既有契约），parse/详情/搜索/图片的装配不回放。
+        // 懒发自此带着该规则的函数库进场（他 2026-11-14 亲令补齐）。消费
+        // 面：evalLazy/evalLazyDry/动作探针共用本装配（同作用域同注入的
+        // 既有契约）＋列表 parse 域（parseListInternal 同位回放，S1 补面）；
+        // 详情/搜索/图片的装配不回放。
         replayLibCarry(scope);
         // 入口口令/输入框：若有一次性 input 覆盖（用户输入的文本），优先使用；
         // 否则按原逻辑用 pageUrl。读后清零，保证只生效一次。

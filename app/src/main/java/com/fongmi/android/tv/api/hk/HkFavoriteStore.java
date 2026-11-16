@@ -87,6 +87,16 @@ public class HkFavoriteStore {
         return list;
     }
 
+    /**
+     * 清空全部收藏（收藏页标题弹窗确认口）：走与其它写路径同一严格口——
+     * 盘上记录解析失败（tryReadAll 回 null）时中止，不许拿空表覆盖可能
+     * 完好的数据。回是否真清成。
+     */
+    public static boolean clearAll() {
+        if (tryReadAll() == null) return false;
+        return writeAll(new ArrayList<>());
+    }
+
     /** 已有分组（按首次出现顺序）。 */
     public static List<String> groups() {
         LinkedHashSet<String> set = new LinkedHashSet<>();
@@ -130,6 +140,8 @@ public class HkFavoriteStore {
         f.setRuleTitle(ruleTitle);
         f.setEpisodeUrl(HkDetailBridge.stripDirectKeyMark(vodId));
         f.setDirect(HkDetailBridge.isDirectForm(vodId, episodeUrl));
+        // 断点乙：行键里的品类标记随收藏带走，再入先读它、不再整规则粗判
+        f.setKind(HkDetailBridge.kindOfKeyId(vodId));
         f.setFlag(h.getVodFlag() == null ? "" : h.getVodFlag());
         f.setTitle(h.getVodName() == null ? "" : h.getVodName());
         f.setPicUrl(h.getVodPic() == null ? "" : h.getVodPic());

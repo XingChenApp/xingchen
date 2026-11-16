@@ -105,6 +105,8 @@ import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.bean.SkipSegment;
 import com.fongmi.android.tv.bean.Sub;
 import com.fongmi.android.tv.bean.Track;
+import com.fongmi.android.tv.bean.Url;
+import com.fongmi.android.tv.bean.Value;
 import com.fongmi.android.tv.bean.Vod;
 import com.fongmi.android.tv.databinding.ActivityVideoBinding;
 import com.fongmi.android.tv.databinding.DialogPlayerMoreBinding;
@@ -518,6 +520,8 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     public static void file(FragmentActivity activity, String path) {
         if (TextUtils.isEmpty(path)) return;
+        // 件 6：命中下载任务路径时回写最近播放时刻（容量清理的最久未看口径）
+        com.fongmi.android.tv.utils.download.DownloadManager.get().touchPlayed(path);
         String name = new File(path).getName();
         start(activity, SiteApi.PUSH, "file://" + path, name);
     }
@@ -1171,6 +1175,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         if (mBinding.commentDetail != null) mBinding.commentDetail.setOnClickListener(view -> onComment());
         mBinding.keepBtn.setOnClickListener(view -> onKeep());
         mBinding.downloadBtn.setOnClickListener(view -> onDownload());
+        mBinding.downloadBtn.setOnLongClickListener(view -> onDownloadLongPress());
         mBinding.castBtn.setOnClickListener(view -> onCast());
         mBinding.settingBtn.setOnClickListener(view -> onSetting());
         mBinding.content.setOnClickListener(view -> onContent());
@@ -1376,12 +1381,10 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void setRecyclerView() {
-        mBinding.flag.setHasFixedSize(true);
         mBinding.flag.setItemAnimator(null);
         mBinding.flag.addItemDecoration(new SpaceItemDecoration(8));
         mBinding.flag.setAdapter(mFlagAdapter = new FlagAdapter(this));
         mBinding.quick.setAdapter(mQuickAdapter = new QuickAdapter(this));
-        mBinding.episodeGroup.setHasFixedSize(true);
         mBinding.episodeGroup.setItemAnimator(null);
         mBinding.episodeGroup.setAdapter(mEpisodeGroupAdapter = new EpisodeGroupAdapter(this));
         mEpisodeSpanCount = getEpisodeSpanCount();
@@ -1397,11 +1400,9 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
                 syncEpisodeGroupByScroll();
             }
         });
-        mBinding.quality.setHasFixedSize(true);
         mBinding.quality.setItemAnimator(null);
         mBinding.quality.addItemDecoration(new SpaceItemDecoration(8));
         mBinding.quality.setAdapter(mQualityAdapter = new QualityAdapter(this));
-        mBinding.control.parse.setHasFixedSize(true);
         mBinding.control.parse.setItemAnimator(null);
         mBinding.control.parse.addItemDecoration(new SpaceItemDecoration(8));
         mBinding.control.parse.setAdapter(mParseAdapter = new ParseAdapter(this, ViewType.DARK));
@@ -3657,9 +3658,13 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     private void setEpisodeItems(List<Episode> items) {
         mEpisodeAdapter.setCompactEnabled(!HkDetailBridge.isHkKey(getKey()));
+        // 先剥片名前缀再量列数：getEpisodeSpan 按显示名长度定列，剥名前的长名
+        // （片名+集名 ≥12 字）会误落长标题分支（默认 2 列大格），而渲染用的是
+        // 剥后短名——量到的不是画出来的，首次渲染必大一号、点选重算才归位。
+        // 与非海阔路 EpisodeTitleCompact 在 getEpisodeSpan 内先行同理：先归名、后量宽。
+        stripVodNamePrefix(items);
         updateEpisodeSpan(items);
         mEpisodeAdapter.addAll(items);
-        stripVodNamePrefix(items);
         selectEpisodeGroupByPosition(mEpisodeAdapter.getPosition());
     }
 
@@ -4026,8 +4031,12 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void onBack() {
-        if (mShortDramaMode && isFullscreen()) finishVideoPlayback();
-        else if (isFullscreen()) exitFullscreen();
+        // 短剧支已摘（2026-11-17 查根）：原短剧专属支在全屏直接
+        // finishVideoPlayback，返回箭头跳过详情页回列表，与系统返回
+        // （onBackInvoked 全屏先退全屏落详情）两面不一致——他报的
+        // 「按返回也跳过详情页」即此。箭头与系统返回同形：全屏先
+        // 退全屏落详情，非全屏才结束。短剧进门直全屏的入口不动。
+        if (isFullscreen()) exitFullscreen();
         else finishVideoPlayback();
     }
 
@@ -4101,6 +4110,21 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         // 收藏页再入按直达支回放；不打标会被当条目址走 startHk→detail，
         // 集址当详情页址解析必空（2026-11-14 再入普查钉死）。
         f.setDirect(getIntent().getBooleanExtra("hk_direct_play", false));
+        // 断点乙：本页即视频面，品类裁决就是视频，随记录带走。
+        // 断点甲：直达收藏把交接载荷原样存下（hk_episodes 或驻留表凭据
+        // 解析出的整表），收藏页再入按它重摆全表，不再只剩被点一集。
+        f.setKind(com.fongmi.android.tv.api.hk.HkDetailBridge.KIND_VIDEO);
+        if (f.isDirect()) {
+            String eps = getIntent().getStringExtra("hk_episodes");
+            if (TextUtils.isEmpty(eps)) {
+                String ref = getIntent().getStringExtra("hk_episodes_ref");
+                if (!TextUtils.isEmpty(ref)) {
+                    String parked = HK_EPISODES_STORE.get(ref);
+                    if (!TextUtils.isEmpty(parked)) eps = parked;
+                }
+            }
+            if (!TextUtils.isEmpty(eps)) f.setEpisodes(eps);
+        }
         f.setFlag(mHistory != null && mHistory.getVodFlag() != null ? mHistory.getVodFlag() : "");
         f.setTitle(hkKeepTitle());
         f.setPicUrl(hkKeepPic());
@@ -4173,7 +4197,9 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         downloadCurrentEpisode();
     }
 
-    /** 现行单集直下：下当前正在播的那一集，不弹窗（单集路径与 AI「下载本集」共用）。 */
+    /** 现行单集直下：下当前正在播的那一集（单集路径与 AI「下载本集」共用）。
+     * 件 5：当前集解析层有 ≥2 档时先出清晰度选择窗（默认预选当前播放档）；
+     * 单档照旧直下不弹窗——多档能力是加项，不许变成每次下载多点一层。 */
     private void downloadCurrentEpisode() {
         String url = player().getUrl();
         String name = mBinding.name.getText().toString();
@@ -4181,19 +4207,201 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             com.fongmi.android.tv.utils.Notify.show("没有可下载的地址");
             return;
         }
-        // 磁力/ed2k/thunder 走迅雷，不进下载器
+        Result result = mViewModel.getResult().getValue();
+        Url urlObj = result != null ? result.getUrl() : null;
+        if (urlObj != null && urlObj.getValues().size() >= 2) {
+            showSingleQualityChoices(urlObj, name);
+            return;
+        }
+        enqueueSingleDownload(url, name, null, 0);
+    }
+
+    /**
+     * 长按下载钮＝调用第三方下载（2026-11-17 他亲口加）：把当前正在播的
+     * 直链/磁力递出去走系统选应用，第三方下载器接管；短按照旧自家下载。
+     * 递不出去的给提示走自家：本机代理链（127.0.0.1 中转，递出去对方
+     * 连不上）、带 Cookie/Authorization 校验的（裸链递出去必然 403）。
+     * 没有应用能接时退到分享链接（可粘贴进下载器），再不行才提示。
+     */
+    private boolean onDownloadLongPress() {
+        String url = player().getUrl();
+        if (url == null || url.isEmpty()) {
+            com.fongmi.android.tv.utils.Notify.show("没有可递出去的地址");
+            return true;
+        }
+        String scheme = com.fongmi.android.tv.utils.UrlUtil.scheme(url);
+        boolean isMagnetFamily = "magnet".equals(scheme) || "ed2k".equals(scheme) || "thunder".equals(scheme);
+        if (!isMagnetFamily) {
+            if (url.contains("127.0.0.1") || url.contains("://localhost")) {
+                com.fongmi.android.tv.utils.Notify.show("这个地址是本机中转的，递出去下不了，请用自家下载");
+                return true;
+            }
+            java.util.Map<String, String> headers = player().getHeaders();
+            if (headers != null) {
+                for (String key : headers.keySet()) {
+                    if ("cookie".equalsIgnoreCase(key) || "authorization".equalsIgnoreCase(key)) {
+                        com.fongmi.android.tv.utils.Notify.show("这个地址要带校验，递出去也下不了，请用自家下载");
+                        return true;
+                    }
+                }
+            }
+        }
+        try {
+            android.content.Intent view = new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url));
+            view.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(android.content.Intent.createChooser(view, "用第三方下载"));
+        } catch (Exception e) {
+            try {
+                android.content.Intent share = new android.content.Intent(android.content.Intent.ACTION_SEND);
+                share.setType("text/plain");
+                share.putExtra(android.content.Intent.EXTRA_TEXT, url);
+                startActivity(android.content.Intent.createChooser(share, "把链接递给下载器"));
+            } catch (Exception e2) {
+                com.fongmi.android.tv.utils.Notify.show(isMagnetFamily
+                        ? "没有能接磁力的应用，请用自家播放"
+                        : "没有能接的应用，请用自家下载");
+            }
+        }
+        return true;
+    }
+
+    /** 单集入队一口：先查 scheme 后入队（磁力口径不变，选了档也照拒） */
+    private void enqueueSingleDownload(String url, String name, String qualityName, long variantBandwidth) {
         String scheme = com.fongmi.android.tv.utils.UrlUtil.scheme(url);
         if ("magnet".equals(scheme) || "ed2k".equals(scheme) || "thunder".equals(scheme)) {
             com.fongmi.android.tv.utils.Notify.show("磁力/ed2k 请用播放器直接播放");
             return;
         }
         try {
-            com.fongmi.android.tv.utils.download.DownloadManager.get().add(url, name, player().getHeaders());
+            com.fongmi.android.tv.utils.download.DownloadManager.get().add(url, name, player().getHeaders(), getPic(), qualityName, variantBandwidth);
             DownloadActivity.start(getActivity());
         } catch (IllegalArgumentException e) {
             // 同 HomeActivity 的同款写法，add() 抛错时只提示、不闪退
             com.fongmi.android.tv.utils.Notify.show(e.getMessage());
         }
+    }
+
+    /** 件 5 选档行：解析层档（url=档址）与 m3u8 列表内档（url=master 址＋带宽）共用 */
+    private static class DownloadQualityChoice {
+        final String label;
+        final String url;
+        final String qualityName;
+        final long variantBandwidth;
+
+        DownloadQualityChoice(String label, String url, String qualityName, long variantBandwidth) {
+            this.label = label;
+            this.url = url;
+            this.qualityName = qualityName;
+            this.variantBandwidth = variantBandwidth;
+        }
+    }
+
+    /** 件 5：单集选档窗——解析层档位即时出窗；当前址是 m3u8 时异步拉
+     * 列表内变体追加进窗（失败/非 master 不追加，窗照常可用）。 */
+    private void showSingleQualityChoices(Url urlObj, String name) {
+        java.util.List<DownloadQualityChoice> choices = new java.util.ArrayList<>();
+        for (Value value : urlObj.getValues()) {
+            String label = TextUtils.isEmpty(value.getN()) ? value.getV() : value.getN();
+            choices.add(new DownloadQualityChoice(label, value.getV(), value.getN(), 0));
+        }
+        String masterUrl = urlObj.v();
+        QualityChoiceAdapter adapter = showQualityChoiceDialog(choices, urlObj.getPosition(),
+                choice -> enqueueSingleDownload(choice.url, name, choice.qualityName, choice.variantBandwidth));
+        if (masterUrl != null && masterUrl.contains("m3u8")) {
+            java.util.Map<String, String> headers = player().getHeaders();
+            Task.execute(() -> {
+                java.util.List<com.fongmi.android.tv.utils.download.M3u8Downloader.Variant> variants =
+                        com.fongmi.android.tv.utils.download.M3u8Downloader.fetchVariants(masterUrl, headers);
+                if (variants.isEmpty()) return;
+                App.post(() -> {
+                    for (com.fongmi.android.tv.utils.download.M3u8Downloader.Variant v : variants) {
+                        String label = "（列表内）" + variantLabel(v);
+                        adapter.addChoice(new DownloadQualityChoice(label, masterUrl, label, v.bandwidth));
+                    }
+                });
+            });
+        }
+    }
+
+    private static String variantLabel(com.fongmi.android.tv.utils.download.M3u8Downloader.Variant v) {
+        String p = "";
+        if (v.resolution != null && v.resolution.contains("x")) {
+            String h = v.resolution.substring(v.resolution.lastIndexOf('x') + 1).trim();
+            if (!h.isEmpty()) p = h + "P";
+        }
+        String mbps = v.bandwidth > 0 ? String.format(java.util.Locale.US, "%.1fMbps", v.bandwidth / 1_000_000.0) : "";
+        if (!p.isEmpty() && !mbps.isEmpty()) return p + " · " + mbps;
+        return !p.isEmpty() ? p : (!mbps.isEmpty() ? mbps : "默认档");
+    }
+
+    /** 件 5 选档窗本体（照 dialog_download_threads 列表弹窗形态，行复用 item_download_thread） */
+    private class QualityChoiceAdapter extends androidx.recyclerview.widget.RecyclerView.Adapter<androidx.recyclerview.widget.RecyclerView.ViewHolder> {
+        private final java.util.List<DownloadQualityChoice> choices = new java.util.ArrayList<>();
+        private final int preselect;
+        private final java.util.function.Consumer<DownloadQualityChoice> onPick;
+        private android.app.Dialog dialog;
+
+        QualityChoiceAdapter(java.util.List<DownloadQualityChoice> initial, int preselect,
+                             java.util.function.Consumer<DownloadQualityChoice> onPick) {
+            choices.addAll(initial);
+            this.preselect = preselect;
+            this.onPick = onPick;
+        }
+
+        void addChoice(DownloadQualityChoice choice) {
+            choices.add(choice);
+            notifyItemInserted(choices.size() - 1);
+        }
+
+        @androidx.annotation.NonNull
+        @Override
+        public androidx.recyclerview.widget.RecyclerView.ViewHolder onCreateViewHolder(@androidx.annotation.NonNull android.view.ViewGroup parent, int viewType) {
+            android.view.View v = android.view.LayoutInflater.from(parent.getContext()).inflate(R.layout.item_download_thread, parent, false);
+            return new androidx.recyclerview.widget.RecyclerView.ViewHolder(v) {};
+        }
+
+        @Override
+        public void onBindViewHolder(@androidx.annotation.NonNull androidx.recyclerview.widget.RecyclerView.ViewHolder holder, int position) {
+            DownloadQualityChoice choice = choices.get(position);
+            com.google.android.material.textview.MaterialTextView tv = holder.itemView.findViewById(R.id.text);
+            androidx.appcompat.widget.AppCompatRadioButton radio = holder.itemView.findViewById(R.id.radio);
+            tv.setText(choice.label);
+            radio.setChecked(position == preselect);
+            holder.itemView.setOnClickListener(v -> {
+                if (dialog != null) dialog.dismiss();
+                onPick.accept(choice);
+            });
+        }
+
+        @Override
+        public int getItemCount() {
+            return choices.size();
+        }
+    }
+
+    private QualityChoiceAdapter showQualityChoiceDialog(java.util.List<DownloadQualityChoice> choices, int preselect,
+                                                          java.util.function.Consumer<DownloadQualityChoice> onPick) {
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_download_quality);
+        android.view.Window window = dialog.getWindow();
+        if (window != null) {
+            // 居中框统一口径：居中＋宽在代码写死 320dp，不靠系统自适应
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            android.view.WindowManager.LayoutParams params = window.getAttributes();
+            params.gravity = android.view.Gravity.CENTER;
+            params.width = (int) (320 * getResources().getDisplayMetrics().density);
+            params.height = android.view.WindowManager.LayoutParams.WRAP_CONTENT;
+            window.setAttributes(params);
+        }
+        QualityChoiceAdapter adapter = new QualityChoiceAdapter(choices, preselect, onPick);
+        adapter.dialog = dialog;
+        androidx.recyclerview.widget.RecyclerView recycler = dialog.findViewById(R.id.recycler);
+        recycler.setLayoutManager(new LinearLayoutManager(this));
+        recycler.setAdapter(adapter);
+        dialog.findViewById(R.id.cancel).setOnClickListener(v -> dialog.dismiss());
+        dialog.show();
+        return adapter;
     }
 
     /** 批量勾选窗：打开瞬间快照当前线路与选集，弹窗内不换线路；确认后走批量入队。 */
@@ -4205,7 +4413,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         List<Episode> episodes = new java.util.ArrayList<>(flag.getEpisodes());
         com.fongmi.android.tv.ui.dialog.BatchDownloadDialog dialog =
                 new com.fongmi.android.tv.ui.dialog.BatchDownloadDialog(this, vodName, episodes,
-                        selected -> enqueueBatchDownloads(key, playFlag, vodName, selected));
+                        selected -> prepareBatchDownloads(key, playFlag, vodName, selected));
         mBatchDownloadDialog = dialog;
         dialog.setOnDismissListener(d -> {
             if (mBatchDownloadDialog == d) mBatchDownloadDialog = null;
@@ -4214,21 +4422,58 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     /**
-     * 批量入队：逐集走播放链同一条解析路（SiteApi.playerContentParseOnly，即历史预解析
-     * 用的只解析不动播放器的那条），解析成功才入队；磁力/ed2k/thunder 逐条按现行口径
-     * 拒绝、解析失败逐条跳过，两类都在结束提示里计数，不中断整批。
-     * 后台线程顺序执行；收尾回主线程前先查页面存活，页面已销毁只入队不跳页不提示。
+     * 件 5 批量前置：先定「统一优先档名」——提前解析第 1 集（本来就要逐集
+     * 解析，提前一集不加成本），其解析层 ≥2 档时弹一次选择窗（置顶一项
+     * 「自动（各集默认档）」）；单档/解析失败照旧直接入队，不多点一层。
      */
-    private void enqueueBatchDownloads(String key, String flag, String vodName, List<Episode> selected) {
+    private void prepareBatchDownloads(String key, String flag, String vodName, java.util.List<Episode> selected) {
         if (selected == null || selected.isEmpty()) {
             com.fongmi.android.tv.utils.Notify.show("没有勾选任何集");
             return;
         }
+        final String pic = getPic();
+        Task.execute(() -> {
+            java.util.List<String> names = new java.util.ArrayList<>();
+            try {
+                Result first = SiteApi.playerContentParseOnly(key, flag, selected.get(0).getUrl());
+                if (first != null && !first.hasMsg() && first.getUrl().getValues().size() >= 2) {
+                    for (Value value : first.getUrl().getValues()) {
+                        if (!TextUtils.isEmpty(value.getN())) names.add(value.getN());
+                    }
+                }
+            } catch (Throwable ignored) {
+                // 第 1 集预解析失败不拦整批：入队循环里会逐集再试、逐集计数
+            }
+            if (names.size() < 2) {
+                enqueueBatchDownloads(key, flag, vodName, selected, null, pic);
+                return;
+            }
+            App.post(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                java.util.List<DownloadQualityChoice> choices = new java.util.ArrayList<>();
+                choices.add(new DownloadQualityChoice("自动（各集默认档）", null, null, 0));
+                for (String n : names) choices.add(new DownloadQualityChoice(n, null, n, 0));
+                showQualityChoiceDialog(choices, 0, choice ->
+                        enqueueBatchDownloads(key, flag, vodName, selected, choice.qualityName, pic));
+            });
+        });
+    }
+
+    /**
+     * 批量入队：逐集走播放链同一条解析路（SiteApi.playerContentParseOnly，即历史预解析
+     * 用的只解析不动播放器的那条），解析成功才入队；磁力/ed2k/thunder 逐条按现行口径
+     * 拒绝、解析失败逐条跳过，两类都在结束提示里计数，不中断整批。
+     * 件 5：preferredName 非空时逐集按名匹配选档，无同名用该集默认档；
+     * 每集实际用中的档名写进各自任务（存实际值，不存批量请求值）。
+     * 后台线程顺序执行；收尾回主线程前先查页面存活，页面已销毁只入队不跳页不提示。
+     */
+    private void enqueueBatchDownloads(String key, String flag, String vodName, java.util.List<Episode> selected, String preferredName, String pic) {
         com.fongmi.android.tv.utils.Notify.show("正在解析 " + selected.size() + " 集，请稍候");
         Task.execute(() -> {
             int added = 0, rejected = 0, failed = 0;
             for (Episode episode : selected) {
                 String realUrl;
+                String qualityName = null;
                 java.util.Map<String, String> headers;
                 try {
                     Result result = SiteApi.playerContentParseOnly(key, flag, episode.getUrl());
@@ -4238,6 +4483,19 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
                     }
                     realUrl = result.getRealUrl();
                     headers = result.getHeader();
+                    Url u = result.getUrl();
+                    if (u.getValues().size() >= 2) {
+                        qualityName = u.n(u.getPosition());
+                        if (preferredName != null) {
+                            for (Value value : u.getValues()) {
+                                if (preferredName.equals(value.getN())) {
+                                    realUrl = value.getV();
+                                    qualityName = value.getN();
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 } catch (Throwable e) {
                     failed++;
                     continue;
@@ -4251,7 +4509,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
                     String name = vodName;
                     String display = episode.getDisplayName();
                     if (!TextUtils.isEmpty(display) && !TextUtils.equals(display, vodName)) name = vodName + " " + display;
-                    if (com.fongmi.android.tv.utils.download.DownloadManager.get().add(realUrl, name, headers) != null) added++;
+                    if (com.fongmi.android.tv.utils.download.DownloadManager.get().add(realUrl, name, headers, pic, qualityName, 0) != null) added++;
                     else failed++;
                 } catch (Throwable e) {
                     failed++;

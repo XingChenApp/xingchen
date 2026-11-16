@@ -30,6 +30,21 @@ public class HkFavorite {
     /** 直达收藏当时的线路名（再入直达支用）。 */
     @SerializedName("flag")
     private String flag = "";
+    /**
+     * 品类裁决（断点乙）：建收藏时首入分流的品类随记录带走（值与键标记
+     * 同字面：video/novel/audio/music），再入先读它定归属与分签；空＝
+     * 旧记录，再入回退整规则分类。条目级借道（帖内「播放音频」钮）靠它
+     * 才回得去借面。
+     */
+    @SerializedName("kind")
+    private String kind = "";
+    /**
+     * 直达收藏的整表选集载荷（断点甲）：在播放器内收藏时把交接载荷原样
+     * 存下，再入按它重摆全表；从历史行转存等无载荷来源时为空，再入回
+     * 退按行自带字段拼单集载荷。
+     */
+    @SerializedName("episodes")
+    private String episodes = "";
     @SerializedName("time")
     private long time;
 
@@ -95,6 +110,22 @@ public class HkFavorite {
 
     public void setFlag(String flag) {
         this.flag = flag == null ? "" : flag;
+    }
+
+    public String getKind() {
+        return kind;
+    }
+
+    public void setKind(String kind) {
+        this.kind = kind == null ? "" : kind;
+    }
+
+    public String getEpisodes() {
+        return episodes;
+    }
+
+    public void setEpisodes(String episodes) {
+        this.episodes = episodes == null ? "" : episodes;
     }
 
     public long getTime() {

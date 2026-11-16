@@ -170,9 +170,19 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
     }
 
 
+    /**
+     * 借道专辑（海阔调用听书面）：出身旗＝专辑 hkRule 非空。借道按「调用」
+     * 口径（他 2026-11-14/15 亲定）定生死——不注册可 detached 的会话、
+     * 返回离开即停即清；自家书（hkRule 空）走接管续播，一字不动。
+     */
+    private boolean isBorrowed() {
+        return album != null && !album.hkRule.isEmpty();
+    }
+
     // ================= 迷你条（与 TtsReadActivity 共用一套条） =================
 
     private void setupMiniBar() {
+        if (isBorrowed()) return;
         miniSession = new ListenSession(MINI_ID);
         miniSession.setKeyPrefix("audiobook:");
         miniSession.setMeta(album.title, miniSub(), album.coverUrl);
@@ -752,15 +762,20 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
             com.fongmi.android.tv.api.hk.HkFavorite f =
                     new com.fongmi.android.tv.api.hk.HkFavorite();
             f.setRuleTitle(album.hkRule);
-            f.setEpisodeUrl(vodId);
+            // 键标记（hkdirect:/hkkind:）只活在键里：集址字段存剥标后的
+            // 原始址，直达判定也按原始址比章节表（断点乙/丙配套）。
+            f.setEpisodeUrl(com.fongmi.android.tv.api.hk.HkDetailBridge
+                    .stripDirectKeyMark(vodId));
             boolean direct = false;
             for (LegadoAudio.Chapter ch : album.chapters) {
-                if (vodId.equals(ch.url)) {
+                if (f.getEpisodeUrl().equals(ch.url)) {
                     direct = true;
                     break;
                 }
             }
             f.setDirect(direct);
+            // 本面即听书面：品类裁决随记录带走，再入先读标记定归属
+            f.setKind(com.fongmi.android.tv.api.hk.HkDetailBridge.KIND_AUDIO);
             f.setFlag(album.hkLine == null ? "" : album.hkLine);
             f.setTitle(album.title == null ? "" : album.title);
             f.setPicUrl(album.coverUrl == null ? "" : album.coverUrl);
@@ -899,7 +914,36 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
         mService = ((PlaybackService.LocalBinder) binder).getService();
         mService.setPlaybackForeground(true);
         mService.setNavigationCallback(navCallback, playbackKey());
+        if (isLoadedChapter()) {
+            // 接管（照音乐播放器进页正形）：服务里装的正是本专辑
+            // 本章——整段跳过 playChapter，不重解析、不重装流、不 seek 回
+            // 存档位；页面靠 ticker 读实时位置画 UI，resumeMs 只服务冷路。
+            refreshChapterLabel();
+            return;
+        }
         playChapter(album.index, resumeMs);
+    }
+
+    /**
+     * 进页先认人：服务当前 spec 的 key＝本专辑 playbackKey（专辑级），且
+     * spec 元数据与本章对得上（起播时按章写入：title＝章名、artist＝专辑
+     * 名，章一级只能以此对位——服务侧不存未解析的集址）。认上＝条上/上个
+     * 页面留下的同一章在播或暂停，页面只是观察者；认不上才走冷启全套。
+     */
+    private boolean isLoadedChapter() {
+        try {
+            PlayerManager pm = player();
+            if (pm == null || pm.getSpec() == null) return false;
+            if (!playbackKey().equals(pm.getKey())) return false;
+            LegadoAudio.Chapter c = album.current();
+            if (c == null) return false;
+            MediaMetadata md = pm.getMetadata();
+            if (md == null || md.title == null || md.artist == null) return false;
+            return c.name.contentEquals(md.title)
+                    && album.title.contentEquals(md.artist);
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     @Override
@@ -1189,6 +1233,13 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
 
     private void onClose() {
         closed = true;
+        if (isBorrowed()) {
+            // 借道真关闭：没有迷你条会话可走策略，直接 finish——停播、注销、
+            // 删专辑全在 onDestroy 的借道支里一次收口（saveProgress 已在
+            // onDestroy 首行回海阔 History）。
+            finish();
+            return;
+        }
         // 真关闭走迷你条策略：停播＋落盘＋注销（performClose 调页 control）
         try {
             ListenMiniBar.get(this).closeSession(MINI_ID);
@@ -1209,9 +1260,18 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
         released = true;
         saveProgress();
         handler.removeCallbacks(ticker);
-        // 页销毁：控制权交给条（detached 兜底），会话不注销——后台续播时条就是主；
-        // 真关闭（10秒/音乐页/点封面）才停播。不注销＝条还在，声音就有主。
-        if (miniSession != null) {
+        if (isBorrowed()) {
+            // 借道返回即停即清（「调用」口径）：不把会话交还给条——停播、
+            // 注销锁屏回调、静态仓删专辑，声音不留常驻。自家书不走此支。
+            try {
+                if (mService != null) player().stop();
+            } catch (Throwable ignored) {
+            }
+            unregisterNav();
+            LegadoAudio.remove(sessionId);
+        } else if (miniSession != null) {
+            // 页销毁：控制权交给条（detached 兜底），会话不注销——后台续播时条就是主；
+            // 真关闭（10秒/音乐页/点封面）才停播。不注销＝条还在，声音就有主。
             miniSession.setControl(null);
         }
         // 后台续播：页面销毁但播放继续，保留锁屏回调（服务 tryShutdown 会因此放行，

@@ -652,7 +652,8 @@ public class HkListActivity extends AppCompatActivity
                         // 万分比，再建记录（已有只刷新展示字段、不覆盖
                         // 进度字段——recordOpened 的分工）。
                         String nKey = TextUtils.isEmpty(pageUrl) || pageUrl.equals(cur.url)
-                                ? com.fongmi.android.tv.api.hk.HkHistoryRecorder.keyOf(resTitle, cur.url)
+                                ? com.fongmi.android.tv.api.hk.HkHistoryRecorder.keyOfDirect(resTitle, cur.url,
+                                        com.fongmi.android.tv.api.hk.HkDetailBridge.KIND_NOVEL)
                                 : com.fongmi.android.tv.api.hk.HkHistoryRecorder.keyOf(resTitle, pageUrl);
                         ns.hkHistoryKey = nKey;
                         com.fongmi.android.tv.bean.History nh =
@@ -729,7 +730,8 @@ public class HkListActivity extends AppCompatActivity
                         // 建记录（进度字段归听书页的回写，这里只落形）。
                         String aKey = TextUtils.isEmpty(pageUrl)
                                 || pageUrl.equals(aRawUrls.get(aIdx))
-                                ? com.fongmi.android.tv.api.hk.HkHistoryRecorder.keyOf(resTitle, aRawUrls.get(aIdx))
+                                ? com.fongmi.android.tv.api.hk.HkHistoryRecorder.keyOfDirect(resTitle, aRawUrls.get(aIdx),
+                                        com.fongmi.android.tv.api.hk.HkDetailBridge.KIND_AUDIO)
                                 : com.fongmi.android.tv.api.hk.HkHistoryRecorder.keyOf(resTitle, pageUrl);
                         album.hkHistoryKey = aKey;
                         com.fongmi.android.tv.api.hk.HkHistoryRecorder.recordOpened(

@@ -54,8 +54,8 @@ android {
         applicationId "com.XingChen.tv"
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
-        versionCode 220
-        versionName "1.4.137"
+        versionCode 237
+        versionName "1.4.154"
         buildConfigField "String", "BUILD_TIME", "\"${buildTime}\""
         buildConfigField "String", "BUILD_TAG", "\"${releaseTag}\""
         buildConfigField "String", "GIT_REVISION", "\"${gitRevision}\""
@@ -183,7 +183,16 @@ dependencies {
     implementation "com.jakewharton.timber:timber:5.0.1"
     // 聚阅插件本体类批（com.example.hikerview.* 照官 8.83 补齐）：弹窗走
     // XPopup（官包内嵌同库，2.9.0 的 API 面已逐项对过 AAR）、模型走 fastjson。
-    implementation "com.github.li-xiaojun:XPopup:2.9.0"
+    // XPopup 走 libs 本地 AAR（153 首编订正，账 juyue-ise-379 退路）：原版
+    // 2.9.0 AAR 仅换 classes.jar 内 BasePopupView 一族为照官移植版（线程
+    // 形态五处，源即原 app 源集那份、以 --release 8 编），同 FQN 源覆盖
+    // 与 AAR 并存在 R8 报双定义（153 首编实证），故 Maven 行摘除、源覆盖
+    // 退场，fileTree(libs) 自动收本 AAR。
+    // implementation "com.github.li-xiaojun:XPopup:2.9.0"
+    // EasyAdapter 是 XPopup 2.9.0 POM 的 runtime 传递依赖（原经 Maven 行
+    // 带入），本地 AAR 无 POM 不带传递，须显式补声明同版 1.2.5（153 二编
+    // 实证：缺它 R8 报 com.lxj.easyadapter 四类缺失）。
+    implementation "com.github.li-xiaojun:EasyAdapter:1.2.5"
     implementation "com.alibaba:fastjson:1.2.83"
     // 依赖补齐批（2026-11-14，账 byname-dep-fill-20261114）：
     // xtooltip：聚阅 hikerPop 的 showTooltip（data/plugins/hikerPop.js:1090-1091

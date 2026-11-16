@@ -194,6 +194,15 @@ public class PlayerChooser {
     }
 
     /**
+     * 官 getHeaderMap（.line 452-476）：本体逐字转写在 HkPlayerChooser
+     * 同名法，此处按官签名补转发，使按官全名反射调本类者不再落空（缺单 C6）。
+     */
+    public static Map<String, String> getHeaderMap(Map<String, String> map, String referer,
+                                                   String url, String cookie) {
+        return HkPlayerChooser.getHeaderMap(map, referer, url, cookie);
+    }
+
+    /**
      * 官 decorateHeader(Map 版，.line 320-330)：首个 String 参在官本体被覆写为
      * cookie 槽、不入逻辑；referer 仅用于 url 的 cookie 为空时兜底取 cookie，
      * 最终走 decorateHeader0(map, null, url, cookie)。异常 Timber 后照常走尾步。

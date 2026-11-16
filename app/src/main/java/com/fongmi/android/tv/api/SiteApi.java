@@ -418,19 +418,37 @@ public class SiteApi {
 
     /**
      * 等蜘蛛就绪：loader 给空蜘蛛（SpiderNull）＝蜘蛛没就绪——创建被顶替/取消
-     * 打断，或创建失败。被打断的创建不记失败账，静默重试（spiderQuiet）能把
-     * 蜘蛛真正建起来；真失败的创建第一发已记账＋退避，静默重试会被退避挡下、
-     * 不重复弹提示。重试前吃掉残留中断旗（那是冲着上一发等待去的，不许毒到
-     * 重试的等待）。
+     * 打断，或创建失败。被打断的创建不记失败账，静默重试能把蜘蛛真正建起来。
+     * 重试走 spiderQuietAwait（不吃退避）：第一发前台真试若真失败会当场记
+     * 退避账，那是本序列自己的失败——旧口径走 spiderQuiet 恰被这笔账挡死，
+     * 两发重试瞬间回空、同一次点击必抛「蜘蛛未就绪」（退避自锁）；退避对
+     * 预热/检测等其他静默路径的作用不变。重试前吃掉残留中断旗（那是冲着
+     * 上一发等待去的，不许毒到重试的等待）。
      * @return 真蜘蛛；两发静默重试后仍没就绪返回 null，调用方按空出门且不写缓存。
      */
     private static Spider awaitReadySpider(Site site, Spider spider) {
         Spider ready = spider;
         for (int i = 0; i < 2 && ready instanceof com.github.catvod.crawler.SpiderNull; i++) {
             Thread.interrupted();
-            ready = site.recent().spiderQuiet();
+            ready = site.recent().spiderQuietAwait();
         }
         return ready instanceof com.github.catvod.crawler.SpiderNull ? null : ready;
+    }
+
+    /**
+     * 「蜘蛛未就绪」分因文案：等就绪序列最后一发的失败分因（loader 在同
+     * 线程记在 BaseLoader 上）——脚本文件缺失／创建失败／创建被取消三句
+     * 分开；分不出因（未知路）回落原文案。JS 路能分取消与失败，文件缺失
+     * 并在创建失败里（JS 无创建前文件门，取内容失败与 init 失败同路）。
+     */
+    private static String spiderNotReadyMessage() {
+        BaseLoader.SpiderFailCause cause = BaseLoader.lastSpiderFailCause();
+        if (cause == null) return "蜘蛛未就绪";
+        return switch (cause) {
+            case FILE_MISSING -> "蜘蛛脚本文件不存在";
+            case CREATE_FAILED -> "蜘蛛创建失败";
+            case CREATE_CANCELLED -> "蜘蛛创建被中断，请重试";
+        };
     }
 
     @NonNull
@@ -750,7 +768,7 @@ public class SiteApi {
             Spider detailSpider = awaitReadySpider(site, site.recent().spider());
             if (detailSpider == null) {
                 SpiderDebug.log("detail", "spider not ready key=%s id=%s", key, id);
-                throw new com.fongmi.android.tv.exception.ExtractException("蜘蛛未就绪");
+                throw new com.fongmi.android.tv.exception.ExtractException(spiderNotReadyMessage());
             }
             String detailContent = marked(site, () -> detailSpider.detailContent(Arrays.asList(id)));
             SpiderDebug.log("detail", detailContent);
@@ -981,7 +999,7 @@ public class SiteApi {
             Spider playerSpider = awaitReadySpider(site, site.recent().spider());
             if (playerSpider == null) {
                 SpiderDebug.log("player", "spider not ready key=%s flag=%s id=%s", key, flag, id);
-                throw new com.fongmi.android.tv.exception.ExtractException("蜘蛛未就绪");
+                throw new com.fongmi.android.tv.exception.ExtractException(spiderNotReadyMessage());
             }
             String playerContent = marked(site, () -> playerSpider.playerContent(flag, id, VodConfig.get().getFlags()));
             SpiderDebug.log("player", "spider done key=%s cost=%dms", key, System.currentTimeMillis() - spiderStart);

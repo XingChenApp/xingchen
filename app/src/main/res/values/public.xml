@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 钉官布局 id（缺单 C14）：聚阅 hikerPop 等插件 JS 硬编码官 aapt 编号
+     2131558583/2131558584（0x7f0d00b7/b8）充气 item_history_pic /
+     item_history_pic_vertical（官 res/values/public.xml 同值），咱家不钉
+     则编号另排、注定充错布局。此处只钉此两值，余资源编号照常排。 -->
+<resources>
+    <public type="layout" name="item_history_pic" id="0x7f0d00b7" />
+    <public type="layout" name="item_history_pic_vertical" id="0x7f0d00b8" />
+</resources>

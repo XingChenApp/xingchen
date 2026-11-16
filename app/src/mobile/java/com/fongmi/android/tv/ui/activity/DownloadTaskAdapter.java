@@ -5,6 +5,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -19,6 +21,7 @@ import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.utils.ImgUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.download.DownloadManager;
 import com.fongmi.android.tv.utils.download.DownloadTask;
@@ -30,13 +33,18 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 下载任务列表适配器
+ * 下载任务列表适配器（件 8 行定版）：小封面＋状态只出一处＋数据行
+ * （含速度/ETA）＋3dp 进度＋暂停/继续明示钮＋行尾小删除钮；勾选框
+ * 只在管理模式出现。性能护栏：高频进度回调下同任务再绑只刷文字与
+ * 进度条，跳过封面重载与勾选监听重绑，封面零闪烁。
  */
 public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapter.Holder> {
 
     private final List<DownloadTask> tasks = new ArrayList<>();
     private final Set<String> selectedIds = new LinkedHashSet<>();
     private OnSelectionChangeListener selectionListener;
+    /** 管理模式：平时行上无勾选框，点顶部「全选」进入后才出行首勾选框 */
+    private boolean manageMode;
 
     public interface OnSelectionChangeListener {
         void onSelectionChanged(int selectedCount, int totalCount);
@@ -44,6 +52,18 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
 
     public void setOnSelectionChangeListener(OnSelectionChangeListener l) {
         selectionListener = l;
+    }
+
+    public void setManageMode(boolean manage) {
+        if (manageMode == manage) return;
+        manageMode = manage;
+        if (!manage) selectedIds.clear();
+        notifyDataSetChanged();
+        notifySelectionChanged();
+    }
+
+    public boolean isManageMode() {
+        return manageMode;
     }
 
     public void setTasks(List<DownloadTask> list) {
@@ -95,37 +115,88 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
     @Override
     public void onBindViewHolder(@NonNull Holder holder, int position) {
         DownloadTask task = tasks.get(position);
-        holder.tvName.setText(task.getName());
+        // 管理模式翻转也算换绑（勾选框显隐在全绑段里，不翻会留旧显隐）
+        boolean sameTask = task.getId().equals(holder.boundTaskId)
+                && holder.boundManage == (manageMode ? 1 : 0);
+        if (!sameTask) {
+            // 全绑：封面走 ImgUtil 统一口——pic 空/加载中/失败三态都落文字封面
+            holder.boundTaskId = task.getId();
+            holder.boundManage = manageMode ? 1 : 0;
+            holder.tvName.setText(task.getName());
+            ImgUtil.load(task.getName(), task.getPic(), holder.cover);
+            holder.cbSelect.setVisibility(manageMode ? View.VISIBLE : View.GONE);
+            holder.cbSelect.setOnCheckedChangeListener(null);
+            holder.cbSelect.setChecked(selectedIds.contains(task.getId()));
+            holder.cbSelect.setOnCheckedChangeListener((btn, checked) -> {
+                if (checked) selectedIds.add(task.getId());
+                else selectedIds.remove(task.getId());
+                notifySelectionChanged();
+            });
+            holder.itemView.setOnClickListener(v -> onRowClick(v, task));
+            holder.itemView.setOnLongClickListener(v -> {
+                showDeleteConfirm(v, task);
+                return true;
+            });
+            holder.btnToggle.setOnClickListener(v -> onToggle(task));
+            holder.btnDelete.setOnClickListener(v -> showDeleteConfirm(v, task));
+        }
+        // 同任务再绑与全绑共用：只刷状态/数据/进度/钮四处（封面零闪烁）
         holder.tvStatus.setText(task.getStatusText());
-        holder.progress.setProgress(task.getProgress());
-        holder.progress.setVisibility(task.getStatus() == DownloadTask.STATUS_DOWNLOADING ? View.VISIBLE : View.GONE);
-        // 大小/已下载量小字行
         String sizeText = task.getSizeText();
         holder.tvSize.setText(sizeText);
         holder.tvSize.setVisibility(sizeText.isEmpty() ? View.GONE : View.VISIBLE);
-        // 选中框：先解绑再设值，避免 ViewHolder 复用误触发
-        holder.cbSelect.setOnCheckedChangeListener(null);
-        holder.cbSelect.setChecked(selectedIds.contains(task.getId()));
-        holder.cbSelect.setOnCheckedChangeListener((btn, checked) -> {
-            if (checked) selectedIds.add(task.getId());
-            else selectedIds.remove(task.getId());
-            notifySelectionChanged();
-        });
-        // 点击暂停/继续/播放
-        holder.itemView.setOnClickListener(v -> {
-            if (task.getStatus() == DownloadTask.STATUS_DOWNLOADING || task.getStatus() == DownloadTask.STATUS_WAITING) {
+        int status = task.getStatus();
+        holder.progress.setProgress(task.getProgress());
+        holder.progress.setVisibility(
+                status == DownloadTask.STATUS_DOWNLOADING || status == DownloadTask.STATUS_MERGING
+                        || status == DownloadTask.STATUS_WAITING || status == DownloadTask.STATUS_PAUSED
+                        ? View.VISIBLE : View.GONE);
+        if (status == DownloadTask.STATUS_DOWNLOADING || status == DownloadTask.STATUS_WAITING) {
+            holder.btnToggle.setVisibility(View.VISIBLE);
+            holder.btnToggle.setImageResource(R.drawable.ic_music_pause);
+            holder.btnToggle.setContentDescription("暂停下载");
+        } else if (status == DownloadTask.STATUS_PAUSED || status == DownloadTask.STATUS_ERROR) {
+            holder.btnToggle.setVisibility(View.VISIBLE);
+            holder.btnToggle.setImageResource(R.drawable.ic_music_play);
+            holder.btnToggle.setContentDescription("继续下载");
+        } else {
+            holder.btnToggle.setVisibility(View.GONE);
+        }
+    }
+
+    /** 行点击＝钮点击同口：下载中/等待暂停、暂停/出错继续、已完成打开播放 */
+    private void onRowClick(View view, DownloadTask task) {
+        if (manageMode) return;
+        switch (task.getStatus()) {
+            case DownloadTask.STATUS_DOWNLOADING:
+            case DownloadTask.STATUS_WAITING:
                 DownloadManager.get().pause(task.getId());
-            } else if (task.getStatus() == DownloadTask.STATUS_PAUSED || task.getStatus() == DownloadTask.STATUS_ERROR) {
+                break;
+            case DownloadTask.STATUS_PAUSED:
+            case DownloadTask.STATUS_ERROR:
                 DownloadManager.get().resume(task.getId());
-            } else if (task.getStatus() == DownloadTask.STATUS_COMPLETED) {
-                openCompletedFile(v, task);
-            }
-        });
-        // 长按删除（先弹确认框）
-        holder.itemView.setOnLongClickListener(v -> {
-            showDeleteConfirm(v, task);
-            return true;
-        });
+                break;
+            case DownloadTask.STATUS_COMPLETED:
+                openCompletedFile(view, task);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void onToggle(DownloadTask task) {
+        switch (task.getStatus()) {
+            case DownloadTask.STATUS_DOWNLOADING:
+            case DownloadTask.STATUS_WAITING:
+                DownloadManager.get().pause(task.getId());
+                break;
+            case DownloadTask.STATUS_PAUSED:
+            case DownloadTask.STATUS_ERROR:
+                DownloadManager.get().resume(task.getId());
+                break;
+            default:
+                break;
+        }
     }
 
     @Override
@@ -133,7 +204,7 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
         return tasks.size();
     }
 
-    /** 长按删除确认：白毛玻璃弹窗，确认后才删除任务及文件 */
+    /** 删除确认（行尾小钮与长按共用）：白毛玻璃弹窗，居中＋宽写死 320dp（全应用居中框口径） */
     private void showDeleteConfirm(View view, DownloadTask task) {
         Context context = view.getContext();
         if (!(context instanceof FragmentActivity)) return;
@@ -152,13 +223,15 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
         if (window != null) {
             window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             WindowManager.LayoutParams params = window.getAttributes();
-            params.width = (int) (activity.getResources().getDisplayMetrics().widthPixels * 0.88f);
+            params.gravity = android.view.Gravity.CENTER;
+            params.width = (int) (320 * activity.getResources().getDisplayMetrics().density);
             window.setAttributes(params);
         }
     }
 
     /** 已完成：APK 交系统安装器安装（下载器要支持下 APK 装应用，送进视频播放器装不上）；
-     * 其余文件仍用应用内播放器打开本地文件 */
+     * 其余文件仍用应用内播放器打开本地文件；打开即回写最近播放时刻（件 6 口径，
+     * VideoActivity.file 内同口已接，这里再保一口直达路径） */
     private void openCompletedFile(View view, DownloadTask task) {
         String filePath = task.getFilePath();
         if (filePath == null || filePath.isEmpty()) {
@@ -170,6 +243,7 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
             Notify.show("文件不存在，可能已被删除");
             return;
         }
+        DownloadManager.get().touchPlayed(filePath);
         Context context = view.getContext();
         if (filePath.toLowerCase(java.util.Locale.ROOT).endsWith(".apk")) {
             try {
@@ -192,19 +266,28 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
     }
 
     static class Holder extends RecyclerView.ViewHolder {
+        String boundTaskId;
+        int boundManage = -1;
         CheckBox cbSelect;
+        ImageView cover;
         TextView tvName;
         TextView tvStatus;
         TextView tvSize;
         ProgressBar progress;
+        ImageButton btnToggle;
+        ImageButton btnDelete;
 
         Holder(@NonNull View itemView) {
             super(itemView);
             cbSelect = itemView.findViewById(R.id.cb_select);
+            cover = itemView.findViewById(R.id.iv_cover);
             tvName = itemView.findViewById(R.id.tv_task_name);
             tvStatus = itemView.findViewById(R.id.tv_task_status);
             tvSize = itemView.findViewById(R.id.tv_task_size);
             progress = itemView.findViewById(R.id.pb_task_progress);
+            btnToggle = itemView.findViewById(R.id.btn_toggle);
+            btnDelete = itemView.findViewById(R.id.btn_delete);
+            btnDelete.setImageAlpha(140);
         }
     }
 }

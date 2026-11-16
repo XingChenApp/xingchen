@@ -22,7 +22,7 @@ public class VodAdapter extends BaseDiffAdapter<Vod, BaseVodHolder> {
 
     private final OnClickListener listener;
     private Style style;
-    private final int[] size;
+    private int[] size;
     /** 站点 key，用于判断是否为用户标记的短剧源（只对标记源预取视频尺寸） */
     private String siteKey;
 
@@ -48,6 +48,17 @@ public class VodAdapter extends BaseDiffAdapter<Vod, BaseVodHolder> {
         this.style = style;
     }
 
+    /** 封面设置原地变更（大小/方向/比例）：同 adapter 换样式与规格，
+     *  列表不换 adapter、不回顶、不重排（他 2026-11-16 令）。 */
+    public void applyStyle(Style style, int[] size) {
+        this.style = style;
+        this.size = size;
+    }
+
+    public int[] getSize() {
+        return size;
+    }
+
     public void setSiteKey(String siteKey) {
         this.siteKey = siteKey;
     }
@@ -63,6 +74,10 @@ public class VodAdapter extends BaseDiffAdapter<Vod, BaseVodHolder> {
     @Override
     public void onBindViewHolder(@NonNull BaseVodHolder holder, int position) {
         Vod item = getItem(position);
+        // 尺寸在绑时现套：封面规格原地变更后，已建的 holder 也能
+        // 在重绑时拿到新规格（原先只在建 holder 时套一次）。
+        if (holder instanceof com.fongmi.android.tv.ui.holder.VodRectHolder rect) rect.size(size);
+        else if (holder instanceof com.fongmi.android.tv.ui.holder.VodOvalHolder oval) oval.size(size);
         holder.initView(item);
         // 短剧源后台预取视频尺寸：用户标记的源才预取，控制流量
         // 注意：列表项通常无直链，此处为尽力而为；有 URL 时防抖预取

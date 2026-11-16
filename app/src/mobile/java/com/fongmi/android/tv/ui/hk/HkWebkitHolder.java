@@ -11,6 +11,7 @@ import android.os.Looper;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.view.View;
+import android.view.ViewGroup;
 import android.webkit.CookieManager;
 import android.webkit.HttpAuthHandler;
 import android.webkit.JavascriptInterface;
@@ -656,8 +657,18 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
         } catch (Throwable ignored) {
         }
         if (getWebView() == null) return;
-        getWebView().onPause();
-        getWebView().destroy();
+        WebView wv = getWebView();
+        wv.onPause();
+        // 退场清帧（残影账·海阔面）：旧形 WebView 还挂在父
+        // 布局里就原地 destroy，末帧由其合成层带走、退场
+        // 无人收。照同树 CatWebActivity 的收口步：停载→
+        // 置空页→摘父→destroy，帧在销毁前先清掉。
+        wv.stopLoading();
+        wv.loadUrl("about:blank");
+        if (wv.getParent() instanceof ViewGroup) {
+            ((ViewGroup) wv.getParent()).removeView(wv);
+        }
+        wv.destroy();
     }
 
     private void initWebSettings(WebSettings settings) {
@@ -702,11 +713,6 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
                 if (HkAdUrlBlocker.shouldBlock(getX5Extra().getBlockRules(), lastDom, reqUrl)) {
                     return new WebResourceResponse(null, null, (java.io.InputStream) null);
                 }
-            }
-            // 全局拦截表（G48）：导入规则附带 adBlockUrls 经确认并入的存量，
-            // 官 AdUrlBlocker 单例表在网页层与规则自带 blockRules 并列消费、不限嗅探模式。
-            if (HkAdUrlBlocker.shouldBlockGlobal(lastDom, reqUrl)) {
-                return new WebResourceResponse(null, null, (java.io.InputStream) null);
             }
             if (sniffMode && HkAdUrlBlocker.shouldBlockSniff(SNIFF_BLOCK_RULES, lastDom, reqUrl)) {
                 return new WebResourceResponse(null, null, (java.io.InputStream) null);

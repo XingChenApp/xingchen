@@ -6,6 +6,7 @@ import android.view.View;
 import com.annimon.stream.function.Consumer;
 import com.example.hikerview.model.BaseResultItem;
 import com.example.hikerview.model.ViewCollection;
+import com.example.hikerview.model.ViewCollectionExtraData;
 import com.example.hikerview.ui.browser.util.CollectionUtil;
 import com.example.hikerview.ui.home.FilmListActivity;
 import com.fongmi.android.tv.api.hk.HkRule;
@@ -49,6 +50,15 @@ public class DetailUIHelper {
                                         Consumer<String> consumer, Consumer<String> consumer2) {
         return new HkDetailBridge().dealUrlSimply(activity, view, toRule(obj), null, str,
                 wrap(consumer), wrap(consumer2));
+    }
+
+    /**
+     * 官 getCodeAndHeader（官 smali ui/detail/DetailUIHelper:1850）：
+     * 本体逐字转写在 HkDetailBridge 同名法，此处按官签名补转发，
+     * 使按官全名反射调本类者不再落空（缺单 C4）。
+     */
+    public static String getCodeAndHeader(String urlWithUa, String[] lazyParts) {
+        return new HkDetailBridge().getCodeAndHeader(urlWithUa, lazyParts);
     }
 
     /**
@@ -120,6 +130,27 @@ public class DetailUIHelper {
             }
             if (!CollectionUtil.isEmpty(list)) {
                 return list.get(0);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 官 getViewCollectionExtraData（官 smali :2306，源行 498-505）逐字转写：
+     * 仅 FilmListActivity 时取 getViewCollection 的 extraData 解析，
+     * isCustomJump 或 isCustomPlayer 任一成立回其 toJson；整段异常
+     * （片单为空的 NPE 含）与余形回 null。官 catch 无日志，照官不打（缺单 C5）。
+     */
+    public static String getViewCollectionExtraData(Activity activity, String ruleUrl) {
+        if (activity instanceof FilmListActivity) {
+            try {
+                ViewCollectionExtraData data = ViewCollectionExtraData.fromJson(
+                        getViewCollection(activity, ruleUrl).getExtraData());
+                if (data.isCustomJump() || data.isCustomPlayer()) {
+                    return data.toJson();
+                }
+            } catch (Exception e) {
+                return null;
             }
         }
         return null;

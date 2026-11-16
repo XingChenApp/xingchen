@@ -1,61 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 件 8 任务行定版：横排紧凑行（≈82dp）——[管理模式勾选] 小封面 46×62 /
+     右列（标题·状态行·数据行·3dp 进度）/ 暂停继续钮 / 行尾小删除钮。
+     卡面材质照旧 xc_setcard_v2（星辰浅面毛玻璃），只改布局不换皮。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
     android:background="@drawable/xc_setcard_v2"
-    android:padding="12dp"
+    android:padding="10dp"
     android:layout_marginBottom="8dp">
 
-    <LinearLayout
-        android:layout_width="match_parent"
+    <CheckBox
+        android:id="@+id/cb_select"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:layout_marginEnd="8dp"
+        android:visibility="gone" />
 
-        <CheckBox
-            android:id="@+id/cb_select"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp" />
+    <ImageView
+        android:id="@+id/iv_cover"
+        android:layout_width="46dp"
+        android:layout_height="62dp"
+        android:scaleType="centerCrop"
+        android:background="@drawable/shape_placeholder_radius_2"
+        android:clipToOutline="true" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="10dp"
+        android:orientation="vertical">
 
         <TextView
             android:id="@+id/tv_task_name"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:textColor="#0C0E12"
             android:textSize="15sp"
             android:textStyle="bold"
             android:singleLine="true"
             android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/tv_task_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="#1B2431"
+            android:textSize="13sp"
+            android:singleLine="true"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/tv_task_size"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="#3A3F45"
+            android:textSize="13sp"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:visibility="gone" />
+
+        <ProgressBar
+            android:id="@+id/pb_task_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:layout_marginTop="5dp"
+            android:max="100" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/tv_task_status"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:textColor="#1B2431"
-        android:textSize="13sp" />
-
-    <TextView
-        android:id="@+id/tv_task_size"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:textColor="#3A3F45"
-        android:textSize="13sp"
-        android:singleLine="true"
-        android:ellipsize="end"
+    <ImageButton
+        android:id="@+id/btn_toggle"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="6dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="暂停或继续下载"
         android:visibility="gone" />
 
-    <ProgressBar
-        android:id="@+id/pb_task_progress"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:max="100" />
-
+    <ImageButton
+        android:id="@+id/btn_delete"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="删除该任务"
+        android:src="@drawable/ic_music_delete" />
 </LinearLayout>

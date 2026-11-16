@@ -469,7 +469,10 @@ public class HongguoCommentApi {
 
     private static JSONObject episodeRepliesPayload(String seriesId, String vid, String commentId,
                                                     String cursor, String insertId) throws Exception {
-        JSONObject business = new JSONObject().put("book_id", seriesId).put("need_count", false);
+        // 重核 F6 #49：官单集回复支 needCount 首屏 true（CSSPlaylet-
+        // CommentDetailsView 原文），翻页支 false；旧形恒 false 漏首屏。
+        JSONObject business = new JSONObject().put("book_id", seriesId)
+                .put("need_count", cursor == null || cursor.isEmpty());
         if (insertId != null && !insertId.isEmpty()) {
             business.put("insert_reply_ids", new JSONArray().put(insertId));
         }

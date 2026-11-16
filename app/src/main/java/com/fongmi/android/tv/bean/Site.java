@@ -489,6 +489,11 @@ public class Site implements Parcelable {
         return BaseLoader.get().getSpiderQuiet(getKey(), getApi(), getExt(), getJar());
     }
 
+    /** 等就绪序列（SiteApi.awaitReadySpider）重试专用：静默同 spiderQuiet，但不吃 PY 退避（防退避自锁）。 */
+    public Spider spiderQuietAwait() {
+        return BaseLoader.get().getSpiderQuietAwait(getKey(), getApi(), getExt(), getJar());
+    }
+
     public void save() {
         AppDatabase.get().getSiteDao().insertOrUpdate(this);
     }

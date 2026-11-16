@@ -332,14 +332,13 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
     private void refreshCoverStyle() {
         try {
             if (mAdapter == null || mAdapter.getItemCount() == 0) {
-                // 数据为空时也先纠正列数，否则刷新后列数仍是旧的
+                // 数据为空时也先纠正列数（原地改 span，不换 LayoutManager）
                 try {
                     Style ns = getStyle();
                     if (!ns.isList()) {
                         int nc = Product.getColumn(requireActivity(), ns);
                         androidx.recyclerview.widget.RecyclerView.LayoutManager l = mBinding.recycler.getLayoutManager();
-                        int cc = (l instanceof GridLayoutManager) ? ((GridLayoutManager) l).getSpanCount() : -1;
-                        if (cc != nc) mBinding.recycler.setLayoutManager(new GridLayoutManager(getContext(), nc));
+                        if (l instanceof GridLayoutManager glm && glm.getSpanCount() != nc) glm.setSpanCount(nc);
                     }
                 } catch (Exception ignored) { }
                 onRefresh();
@@ -347,26 +346,49 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
             }
             Style newStyle = getStyle();
             int newColumn = com.fongmi.android.tv.Product.getColumn(requireActivity(), newStyle);
+            int[] newSpec = com.fongmi.android.tv.Product.getSpec(requireActivity(), newStyle);
             androidx.recyclerview.widget.RecyclerView.LayoutManager lm = mBinding.recycler.getLayoutManager();
             int curColumn = (lm instanceof androidx.recyclerview.widget.GridLayoutManager)
                     ? ((androidx.recyclerview.widget.GridLayoutManager) lm).getSpanCount() : -1;
             boolean styleChanged = !newStyle.equals(mAdapter.getStyle());
-            boolean columnChanged = curColumn != newColumn;
-            if (styleChanged || columnChanged) {
-                java.util.List<com.fongmi.android.tv.bean.Vod> data = new java.util.ArrayList<>(mAdapter.getItems());
-                mAdapter = new VodAdapter(this, newStyle, com.fongmi.android.tv.Product.getSpec(requireActivity(), newStyle));
-                mAdapter.setSiteKey(getKey());
-                mAdapter.setItems(data);
-                mBinding.recycler.setAdapter(mAdapter);
-                if (newStyle.isList()) {
-                    mBinding.recycler.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(requireActivity()));
-                } else {
-                    mBinding.recycler.setLayoutManager(new androidx.recyclerview.widget.GridLayoutManager(getContext(), newColumn));
+            boolean specChanged = !java.util.Arrays.equals(newSpec, mAdapter.getSize());
+            boolean columnChanged = !newStyle.isList() && curColumn != newColumn;
+            if (!styleChanged && !specChanged && !columnChanged) return;
+            // 原地变更（他 2026-11-16 令：封面切换不回顶不重排）：adapter 与
+            // LayoutManager 都不换，滚动锚点由 LM 按位置保住；列数用
+            // setSpanCount 原地改；样式/规格换到同一 adapter 上，全量重绑
+            // 让每行按新比例重套尺寸。原先整表换 adapter＋换 LM 必然回顶。
+            mAdapter.applyStyle(newStyle, newSpec);
+            if (newStyle.isList()) {
+                if (!(lm instanceof androidx.recyclerview.widget.LinearLayoutManager)
+                        || lm instanceof androidx.recyclerview.widget.GridLayoutManager) {
+                    swapLayoutManagerKeepingScroll(new androidx.recyclerview.widget.LinearLayoutManager(requireActivity()));
                 }
+            } else if (lm instanceof androidx.recyclerview.widget.GridLayoutManager glm) {
+                if (glm.getSpanCount() != newColumn) glm.setSpanCount(newColumn);
+            } else {
+                swapLayoutManagerKeepingScroll(new androidx.recyclerview.widget.GridLayoutManager(getContext(), newColumn));
             }
+            mAdapter.notifyItemRangeChanged(0, mAdapter.getItemCount());
         } catch (Exception e) {
             e.printStackTrace();
             onRefresh();
+        }
+    }
+
+    /** 万一切换列表/网格形态必须换 LayoutManager 时，保住首个可见条目位置与偏移，不回顶。 */
+    private void swapLayoutManagerKeepingScroll(androidx.recyclerview.widget.RecyclerView.LayoutManager newLm) {
+        androidx.recyclerview.widget.RecyclerView.LayoutManager old = mBinding.recycler.getLayoutManager();
+        int pos = -1;
+        int offset = 0;
+        if (old instanceof androidx.recyclerview.widget.LinearLayoutManager llm) {
+            pos = llm.findFirstVisibleItemPosition();
+            android.view.View first = pos >= 0 ? llm.findViewByPosition(pos) : null;
+            if (first != null) offset = first.getTop() - mBinding.recycler.getPaddingTop();
+        }
+        mBinding.recycler.setLayoutManager(newLm);
+        if (pos >= 0 && newLm instanceof androidx.recyclerview.widget.LinearLayoutManager nllm) {
+            nllm.scrollToPositionWithOffset(pos, offset);
         }
     }
 

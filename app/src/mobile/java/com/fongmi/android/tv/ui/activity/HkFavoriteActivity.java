@@ -97,6 +97,23 @@ public class HkFavoriteActivity extends BaseActivity {
         // 海阔面统一入口仪式：先过模块一次性接线（含 LitePal 存储层初始化）
         com.fongmi.android.tv.ui.hk.HkListActivity.ensureStatics();
         binding.btnBack.setOnClickListener(v -> finish());
+        // 点「收藏」标题出清空确认弹窗（2026-11-15 他亲定，与历史页同形）：
+        // 居中小弹窗「清空全部」，左取消右确认，确认即全清收藏。
+        binding.tvPageTitle.setOnClickListener(v -> {
+            if (all.isEmpty()) {
+                Notify.show("还没有收藏");
+                return;
+            }
+            com.fongmi.android.tv.ui.hk.HkFavoriteDialogs.showClearAll(this, () -> {
+                if (HkFavoriteStore.clearAll()) {
+                    curGroup = "";
+                    reload();
+                    Notify.show("已清空");
+                } else {
+                    Notify.show("清空失败");
+                }
+            });
+        });
         binding.rvFavorite.setLayoutManager(new LinearLayoutManager(this));
         adapter = new FavAdapter();
         binding.rvFavorite.setAdapter(adapter);
@@ -154,6 +171,24 @@ public class HkFavoriteActivity extends BaseActivity {
      * 规则已删除的记录归视频签，不凭空消失。按规则名缓存一轮。
      */
     private int kindOf(HkFavorite f) {
+        // 断点乙：记录自带的品类裁决先行（条目级借道靠它回借面）；无标记
+        // 的旧记录才走下方整规则分类。标记是逐记录的，不进按规则名缓存。
+        String mark = f.getKind();
+        if (!mark.isEmpty()) {
+            if (com.fongmi.android.tv.api.hk.HkDetailBridge.KIND_NOVEL.equals(mark)) return KIND_NOVEL;
+            if (com.fongmi.android.tv.api.hk.HkDetailBridge.KIND_AUDIO.equals(mark)) return KIND_AUDIO;
+            if (com.fongmi.android.tv.api.hk.HkDetailBridge.KIND_MUSIC.equals(mark)) return KIND_MUSIC;
+            return KIND_VIDEO;
+        }
+        // 144 补（与历史再入 openRecord 同口径）：无标记旧记录在回落整
+        // 规则分类之前，先对记录本身跑首入同款条目级认领——信号源即
+        // 记录自带的标题（「播放音频」等既有信号，与首入 claimSignal
+        // 同一把尺、不新造信号），认出音频即归听书。逐记录判，不进
+        // 下方按规则名缓存。
+        if (com.fongmi.android.tv.ui.HkRadioRouter.claimSignal(
+                f.getRuleTitle(), f.getTitle(), f.getTitle()) != 0) {
+            return KIND_AUDIO;
+        }
         Integer cached = kindCache.get(f.getRuleTitle());
         if (cached != null) return cached;
         int kind = KIND_VIDEO;
@@ -228,6 +263,62 @@ public class HkFavoriteActivity extends BaseActivity {
         binding.tvEmpty.setVisibility(shown.isEmpty() ? View.VISIBLE : View.GONE);
     }
 
+    /**
+     * 直达收藏再入的历史键重建：带品类标记的收藏来自带标直达行，键按
+     * keyOfDirect 同形重建、进度回写才落回同一行；无标记的旧收藏按
+     * keyOf 旧形重建（与旧行同键）。
+     */
+    private static String favHistoryKey(HkFavorite f) {
+        String kind = f.getKind();
+        if (!kind.isEmpty()
+                && !com.fongmi.android.tv.api.hk.HkDetailBridge.KIND_VIDEO.equals(kind)) {
+            return com.fongmi.android.tv.api.hk.HkHistoryRecorder
+                    .keyOfDirect(f.getRuleTitle(), f.getEpisodeUrl(), kind);
+        }
+        return com.fongmi.android.tv.api.hk.HkHistoryRecorder
+                .keyOf(f.getRuleTitle(), f.getEpisodeUrl());
+    }
+
+    /** 存下整表载荷时算被点集下标（与交接 selIdx 同口径：扁平形＝表内序，flags 形＝命中线路内序，线路按收藏存的线名优先）。 */
+    private static int favEpisodeIndex(String episodesJson, String episodeUrl, String flagName) {
+        try {
+            String json = episodesJson.trim();
+            if (json.startsWith("{")) {
+                org.json.JSONObject root = new org.json.JSONObject(json);
+                org.json.JSONArray flagArr = root.optJSONArray("flags");
+                if (flagArr == null) return 0;
+                org.json.JSONObject chosen = null;
+                org.json.JSONObject first = null;
+                for (int fi = 0; fi < flagArr.length(); fi++) {
+                    org.json.JSONObject fo = flagArr.optJSONObject(fi);
+                    if (fo == null) continue;
+                    org.json.JSONArray eps = fo.optJSONArray("episodes");
+                    if (eps == null || eps.length() == 0) continue;
+                    if (first == null) first = fo;
+                    if (flagName != null && flagName.equals(fo.optString("name", ""))) {
+                        chosen = fo;
+                        break;
+                    }
+                }
+                if (chosen == null) chosen = first;
+                if (chosen == null) return 0;
+                org.json.JSONArray eps = chosen.optJSONArray("episodes");
+                for (int i = 0; i < eps.length(); i++) {
+                    org.json.JSONObject o = eps.optJSONObject(i);
+                    if (o != null && episodeUrl.equals(o.optString("url", ""))) return i;
+                }
+                return 0;
+            }
+            org.json.JSONArray arr = new org.json.JSONArray(json);
+            for (int i = 0; i < arr.length(); i++) {
+                org.json.JSONObject o = arr.optJSONObject(i);
+                if (o != null && episodeUrl.equals(o.optString("url", ""))) return i;
+            }
+        } catch (Throwable ignored) {
+        }
+        return 0;
+    }
+
     private void openFavorite(HkFavorite f) {
         HkRule rule = HkRuleManager.get().getInstalledRule(f.getRuleTitle());
         if (rule == null) {
@@ -239,8 +330,9 @@ public class HkFavoriteActivity extends BaseActivity {
         if (f.isDirect()) {
             // 借面三类（小说/听书/音乐）的直达收藏：按行自带字段当场组装
             // 单集会话/专辑/单曲队列，与海阔历史直达形再入同一组装法
-            // （2026-11-14 配套）；三支都按 keyOf（规则名，集址）算直达
-            // 形历史键带入，进度回写与海阔历史直达记录落同一行。详情形
+            // （2026-11-14 配套）；三支的历史键经 favHistoryKey 重建——带
+            // 品类标记的按 keyOfDirect 同形、无标记旧收藏按 keyOf 旧形，
+            // 进度回写与海阔历史直达记录落同一行。详情形
             // 收藏不在此分流：下方 startHk 进详情页后 divert 按有效规则
             // 重新分类，四类全覆盖。
             int favKind = kindOf(f);
@@ -258,8 +350,7 @@ public class HkFavoriteActivity extends BaseActivity {
                 ns.chapterIndex = 0;
                 ns.chapterUrl = f.getEpisodeUrl();
                 // 直达形键与海阔历史直达记录同键：进度回写落同一行
-                ns.hkHistoryKey = com.fongmi.android.tv.api.hk.HkHistoryRecorder
-                        .keyOf(f.getRuleTitle(), f.getEpisodeUrl());
+                ns.hkHistoryKey = favHistoryKey(f);
                 com.fongmi.android.tv.read.ReadingRouter.openReading(this, ns);
                 return;
             }
@@ -275,15 +366,25 @@ public class HkFavoriteActivity extends BaseActivity {
                 album.chapters.add(new com.fongmi.android.tv.legado.LegadoAudio.Chapter(
                         album.title, f.getEpisodeUrl()));
                 album.index = 0;
-                album.hkHistoryKey = com.fongmi.android.tv.api.hk.HkHistoryRecorder
-                        .keyOf(f.getRuleTitle(), f.getEpisodeUrl());
+                album.hkHistoryKey = favHistoryKey(f);
                 com.fongmi.android.tv.ui.activity.AudioBookActivity.start(this,
                         com.fongmi.android.tv.legado.LegadoAudio.put(album));
                 return;
             }
-            VideoActivity.startHkPlay(this, f.getRuleTitle(),
-                    TextUtils.isEmpty(f.getFlag()) ? "默认" : f.getFlag(),
-                    f.getEpisodeUrl(), f.getTitle(), f.getTitle(), f.getPicUrl());
+            // 视频直达收藏：断点甲——收藏时存下的整表载荷优先重摆全表；
+            // 无载荷（自历史行转存等）按记录自带字段拼单集载荷，不传空。
+            String payload;
+            int selIdx = 0;
+            if (!TextUtils.isEmpty(f.getEpisodes())) {
+                payload = f.getEpisodes();
+                selIdx = favEpisodeIndex(payload, f.getEpisodeUrl(), favLine);
+            } else {
+                payload = com.fongmi.android.tv.api.hk.HkDetailBridge
+                        .singleEpisodePayload(f.getTitle(), f.getEpisodeUrl());
+            }
+            VideoActivity.startHkPlay(this, f.getRuleTitle(), favLine,
+                    f.getEpisodeUrl(), f.getTitle(), f.getTitle(), f.getPicUrl(),
+                    payload, selIdx);
             return;
         }
         // 直达那条内容（对齐 8.83 点收藏进 CUrl 页面）：用存下的 episodeUrl 走与规则内

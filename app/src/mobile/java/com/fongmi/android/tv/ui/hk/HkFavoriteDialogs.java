@@ -32,6 +32,90 @@ public class HkFavoriteDialogs {
         void onSelect(int which);
     }
 
+    /**
+     * 清空确认弹窗（2026-11-15 他亲定形态）：屏幕居中小弹窗，文案
+     * 「清空全部」，下方左「取消」右「确认」。历史页与收藏页共用。
+     * 装法照海阔域居中弹窗既有口径（HkDetailBridge 选项弹窗同款）：
+     * 普通 Dialog＋卡片自带深玻璃底（dialog_glass_dark）、窗口透明、
+     * 宽＝屏宽 90%、高自适应、居中。143 首落用 AlertDialog 承载，
+     * 窗口被主题撑成整屏（真机截图：全宽顶条形），本批改此装法。
+     */
+    public static void showClearAll(Context ctx, Runnable onConfirm) {
+        if (HkDialogs.isHostGone(ctx)) return;
+        LinearLayout root = new LinearLayout(ctx);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundResource(R.drawable.dialog_glass_dark);
+        root.setPadding(dp(ctx, 20), dp(ctx, 18), dp(ctx, 20), dp(ctx, 14));
+
+        TextView tv = new TextView(ctx);
+        tv.setText("清空全部");
+        tv.setTextColor(0xFFF2F4F8);
+        tv.setTextSize(16);
+        tv.setTypeface(null, Typeface.BOLD);
+        tv.setGravity(Gravity.CENTER);
+        root.addView(tv, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout btnRow = new LinearLayout(ctx);
+        btnRow.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams brLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        brLp.topMargin = dp(ctx, 16);
+
+        TextView cancel = new TextView(ctx);
+        cancel.setText("取消");
+        cancel.setTextColor(0xFFA8B0C0);
+        cancel.setTextSize(15);
+        cancel.setPadding(dp(ctx, 8), dp(ctx, 10), dp(ctx, 16), dp(ctx, 10));
+        btnRow.addView(cancel, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        android.view.View spacer = new android.view.View(ctx);
+        btnRow.addView(spacer, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView ok = new TextView(ctx);
+        ok.setText("确认");
+        ok.setTextColor(0xFFD9A420);
+        ok.setTypeface(null, Typeface.BOLD);
+        ok.setTextSize(15);
+        ok.setPadding(dp(ctx, 16), dp(ctx, 10), dp(ctx, 8), dp(ctx, 10));
+        btnRow.addView(ok, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        root.addView(btnRow, brLp);
+
+        android.app.Dialog dialog = new android.app.Dialog(ctx);
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dialog.setContentView(root);
+        android.view.Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(
+                    android.graphics.Color.TRANSPARENT));
+            window.setWindowAnimations(R.style.HkDialogFade);
+            window.setGravity(Gravity.CENTER);
+            int screenWidth = ctx.getResources().getDisplayMetrics().widthPixels;
+            int screenHeight = ctx.getResources().getDisplayMetrics().heightPixels;
+            int width = (int) (screenWidth * 0.9f);
+            // 定高照同域成例 HkCenterListPopup.show()：先按目标宽预量
+            // 内容自然高、再显式像素设高。本主题链无 dialogTheme，裸
+            // Dialog 退回活动主题生成全帧窗，WRAP_CONTENT 高被顶满、
+            // 玻璃底涂满整窗成整屏罩（账 hk-clear-dialog-route-20261116，
+            // 144 重做代码与宽/居中都对、只高没收住）。
+            root.measure(android.view.View.MeasureSpec.makeMeasureSpec(width,
+                            android.view.View.MeasureSpec.EXACTLY),
+                    android.view.View.MeasureSpec.makeMeasureSpec(0,
+                            android.view.View.MeasureSpec.UNSPECIFIED));
+            int height = Math.min(root.getMeasuredHeight(), (int) (screenHeight * 0.85f));
+            window.setLayout(width, height);
+        }
+        cancel.setOnClickListener(v -> dialog.dismiss());
+        ok.setOnClickListener(v -> {
+            dialog.dismiss();
+            if (onConfirm != null) onConfirm.run();
+        });
+        dialog.show();
+    }
+
     private static int dp(Context ctx, int v) {
         return Math.round(v * ctx.getResources().getDisplayMetrics().density);
     }

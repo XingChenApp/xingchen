@@ -76,7 +76,9 @@ public class DebugLogs implements Process {
 
     private Response download() {
         DiagnosticLogBuffer.Export export = DiagnosticReport.text(DebugLogStore.export());
-        Response response = NanoHTTPD.newFixedLengthResponse(Response.Status.OK, "text/plain; charset=utf-8", export.input, export.length);
+        java.io.InputStream input = export.input;
+        long length = export.length;
+        Response response = NanoHTTPD.newFixedLengthResponse(Response.Status.OK, "text/plain; charset=utf-8", input, length);
         response.addHeader("Content-Disposition", "attachment; filename=webhtv-debug-log.txt");
         response.addHeader("X-Content-Type-Options", "nosniff");
         response.addHeader("X-Diagnostic-Completeness", export.partial ? "partial" : "declared-window");

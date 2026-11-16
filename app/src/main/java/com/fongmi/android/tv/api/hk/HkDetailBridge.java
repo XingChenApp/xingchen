@@ -100,19 +100,69 @@ public class HkDetailBridge {
      */
     public static final String DIRECT_KEY_MARK = "hkdirect:";
 
+    /**
+     * 品类标记（再入四断点 乙/丙，账 history-reentry-loss-20261115）：借道
+     * 直达行建行时把首入分流的品类裁决一并写进键 id 段（紧随直达标记），
+     * 再入先读标记定归属——首入按条目级信号（claimSignal 等）分流、再入
+     * 只剩整规则级判据时，条目级借道（普通视频规则帖内的「播放音频」钮）
+     * 必被判回视频。整规则判据只作无标记旧行的回退。值与 HkFavorite.kind
+     * 同字面，两处共用。
+     */
+    public static final String KIND_KEY_MARK = "hkkind:";
+    public static final String KIND_VIDEO = "video";
+    public static final String KIND_NOVEL = "novel";
+    public static final String KIND_AUDIO = "audio";
+    public static final String KIND_MUSIC = "music";
+
     public static boolean isDirectKeyId(String keyId) {
         return keyId != null && keyId.startsWith(DIRECT_KEY_MARK);
     }
 
+    /** 键 id 段的品类标记（无标记回 ""）：直达标记之后紧随 hkkind:<kind>:。 */
+    public static String kindOfKeyId(String keyId) {
+        if (keyId == null) return "";
+        String rest = keyId.startsWith(DIRECT_KEY_MARK)
+                ? keyId.substring(DIRECT_KEY_MARK.length()) : keyId;
+        if (!rest.startsWith(KIND_KEY_MARK)) return "";
+        int end = rest.indexOf(':', KIND_KEY_MARK.length());
+        return end < 0 ? "" : rest.substring(KIND_KEY_MARK.length(), end);
+    }
+
+    /** 剥键标记（直达＋品类）回原始 id：标记只活在键里，不许漏进地址字段。 */
     public static String stripDirectKeyMark(String keyId) {
         if (keyId == null) return "";
-        return isDirectKeyId(keyId) ? keyId.substring(DIRECT_KEY_MARK.length()) : keyId;
+        String rest = keyId;
+        if (rest.startsWith(DIRECT_KEY_MARK)) {
+            rest = rest.substring(DIRECT_KEY_MARK.length());
+        }
+        if (rest.startsWith(KIND_KEY_MARK)) {
+            int end = rest.indexOf(':', KIND_KEY_MARK.length());
+            if (end >= 0) rest = rest.substring(end + 1);
+        }
+        return rest;
     }
 
     /** 行形态判定（三处共用）：键带直达标记，或（旧行）集址与键 id 相等。 */
     public static boolean isDirectForm(String keyId, String episodeUrl) {
         if (isDirectKeyId(keyId)) return true;
         return episodeUrl != null && !episodeUrl.isEmpty() && episodeUrl.equals(keyId);
+    }
+
+    /**
+     * 单集选集载荷（再入断点甲的最低形）：直达行只存得下被点那一集的
+     * 线名/集名/集址，再入按行自带字段拼成扁平载荷 [{name,url}] 交
+     * startHkPlay——播放器摆盘至少有被点那一集与真线名（线名走 hk_line
+     * 交接参），不再传空载荷让装配点整盘收手。历史/收藏两处共用。
+     */
+    public static String singleEpisodePayload(String episodeName, String episodeUrl) {
+        try {
+            org.json.JSONObject o = new org.json.JSONObject();
+            o.put("name", episodeName == null ? "" : episodeName);
+            o.put("url", episodeUrl == null ? "" : episodeUrl);
+            return new org.json.JSONArray().put(o).toString();
+        } catch (Throwable t) {
+            return "";
+        }
     }
 
     /**

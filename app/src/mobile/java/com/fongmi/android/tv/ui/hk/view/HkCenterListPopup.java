@@ -7,7 +7,6 @@ import android.graphics.drawable.ColorDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Window;
-import android.view.WindowManager;
 import android.widget.TextView;
 
 import androidx.recyclerview.widget.GridLayoutManager;
@@ -112,12 +111,14 @@ public class HkCenterListPopup {
             int screenWidth = context.getResources().getDisplayMetrics().widthPixels;
             int screenHeight = context.getResources().getDisplayMetrics().heightPixels;
             int maxHeight = (int) (screenHeight * 0.85f);
-            window.setLayout((int) (screenWidth * 0.9f), WindowManager.LayoutParams.WRAP_CONTENT);
-            dialog.setOnShowListener(d -> {
-                if (root.getHeight() > maxHeight) {
-                    window.setLayout((int) (screenWidth * 0.9f), maxHeight);
-                }
-            });
+            int width = (int) (screenWidth * 0.9f);
+            // 定高在首帧之前一次定死（照官 XPopup 首帧前量好最大高）：按目标宽
+            // 预量内容自然高，超过屏高 85% 即钳到 85%，出框即终态——旧形先
+            // WRAP_CONTENT 出框、OnShow 再二次改高，44 条长名单必跳一下。
+            root.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            int height = Math.min(root.getMeasuredHeight(), maxHeight);
+            window.setLayout(width, height);
         }
         dialog.show();
     }

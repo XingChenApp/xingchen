@@ -34,7 +34,8 @@ import okhttp3.Response;
 public class M3u8Downloader {
 
     public interface Listener {
-        void onProgress(int downloadedSegments, int totalSegments);
+        /** 件 4：第三参为已下字节累计（速度采样口径；含恢复时已存在分片的字节） */
+        void onProgress(int downloadedSegments, int totalSegments, long downloadedBytes);
         void onMerging();
         void onComplete(File file);
         void onError(String msg);
@@ -45,6 +46,21 @@ public class M3u8Downloader {
     private final Map<String, String> headers;
     private final int threadCount;
     private final Listener listener;
+    /** 件 5：列表内变体带宽指定（0＝自动最高；＞0 选 ≤该值的最大带宽，无 ≤ 者选最小） */
+    private final long variantBandwidth;
+
+    /** 件 5：master 列表的一个变体（供选择窗列档） */
+    public static class Variant {
+        public final long bandwidth;
+        public final String resolution;
+        public final String url;
+
+        Variant(long bandwidth, String resolution, String url) {
+            this.bandwidth = bandwidth;
+            this.resolution = resolution;
+            this.url = url;
+        }
+    }
     private volatile boolean canceled;
     private ExecutorService executor;
     // C-25: 工作线程收尾闩。doDownload 返回（分片/合并的文件流已在各自
@@ -82,11 +98,16 @@ public class M3u8Downloader {
     }
 
     public M3u8Downloader(String m3u8Url, File targetFile, Map<String, String> headers, int threadCount, Listener listener) {
+        this(m3u8Url, targetFile, headers, threadCount, listener, 0);
+    }
+
+    public M3u8Downloader(String m3u8Url, File targetFile, Map<String, String> headers, int threadCount, Listener listener, long variantBandwidth) {
         this.m3u8Url = m3u8Url;
         this.targetFile = targetFile;
         this.headers = headers != null ? headers : new HashMap<>();
         this.threadCount = Math.max(1, Math.min(32, threadCount));
         this.listener = listener;
+        this.variantBandwidth = variantBandwidth;
     }
 
     public void cancel() {
@@ -121,9 +142,11 @@ public class M3u8Downloader {
             // 1. 下载并解析 m3u8
             String content = fetchText(m3u8Url);
             String playlistUrl = m3u8Url;
-            // master 列表：选 BANDWIDTH 最高的变体
+            // master 列表：件 5 指定带宽时按带宽选档，否则维持选 BANDWIDTH 最高
             if (isMasterPlaylist(content)) {
-                String variantUrl = selectBestVariant(content, m3u8Url);
+                String variantUrl = variantBandwidth > 0
+                        ? selectVariantByBandwidth(content, m3u8Url, variantBandwidth)
+                        : selectBestVariant(content, m3u8Url);
                 if (variantUrl == null) {
                     throw new IOException("m3u8 无可用变体");
                 }
@@ -139,6 +162,13 @@ public class M3u8Downloader {
             if (!tmpDir.exists()) tmpDir.mkdirs();
             int total = segments.size();
             AtomicInteger done = new AtomicInteger(0);
+            // 件 4：已下字节累计——开工先扫一遍已存在分片计入（恢复口径），
+            // 之后每片落定把该片长度累加进去。
+            java.util.concurrent.atomic.AtomicLong downloadedBytes = new java.util.concurrent.atomic.AtomicLong(0);
+            for (int i = 0; i < total; i++) {
+                File existing = new File(tmpDir, String.format("%05d.ts", i));
+                if (existing.exists() && existing.length() > 0) downloadedBytes.addAndGet(existing.length());
+            }
             CountDownLatch latch = new CountDownLatch(total);
             List<String> errors = new ArrayList<>();
             executor = Executors.newFixedThreadPool(threadCount);
@@ -152,12 +182,16 @@ public class M3u8Downloader {
                         // C-23: 跳过只认正式分片名且非空；临时文件永不算完成。
                         // 旧正式分片（本修复前直写落盘的）无法区分是否半截，
                         // 沿用原口径认其完成（见交回报告说明），新下载一律走临时+改名。
-                        if (!segFile.exists() || segFile.length() == 0) {
+                        boolean skipped = segFile.exists() && segFile.length() > 0;
+                        if (!skipped) {
                             downloadSegmentToFinal(seg, segFile);
+                            // 跳过片的字节已在开工扫描计入，新下片在此累加
+                            if (segFile.exists()) downloadedBytes.addAndGet(segFile.length());
                         }
                         if (canceled) return;
                         int d = done.incrementAndGet();
-                        if (listener != null) App.post(() -> { if (!canceled) listener.onProgress(d, total); });
+                        long bytesNow = downloadedBytes.get();
+                        if (listener != null) App.post(() -> { if (!canceled) listener.onProgress(d, total, bytesNow); });
                     } catch (Exception e) {
                         synchronized (errors) {
                             if (errors.isEmpty()) errors.add(e.getMessage());
@@ -405,6 +439,60 @@ public class M3u8Downloader {
     /** 是否为 master 播放列表（含多码率变体） */
     private boolean isMasterPlaylist(String content) {
         return content != null && content.contains("#EXT-X-STREAM-INF");
+    }
+
+    /** 件 5：解析 master 列表全部变体（bandwidth/RESOLUTION/url），非 master 返回空表 */
+    public static List<Variant> listVariants(String content, String baseUrl) throws Exception {
+        List<Variant> variants = new ArrayList<>();
+        if (content == null || !content.contains("#EXT-X-STREAM-INF")) return variants;
+        URI base = new URI(baseUrl);
+        long bandwidth = -1;
+        String resolution = "";
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new java.io.ByteArrayInputStream(content.getBytes("UTF-8"))))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.startsWith("#EXT-X-STREAM-INF")) {
+                    Map<String, String> attrs = parseAttributes(line.substring(line.indexOf(':') + 1));
+                    try {
+                        bandwidth = Long.parseLong(attrs.getOrDefault("BANDWIDTH", "-1"));
+                    } catch (NumberFormatException e) {
+                        bandwidth = -1;
+                    }
+                    resolution = attrs.getOrDefault("RESOLUTION", "");
+                } else if (!line.isEmpty() && !line.startsWith("#")) {
+                    variants.add(new Variant(bandwidth, resolution, base.resolve(line).toString()));
+                    bandwidth = -1;
+                    resolution = "";
+                }
+            }
+        }
+        return variants;
+    }
+
+    /** 件 5：拉一次 master 并列变体（非 master/失败返回空表）；只许后台线程调 */
+    public static List<Variant> fetchVariants(String url, Map<String, String> headers) {
+        try {
+            M3u8Downloader probe = new M3u8Downloader(url, new File("."), headers, 1, null);
+            String content = probe.fetchText(url);
+            return listVariants(content, url);
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
+    }
+
+    /** 件 5：按指定带宽选变体——≤该值的最大带宽；无 ≤ 者选最小带宽；再无回第一条 */
+    private String selectVariantByBandwidth(String content, String baseUrl, long target) throws Exception {
+        List<Variant> variants = listVariants(content, baseUrl);
+        if (variants.isEmpty()) return selectBestVariant(content, baseUrl);
+        Variant bestLe = null;
+        Variant smallest = null;
+        for (Variant v : variants) {
+            if (smallest == null || v.bandwidth < smallest.bandwidth) smallest = v;
+            if (v.bandwidth <= target && (bestLe == null || v.bandwidth > bestLe.bandwidth)) bestLe = v;
+        }
+        Variant pick = bestLe != null ? bestLe : smallest;
+        return pick != null ? pick.url : selectBestVariant(content, baseUrl);
     }
 
     /** 从 master 列表中选 BANDWIDTH 最高的变体 URL，失败返回第一条 */

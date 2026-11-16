@@ -59,6 +59,11 @@ public class HkArticleListModel {
         /** 对应原版 JSEngine.getInstance().evalJS(getMyRule(rule) + js, input)。 */
         String evalWithRule(HkRule rule, String js, String input);
 
+        /** 对应原版 $5 的 longClick 附加项执行（lambda$onLongClick$3）：evalJS(getMyRule(rule) + generateMY("MY_URL", fragment.myUrl) + js, input=附加项标题)；默认实现退化为 evalWithRule（无 MY_URL 段），引擎绑定阶段覆盖以注入 MY_URL。 */
+        default String evalWithRule(HkRule rule, String js, String input, String myUrl) {
+            return evalWithRule(rule, js, input);
+        }
+
         /**
          * 对应原版 ArticleListFragment.lambda$initData$11 的缓存代码重建链：
          * evalJS(getMyRule(rule) + code, url) 求值缓存代码（cacheCode(...) 声明的那段），

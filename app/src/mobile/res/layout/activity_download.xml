@@ -2,7 +2,10 @@
 <!-- Root keeps fitsSystemWindows for status-bar avoidance. Do NOT put padding on
      this view: the framework replaces it with window insets at runtime
      (View.applyInsets), so any padding declared here is silently ignored.
-     Content side-margins live on the inner container below. -->
+     Content side-margins live on the inner container below.
+     件 8 整页定版：标题左对齐＋副行「共 N 个任务 · 占用 X」；目录/线程数
+     收成一条左右分栏卡（再加同时下载/容量上限一条）；管理行平时只留
+     「全选」入口；卡面材质照旧 xc_setcard_v2（星辰浅面毛玻璃），只布局。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -19,31 +22,39 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
         android:layout_marginStart="8dp"
         android:text="下载列表"
         android:textColor="#0C0E12"
         android:textSize="24sp"
         android:textStyle="bold" />
 
+    <TextView
+        android:id="@+id/tv_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="2dp"
+        android:layout_marginBottom="16dp"
+        android:text="共 0 个任务"
+        android:textColor="#1B2431"
+        android:textSize="13sp" />
+
     <LinearLayout
-        android:id="@+id/card_download_dir"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
         android:background="@drawable/xc_setcard_v2"
-        android:clickable="true"
-        android:focusable="true"
-        android:foreground="?attr/selectableItemBackground"
-        android:gravity="center_vertical"
-        android:minHeight="64dp"
-        android:orientation="horizontal"
-        android:padding="15dp">
+        android:orientation="horizontal">
+
         <LinearLayout
+            android:id="@+id/card_download_dir"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="vertical">
+            android:minHeight="64dp"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:padding="15dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -53,38 +64,34 @@
                 android:textStyle="bold" />
             <TextView
                 android:id="@+id/tv_download_dir_sub"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
                 android:textColor="#1B2431"
                 android:textSize="13sp"
                 android:singleLine="true"
-                android:ellipsize="end" />
+                android:ellipsize="middle" />
         </LinearLayout>
-        <ImageView
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:src="@drawable/ic_chev_v2" />
-    </LinearLayout>
 
-    <LinearLayout
-        android:id="@+id/card_download_threads"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"
-        android:background="@drawable/xc_setcard_v2"
-        android:clickable="true"
-        android:focusable="true"
-        android:foreground="?attr/selectableItemBackground"
-        android:gravity="center_vertical"
-        android:minHeight="64dp"
-        android:orientation="horizontal"
-        android:padding="15dp">
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp"
+            android:background="#14000000" />
+
         <LinearLayout
+            android:id="@+id/card_download_threads"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="vertical">
+            android:minHeight="64dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:padding="15dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -101,10 +108,79 @@
                 android:textSize="13sp"
                 android:text="8 线程" />
         </LinearLayout>
-        <ImageView
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:src="@drawable/ic_chev_v2" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/xc_setcard_v2"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:id="@+id/card_download_concurrent"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:minHeight="64dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:padding="15dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="同时下载"
+                android:textColor="#0C0E12"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/tv_concurrent_sub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textColor="#1B2431"
+                android:textSize="13sp"
+                android:text="2 个任务" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp"
+            android:background="#14000000" />
+
+        <LinearLayout
+            android:id="@+id/card_download_capacity"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:minHeight="64dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:padding="15dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="容量上限"
+                android:textColor="#0C0E12"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/tv_capacity_sub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textColor="#1B2431"
+                android:textSize="13sp"
+                android:text="不限" />
+        </LinearLayout>
     </LinearLayout>
 
     <LinearLayout
@@ -113,10 +189,23 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:layout_marginBottom="8dp">
+        <TextView
+            android:id="@+id/btn_manage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/xc_setcard_v2"
+            android:paddingLeft="16dp"
+            android:paddingRight="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:text="全选"
+            android:textColor="#0C0E12"
+            android:textSize="13sp" />
         <CheckBox
             android:id="@+id/cb_select_all"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
             android:text="全选"
             android:textColor="#0C0E12"
             android:textSize="14sp"
@@ -124,16 +213,17 @@
             android:paddingLeft="8dp"
             android:paddingRight="12dp"
             android:paddingTop="6dp"
-            android:paddingBottom="6dp" />
+            android:paddingBottom="6dp"
+            android:visibility="gone" />
         <TextView
-            android:id="@+id/tv_count"
+            android:id="@+id/tv_selected"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="center"
-            android:text="共 0 个任务"
             android:textColor="#1B2431"
-            android:textSize="13sp" />
+            android:textSize="13sp"
+            android:visibility="gone" />
         <TextView
             android:id="@+id/btn_delete_selected"
             android:layout_width="wrap_content"
@@ -145,7 +235,8 @@
             android:paddingBottom="8dp"
             android:text="删除选中"
             android:textColor="#E5484D"
-            android:textSize="13sp" />
+            android:textSize="13sp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <TextView

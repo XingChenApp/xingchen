@@ -410,4 +410,19 @@ public class Migrations {
             database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_MusicFavorite_trackId_platform_plugin` ON `MusicFavorite` (`trackId`, `platform`, `plugin`)");
         }
     };
+
+    public static final Migration MIGRATION_45_46 = new Migration(45, 46) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            // 下载外壳件 1（任务落盘）：新增 DownloadRecord 整表——点播下载任务的
+            // 持久镜像，App 重启后 DownloadManager.restore() 逐条对账灌回内存表。
+            // 列来历：id/url/name/filePath/status/totalBytes/downloadedBytes/isM3u8/
+            // createTime/error 与 DownloadTask 现行字段一一对应；finishTime/lastPlayTime
+            // 供容量清理（件 6）的「最久没碰过」口径；headersJson 存请求头（多数源
+            // 没请求头续传直接 403，必须落盘）；pic 供任务行小封面（件 8）；
+            // qualityName/variantBandwidth 是件 5 选档快照；storageUri 为将来
+            // 「下完搬运到自选目录」预留、本版恒空。纯建新表，存量数据一行不动。
+            database.execSQL("CREATE TABLE IF NOT EXISTS `DownloadRecord` (`id` TEXT NOT NULL, `url` TEXT, `name` TEXT, `filePath` TEXT, `status` INTEGER NOT NULL, `totalBytes` INTEGER NOT NULL, `downloadedBytes` INTEGER NOT NULL, `isM3u8` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `finishTime` INTEGER NOT NULL, `lastPlayTime` INTEGER NOT NULL, `headersJson` TEXT, `pic` TEXT, `qualityName` TEXT, `error` TEXT, `storageUri` TEXT, `variantBandwidth` INTEGER NOT NULL, PRIMARY KEY(`id`))");
+        }
+    };
 }

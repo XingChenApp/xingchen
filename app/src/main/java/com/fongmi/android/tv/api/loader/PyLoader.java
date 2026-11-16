@@ -340,11 +340,27 @@ public class PyLoader {
      *（批量检测时逐个 Toast 会刷屏；检测结果由调用方统一展示）。
      */
     public Spider getSpiderQuiet(String key, String api, String ext) {
+        return getSpiderQuiet(key, api, ext, true);
+    }
+
+    /**
+     * 等就绪序列专用（SiteApi.awaitReadySpider 的重试路）：不吃退避——
+     * 序列第一发前台真试刚记下的退避账是本序列自己的失败，挡它就是
+     * 自锁；其余口径（文件缺失/取消/失败分类、失败照记账）与静默路一致，
+     * 本发若再真失败，退避账照常更新、继续约束其他静默路径。
+     */
+    public Spider getSpiderQuietAwait(String key, String api, String ext) {
+        return getSpiderQuiet(key, api, ext, false);
+    }
+
+    private Spider getSpiderQuiet(String key, String api, String ext, boolean honorBackoff) {
+        BaseLoader.noteSpiderFailCause(null);
         String resolvedApi = resolve(api);
         boolean localFile = !api.startsWith("http");
         if (localFile) {
             File f = new File(resolvedApi);
             if (!f.exists()) {
+                BaseLoader.noteSpiderFailCause(BaseLoader.SpiderFailCause.FILE_MISSING);
                 remove(key, "file-missing");
                 return new SpiderNull();
             }
@@ -352,7 +368,7 @@ public class PyLoader {
                 remove(key, "stamp-changed");
             }
         }
-        if (isBackedOff(key)) {
+        if (honorBackoff && isBackedOff(key)) {
             // 后台退避：该源连续创建失败且还在退避窗内（窗长见 backoffWindowMs），
             // 静默路径直接跳过，不再每趟预热/检测都重撞一次满额超时（慢 init 源
             // 一撞就是 60 秒起步、还留僵尸扫描）。只拦静默路径：前台 getSpider
@@ -368,8 +384,10 @@ public class PyLoader {
             return spiders.computeIfAbsent(key, k -> createSpider(k, resolvedApi, ext, localFile));
         } catch (SpiderLoadCancelled e) {
             // 被取消的一发：静默，与失败无关。
+            BaseLoader.noteSpiderFailCause(BaseLoader.SpiderFailCause.CREATE_CANCELLED);
             return new SpiderNull();
         } catch (SpiderLoadFailed e) {
+            BaseLoader.noteSpiderFailCause(BaseLoader.SpiderFailCause.CREATE_FAILED);
             // 失败不缓存（computeIfAbsent 在映射函数抛异常时不写入），下次调用重试。
             // 静默只是不弹 Toast，不是无痕：与 getSpider 同口径落强制日志
             //（key＋异常全文，分类 pyloader），后台路径（首页预热等）挂掉的源
@@ -448,6 +466,7 @@ public class PyLoader {
     }
 
     public Spider getSpider(String key, String api, String ext) {
+        BaseLoader.noteSpiderFailCause(null);
         String resolvedApi = resolve(api);
         boolean localFile = !api.startsWith("http");
         if (localFile) {
@@ -456,6 +475,7 @@ public class PyLoader {
                 // 脚本文件已不存在（被删/未导入）：静默给空蜘蛛，不走下面的加载失败弹窗。
                 // 此前只有登记过时间戳的 key 才有这条静默路径；时间戳被目录监听清掉后，
                 // 源还指着已删文件就会每次进首页都弹一遍“PY加载失败”的错误码。
+                BaseLoader.noteSpiderFailCause(BaseLoader.SpiderFailCause.FILE_MISSING);
                 remove(key, "file-missing");
                 return new SpiderNull();
             }
@@ -474,9 +494,11 @@ public class PyLoader {
         } catch (SpiderLoadCancelled e) {
             // 本次加载被取消（顶替/页面销毁/外层超时打断了等待）：不是加载失败，
             // 不弹提示、不记源坏——顶替的那一发自会建好蜘蛛并出列表。
+            BaseLoader.noteSpiderFailCause(BaseLoader.SpiderFailCause.CREATE_CANCELLED);
             SpiderDebug.log("pyloader", "getSpider cancelled key=%s", key);
             return new SpiderNull();
         } catch (SpiderLoadFailed e) {
+            BaseLoader.noteSpiderFailCause(BaseLoader.SpiderFailCause.CREATE_FAILED);
             // 失败不缓存：下次打开重试。computeIfAbsent 在映射函数抛异常时不写入，
             // 此前这里返回 SpiderNull 会被写进缓存，一次失败毒化该源整个进程。
             Throwable cause = e.getCause() != null ? e.getCause() : e;

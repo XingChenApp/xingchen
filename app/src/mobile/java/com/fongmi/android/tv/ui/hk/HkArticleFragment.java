@@ -3102,6 +3102,13 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         if (getContext() == null) return;
         HkItem item = adapter.getList().get(position);
         if (getActivity() != null) {
+            // 缺单 C15：MY_POSITION 宿主点击位接线——条目点击分发入口按
+            // 身份（规则名＋本轮分发地址）把被点位写进点击位槽，主路 lazy
+            // 求值经 HkRouter.playRoute 按身份取走（官点击条目时
+            // MY_POSITION=被点位；与 HkPageActivity 各起播点同形，毛病8）。
+            // 身份不合或未走播放路时由消费端清槽回 -1，不留残值。
+            com.fongmi.android.tv.api.hk.HkDetailBridge.setClickPosition(position,
+                    articleListRule == null ? "" : articleListRule.getTitle(), url);
             if (TextUtils.isEmpty(url)) {
                 toastCenter("链接为空，规则有误！");
                 return;
@@ -4945,7 +4952,7 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         String js = titleAndJs[1];
         String title = titleAndJs[0];
         Task.execute(() -> {
-            String result = bridge.evalWithRule(articleListRule, js, title);
+            String result = bridge.evalWithRule(articleListRule, js, title, myUrl);
             if (!TextUtils.isEmpty(result) && !"undefined".equalsIgnoreCase(result)
                     && getActivity() != null && !getActivity().isFinishing()) {
                 getActivity().runOnUiThread(() -> clickItem(view, position, result));

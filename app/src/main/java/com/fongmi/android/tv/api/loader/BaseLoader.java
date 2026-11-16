@@ -168,6 +168,42 @@ public class BaseLoader {
         else return new SpiderNull();
     }
 
+    /**
+     * 等就绪序列专用静默加载（SiteApi.awaitReadySpider 的重试路）：与
+     * getSpiderQuiet 的差别只在 PY 退避——await 序列的第一发是前台真试，
+     * 它刚记下的退避账是本序列自己的失败，不许反手挡死本序列剩余重试
+     * （退避自锁）；退避对预热/检测/revive 等其他静默路径的作用不变，
+     * 仍走 getSpiderQuiet。其余 loader 本无退避，同 quiet 口径。
+     */
+    public Spider getSpiderQuietAwait(String key, String api, String ext, String jar) {
+        if (CatSpider.matches(api)) return catSpiders.computeIfAbsent(key, k -> new CatSpider(api));
+        if (isNode(api)) return new SpiderNull();
+        if (isPy(api)) return pyLoader.getSpiderQuietAwait(key, api, ext);
+        else if (isJs(api)) return jsLoader.getSpider(key, api, ext, jar);
+        else if (isCsp(api)) return jarLoader.getSpider(key, api, ext, jar);
+        else return new SpiderNull();
+    }
+
+    /** 蜘蛛创建失败分因（文案分因用）：脚本文件缺失／创建失败／创建被取消。 */
+    public enum SpiderFailCause { FILE_MISSING, CREATE_FAILED, CREATE_CANCELLED }
+
+    /**
+     * 最近一发创建失败的分因（线程内）：各 loader 在每次 getSpider/
+     * getSpiderQuiet 进入时先清、走到分类出口时记下，SiteApi 的等就绪
+     * 序列在同线程顺序执行，抛错处读到的就是本序列最后一发的分因；
+     * 没记下（未知路）时读到 null，调用方回落原文案。
+     */
+    private static final ThreadLocal<SpiderFailCause> LAST_FAIL_CAUSE = new ThreadLocal<>();
+
+    public static void noteSpiderFailCause(SpiderFailCause cause) {
+        if (cause == null) LAST_FAIL_CAUSE.remove();
+        else LAST_FAIL_CAUSE.set(cause);
+    }
+
+    public static SpiderFailCause lastSpiderFailCause() {
+        return LAST_FAIL_CAUSE.get();
+    }
+
     public Spider getSpider(String key) {
         Site site = VodConfig.get().getSite(key);
         Live live = LiveConfig.get().getLive(key);

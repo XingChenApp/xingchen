@@ -9,11 +9,15 @@ import java.util.List;
  * 片段 "$dom" 比对请求域名包含当前域名、"$topdom" 比对请求域名包含当前域名的二级域名、余为通配 includes。
  * includes 为按 "*" 切段后的顺序子串匹配（原版 >2 段/2 段/1 段三支语义经核等价于同一顺序匹配）。
  * <p>
- * 全局存量（G48 补）：官 AdUrlBlocker 是单例存量——addUrls 把导入规则附带的
- * 拦截 URL 去重并入 blockUrls 持久表、网页层拦截时与规则自带 blockRules 并列
- * 消费。旧转写只有匹配引擎、无存量，导入附带串无处可并。咱家存量落
+ * 全局存量（G48 补，2026-11-15 消费面订正）：官 AdUrlBlocker 是单例存量——
+ * addUrls 把导入规则附带的拦截 URL 去重并入 blockUrls 持久表。咱家存量落
  * SharedPreferences「hk_ad_block」（条目集），addUrls 语义照官：跳空、按串
- * 去重、返回新增条数。
+ * 去重、返回新增条数。消费面对官包 ArticleWebkitHolder 原文订正：小程序
+ * 网页层（ArticleWebkitHolder.shouldInterceptRequest）只消费规则自带
+ * blockRules 一层，全局表在官包里只被自带浏览器面（WebViewHelper 实例法
+ * shouldBlock）与名单管理页（AdUrlListActivity）消费——咱家无自带浏览器
+ * 面，小程序 holder 不许消费全局表（旧并列消费已摘）；存量只写入、留给
+ * 名单面对位。
  */
 public class HkAdUrlBlocker {
 
@@ -111,16 +115,6 @@ public class HkAdUrlBlocker {
             }
         }
         return added;
-    }
-
-    /** 全局拦截表判拦（网页层与规则自带 blockRules 并列消费）。 */
-    public static boolean shouldBlockGlobal(String lastDom, String url) {
-        List<String> snapshot;
-        synchronized (HkAdUrlBlocker.class) {
-            snapshot = new java.util.ArrayList<>(loadGlobal());
-        }
-        if (snapshot.isEmpty()) return false;
-        return shouldBlock(snapshot, lastDom, url);
     }
 
     public static boolean shouldBlock(List<String> rules, String lastDom, String url) {

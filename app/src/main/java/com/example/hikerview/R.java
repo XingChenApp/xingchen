@@ -45,6 +45,11 @@ public final class R {
         public static final int xpopup_image_viewer_popup_view = com.fongmi.android.tv.R.layout.xpopup_image_viewer_popup_view;
         public static final int pop_import_rules = com.fongmi.android.tv.R.layout.pop_import_rules;
         public static final int pop_import_sub_check_popup = com.fongmi.android.tv.R.layout.pop_import_sub_check_popup;
+        public static final int item_flex_box = com.fongmi.android.tv.R.layout.item_flex_box;
+        public static final int item_movie_one_col_nopic = com.fongmi.android.tv.R.layout.item_movie_one_col_nopic;
+        public static final int item_article_flex_btn_item = com.fongmi.android.tv.R.layout.item_article_flex_btn_item;
+        public static final int item_input = com.fongmi.android.tv.R.layout.item_input;
+        public static final int xpopup_confirm_input_max = com.fongmi.android.tv.R.layout.xpopup_confirm_input_max;
     }
 
     public static final class id {
@@ -118,6 +123,19 @@ public final class R {
         public static final int placeholderView = com.fongmi.android.tv.R.id.placeholderView;
         public static final int tv_pager_indicator = com.fongmi.android.tv.R.id.tv_pager_indicator;
         public static final int tv_save = com.fongmi.android.tv.R.id.tv_save;
+        public static final int movie_one_desc = com.fongmi.android.tv.R.id.movie_one_desc;
+        public static final int result_bg = com.fongmi.android.tv.R.id.result_bg;
+        public static final int flexboxLayout = com.fongmi.android.tv.R.id.flexboxLayout;
+        public static final int item_chapter_jishu = com.fongmi.android.tv.R.id.item_chapter_jishu;
+        public static final int search = com.fongmi.android.tv.R.id.search;
+        public static final int edit = com.fongmi.android.tv.R.id.edit;
+        public static final int clearBtn = com.fongmi.android.tv.R.id.clearBtn;
+        public static final int divider = com.fongmi.android.tv.R.id.divider;
+        public static final int pop_input_edit_bg = com.fongmi.android.tv.R.id.pop_input_edit_bg;
+        public static final int search_suggest = com.fongmi.android.tv.R.id.search_suggest;
+        public static final int xpopup_divider_h = com.fongmi.android.tv.R.id.xpopup_divider_h;
+        public static final int xpopup_divider2 = com.fongmi.android.tv.R.id.xpopup_divider2;
+        public static final int frag_article_list_recycler_view = com.fongmi.android.tv.R.id.frag_article_list_recycler_view;
     }
 
     public static final class drawable {
@@ -305,6 +323,12 @@ public final class R {
         public static final int tree3 = com.fongmi.android.tv.R.drawable.tree3;
         public static final int tree4 = com.fongmi.android.tv.R.drawable.tree4;
         public static final int ic_loading_bg = com.fongmi.android.tv.R.drawable.ic_loading_bg;
+        public static final int bg_round_all_rice = com.fongmi.android.tv.R.drawable.bg_round_all_rice;
+        public static final int ripple_trans2 = com.fongmi.android.tv.R.drawable.ripple_trans2;
+        public static final int ripple_gray_corners = com.fongmi.android.tv.R.drawable.ripple_gray_corners;
+        public static final int home_left_menu = com.fongmi.android.tv.R.drawable.home_left_menu;
+        public static final int ic_arrow_start = com.fongmi.android.tv.R.drawable.ic_arrow_start;
+        public static final int ic_arrow_end = com.fongmi.android.tv.R.drawable.ic_arrow_end;
     }
 
     public static final class color {
@@ -314,6 +338,7 @@ public final class R {
         public static final int redAction = com.fongmi.android.tv.R.color.redAction;
         public static final int blackText = com.fongmi.android.tv.R.color.blackText;
         public static final int dark_edit = com.fongmi.android.tv.R.color.dark_edit;
+        public static final int grey_black = com.fongmi.android.tv.R.color.grey_black;
     }
 
     public static final class string {

@@ -9,7 +9,6 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.databinding.AdapterVodBinding;
 import com.fongmi.android.tv.utils.HistoryProgressFormatter;
@@ -53,9 +52,14 @@ public class HistoryAdapter extends BaseDiffAdapter<History, HistoryAdapter.View
 
     @Override
     public void clear() {
+        // 逐行只清本页列出的行（与海阔历史页同口径）：原先走
+        // History.deleteAndSync(cid) 按 cid 整表清，本页分家取数
+        // （getForHome）后会把表里没列出的海阔行连坐清掉。
+        for (History item : new java.util.ArrayList<>(getItems())) {
+            item.deleteAndSync();
+        }
         super.clear();
         setDelete(false);
-        History.deleteAndSync(VodConfig.getCid());
     }
 
     @NonNull

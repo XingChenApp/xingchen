@@ -45,6 +45,23 @@ public final class HkHistoryRecorder {
                 + AppDatabase.SYMBOL + VodConfig.getCid();
     }
 
+    /**
+     * 借道直达行键（断点丙＋乙）：与 VideoActivity 直达键同口径打
+     * hkdirect: 标（形态只认键标，进度回写再改 episodeUrl 也不翻转），
+     * 并把首入分流的品类裁决写成 hkkind: 标随行——再入先读标记定归属，
+     * 不再靠整规则粗判把条目级借道判回视频。kind 取 HkDetailBridge 的
+     * KIND_NOVEL/KIND_AUDIO/KIND_MUSIC；详情形行仍走 keyOf 不打标。
+     */
+    public static String keyOfDirect(String resTitle, String vodId, String kind) {
+        String id = HkDetailBridge.DIRECT_KEY_MARK
+                + (kind == null || kind.isEmpty() ? ""
+                        : HkDetailBridge.KIND_KEY_MARK + kind + ":")
+                + (vodId == null ? "" : vodId);
+        return HkDetailBridge.siteKey(resTitle)
+                + AppDatabase.SYMBOL + id
+                + AppDatabase.SYMBOL + VodConfig.getCid();
+    }
+
     public static History findByKey(String key) {
         if (TextUtils.isEmpty(key)) return null;
         try {

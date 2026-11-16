@@ -193,20 +193,20 @@ public final class HkGlideUtil {
             @Override
             public void onResourceReady(Drawable resource, Transition<? super Drawable> transition) {
                 if (ticket != imageView.getTag(R.id.custom_tag)) return;
-                if (imageView.getWidth() != resource.getIntrinsicWidth()) {
-                    try {
-                        int[] wh = smartCompress(context, resource);
-                        final int fw = wh[0], fh = wh[1];
-                        HEAVY.execute(() -> {
-                            Drawable compressed = compressImage(context.getResources(), resource, fw, fh);
-                            MAIN.post(() -> {
-                                if (ticket != imageView.getTag(R.id.custom_tag)) return;
-                                loadPicDrawable(context, imageView, compressed, options, fw, fh);
-                            });
+                // 分支条件照官（GlideUtil$3，smali＋树内 GlideUtil.java 双证）：先算 smartCompress，
+                // 以其宽与内在宽比对。旧转写误写成 imageView.getWidth() 比对——小图标（内在 64，
+                // 图标位 28dp≈84px、未布局时宽 0）恒进压缩递归支、永不直摆，详情页功能钮 SVG 图标即死于此。
+                int[] wh = smartCompress(context, resource);
+                final int fw = wh[0], fh = wh[1];
+                if (fw != resource.getIntrinsicWidth()) {
+                    HEAVY.execute(() -> {
+                        Drawable compressed = compressImage(context.getResources(), resource, fw, fh);
+                        MAIN.post(() -> {
+                            if (ticket != imageView.getTag(R.id.custom_tag)) return;
+                            loadPicDrawable(context, imageView, compressed, options, fw, fh);
                         });
-                        return;
-                    } catch (Exception ignored) {
-                    }
+                    });
+                    return;
                 }
                 try {
                     if (resource instanceof GifDrawable) {

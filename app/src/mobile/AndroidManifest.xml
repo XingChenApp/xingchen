@@ -35,7 +35,7 @@
 
         <activity
             android:name=".ui.activity.HomeActivity"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
+            android:configChanges="keyboardHidden|screenSize|smallestScreenSize|screenLayout|orientation|uiMode|fontScale"
             android:documentLaunchMode="never"
             android:exported="true"
             android:launchMode="singleTop"

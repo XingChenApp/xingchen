@@ -206,6 +206,41 @@
 -keep class it.sephiroth.android.library.xtooltip.** { *; }
 -keep class okhttp3.brotli.** { *; }
 
+# AndroidX 按名面整族保名（2026-11-17，账 hk-two-issues-root-20261117 件二）：
+# 与上「按名直调库」同一病、同一口径，此前唯独 androidx 整族漏保。海阔规则
+# JS（hikerPop.js:43 起）经 Rhino Packages 按全限定名直调 androidx 类：
+# appcompat.app.AlertDialog、core.view.ViewCompat、recyclerview.widget.
+# ItemTouchHelper/DefaultItemAnimator 等；官方 8.83 不混淆、类名成员名全
+# 原样。153 成品 mapping 实测：AlertDialog→id、AlertDialog$Builder→hd
+# （成员 getButton→f、mAlert→p 同改）、ViewCompat→jv8、ItemTouchHelper→
+# gz3、DefaultItemAnimator→kc1——类名一改，Packages 解析只剩 JavaPackage
+# 空壳，惰性不抛、用点 new AlertDialog.Builder(...) 才抛 TypeError
+# 「[JavaPackage androidx.appcompat.app.AlertDialog.Builder] is not a
+# function」（次元方舟详情页刷新行 2409 实爆，回放台 JyAlertDialog 两态
+# 同形复现/回归）。保名范围＝规则可按名直调的经典 AndroidX 界面/框架面；
+# media3（播放器内部、规则不按名直调，且 MpvPlayer 有自家
+# -keep,allowobfuscation 口径）与 compose（规则语料无按名直调）不在此列。
+-keep class androidx.activity.** { *; }
+-keep class androidx.appcompat.** { *; }
+-keep class androidx.biometric.** { *; }
+-keep class androidx.cardview.** { *; }
+-keep class androidx.constraintlayout.** { *; }
+-keep class androidx.coordinatorlayout.** { *; }
+-keep class androidx.core.** { *; }
+-keep class androidx.customview.** { *; }
+-keep class androidx.drawerlayout.** { *; }
+-keep class androidx.dynamicanimation.** { *; }
+-keep class androidx.fragment.** { *; }
+-keep class androidx.lifecycle.** { *; }
+-keep class androidx.media.** { *; }
+-keep class androidx.preference.** { *; }
+-keep class androidx.recyclerview.** { *; }
+-keep class androidx.slidingpanelayout.** { *; }
+-keep class androidx.swiperefreshlayout.** { *; }
+-keep class androidx.transition.** { *; }
+-keep class androidx.viewpager.** { *; }
+-keep class androidx.viewpager2.** { *; }
+
 # 补丁拼包核 JNI 口（账 xc-delta-update）：libapkpatch.so 的唯一 JNI 入口
 # Java_com_github_sisong_ApkPatch_patch 按声明类全限定名写死、无 JNI_OnLoad，
 # 声明类 com.github.sisong.ApkPatch 类名一改（含 R8 改名）首次调用必抛
@@ -346,3 +381,7 @@
 -dontwarn org.springframework.**
 -dontwarn org.glassfish.jersey.**
 -dontwarn retrofit2.**
+# 协程异常处理器按接口原名路径查宿主资源（META-INF/services），
+# 接口名被 R8 改名会连带把该 services 文件改名、运行时按名查找落空。
+# 只保接口名，文件名才以原名落地。
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler

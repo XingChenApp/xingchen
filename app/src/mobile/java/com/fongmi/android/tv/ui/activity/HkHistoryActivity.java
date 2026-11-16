@@ -78,6 +78,19 @@ public class HkHistoryActivity extends BaseActivity {
         binding.rvHistory.setLayoutManager(new LinearLayoutManager(this));
         adapter = new HistoryAdapter();
         binding.rvHistory.setAdapter(adapter);
+        // 点「历史」标题出清空确认弹窗（2026-11-15 他亲定）：居中小弹窗
+        // 「清空全部」，左取消右确认，确认即全清本页（海阔条目）。
+        binding.tvPageTitle.setOnClickListener(v -> {
+            if (items.isEmpty()) {
+                Notify.show("还没有播放历史");
+                return;
+            }
+            HkFavoriteDialogs.showClearAll(this, () -> {
+                for (History h : new ArrayList<>(items)) h.deleteAndSync();
+                reload();
+                Notify.show("已清空");
+            });
+        });
     }
 
     @Override
@@ -123,6 +136,11 @@ public class HkHistoryActivity extends BaseActivity {
         // 旧形拿行内 episodeUrl 与键 id 相等自证，而 episodeUrl 每次切集
         // 都被改写，直达行切一次集就翻成详情形、再入拿集址当详情址必死。
         boolean directForm = HkDetailBridge.isDirectForm(vodId, episodeUrl);
+        // 断点乙：建行时写进键的品类标记先行——首入按条目级信号分流的
+        // 裁决随行带回，再入不许再拿整规则粗判把它判回视频；无标记的
+        // 旧行才回退下方整规则分类（classifyHkRule＋名口径）。
+        String kindMark = HkDetailBridge.kindOfKeyId(vodId);
+        boolean hasKindMark = !kindMark.isEmpty();
         // 借面三类（小说/听书/音乐）再入（2026-11-14 不留痕新规配套）：
         // 详情形记录不在此分流——落下方原路回详情页，divertHkRead 按有
         // 效规则重新分类改道并从本行恢复进度，与首次打开同路；直达形记
@@ -135,7 +153,16 @@ public class HkHistoryActivity extends BaseActivity {
                     com.fongmi.android.tv.read.ReadingGate.classifyHkRule(rule);
             String remarks = h.getVodRemarks() == null ? "" : h.getVodRemarks();
             String line = TextUtils.isEmpty(h.getVodFlag()) ? "默认" : h.getVodFlag();
-            if (kind == com.fongmi.android.tv.read.ReadingGate.HkReadKind.NOVEL) {
+            // 144 补（断点乙残口）：无标记旧行在回落整规则分类之前，先对
+            // 这一行本身跑首入同款条目级认领——信号源即行自带的标题与
+            // 备注（「播放音频」等既有信号，与首入 claimSignal 同一把
+            // 尺、不新造信号），认出音频先于整规则分类定归属走借道听书。
+            boolean claimedAudio = !hasKindMark
+                    && com.fongmi.android.tv.ui.HkRadioRouter.claimSignal(
+                            ruleTitle, h.getVodName(), remarks) != 0;
+            if (hasKindMark ? HkDetailBridge.KIND_NOVEL.equals(kindMark)
+                    : !claimedAudio
+                    && kind == com.fongmi.android.tv.read.ReadingGate.HkReadKind.NOVEL) {
                 com.fongmi.android.tv.read.ReadingSession ns =
                         new com.fongmi.android.tv.read.ReadingSession();
                 ns.kind = com.fongmi.android.tv.read.ReadingSession.Kind.NOVEL;
@@ -154,7 +181,9 @@ public class HkHistoryActivity extends BaseActivity {
                 com.fongmi.android.tv.read.ReadingRouter.openReading(from, ns);
                 return;
             }
-            if (kind == com.fongmi.android.tv.read.ReadingGate.HkReadKind.AUDIO
+            if (hasKindMark ? HkDetailBridge.KIND_AUDIO.equals(kindMark)
+                    : claimedAudio
+                    || kind == com.fongmi.android.tv.read.ReadingGate.HkReadKind.AUDIO
                     || com.fongmi.android.tv.ui.HkRadioRouter.looksRadio(ruleTitle)) {
                 com.fongmi.android.tv.legado.LegadoAudio.AudioAlbum album =
                         new com.fongmi.android.tv.legado.LegadoAudio.AudioAlbum();
@@ -174,10 +203,13 @@ public class HkHistoryActivity extends BaseActivity {
             }
         }
         if (HkDetailBridge.isDirectForm(vodId, episodeUrl)) {
-            // 列表条目直达播放留下的记录（id 即当时播的那条）：回播放器直达
+            // 列表条目直达播放留下的记录（id 即当时播的那条）：回播放器直达。
+            // 断点甲最低形：行里只有被点那一集的线名/集名/集址——按行自带
+            // 字段拼单集载荷传入，不再传空让播放器装配点整盘收手。
             VideoActivity.startHkPlay(from, ruleTitle,
                     TextUtils.isEmpty(h.getVodFlag()) ? "默认" : h.getVodFlag(),
-                    episodeUrl, h.getVodRemarks(), h.getVodName(), h.getVodPic());
+                    episodeUrl, h.getVodRemarks(), h.getVodName(), h.getVodPic(),
+                    HkDetailBridge.singleEpisodePayload(h.getVodRemarks(), episodeUrl), 0);
         } else {
             // 详情页留下的记录（id 是详情页地址）：回详情页，与收藏直达同一路
             VideoActivity.startHk(from, ruleTitle, vodId, h.getVodName(), h.getVodPic());

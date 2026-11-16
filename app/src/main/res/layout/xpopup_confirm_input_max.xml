@@ -1,0 +1,93 @@
+<!-- 照官 8.83 布局原样重建（apktool 官包 res/layout/xpopup_confirm_input_max.xml）：
+     xpopup_confirm_input 的大文本变体——tv_content 去滚动条/marquee/maxLines，
+     et_input maxLines 5→12；余皆与 xpopup_confirm_input.xml 同。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_round_all"
+    android:orientation="vertical"
+    android:paddingTop="16.0dip">
+
+    <TextView
+        android:id="@+id/tv_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:gravity="center_horizontal"
+        android:lines="1"
+        android:textColor="@color/_xpopup_title_color"
+        android:textSize="20.0sp" />
+
+    <TextView
+        android:id="@+id/tv_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingStart="20.0dip"
+        android:paddingTop="15.0dip"
+        android:paddingEnd="20.0dip"
+        android:paddingBottom="5.0dip"
+        android:text=""
+        android:textColor="@color/_xpopup_content_color"
+        android:textSize="16.0sp" />
+
+    <EditText
+        android:id="@+id/et_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20.0dip"
+        android:layout_marginTop="10.0dip"
+        android:layout_marginEnd="20.0dip"
+        android:layout_marginBottom="10.0dip"
+        android:maxLines="12"
+        android:minLines="1"
+        android:textColor="@color/_xpopup_content_color"
+        android:textColorHint="#ff999999"
+        android:textSize="16.0sp"
+        android:visibility="gone" />
+
+    <View
+        android:id="@+id/xpopup_divider1"
+        android:layout_width="match_parent"
+        android:layout_height="0.5dip"
+        android:layout_marginTop="20.0dip"
+        android:background="@color/_xpopup_list_divider" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="50.0dip"
+        android:gravity="right"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tv_cancel"
+            android:layout_width="0.0dip"
+            android:layout_height="match_parent"
+            android:layout_weight="1.0"
+            android:background="?android:attr/selectableItemBackground"
+            android:gravity="center"
+            android:paddingTop="10.0dip"
+            android:paddingBottom="10.0dip"
+            android:text="@string/xpopup_cancel"
+            android:textColor="#ff222222"
+            android:textSize="16.0sp" />
+
+        <View
+            android:id="@+id/xpopup_divider2"
+            android:layout_width="0.5dip"
+            android:layout_height="match_parent"
+            android:background="@color/_xpopup_list_divider" />
+
+        <TextView
+            android:id="@+id/tv_confirm"
+            android:layout_width="0.0dip"
+            android:layout_height="match_parent"
+            android:layout_weight="1.0"
+            android:background="?android:attr/selectableItemBackground"
+            android:gravity="center"
+            android:paddingTop="10.0dip"
+            android:paddingBottom="10.0dip"
+            android:text="@string/xpopup_ok"
+            android:textSize="16.0sp" />
+    </LinearLayout>
+</LinearLayout>

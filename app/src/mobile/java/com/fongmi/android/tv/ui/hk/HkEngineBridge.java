@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import com.fongmi.android.tv.api.hk.HkCommonParser;
+import com.fongmi.android.tv.api.hk.HkFindDelivery;
 import com.fongmi.android.tv.api.hk.HkHttpParser;
 import com.fongmi.android.tv.api.hk.HkItem;
 import com.fongmi.android.tv.api.hk.HkJsRuntime;
@@ -211,6 +212,20 @@ public final class HkEngineBridge implements HkArticleListModel.EngineBridge {
             // 运行时监听，求值毕（下方外层收口）清除；addListener 的 onUpdate 经
             // armCallbackKey 装配的真回调绑回页面按 key 分发。
             rt.setBindObjectToViewListener(callback::bindObjectToView);
+            // S3 求值中途回页通道（官 callbackHomeResult 的 onSuccess 分段同位）：
+            // PRE 段在求值中途以本载 key 落替换路先上屏（占位得见、删除事件有
+            // 活表可删），正式段以 AFTER key 落追加路；分段收口后不再整表重绑
+            // ——合成表含已删占位、重绑会令占位复活。无 PRE 的普通载行为不变。
+            java.util.concurrent.atomic.AtomicBoolean segmented =
+                    new java.util.concurrent.atomic.AtomicBoolean(false);
+            rt.setFindSegmentListener((phase, segItems) -> {
+                if (HkFindDelivery.PHASE_AFTER.equals(phase)) {
+                    segmented.set(true);
+                    callback.bindArrayToView(HkFindDelivery.PHASE_AFTER, segItems);
+                } else {
+                    callback.bindArrayToView(key, segItems);
+                }
+            });
             // 预抓正文必须递进运行时：getResCode() 靠它取首页 HTML。搜索路（parseSearchJs）
             // 与 HkEngine.home 都设了，唯独首页这条漏了——靠 getResCode 的规则（如漫小肆）
             // 拿到的恒是空正文，列表解析全空、轮播类脚本直接崩（item.img of undefined）。
@@ -226,8 +241,9 @@ public final class HkEngineBridge implements HkArticleListModel.EngineBridge {
             } finally {
                 rt.setEvalResCodeBody(null);
                 rt.setBindObjectToViewListener(null);
+                rt.setFindSegmentListener(null);
             }
-            callback.bindArrayToView(key, list);
+            if (!segmented.get()) callback.bindArrayToView(key, list);
         } catch (HkJsRuntime.ListEvalSupersededException cancelled) {
             // 本发已被同页面更新的加载顶替（取消语义）：静默丢弃——不回空表、
             // 不报解析失败，继任发的回调自会落页（官形：结果真假与上屏分离）。
@@ -340,6 +356,27 @@ public final class HkEngineBridge implements HkArticleListModel.EngineBridge {
             HkJsRuntime rt = HkEngineManager.runtimeFor(rule);
             HkEngineManager.ensureInit(rt);
             return rt.evalJS(HkJsRuntime.getMyRule(rule) + js, input);
+        } catch (Exception e) {
+            Log.e(TAG, "hk error", e);
+            return null;
+        }
+    }
+
+    /**
+     * 照原版 $5 lambda$onLongClick$3 的拼装：getMyRule + generateMY("MY_URL", 本页
+     * url) + js——evalJS 每次开全新作用域、解析域 scope 上的 MY_URL 属性不进新
+     * 作用域，附加项 JS 读裸 MY_URL 必须靠本段注入（账 hk-longpress-cover-native
+     * MY_URL 分案）；只补这一条求值的拼装，evalJS 通用口与其它求值路不动。
+     */
+    @Override
+    public String evalWithRule(HkRule rule, String js, String input, String myUrl) {
+        try {
+            HkJsRuntime rt = HkEngineManager.runtimeFor(rule);
+            HkEngineManager.ensureInit(rt);
+            String script = HkJsRuntime.getMyRule(rule)
+                    + HkLazyRuleParser.generateMY("MY_URL", myUrl)
+                    + js;
+            return rt.evalJS(script, input);
         } catch (Exception e) {
             Log.e(TAG, "hk error", e);
             return null;
