@@ -18,6 +18,7 @@
         android:id="@+id/text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:background="@drawable/shape_scrim_chip"
         android:text="@string/error_empty"
         android:textColor="@color/white"
         android:textSize="16sp" />

@@ -107,7 +107,8 @@ public class SearchFragment extends BaseFragment implements WordAdapter.OnClickL
         mBinding.aiHint.setVisibility(show ? View.VISIBLE : View.GONE);
         if (show && !mAiParsing) {
             mBinding.aiHint.setText("✨ 试试说：周星驰的喜剧电影");
-            mBinding.aiHint.setTextColor(0xFF8A9199);
+            // 与布局同值：原 #8A9199 浅灰压任意壁纸发飘，现布局已垫浅玻璃胶囊、字色改深灰 #464B53（S3-1）
+            mBinding.aiHint.setTextColor(0xFF464B53);
         }
     }
 
@@ -143,7 +144,21 @@ public class SearchFragment extends BaseFragment implements WordAdapter.OnClickL
     }
 
     private void onClearHistory() {
-        mRecordAdapter.clear();
+        // 清空先确认（S6-2）：与历史/收藏页清空同形——居中确认框、宽 320dp 在代码写死
+        // （全 App 居中框口径，L6-1/K6-1 同款）；旧形垃圾桶一点即清全部搜索词、无确认
+        androidx.appcompat.app.AlertDialog dialog = new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext(), R.style.ThemeOverlay_WebHTV_LightDialog)
+                .setTitle(R.string.dialog_delete_record)
+                .setMessage(R.string.dialog_delete_search_history)
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.dialog_positive, (d, which) -> mRecordAdapter.clear())
+                .show();
+        if (dialog.getWindow() != null) {
+            android.view.WindowManager.LayoutParams lp = dialog.getWindow().getAttributes();
+            lp.width = com.fongmi.android.tv.utils.ResUtil.dp2px(320);
+            lp.height = android.view.WindowManager.LayoutParams.WRAP_CONTENT;
+            lp.gravity = android.view.Gravity.CENTER;
+            dialog.getWindow().setAttributes(lp);
+        }
     }
 
     @Override

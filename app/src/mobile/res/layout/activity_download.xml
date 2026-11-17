@@ -13,16 +13,23 @@
     android:orientation="vertical">
 
     <LinearLayout
+        android:id="@+id/content_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:paddingLeft="16dp"
         android:paddingRight="16dp">
 
+    <!-- 标题/计数近黑字原裸压任意壁纸（DL3-1，深壁纸沉底）：垫本页自家浅玻璃卡形 xc_setcard_v2，与管理行钮同形 -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
+        android:background="@drawable/xc_setcard_v2"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
         android:text="下载列表"
         android:textColor="#0C0E12"
         android:textSize="24sp"
@@ -35,6 +42,11 @@
         android:layout_marginStart="8dp"
         android:layout_marginTop="2dp"
         android:layout_marginBottom="16dp"
+        android:background="@drawable/xc_setcard_v2"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
         android:text="共 0 个任务"
         android:textColor="#1B2431"
         android:textSize="13sp" />
@@ -52,6 +64,9 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:minHeight="64dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             android:gravity="center_vertical"
             android:orientation="vertical"
             android:padding="15dp">
@@ -198,7 +213,7 @@
             android:paddingRight="16dp"
             android:paddingTop="8dp"
             android:paddingBottom="8dp"
-            android:text="全选"
+            android:text="管理"
             android:textColor="#0C0E12"
             android:textSize="13sp" />
         <CheckBox
@@ -239,16 +254,66 @@
             android:visibility="gone" />
     </LinearLayout>
 
-    <TextView
+    <!-- 空态（DL4-9）：原只有一行字、无图无入口——补下载图、来源说明与返回入口，字片玻璃卡口径不变 -->
+    <FrameLayout
         android:id="@+id/tv_empty"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:gravity="center"
-        android:text="暂无下载任务"
-        android:textColor="#101216"
-        android:textSize="14sp"
-        android:visibility="gone" />
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:contentDescription="下载"
+                android:src="@drawable/home_ic_download" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/xc_setcard_v2"
+                android:paddingLeft="16dp"
+                android:paddingRight="16dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:text="暂无下载任务"
+                android:textColor="#101216"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="在影片详情页点「下载」，任务会出现在这里"
+                android:textColor="#1B2431"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/btn_empty_browse"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/xc_setcard_v2"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
+                android:paddingLeft="16dp"
+                android:paddingRight="16dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:text="去逛逛"
+                android:textColor="#0C0E12"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </FrameLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_downloads"

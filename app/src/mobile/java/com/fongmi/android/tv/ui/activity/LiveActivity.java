@@ -157,6 +157,29 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
         return getIntent().getBooleanExtra("empty", true);
     }
 
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        // singleTop 顶上重进（H1）：旧形全链无 onNewIntent，快捷方式/自启再次 start 时
+        // 新 intent 的 empty 被丢弃、落点不重做。重进按新 intent 重走落点：已渲染过先走
+        // 与 setLive 同款重置（停播＋清三列＋摘渲染旗）再 checkLive 按新 empty 分流；
+        // 没渲染过（首进竞态未落）直走 checkLive。
+        if (!liveMenuRendered) {
+            checkLive();
+            return;
+        }
+        PlayerManager manager = player();
+        if (manager != null) {
+            manager.reset();
+            manager.clear();
+            manager.stop();
+        }
+        resetAdapter();
+        hideControl();
+        checkLive();
+    }
+
     private Group getKeep() {
         return mGroupAdapter.get(0);
     }
@@ -274,7 +297,6 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
             }
         }, 12f);
         setVideoView();
-        setNavigation();
         setViewModel();
         applyPadLiveMode();
     }
@@ -283,7 +305,6 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
     @SuppressLint("ClickableViewAccessibility")
     protected void initEvent() {
         mBinding.control.back.setOnClickListener(view -> onBack());
-        mBinding.control.cast.setOnClickListener(view -> onCast());
         mBinding.control.info.setOnClickListener(view -> onInfo());
         mBinding.control.osdDiagnostics.setOnClickListener(view -> onPlayParams());
         mBinding.control.fineSetting.setOnClickListener(view -> onFineSetting());
@@ -375,20 +396,6 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
         mBinding.control.action.change.setSelected(LiveSetting.isChange());
         applyLiveListStyle();
         mBinding.video.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> mPiP.update(this, view));
-    }
-
-    private void setNavigation() {
-        mBinding.navigation.getMenu().findItem(R.id.vod).setVisible(true);
-        mBinding.navigation.getMenu().findItem(R.id.live).setVisible(true);
-        mBinding.navigation.getMenu().findItem(R.id.setting).setVisible(true);
-        mBinding.navigation.setSelectedItemId(R.id.live);
-        mBinding.navigation.setOnItemSelectedListener(item -> {
-            if (item.getItemId() == R.id.live) return true;
-            int position = item.getItemId() == R.id.setting ? 1 : 0;
-            startActivity(new Intent(this, HomeActivity.class).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra(HomeActivity.EXTRA_NAV_POSITION, position));
-            finish();
-            return true;
-        });
     }
 
     private void setDecode() {
@@ -950,13 +957,13 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
         boolean embedded = isEmbeddedLiveUi();
         if (!embedded && isVisible(mBinding.recycler)) hideUI(false);
         mBinding.control.info.setVisibility(player().isEmpty() ? View.GONE : View.VISIBLE);
-        mBinding.control.cast.setVisibility(View.GONE);
         mBinding.control.right.rotate.setVisibility(isLock() || isPadLiveFullscreenMode() ? View.GONE : View.VISIBLE);
         // 弹幕开关常驻（与点播同口径，用户明令）：未锁屏就露脸，图标两态随 isShow
         mBinding.control.danmaku.setVisibility(isLock() ? View.GONE : View.VISIBLE);
         checkDanmakuImg();
         mBinding.control.center.setVisibility(isLock() ? View.GONE : View.VISIBLE);
         mBinding.control.bottom.setVisibility(isLock() ? View.GONE : View.VISIBLE);
+        refreshSeekVisibility();
         mBinding.control.action.getRoot().setVisibility(embedded ? View.GONE : View.VISIBLE);
         mBinding.control.back.setVisibility(isLock() ? View.GONE : View.VISIBLE);
         mBinding.control.top.setVisibility(isLock() ? View.GONE : View.VISIBLE);
@@ -1162,6 +1169,9 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
             Notify.show(getString(R.string.play_ready, item.getTitle()));
             mEpgDataAdapter.setSelected(item);
             fetch(item);
+        } else {
+            // 不支持回看的台点历史节目给反馈（H2）：旧形无任何响应（不弹提示、不取流），点 like 没点
+            Notify.show("该频道不支持回看");
         }
     }
 
@@ -1292,6 +1302,9 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
             player().clear();
             player().stop();
         }
+        // 回看取流先行亮圈（H2）：与直播 fetch 同口——旧形不亮圈、靠 STATE_BUFFERING 补亮，
+        // 取流往返慢时有一段无指示空档
+        showProgress();
         hideUI();
     }
 
@@ -1323,7 +1336,14 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
         mPlaybackKey = realUrl;
         updateNavigationKey();
         startPlayer(mPlaybackKey, result, false, getHome().getTimeout(), buildMetadata());
+        refreshSeekVisibility();
         mBinding.control.action.speed.setText(player().setSpeed(playbackCatchup ? PlayerSetting.getDefaultSpeed() : 1f));
+    }
+
+    /** 进度条显隐（L4-7）：纯直播时长不定长、条恒 00:00 空转——只在回看（VOD 型内容）时露真进度条；
+     * 判据用本页 playbackCatchup 旗（回看取流置真、直播取流置假），唤栏与起播两处同口刷新 */
+    private void refreshSeekVisibility() {
+        mBinding.control.seek.setVisibility(playbackCatchup ? View.VISIBLE : View.GONE);
     }
 
     private boolean isSameReloadUrl(String realUrl) {
@@ -1590,6 +1610,9 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
 
     @Override
     public void setLive(Live item) {
+        // 切源同名接续（H2）：先记当前台名，换源落定后新源有同名台就接回同名台；
+        // 旧形跨源只认新源自家 keep（无记录即第一组第一台），在 A 源看 CCTV-1 切 B 源被带离本台
+        String carryName = mChannel == null ? "" : mChannel.getName();
         if (item.isSelected()) item.getGroups().clear();
         LiveConfig.get().setHome(item);
         PlayerManager manager = player();
@@ -1601,6 +1624,25 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
         resetAdapter();
         hideControl();
         getLive();
+        if (!carryName.isEmpty()) carrySameNameChannel(carryName);
+    }
+
+    /** 同名接续落点：keep 落点已是同名台则不重复取流；新源未渲染完（三列未建）时无台可接、自然落空 */
+    private void carrySameNameChannel(String name) {
+        if (mChannel != null && name.equals(mChannel.getName())) return;
+        for (int i = 0; i < mGroupAdapter.getItemCount(); i++) {
+            Group group = mGroupAdapter.get(i);
+            if (group.isKeep()) continue;
+            java.util.List<Channel> channels = group.getChannel();
+            for (int j = 0; j < channels.size(); j++) {
+                if (!name.equals(channels.get(j).getName())) continue;
+                mGroup = group;
+                mGroup.setPosition(j);
+                onItemClick(mGroup);
+                selectChannel(mGroup.current(), true);
+                return;
+            }
+        }
     }
 
     @Override
@@ -1639,6 +1681,10 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
         if (manager == null) return;
         if (manager.isLive()) {
             checkNext();
+        } else if (playbackCatchup) {
+            // 回看播完回本台直播（H2）：旧形与普通 VOD 同走 nextChannel 切下一台，把人带离正在看的台；
+            // 回看是借本台的历史节目，播完的去向是本台直播——fetch() 即本台直播取流口
+            fetch();
         } else {
             nextChannel();
         }
@@ -2045,7 +2091,6 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
     private void updateEmbeddedUiMode() {
         boolean embedded = isEmbeddedLiveUi();
         setLiveMenuOverlay(!embedded);
-        mBinding.navigation.setVisibility(View.GONE);
         if (embeddedUiMode != null && embeddedUiMode && !embedded) {
             hideControl();
             hideUI();
@@ -2175,8 +2220,10 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
     }
 
     private void updateLiveListBottomInset(@Nullable WindowInsetsCompat insets) {
-        int bottom = isEmbeddedLiveUi() && insets != null ? insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom : 0;
-        int extra = isEmbeddedLiveUi() ? bottom + ResUtil.dp2px(6) : 0;
+        // 全屏浮层底部同补手势让位（L2-5）：原只给内嵌态算导航区，全屏频道列表浮层末行被手势横杠压；
+        // 口径照同屏控件底行 updateControlBottomInset——导航区高度直接垫进列表底 padding，内嵌态原样（导航区＋6dp）
+        int bottom = insets != null ? insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom : 0;
+        int extra = isEmbeddedLiveUi() ? bottom + ResUtil.dp2px(6) : bottom;
         setRecyclerBottomPadding(mBinding.group, groupBasePaddingBottom + extra);
         setRecyclerBottomPadding(mBinding.channel, channelBasePaddingBottom + extra);
         setRecyclerBottomPadding(mBinding.epgData, epgBasePaddingBottom + extra);

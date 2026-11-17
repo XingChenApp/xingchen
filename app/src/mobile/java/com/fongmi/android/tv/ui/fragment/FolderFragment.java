@@ -15,12 +15,14 @@ import com.fongmi.android.tv.bean.Filter;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Value;
 import com.fongmi.android.tv.databinding.FragmentFolderBinding;
+import com.fongmi.android.tv.impl.FilterListener;
 import com.fongmi.android.tv.ui.base.BaseFragment;
+import com.fongmi.android.tv.ui.dialog.FilterDialog;
 
 import java.util.HashMap;
 import java.util.Optional;
 
-public class FolderFragment extends BaseFragment {
+public class FolderFragment extends BaseFragment implements FilterListener {
 
     private Class mType;
 
@@ -108,9 +110,19 @@ public class FolderFragment extends BaseFragment {
         Optional.ofNullable(getChild()).ifPresent(TypeFragment::scrollToTop);
     }
 
+    @Override
     public void setFilter(String key, Value value) {
         Optional.ofNullable(getChild()).ifPresent(f -> f.setFilter(key, value));
     }
+
+    /** 页内筛选面（Tp-23）：独立托管（FolderActivity）时父 VodFragment 的筛选 FAB 不在，
+     *  本页自带一份——数据与首页同源（本分类 Class 的 filters），回调走自家 setFilter 转子 TypeFragment。 */
+    public void showFilter() {
+        Class type = getType();
+        if (type == null || type.getFilters() == null || type.getFilters().isEmpty()) return;
+        FilterDialog.create().filter(type.getFilters()).show(this);
+    }
+
 
     public boolean canBack() {
         return getChildFragmentManager().getBackStackEntryCount() > 0;

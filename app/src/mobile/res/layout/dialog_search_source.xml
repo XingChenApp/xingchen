@@ -65,12 +65,12 @@
                 android:textColor="#101216"
                 android:paddingBottom="4dp" />
 
-            <androidx.recyclerview.widget.RecyclerView
+            <com.fongmi.android.tv.ui.custom.CustomRecyclerView
                 android:id="@+id/vodRecycler"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:maxHeight="280dp"
-                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                app:maxHeight="280dp" />
 
         </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -101,12 +101,12 @@
                 android:textColor="#101216"
                 android:paddingBottom="4dp" />
 
-            <androidx.recyclerview.widget.RecyclerView
+            <com.fongmi.android.tv.ui.custom.CustomRecyclerView
                 android:id="@+id/pyRecycler"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:maxHeight="280dp"
-                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                app:maxHeight="280dp" />
 
         </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -137,12 +137,12 @@
                 android:textColor="#101216"
                 android:paddingBottom="4dp" />
 
-            <androidx.recyclerview.widget.RecyclerView
+            <com.fongmi.android.tv.ui.custom.CustomRecyclerView
                 android:id="@+id/jsRecycler"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:maxHeight="280dp"
-                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                app:maxHeight="280dp" />
 
         </androidx.appcompat.widget.LinearLayoutCompat>
 

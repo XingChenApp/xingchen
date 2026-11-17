@@ -56,6 +56,9 @@ public class FilterDialog extends BaseBottomSheetDialog {
         // 重建后 listener 字段已丢，从父 Fragment 重新取（show 时就是从它拿的）。
         if (listener == null && getParentFragment() instanceof FilterListener parent) listener = parent;
         binding.recycler.setHasFixedSize(true);
+        // 封顶照 TypeDialog 同形（Hm-16）：列表换 CustomRecyclerView 后按屏高比例写死上限，超出框内滚动，不再整表撑满屏
+        int ratio = com.fongmi.android.tv.utils.ResUtil.isLand(requireContext()) ? 46 : 58;
+        binding.recycler.setMaxHeight(com.fongmi.android.tv.utils.ResUtil.getScreenHeight(requireContext()) * ratio / 100);
         binding.recycler.setAdapter(new FilterAdapter(listener, filter));
     }
 

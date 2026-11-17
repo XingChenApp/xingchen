@@ -3,6 +3,7 @@ package com.fongmi.android.tv.ui.activity;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.Menu;
 import android.view.MenuItem;
 
 import androidx.annotation.NonNull;
@@ -66,8 +67,31 @@ public class FolderActivity extends BaseActivity {
     }
 
     @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_folder, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        // 页内筛选入口（Tp-23）：本分类无筛选定义时不露钮，与首页筛选 FAB 的显隐口径一致；
+        // 显隐只读 intent 里的入口分类，不依赖碎片挂载时机
+        MenuItem filter = menu.findItem(R.id.filter);
+        if (filter != null) {
+            Result result = getResult();
+            Class type = result == null || result.getTypes().isEmpty() ? null : result.getTypes().get(0);
+            filter.setVisible(type != null && type.getFilters() != null && !type.getFilters().isEmpty());
+        }
+        return super.onPrepareOptionsMenu(menu);
+    }
+
+    @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId() == android.R.id.home) onBackInvoked();
+        else if (item.getItemId() == R.id.filter) {
+            FolderFragment fragment = getFragment();
+            if (fragment != null) fragment.showFilter();
+        }
         return super.onOptionsItemSelected(item);
     }
 

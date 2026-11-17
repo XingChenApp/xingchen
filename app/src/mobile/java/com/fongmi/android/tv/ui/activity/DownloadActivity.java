@@ -2,9 +2,13 @@ package com.fongmi.android.tv.ui.activity;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.res.Configuration;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.DocumentsContract;
 import android.view.View;
 
+import androidx.annotation.NonNull;
 import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.R;
@@ -22,15 +26,20 @@ import java.util.Set;
 
 /**
  * 下载列表页（件 8 整页定版）：副行计数＋占用、目录/线程数与
- * 同时下载/容量上限两条分栏卡、管理模式（点「全选」进入）。
+ * 同时下载/容量上限两条分栏卡、管理模式（点「管理」进入）。
  * 全部列表选择弹窗统一居中、宽高在代码写死（全应用居中框口径）。
  */
 public class DownloadActivity extends BaseActivity {
 
+    private static final int REQ_PICK_DIR = 0xD1;
+
     private ActivityDownloadBinding binding;
 
     public static void start(Activity activity) {
-        activity.startActivity(new Intent(activity, DownloadActivity.class));
+        // 入队跳页不叠实例（DL-H2-2）：manifest 缺省 standard，每次入队跳页新压一层——
+        // 详情→下载页→点行播→再下载，栈上可叠多层下载页。REORDER_TO_FRONT 把已有实例
+        // 提前到顶、不新建也不销毁栈上其他页，无实例时照常新建
+        activity.startActivity(new Intent(activity, DownloadActivity.class).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
     }
 
     @Override
@@ -40,7 +49,27 @@ public class DownloadActivity extends BaseActivity {
     }
 
     private DownloadTaskAdapter adapter;
-    private final DownloadManager.Listener downloadListener = task -> refreshTasks();
+    private final DownloadManager.Listener downloadListener = task -> refreshTasksThrottled();
+    /** 进度刷新节流（DL4-10）：进度回调每分片一发，原形每发全量重绑＋全表 stat 重扫。
+     *  500ms 尾沿合并——取值口径：同 App 节流族内较疏值（短剧关注链 throttleFirst 500ms 同档；
+     *  KTV 音高轨 350ms 是单条进度发射、比整表重绑轻，故不取），500ms 内多次回调只补刷一次。 */
+    private static final long REFRESH_THROTTLE_MS = 500;
+    private long lastRefreshAtMs;
+    private boolean trailingRefreshPosted;
+    private final Runnable trailingRefresh = () -> {
+        trailingRefreshPosted = false;
+        if (!isDestroyed()) refreshTasks();
+    };
+
+    private void refreshTasksThrottled() {
+        long elapsed = android.os.SystemClock.uptimeMillis() - lastRefreshAtMs;
+        if (elapsed >= REFRESH_THROTTLE_MS) {
+            refreshTasks();
+        } else if (!trailingRefreshPosted) {
+            trailingRefreshPosted = true;
+            binding.rvDownloads.postDelayed(trailingRefresh, REFRESH_THROTTLE_MS - elapsed);
+        }
+    }
     /** 同步全选框状态时屏蔽监听回环 */
     private boolean updatingSelectAll = false;
 
@@ -64,6 +93,8 @@ public class DownloadActivity extends BaseActivity {
             else adapter.clearSelection();
         });
         binding.btnManage.setOnClickListener(v -> setManageMode(adapter != null && !adapter.isManageMode()));
+        binding.btnEmptyBrowse.setOnClickListener(v -> finish());
+        applyContentWidthCap();
         binding.btnDeleteSelected.setOnClickListener(v -> {
             if (adapter == null) return;
             Set<String> ids = adapter.getSelectedIds();
@@ -74,6 +105,7 @@ public class DownloadActivity extends BaseActivity {
             showDeleteSelectedConfirm(ids);
         });
         refreshDirSub();
+        binding.cardDownloadDir.setOnClickListener(v -> openDirPicker());
         binding.cardDownloadThreads.setOnClickListener(v -> showThreadDialog());
         binding.cardDownloadConcurrent.setOnClickListener(v -> showConcurrentDialog());
         binding.cardDownloadCapacity.setOnClickListener(v -> showCapacityDialog());
@@ -100,13 +132,16 @@ public class DownloadActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        binding.rvDownloads.removeCallbacks(trailingRefresh);
         DownloadManager.get().removeListener(downloadListener);
     }
 
-    /** 管理模式开关：进入时行上才出勾选框，退出（完成/删完）收起并清选中 */
+    /** 管理模式开关：进入时行上才出勾选框，退出（完成/删完）收起并清选中。
+     * 入口钮文案＝「管理」（DL2-3）：旧文案「全选」与旁边真全选框同名同字、实为进管理态，
+     * 按下并不全选——文案随实改名，进态后钮面转「完成」退出 */
     private void setManageMode(boolean manage) {
         if (adapter != null) adapter.setManageMode(manage);
-        binding.btnManage.setText(manage ? "完成" : "全选");
+        binding.btnManage.setText(manage ? "完成" : "管理");
         binding.cbSelectAll.setVisibility(manage ? View.VISIBLE : View.GONE);
         binding.tvSelected.setVisibility(manage ? View.VISIBLE : View.GONE);
         binding.btnDeleteSelected.setVisibility(manage ? View.VISIBLE : View.GONE);
@@ -114,6 +149,7 @@ public class DownloadActivity extends BaseActivity {
     }
 
     private void refreshTasks() {
+        lastRefreshAtMs = android.os.SystemClock.uptimeMillis();
         List<DownloadTask> tasks = DownloadManager.get().getTasks();
         binding.tvEmpty.setVisibility(tasks.isEmpty() ? View.VISIBLE : View.GONE);
         binding.rvDownloads.setVisibility(tasks.isEmpty() ? View.GONE : View.VISIBLE);
@@ -162,9 +198,86 @@ public class DownloadActivity extends BaseActivity {
         window.setAttributes(params);
     }
 
+    /** 内容列最大宽（DL7-3）：横屏单列原全宽拉满——封顶 720dp 居中，超出以左右留白收掉；
+     * 本页 configChanges 自接管旋转，initView 与 onConfigurationChanged 两处同口调用 */
+    private void applyContentWidthCap() {
+        float density = getResources().getDisplayMetrics().density;
+        int widthPx = getResources().getDisplayMetrics().widthPixels;
+        int capPx = (int) (720 * density);
+        int side = Math.max((int) (16 * density), (widthPx - capPx) / 2);
+        binding.contentContainer.setPadding(side, binding.contentContainer.getPaddingTop(), side, binding.contentContainer.getPaddingBottom());
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        applyContentWidthCap();
+    }
+
     private void refreshDirSub() {
-        // 件 7：目录卡纯信息展示——文本＝Manager 唯一真源的真实落盘路径
+        // 目录卡文本＝Manager 唯一真源的真实落盘路径；点卡换目录（openDirPicker）
         binding.tvDownloadDirSub.setText(DownloadManager.getDownloadDirPath(this));
+    }
+
+    /** 换下载目录：拉起系统目录选择，选定走 onActivityResult 落值 */
+    private void openDirPicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+                | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
+        String current = DownloadManager.getCustomDirUri(this);
+        if (!current.isEmpty()) {
+            try {
+                intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, Uri.parse(current));
+            } catch (Exception ignored) {
+            }
+        }
+        try {
+            startActivityForResult(intent, REQ_PICK_DIR);
+        } catch (Exception e) {
+            Notify.show("当前设备不支持系统目录选择");
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQ_PICK_DIR) return;
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) {
+            Notify.show("已取消，下载目录不变");
+            return;
+        }
+        Uri uri = data.getData();
+        try {
+            getContentResolver().takePersistableUriPermission(uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        } catch (Exception e) {
+            Notify.show("没拿到这个目录的访问权限，下载目录不变");
+            return;
+        }
+        String path = DownloadManager.pathFromTreeUri(uri);
+        if (path == null) {
+            Notify.show("这个位置不能当下载目录，请选内部存储或 SD 卡里的文件夹");
+            return;
+        }
+        // 可写探针要碰盘，放后台跑；不过关不落值、不改现行目录
+        Task.execute(() -> {
+            boolean ok = DownloadManager.probeWritable(new java.io.File(path));
+            com.fongmi.android.tv.App.post(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (!ok) {
+                    Notify.show("这个目录写不进去，下载目录不变，换一个再试");
+                    return;
+                }
+                DownloadManager.setCustomDir(this, path, uri.toString());
+                refreshDirSub();
+                // 换根当场收编（DL-H3-4）：恢复对账每进程只跑一次，新根里的无记录存量
+                // 不等下次启动、本会话内就补建条目（收编口径与 restore 一致）
+                DownloadManager.get().adoptNewRoot(new java.io.File(path));
+                Notify.show("下载目录已换，新下载会存到新目录");
+            });
+        });
     }
 
     private void refreshThreadSub() {
@@ -180,8 +293,14 @@ public class DownloadActivity extends BaseActivity {
         binding.tvCapacitySub.setText(max <= 0 ? "不限" : DownloadTask.formatSize(max));
     }
 
-    /** 通用列表选择窗（线程数/同时下载/容量共用）：居中、宽写死 320dp */
-    private void showChoiceDialog(String title, String[] labels, int current, java.util.function.IntConsumer onPick) {
+    /**
+     * 通用列表选择窗（线程数/同时下载/容量共用）：居中、宽写死 320dp。
+     * listCapDp 大于 0 时列表封顶该高度（dp 写死）、超出框内滚动；0＝不封顶、高随内容。
+     * 封顶值 380dp 出处＝布局 dialog_download_threads.xml 既有 maxHeight 定值
+     * （清晰度框布局同值）——但 RecyclerView 测量不认 maxHeight 属性、封顶从未
+     * 生效，32 个线程选项全量测高把框撑满屏（154 真机截图），故改由代码写死。
+     */
+    private void showChoiceDialog(String title, String[] labels, int current, java.util.function.IntConsumer onPick, int listCapDp) {
         android.app.Dialog dialog = new android.app.Dialog(this);
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
         dialog.setContentView(R.layout.dialog_download_threads);
@@ -215,6 +334,16 @@ public class DownloadActivity extends BaseActivity {
         dialog.findViewById(R.id.cancel).setOnClickListener(v -> dialog.dismiss());
         dialog.show();
         centerDialog(dialog, 320);
+        if (listCapDp > 0) {
+            int capPx = (int) (listCapDp * getResources().getDisplayMetrics().density);
+            recycler.post(() -> {
+                if (recycler.getHeight() <= capPx) return;
+                android.view.ViewGroup.LayoutParams lp = recycler.getLayoutParams();
+                lp.height = capPx;
+                recycler.setLayoutParams(lp);
+                if (current > 0) recycler.scrollToPosition(current);
+            });
+        }
     }
 
     private void showThreadDialog() {
@@ -225,7 +354,7 @@ public class DownloadActivity extends BaseActivity {
             DownloadManager.setThreadCount(this, pos + 1);
             refreshThreadSub();
             Notify.show("已设为 " + (pos + 1) + " 线程，新任务生效");
-        });
+        }, 380);
     }
 
     private void showConcurrentDialog() {
@@ -236,7 +365,7 @@ public class DownloadActivity extends BaseActivity {
             DownloadManager.setMaxConcurrent(this, pos + 1);
             refreshConcurrentSub();
             Notify.show("已设为同时下载 " + (pos + 1) + " 个任务");
-        });
+        }, 0);
     }
 
     private void showCapacityDialog() {
@@ -249,7 +378,7 @@ public class DownloadActivity extends BaseActivity {
             DownloadManager.setMaxBytes(this, options[pos]);
             refreshCapacitySub();
             Notify.show(options[pos] <= 0 ? "容量上限已设为不限" : "容量上限已设为 " + labels[pos]);
-        });
+        }, 0);
     }
 
     /** 批量删除选中：白毛玻璃确认弹窗（居中、宽写死 320dp） */

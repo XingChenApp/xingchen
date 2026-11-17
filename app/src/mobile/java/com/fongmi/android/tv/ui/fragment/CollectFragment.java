@@ -9,6 +9,7 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
@@ -70,6 +71,8 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
     private List<Site> mSites;
     private final List<Collect> mCollects = new ArrayList<>();
     private final List<Vod> mAllResults = new ArrayList<>();
+    /** 本轮搜索是否已收尾（进度 finished）：空状态只在收尾且零结果时点亮（S4-4）。 */
+    private boolean mSearchFinished;
     /** 115 搜索结果的原始文件（按 fid 索引，点击时按类型分流用）。 */
     private final java.util.Map<String, CloudFile> mPan115Files = new java.util.concurrent.ConcurrentHashMap<>();
     private int collectWidth;
@@ -324,6 +327,8 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
         }
         mCollects.clear();
         mAllResults.clear();
+        mSearchFinished = false;
+        updateEmptyState();
         mCollects.add(Collect.all());
         mCollectAdapter.setItems(new ArrayList<>(mCollects), () -> mViewModel.searchContent(mSites, getKeyword(), false));
         searchPan115();
@@ -430,6 +435,7 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
         mCollects.add(new Collect(site, items));
         mCollectAdapter.setItems(new ArrayList<>(mCollects));
         if (mCollectAdapter.getPosition() == 0) mSearchAdapter.setItems(new ArrayList<>(mAllResults));
+        updateEmptyState();
     }
 
     /** 115 结果点击：不走站点详情——文件夹直达网盘页对应目录、视频走网盘直达起播、判不出类型的真文件也走直达起播试播（有档就播、无档它自有提示），绝不把人扔到网盘页。 */
@@ -509,10 +515,22 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
         mCollects.add(Collect.create(items));
         mCollectAdapter.setItems(new ArrayList<>(mCollects));
         if (mCollectAdapter.getPosition() == 0) mSearchAdapter.setItems(new ArrayList<>(mAllResults));
+        updateEmptyState();
     }
 
     private void setSearchProgress(SearchProgress progress) {
         if (progress != null) mCollectAdapter.setProgress(progress.current(), progress.total());
+        if (progress != null && progress.finished()) {
+            mSearchFinished = true;
+            updateEmptyState();
+        }
+    }
+
+    /** 空状态（S4-4）：搜索收尾且全站零结果才点亮；搜的过程中与有结果时恒隐，不把「还在搜」误报成「搜不到」。 */
+    private void updateEmptyState() {
+        if (mBinding == null || mBinding.empty == null) return;
+        boolean show = mSearchFinished && mAllResults.isEmpty();
+        mBinding.empty.getRoot().setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
     private void setSearch(Result result) {

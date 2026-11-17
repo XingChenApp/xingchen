@@ -16,6 +16,7 @@ import com.fongmi.android.tv.Product;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Config;
+import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.bean.Keep;
 import com.fongmi.android.tv.databinding.ActivityKeepBinding;
 import com.fongmi.android.tv.event.RefreshEvent;
@@ -64,7 +65,17 @@ public class KeepActivity extends BaseActivity implements KeepAdapter.OnClickLis
     }
 
     private void getKeep() {
-        mAdapter.setItems(Keep.getVod(), () -> mBinding.progressLayout.showContent(true, mAdapter.getItemCount()));
+        java.util.List<Keep> items = Keep.getVod();
+        // 集/进度副行（K4-2）：Keep 行本身无集/进度字段，按 (cid, key) 回读同剧 History 行补齐展示数据，
+        // 与点进详情落点回读同一行同源；没看过的收藏查不到行、副行自然不露
+        for (Keep item : items) {
+            History history = History.find(item.getCid(), item.getKey());
+            if (history == null) continue;
+            item.setVodRemarks(history.getVodRemarks());
+            item.setPosition(history.getPosition());
+            item.setDuration(history.getDuration());
+        }
+        mAdapter.setItems(items, () -> mBinding.progressLayout.showContent(true, mAdapter.getItemCount()));
     }
 
     private boolean resumedOnce;
@@ -84,10 +95,20 @@ public class KeepActivity extends BaseActivity implements KeepAdapter.OnClickLis
 
     private void onDelete() {
         if (mAdapter.isDelete()) {
-            new MaterialAlertDialogBuilder(this, R.style.ThemeOverlay_WebHTV_LightDialog).setTitle(R.string.dialog_delete_record).setMessage(R.string.dialog_delete_keep).setNegativeButton(R.string.dialog_negative, null).setPositiveButton(R.string.dialog_positive, (dialog, which) -> mAdapter.clear()).show();
+            pinCenteredDialog(new MaterialAlertDialogBuilder(this, R.style.ThemeOverlay_WebHTV_LightDialog).setTitle(R.string.dialog_delete_record).setMessage(R.string.dialog_delete_keep).setNegativeButton(R.string.dialog_negative, null).setPositiveButton(R.string.dialog_positive, (dialog, which) -> mAdapter.clear()).show());
         } else if (mAdapter.getItemCount() > 0) {
             mAdapter.setDelete(true);
         }
+    }
+
+    /** 居中框写死（K6-1）：清空确认框原裸 MaterialAlertDialogBuilder、无尺寸钉，照全 App 居中框口径在代码写死——宽 320dp（下载页居中框同定值）、高自适应、居中。 */
+    private void pinCenteredDialog(androidx.appcompat.app.AlertDialog dialog) {
+        if (dialog == null || dialog.getWindow() == null) return;
+        android.view.WindowManager.LayoutParams lp = dialog.getWindow().getAttributes();
+        lp.width = com.fongmi.android.tv.utils.ResUtil.dp2px(320);
+        lp.height = android.view.WindowManager.LayoutParams.WRAP_CONTENT;
+        lp.gravity = android.view.Gravity.CENTER;
+        dialog.getWindow().setAttributes(lp);
     }
 
     private void loadConfig(Config config, Keep item) {
@@ -112,7 +133,11 @@ public class KeepActivity extends BaseActivity implements KeepAdapter.OnClickLis
     @Override
     public void onItemClick(Keep item) {
         Config config = Config.find(item.getCid());
-        if (config == null) SearchActivity.start(this, item.getVodName());
+        if (config == null) {
+            // 降级先明示（J5）：原配置已删、落点从直达详情降为按剧名重搜，不许静默降级
+            Notify.show(R.string.keep_config_deleted);
+            SearchActivity.start(this, item.getVodName());
+        }
         else if (item.getCid() != VodConfig.getCid()) loadConfig(config, item);
         else VideoActivity.start(this, item.getSiteKey(), item.getVodId(), item.getVodName(), item.getVodPic());
     }
@@ -141,6 +166,7 @@ public class KeepActivity extends BaseActivity implements KeepAdapter.OnClickLis
         if (item.getItemId() == android.R.id.home) onBackInvoked();
         else if (item.getItemId() == R.id.delete) onDelete();
         else if (item.getItemId() == R.id.sync) onSync();
+        else if (item.getItemId() == R.id.history) HistoryActivity.start(this);
         return super.onOptionsItemSelected(item);
     }
 

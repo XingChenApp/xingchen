@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:alpha="0.65" android:color="?attr/colorSecondaryContainer" android:state_selected="true" />
-    <item android:alpha="0.15" android:color="@color/black" />
+    <!-- 未选态白字 chip 衬底：原 15% 黑压任意壁纸发飘（全查文字对比族），改衬底定值 60% 黑 -->
+    <item android:alpha="0.6" android:color="@color/black" />
 </selector>

@@ -134,6 +134,9 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
             });
             holder.itemView.setOnClickListener(v -> onRowClick(v, task));
             holder.itemView.setOnLongClickListener(v -> {
+                // 管理态长按不再出单删确认（DL4-8）：管理态删除走顶部「删除选中」的批量口，
+                // 长按在此只消费不出框——旧形管理态长按仍弹单删，与页内批量语义打架
+                if (manageMode) return true;
                 showDeleteConfirm(v, task);
                 return true;
             });
@@ -142,25 +145,84 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
         }
         // 同任务再绑与全绑共用：只刷状态/数据/进度/钮四处（封面零闪烁）
         holder.tvStatus.setText(task.getStatusText());
+        // 状态行按状态上色（DL3-5）：旧形六态同吃布局默认 #1B2431，扫一眼分不出成败——
+        // 完成绿/出错红取深一档压浅玻璃底保对比，其余回布局默认色，皮与字号不动
+        holder.tvStatus.setTextColor(statusColor(task.getStatus()));
+        // 出错行看全文的口（DL5-3）：状态行单行截断，长报错在行上看不全——点状态行弹全文框；
+        // 非出错行不挂监听，点击仍归整行（暂停/继续/打开）
+        if (task.getStatus() == DownloadTask.STATUS_ERROR) {
+            holder.tvStatus.setOnClickListener(v -> showErrorDetail(v, task));
+        } else {
+            holder.tvStatus.setOnClickListener(null);
+        }
         String sizeText = task.getSizeText();
         holder.tvSize.setText(sizeText);
-        holder.tvSize.setVisibility(sizeText.isEmpty() ? View.GONE : View.VISIBLE);
+        // 行高钉死（DL4-2）：大小行/进度条隐时用 INVISIBLE 占位，不再 GONE 塌高——原形随状态在约 82↔86dp 间跳
+        holder.tvSize.setVisibility(sizeText.isEmpty() ? View.INVISIBLE : View.VISIBLE);
         int status = task.getStatus();
         holder.progress.setProgress(task.getProgress());
         holder.progress.setVisibility(
                 status == DownloadTask.STATUS_DOWNLOADING || status == DownloadTask.STATUS_MERGING
                         || status == DownloadTask.STATUS_WAITING || status == DownloadTask.STATUS_PAUSED
-                        ? View.VISIBLE : View.GONE);
+                        ? View.VISIBLE : View.INVISIBLE);
         if (status == DownloadTask.STATUS_DOWNLOADING || status == DownloadTask.STATUS_WAITING) {
             holder.btnToggle.setVisibility(View.VISIBLE);
+            holder.btnToggle.setEnabled(true);
+            holder.btnToggle.setImageAlpha(255);
             holder.btnToggle.setImageResource(R.drawable.ic_music_pause);
             holder.btnToggle.setContentDescription("暂停下载");
         } else if (status == DownloadTask.STATUS_PAUSED || status == DownloadTask.STATUS_ERROR) {
             holder.btnToggle.setVisibility(View.VISIBLE);
+            holder.btnToggle.setEnabled(true);
+            holder.btnToggle.setImageAlpha(255);
             holder.btnToggle.setImageResource(R.drawable.ic_music_play);
             holder.btnToggle.setContentDescription("继续下载");
+        } else if (status == DownloadTask.STATUS_MERGING) {
+            // 合并中行不再零操作口（DL4-6）：合并无暂停/取消语义，钮以禁用淡态明示「在忙」，
+            // 点行另有说明（onRowClick 合并分支）；旧形钮 GONE＋点行无定义，长合并像卡死
+            holder.btnToggle.setVisibility(View.VISIBLE);
+            holder.btnToggle.setEnabled(false);
+            holder.btnToggle.setImageAlpha(90);
+            holder.btnToggle.setImageResource(R.drawable.ic_music_pause);
+            holder.btnToggle.setContentDescription("正在合并");
         } else {
             holder.btnToggle.setVisibility(View.GONE);
+        }
+    }
+
+    /** 状态行颜色（DL3-5）：完成/出错两态着色，其余回布局默认 #1B2431 */
+    private static int statusColor(int status) {
+        switch (status) {
+            case DownloadTask.STATUS_COMPLETED:
+                return 0xFF2E7D32;
+            case DownloadTask.STATUS_ERROR:
+                return 0xFFC62828;
+            default:
+                return 0xFF1B2431;
+        }
+    }
+
+    /** 出错全文框（DL5-3）：与容量报告同布局 dialog_download_info，居中＋宽写死 320dp（全应用居中框口径） */
+    private void showErrorDetail(View view, DownloadTask task) {
+        Context context = view.getContext();
+        if (!(context instanceof FragmentActivity)) return;
+        FragmentActivity activity = (FragmentActivity) context;
+        if (activity.isFinishing()) return;
+        View dialogView = LayoutInflater.from(activity).inflate(R.layout.dialog_download_info, null);
+        android.widget.TextView tvTitle = dialogView.findViewById(R.id.tv_title);
+        if (tvTitle != null) tvTitle.setText("下载出错");
+        android.widget.TextView tvMessage = dialogView.findViewById(R.id.tv_message);
+        if (tvMessage != null) tvMessage.setText(task.getStatusText());
+        AlertDialog dialog = new AlertDialog.Builder(activity).setView(dialogView).create();
+        dialogView.findViewById(R.id.btn_ok).setOnClickListener(v -> dialog.dismiss());
+        dialog.show();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams params = window.getAttributes();
+            params.gravity = android.view.Gravity.CENTER;
+            params.width = (int) (320 * activity.getResources().getDisplayMetrics().density);
+            window.setAttributes(params);
         }
     }
 
@@ -178,6 +240,10 @@ public class DownloadTaskAdapter extends RecyclerView.Adapter<DownloadTaskAdapte
                 break;
             case DownloadTask.STATUS_COMPLETED:
                 openCompletedFile(view, task);
+                break;
+            case DownloadTask.STATUS_MERGING:
+                // 合并中点行给说明（DL4-6）：不落播放/不落空转，明示在合并、完后可播
+                Notify.show("正在合并，完成后即可播放");
                 break;
             default:
                 break;

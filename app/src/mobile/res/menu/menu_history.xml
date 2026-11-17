@@ -14,4 +14,10 @@
         android:title="@string/menu_delete"
         app:showAsAction="always" />
 
+    <!-- 历史↔收藏页内互切（J6）：两页原无互切面，进对方页只能退回首页再进 -->
+    <item
+        android:id="@+id/keep"
+        android:title="@string/app_keep"
+        app:showAsAction="never" />
+
 </menu>

@@ -5,7 +5,8 @@
         <selector>
             <item android:state_pressed="true">
                 <shape android:shape="rectangle">
-                    <solid android:color="#66000000" />
+                    <!-- 按下底：未选底已深到黑60（selector_live），按下须更深才有反馈，原 40% 黑反比未选浅 -->
+                    <solid android:color="#B3000000" />
                     <stroke android:width="1dp" android:color="#66FFFFFF" />
                     <corners android:radius="4dp" />
                     <padding
@@ -17,8 +18,8 @@
             </item>
             <item android:state_selected="true">
                 <shape android:shape="rectangle">
-                    <solid android:color="#5C000000" />
-                    <stroke android:width="1dp" android:color="#52FFFFFF" />
+                    <!-- 选中行底与 classic 支同口径：浅容器底（selector_live_classic 选中项同值）＋深字（selector_live_text 选中项），原与未选只差约 8% 黑分不清（直播全查 L5-4）；classic 选中无描边，此处同摘 -->
+                    <solid android:color="@color/selector_live_classic" />
                     <corners android:radius="4dp" />
                     <padding
                         android:bottom="8dp"

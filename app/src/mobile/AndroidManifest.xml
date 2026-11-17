@@ -96,7 +96,7 @@
 
         <activity
             android:name=".ui.activity.SearchActivity"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:configChanges="keyboardHidden|screenSize|smallestScreenSize|screenLayout|orientation|uiMode|fontScale"
             android:screenOrientation="fullUser"
             android:windowSoftInputMode="adjustPan" />
 
@@ -107,7 +107,7 @@
 
         <activity
             android:name=".ui.activity.FolderActivity"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:configChanges="keyboardHidden|screenSize|smallestScreenSize|screenLayout|orientation|uiMode|fontScale"
             android:screenOrientation="fullUser" />
 
         <activity
@@ -131,7 +131,7 @@
 
         <activity
             android:name=".ui.activity.DownloadActivity"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:configChanges="keyboardHidden|screenSize|smallestScreenSize|screenLayout|orientation|uiMode|fontScale"
             android:screenOrientation="fullUser" />
 
 
@@ -183,11 +183,6 @@
 
         <activity
             android:name=".ui.activity.TmdbActivity"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout"
-            android:screenOrientation="fullUser" />
-
-        <activity
-            android:name=".ui.activity.HealthActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout"
             android:screenOrientation="fullUser" />
 
@@ -668,12 +663,12 @@
 
         <activity
             android:name=".ui.activity.HistoryActivity"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:configChanges="keyboardHidden|screenSize|smallestScreenSize|screenLayout|orientation|uiMode|fontScale"
             android:screenOrientation="fullUser" />
 
         <activity
             android:name=".ui.activity.KeepActivity"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout"
+            android:configChanges="keyboardHidden|screenSize|smallestScreenSize|screenLayout|orientation|uiMode|fontScale"
             android:screenOrientation="fullUser" />
 
         <activity
@@ -703,6 +698,7 @@
              无独立 Activity 条目；横屏页登顶时整栈旋转由根页
              configChanges 承接、Fragment 分发 onConfigurationChanged
              与旧宿主同链。 -->
+        
         
         
         

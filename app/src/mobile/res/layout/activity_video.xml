@@ -17,8 +17,9 @@
 
     <View
         android:layout_width="match_parent"
-        android:layout_height="240dp"
+        android:layout_height="match_parent"
         android:layout_below="@id/video"
+        android:layout_alignParentBottom="true"
         android:background="@drawable/shape_video_context_scrim_top" />
 
     <View

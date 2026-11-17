@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 加载圈衬底圆（view_progress 共用）：白圈压亮壁纸时垫黑60 圆底，与衬底片同深。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@color/black_60" />
+</shape>

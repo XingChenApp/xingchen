@@ -711,7 +711,7 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
     private void onKuaishouTabLongClick() {
         if (!isAdded()) return;
         if (LoginManager.isKuaishouLoggedIn()) {
-            new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireActivity(), com.fongmi.android.tv.R.style.ThemeOverlay_WebHTV_LightDialog)
+            androidx.appcompat.app.AlertDialog kuaishouDialog = new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireActivity(), com.fongmi.android.tv.R.style.ThemeOverlay_WebHTV_LightDialog)
                     .setTitle("快手")
                     .setMessage("已登录")
                     .setPositiveButton("退出登录", (d, w) -> {
@@ -720,6 +720,7 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
                     })
                     .setNegativeButton("取消", null)
                     .show();
+            pinCenteredDialog(kuaishouDialog);
         } else {
             LoginManager.get().loginKuaishou(requireActivity(), new LoginManager.LoginCallback() {
                 @Override
@@ -737,6 +738,16 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
                 }
             });
         }
+    }
+
+    /** 居中框写死（Hm-20）：Material 框默认宽由系统自适应解算、位置会漂，照全 App 居中框口径在代码写死——宽 320dp（下载页居中框同定值）、高自适应、居中。 */
+    private void pinCenteredDialog(androidx.appcompat.app.AlertDialog dialog) {
+        if (dialog == null || dialog.getWindow() == null) return;
+        android.view.WindowManager.LayoutParams lp = dialog.getWindow().getAttributes();
+        lp.width = ResUtil.dp2px(320);
+        lp.height = android.view.WindowManager.LayoutParams.WRAP_CONTENT;
+        lp.gravity = android.view.Gravity.CENTER;
+        dialog.getWindow().setAttributes(lp);
     }
 
     @Override

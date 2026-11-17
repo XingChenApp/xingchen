@@ -5,6 +5,19 @@
     android:layout_height="match_parent"
     android:background="@color/black_20">
 
+    <!-- 顶/底压暗罩与点播控件层同形同值（L3-6）：原只有一层平 black_20，顶行/底行白字压亮画面发飘 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:layout_alignParentTop="true"
+        android:background="@drawable/shape_player_scrim_top" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:layout_alignParentBottom="true"
+        android:background="@drawable/shape_player_scrim_bottom" />
+
     <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/top"
         android:layout_width="match_parent"
@@ -59,14 +72,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
-
-            <androidx.appcompat.widget.AppCompatImageView
-                android:id="@+id/cast"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:scaleType="center"
-                android:src="@drawable/ic_control_cast" />
 
             <androidx.appcompat.widget.AppCompatImageView
                 android:id="@+id/info"

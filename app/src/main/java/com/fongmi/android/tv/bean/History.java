@@ -157,6 +157,10 @@ public class History implements Diffable<History> {
         return AppDatabase.get().getHistoryDao().find(VodConfig.getCid(), key);
     }
 
+    public static History find(int cid, String key) {
+        return AppDatabase.get().getHistoryDao().find(cid, key);
+    }
+
     public static List<History> findByName(String name) {
         try {
             return AppDatabase.get().getHistoryDao().findByName(VodConfig.getCid(), name);

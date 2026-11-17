@@ -74,6 +74,8 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     private DesktopLyricsWindow desktopLyrics;
     private Runnable onNewBinding;
     private boolean externalBound;
+    /** 播放页前后台（setPlaybackForeground 喂）：候补回位顶卡只认自家页在前台时。 */
+    private boolean playbackForeground;
     private PlayerManager player;
     private String navigationKey;
     private Player exoPlayer;
@@ -112,6 +114,9 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
 
         @Override
         public void onSlotReclaimable() {
+            // 页已离位（切后台时已撤面）不许回位复活：面跟内容与页面走，
+            // 不跟服务存活走。短剧听书实例的页不发离位信号、旗恒为真，行为不变。
+            if (!playbackForeground) return;
             if (session == null || isSessionAdded(session)) return;
             if (exoPlayer == null || exoPlayer.isPlaying()
                     || exoPlayer.getCurrentMediaItem() == null) return;
@@ -316,6 +321,10 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-lifecycle", "service suspend %s", serviceState());
         stopAndClear();
         removeForeground();
+        // 退出播放即拆：服务因外部客户端／他页回调存活不死时，会话登记与
+        // 显示位同拍摘掉，不许留着等服务销毁（旧形只停播清条目，位还占着）。
+        if (session != null && isSessionAdded(session)) removeSession(session);
+        PlaybackSlot.release(slotSource());
     }
 
     public void shutdown() {
@@ -413,8 +422,23 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     }
 
     public void setPlaybackForeground(boolean foreground) {
+        playbackForeground = foreground;
         if (player != null) player.setPlaybackForeground(foreground);
         if (desktopLyrics != null) desktopLyrics.setForeground(foreground);
+        if (!foreground) dropFaceIfNotPlaying();
+    }
+
+    /**
+     * 切后台撤面（与 yieldSlot 同形）：不在播就摘会话登记＋放显示位，
+     * media3 管理器据此撤卡。不停播、不清条目——回页再播时 listener 的
+     * isPlaying 支自动补登记＋认领，续播位置原样；在播时什么都不做，
+     * 后台续播＋通知控制是正形。治「暂停／播完／失败后切到后台卡还挂
+     * 着」：旧链切后台只有等 onDestroy 才收口，Home 直退根本走不到。
+     */
+    private void dropFaceIfNotPlaying() {
+        if (exoPlayer != null && exoPlayer.isPlaying()) return;
+        if (session != null && isSessionAdded(session)) removeSession(session);
+        PlaybackSlot.release(slotSource());
     }
 
     public void setDesktopLyricsAudioContent(boolean audioContent) {

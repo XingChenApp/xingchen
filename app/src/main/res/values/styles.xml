@@ -29,7 +29,7 @@
     </style>
 
     <style name="Player.Vod">
-        <item name="keep_content_on_player_reset">false</item>
+        <item name="keep_content_on_player_reset">true</item>
     </style>
 
     <style name="Player.Live">

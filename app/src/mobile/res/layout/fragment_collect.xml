@@ -13,6 +13,10 @@
         app:navigationIconTint="@android:color/white"
         app:titleTextAppearance="@style/ToolbarTextAppearance" />
 
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
     <androidx.appcompat.widget.LinearLayoutCompat
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -47,4 +51,16 @@
             tools:listitem="@layout/adapter_search" />
 
     </androidx.appcompat.widget.LinearLayoutCompat>
+
+        <!-- 全站零结果空状态（S4-4）：与全 App 空状态同件（view_empty），只在搜索收尾且零结果时由 CollectFragment 点亮，位置压在右格区（左列 120dp 之外） -->
+        <include
+            android:id="@+id/empty"
+            layout="@layout/view_empty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="128dp"
+            android:visibility="gone" />
+
+    </FrameLayout>
 </androidx.appcompat.widget.LinearLayoutCompat>

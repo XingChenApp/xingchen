@@ -3744,11 +3744,22 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         if (exit && service() != null) PlaybackEventCollector.get().onStop(player());
         if (!canSavePlaybackHistory(mHistory)) return;
         History history = mHistory.copy();
-        Task.execute(() -> {
-            if (history.getDuration() > 0) history.merge().save();
-            else history.save();
-            if (exit) RefreshEvent.history();
-        });
+        if (exit) {
+            // 退出写改同步落盘（与 mobile 96c973ac1 同形，补 leanback 首建竞速）：
+            // finishVideoPlaybackNow 的 isTaskRoot 支在 saveHistory(true) 之后立刻
+            // startActivity 新建 HomeActivity，其 init 同步读历史行——旧形写在 Task
+            // 共享池里异步跑，读可能抢在写落盘之前读到退出前旧行（首显竞速）。
+            // 退出调用都在主线程且在拉起新页之前，就地同步落盘后写先于读成立。
+            persistHistory(history);
+            RefreshEvent.history();
+        } else {
+            Task.execute(() -> persistHistory(history));
+        }
+    }
+
+    private void persistHistory(History history) {
+        if (history.getDuration() > 0) history.merge().save();
+        else history.save();
     }
 
     private void syncHistory() {

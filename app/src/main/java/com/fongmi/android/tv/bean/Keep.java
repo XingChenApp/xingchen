@@ -3,6 +3,7 @@ package com.fongmi.android.tv.bean;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.room.Entity;
+import androidx.room.Ignore;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.api.config.LiveConfig;
@@ -38,6 +39,15 @@ public class Keep implements Diffable<Keep> {
     private int type;
     @SerializedName("cid")
     private int cid;
+
+    // 展示补齐（K4-2）：收藏格的集名/进度副行数据不在本表，由收藏页按 (cid, key) 回读
+    // 同剧 History 行填入；不落库（@Ignore）、不进同步序列化（transient）
+    @Ignore
+    private transient String vodRemarks;
+    @Ignore
+    private transient long position;
+    @Ignore
+    private transient long duration;
 
     public static List<Keep> arrayFrom(String str) {
         Type listType = TypeToken.getParameterized(List.class, Keep.class).getType();
@@ -158,6 +168,30 @@ public class Keep implements Diffable<Keep> {
         this.type = type;
     }
 
+    public String getVodRemarks() {
+        return vodRemarks;
+    }
+
+    public void setVodRemarks(String vodRemarks) {
+        this.vodRemarks = vodRemarks;
+    }
+
+    public long getPosition() {
+        return position;
+    }
+
+    public void setPosition(long position) {
+        this.position = position;
+    }
+
+    public long getDuration() {
+        return duration;
+    }
+
+    public void setDuration(long duration) {
+        this.duration = duration;
+    }
+
     public int getCid() {
         return cid;
     }
@@ -211,6 +245,7 @@ public class Keep implements Diffable<Keep> {
 
     @Override
     public boolean isSameContent(Keep other) {
-        return Objects.equals(getVodName(), other.getVodName()) && Objects.equals(getVodPic(), other.getVodPic()) && getCreateTime() == other.getCreateTime();
+        return Objects.equals(getVodName(), other.getVodName()) && Objects.equals(getVodPic(), other.getVodPic()) && getCreateTime() == other.getCreateTime()
+                && Objects.equals(getVodRemarks(), other.getVodRemarks()) && getPosition() == other.getPosition() && getDuration() == other.getDuration();
     }
 }

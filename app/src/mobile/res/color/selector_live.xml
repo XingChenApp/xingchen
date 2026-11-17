@@ -2,5 +2,6 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:color="#66000000" android:state_pressed="true" />
     <item android:color="#5C000000" android:state_selected="true" />
-    <item android:color="#47000000" />
+    <!-- 未选行底：原 28% 黑压亮壁纸仍飘（直播全查 L3-3），改衬底定值黑60 (#99000000) -->
+    <item android:color="#99000000" />
 </selector>

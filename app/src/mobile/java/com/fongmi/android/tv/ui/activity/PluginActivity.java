@@ -18,6 +18,7 @@ import com.fongmi.android.tv.bean.PluginHealth;
 import com.fongmi.android.tv.bean.PluginKinds;
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.crawler.SpiderNull;
+import com.github.catvod.net.SourceGate;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -170,7 +171,9 @@ public class PluginActivity extends BaseActivity {
     // ================= 插件健康检测（简化版） =================
     //
     // 测法：当前页签的插件一起测（10 并发，不排队）。py/js：静默加载 spider
-    // （失败不弹 Toast）＋ 调一次 homeContent(true) 验证真能出数据。
+    // （失败不弹 Toast）＋ 调一次 homeContent(true) 验证真能出数据。探针任务
+    // 体内按源本身的定向归属打点（见 probeOne 内注），测的是该源在正常使用
+    // 路由（直连／走节点）下的真可用性，不拿直连结果冒充。
     // html 无蜘蛛可探，按网页源的本性测：本地文件在且非空 ＋ 先起本机服务、
     // 再经打开路的 /file/ 路由（路径百分号编码）真取一次，
     // 服务给出的页面字节与文件逐字等长才算通——测的就是打开路的服务与路由
@@ -252,20 +255,31 @@ public class PluginActivity extends BaseActivity {
         ExecutorService one = Executors.newSingleThreadExecutor();
         try {
             Future<String> f = one.submit(() -> {
-                Spider spider = BaseLoader.get().getSpiderQuiet(
-                        "health:" + p.getPath(), p.getPath(), "", null);
+                // 按源定向（走节点）归属：正常使用时 SiteApi.marked 在调用蜘蛛的
+                // 线程上 push (kind=源 type, id=动态源 key)，蜘蛛取数才吃得到
+                // 定向表（SourceGate 按线程归属裁决，py 另有同线程问口）。探针
+                // 此前裸调 homeContent、线程上无归属——定向走节点的源在探针里
+                // 恒直连，数据只经节点可达的源被系统性误判「挂了」（全局走节点
+                // 开着时才碰巧测得准）。照正路同形在探针任务体内打点、按栈恢复。
+                SourceGate.Mark prev = SourceGate.push(p.getType(), probeSiteKey(p));
                 try {
-                    if (spider instanceof SpiderNull) throw new RuntimeException("spider load failed");
-                    String home = spider.homeContent(true);
-                    if (home == null || home.trim().isEmpty()) throw new RuntimeException("empty home");
-                    return home;
-                } finally {
-                    // 不污染正常缓存：健康检查用的 key 用完即清
+                    Spider spider = BaseLoader.get().getSpiderQuiet(
+                            "health:" + p.getPath(), p.getPath(), "", null);
                     try {
-                        if ("py".equals(p.getType())) BaseLoader.get().removePySpider("health:" + p.getPath());
-                        else BaseLoader.get().removeJsSpider("health:" + p.getPath());
-                    } catch (Throwable ignored) {
+                        if (spider instanceof SpiderNull) throw new RuntimeException("spider load failed");
+                        String home = spider.homeContent(true);
+                        if (home == null || home.trim().isEmpty()) throw new RuntimeException("empty home");
+                        return home;
+                    } finally {
+                        // 不污染正常缓存：健康检查用的 key 用完即清
+                        try {
+                            if ("py".equals(p.getType())) BaseLoader.get().removePySpider("health:" + p.getPath());
+                            else BaseLoader.get().removeJsSpider("health:" + p.getPath());
+                        } catch (Throwable ignored) {
+                        }
                     }
+                } finally {
+                    SourceGate.pop(prev);
                 }
             });
             f.get(PROBE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
@@ -273,6 +287,17 @@ public class PluginActivity extends BaseActivity {
         } finally {
             one.shutdownNow();
         }
+    }
+
+    /**
+     * 插件的动态源 key（定向表与正常打点共用的身份）：keyPrefix＋文件名去尾缀，
+     * 与 VodFragment 选文件建动态源、SourcePolicyActivity 列定向开关同一口径。
+     */
+    private static String probeSiteKey(Plugin p) {
+        String name = new File(p.getPath()).getName();
+        int dot = name.lastIndexOf('.');
+        String base = dot > 0 ? name.substring(0, dot) : name;
+        return PluginKinds.keyPrefixOf(p.getType()) + base;
     }
 
     /** 检测探针的人话失败：消息即落盘呈现的挂了原因。 */

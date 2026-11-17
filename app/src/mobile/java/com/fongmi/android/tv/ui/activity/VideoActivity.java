@@ -418,6 +418,10 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private int mSwitchCoverDir;
     private List<String> mBroken;
     private History mHistory;
+    private String mCarryKey;
+    private String mCarryEpisodeName;
+    private long mCarryPosition = C.TIME_UNSET;
+    private long mCarryDuration = C.TIME_UNSET;
     /** 环42 danmu# 调起面承接（官 danmPopup 字段同位：播放 Activity 持有）。 */
     private com.fongmi.android.tv.ui.hk.HkDanmuBinder mHkDanmuBinder;
     private com.fongmi.android.tv.ui.hk.HkDanmuSearchDialog mHkDanmuDialog;
@@ -522,7 +526,11 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         if (TextUtils.isEmpty(path)) return;
         // 件 6：命中下载任务路径时回写最近播放时刻（容量清理的最久未看口径）
         com.fongmi.android.tv.utils.download.DownloadManager.get().touchPlayed(path);
+        // 标题优先取已知标题（H5）：命中下载任务用任务名（剧名/集名），没有才用落盘文件名——
+        // 旧形恒用文件名，下载后被改名的文件进播放页显原始文件名
         String name = new File(path).getName();
+        com.fongmi.android.tv.utils.download.DownloadTask task = com.fongmi.android.tv.utils.download.DownloadManager.get().findByPath(path);
+        if (task != null && !TextUtils.isEmpty(task.getName())) name = task.getName();
         start(activity, SiteApi.PUSH, "file://" + path, name);
     }
 
@@ -1183,7 +1191,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.name.setOnLongClickListener(view -> onChange());
         mBinding.content.setOnLongClickListener(view -> onCopy());
         mBinding.control.back.setOnClickListener(view -> onBack());
-        mBinding.control.cast.setOnClickListener(view -> onCast());
         mBinding.control.info.setOnClickListener(view -> onInfo());
         mBinding.control.keep.setOnClickListener(view -> onKeep());
         mBinding.control.osdDiagnostics.setOnClickListener(view -> onOsdDiagnostics());
@@ -1299,7 +1306,17 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         int padding = ResUtil.dp2px(12);
         mBinding.episode.setPaddingRelative(mBinding.episode.getPaddingStart(), mBinding.episode.getPaddingTop(), mBinding.episode.getPaddingEnd(), padding);
         applyAudioStageInsets();
+        applyScrollBottomInset();
         mBinding.episode.post(this::updateEpisodeViewportHeight);
+    }
+
+    private void applyScrollBottomInset() {
+        if (mBinding == null || mBinding.scroll.getChildCount() == 0) return;
+        View content = mBinding.scroll.getChildAt(0);
+        // 音频台自带底部让位（14dp＋inset，见 applyAudioStageInsets），其可见时容器不再叠加，避免台面被顶离底边
+        int bottom = ResUtil.dp2px(8) + (mAudioStageVisible ? 0 : mEpisodeBottomInset);
+        if (content.getPaddingBottom() == bottom) return;
+        content.setPaddingRelative(content.getPaddingStart(), content.getPaddingTop(), content.getPaddingEnd(), bottom);
     }
 
     private void applyAudioStageInsets() {
@@ -2277,6 +2294,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         getIntent().putExtra("key", item.getSiteKey());
         getIntent().putExtra("pic", item.getPic());
         getIntent().putExtra("id", item.getId());
+        captureSourceSwitchCarry(item);
         mBinding.swipeLayout.setRefreshing(true);
         mBinding.swipeLayout.setEnabled(false);
         mBinding.scroll.scrollTo(0, 0);
@@ -2288,6 +2306,45 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             player().stop();
         }
         getDetail();
+    }
+
+    /**
+     * 页内换源递交：旧源刚由 saveHistory 存下的同集集名与进度先记下，
+     * 等新源历史在 checkHistoryUi 定版时搬入——落点仍走历史落点同一套
+     * （按集名回选、按进度 seek），不在这里另开落点。
+     * 只搬同剧换源：目标名与在播剧名对不上（点开的是另一部剧）不搬；
+     * 集址不搬（各源自家地址，靠集名在新源回选后由 seamless 写回）。
+     */
+    private void captureSourceSwitchCarry(Vod item) {
+        mCarryKey = null;
+        mCarryEpisodeName = null;
+        mCarryPosition = C.TIME_UNSET;
+        mCarryDuration = C.TIME_UNSET;
+        if (mHistory == null || Setting.isIncognito()) return;
+        if (item == null || TextUtils.isEmpty(item.getName())) return;
+        if (!TextUtils.equals(item.getName().trim(), String.valueOf(mHistory.getVodName()).trim())) return;
+        if (TextUtils.isEmpty(mHistory.getVodRemarks())) return;
+        mCarryKey = getHistoryKey();
+        mCarryEpisodeName = mHistory.getVodRemarks();
+        mCarryPosition = mHistory.getPosition();
+        mCarryDuration = mHistory.getDuration();
+    }
+
+    private void applySourceSwitchCarry() {
+        if (mCarryEpisodeName == null) return;
+        String name = mCarryEpisodeName;
+        long position = mCarryPosition;
+        long duration = mCarryDuration;
+        boolean match = TextUtils.equals(mCarryKey, getHistoryKey());
+        mCarryKey = null;
+        mCarryEpisodeName = null;
+        mCarryPosition = C.TIME_UNSET;
+        mCarryDuration = C.TIME_UNSET;
+        if (!match || mHistory == null) return;
+        mHistory.setVodRemarks(name);
+        mHistory.setEpisodeUrl("");
+        mHistory.setPosition(position);
+        mHistory.setDuration(duration);
     }
 
     private void setDetail(Result result) {
@@ -4221,7 +4278,10 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
      * 直链/磁力递出去走系统选应用，第三方下载器接管；短按照旧自家下载。
      * 递不出去的给提示走自家：本机代理链（127.0.0.1 中转，递出去对方
      * 连不上）、带 Cookie/Authorization 校验的（裸链递出去必然 403）。
-     * 没有应用能接时退到分享链接（可粘贴进下载器），再不行才提示。
+     * 递链必须带类型：不带类型的 VIEW 只有浏览器认领，下载器是按类型
+     * 登记认领的、进不了候选，系统就直接跳浏览器（154 真机实证，根在此）。
+     * 递之前先点候选：没人能接、或只剩浏览器能接，都不递、直接提示
+     * 走自家，不许静默跳浏览器。
      */
     private boolean onDownloadLongPress() {
         String url = player().getUrl();
@@ -4246,23 +4306,91 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
                 }
             }
         }
+        android.net.Uri uri = android.net.Uri.parse(url);
+        android.content.Intent view = new android.content.Intent(android.content.Intent.ACTION_VIEW);
+        if (isMagnetFamily) {
+            view.setData(uri);
+        } else {
+            view.setDataAndType(uri, downloadMimeOf(url));
+        }
+        view.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+        if (!hasDownloadTaker(view, isMagnetFamily)) {
+            com.fongmi.android.tv.utils.Notify.show(isMagnetFamily
+                    ? "没有能接磁力的应用，请用自家播放"
+                    : "没有能接的应用，请用自家下载");
+            return true;
+        }
         try {
-            android.content.Intent view = new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url));
-            view.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(android.content.Intent.createChooser(view, "用第三方下载"));
         } catch (Exception e) {
-            try {
-                android.content.Intent share = new android.content.Intent(android.content.Intent.ACTION_SEND);
-                share.setType("text/plain");
-                share.putExtra(android.content.Intent.EXTRA_TEXT, url);
-                startActivity(android.content.Intent.createChooser(share, "把链接递给下载器"));
-            } catch (Exception e2) {
-                com.fongmi.android.tv.utils.Notify.show(isMagnetFamily
-                        ? "没有能接磁力的应用，请用自家播放"
-                        : "没有能接的应用，请用自家下载");
-            }
+            com.fongmi.android.tv.utils.Notify.show(isMagnetFamily
+                    ? "没有能接磁力的应用，请用自家播放"
+                    : "没有能接的应用，请用自家下载");
         }
         return true;
+    }
+
+    // 按直链后缀定递链类型：MimeTypeMap 没有的（m3u8/mkv/ts 等）手工补，
+    // 实在认不出给通配，让按类型登记的下载器能进候选。
+    private static String downloadMimeOf(String url) {
+        String path = url;
+        int cut = path.indexOf('?');
+        if (cut >= 0) path = path.substring(0, cut);
+        cut = path.indexOf('#');
+        if (cut >= 0) path = path.substring(0, cut);
+        int dot = path.lastIndexOf('.');
+        int slash = path.lastIndexOf('/');
+        String ext = dot > slash ? path.substring(dot + 1).toLowerCase(java.util.Locale.ROOT) : "";
+        switch (ext) {
+            case "m3u8":
+                return "application/x-mpegURL";
+            case "mkv":
+                return "video/x-matroska";
+            case "ts":
+                return "video/MP2T";
+            case "flv":
+                return "video/x-flv";
+            case "rmvb":
+                return "application/vnd.rn-realmedia-vbr";
+            case "":
+                return "*/*";
+            default:
+                String mime = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext);
+                return mime != null ? mime : "*/*";
+        }
+    }
+
+    /**
+     * 递链前先点候选：查不到候选、或候选只剩浏览器（拿 text/html 网页
+     * 意图认领的包名判浏览器），都算没人能接，不递。查询本身失败时不拦，
+     * 交给系统选框。
+     */
+    private boolean hasDownloadTaker(android.content.Intent view, boolean isMagnetFamily) {
+        java.util.List<android.content.pm.ResolveInfo> targets;
+        try {
+            targets = getPackageManager().queryIntentActivities(view, 0);
+        } catch (Exception e) {
+            return true;
+        }
+        if (targets == null || targets.isEmpty()) return false;
+        if (isMagnetFamily) return true;
+        android.content.Intent probe = new android.content.Intent(android.content.Intent.ACTION_VIEW);
+        probe.setDataAndType(android.net.Uri.parse("https://example.com/"), "text/html");
+        java.util.Set<String> browsers = new java.util.HashSet<>();
+        try {
+            java.util.List<android.content.pm.ResolveInfo> probeHits = getPackageManager().queryIntentActivities(probe, 0);
+            if (probeHits != null) {
+                for (android.content.pm.ResolveInfo info : probeHits) {
+                    if (info.activityInfo != null) browsers.add(info.activityInfo.packageName);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        if (browsers.isEmpty()) return true;
+        for (android.content.pm.ResolveInfo info : targets) {
+            if (info.activityInfo != null && !browsers.contains(info.activityInfo.packageName)) return true;
+        }
+        return false;
     }
 
     /** 单集入队一口：先查 scheme 后入队（磁力口径不变，选了档也照拒） */
@@ -4401,6 +4529,16 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         recycler.setAdapter(adapter);
         dialog.findViewById(R.id.cancel).setOnClickListener(v -> dialog.dismiss());
         dialog.show();
+        // 列表封顶 380dp 写死（出处＝本布局 dialog_download_quality.xml 既有 maxHeight 定值，与线程框同法）：
+        // RecyclerView 测量不认 maxHeight 属性、封顶不生效，条目多时框会被全量测高撑大，故改由代码封顶、超出框内滚动
+        int capPx = (int) (380 * getResources().getDisplayMetrics().density);
+        recycler.post(() -> {
+            if (recycler.getHeight() <= capPx) return;
+            android.view.ViewGroup.LayoutParams lp = recycler.getLayoutParams();
+            lp.height = capPx;
+            recycler.setLayoutParams(lp);
+            if (preselect > 0) recycler.scrollToPosition(preselect);
+        });
         return adapter;
     }
 
@@ -7132,7 +7270,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         updateCommentEntries();
         mBinding.control.right.lock.setVisibility(isFullscreen() ? View.VISIBLE : View.GONE);
         mBinding.control.info.setVisibility(player().isEmpty() ? View.GONE : View.VISIBLE);
-        mBinding.control.cast.setVisibility(View.GONE);
         mBinding.control.center.setVisibility(isLock() ? View.GONE : View.VISIBLE);
         mBinding.control.bottom.setVisibility(isLock() ? View.GONE : View.VISIBLE);
         mBinding.control.back.setVisibility(isLock() ? View.GONE : View.VISIBLE);
@@ -7198,8 +7335,23 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void setArtwork(String url) {
-        if (mHistory != null) mHistory.setVodPic(url);
+        // 落盘封面走写侧归一（stablePic）：播放器本次加载仍用刚回数的新串（签名最新），
+        // 只钉住写进历史行的字串不随签名轮换翻动
+        if (mHistory != null) mHistory.setVodPic(stablePic(mHistory.getVodPic(), url));
         loadArtwork(url, mPlaybackEpisodeKey);
+    }
+
+    /** 封面写侧归一（history-fav 账 2-3/4-2）：同图仅查询串不同（签名/时效参数轮换）时保留已存字串——
+     * 历史/收藏行封面按字串判重，换串即整行重取闪烁；图真换（scheme/host/path 变）照常覆写不被吞。
+     * 与红果 HgStore.putMeta 写口归一同法，点播口径取去查询串为身份（CMS 串无图床变换段） */
+    private static String stablePic(String stored, String incoming) {
+        if (TextUtils.isEmpty(stored) || TextUtils.isEmpty(incoming) || stored.equals(incoming)) return incoming;
+        return picIdentity(stored).equals(picIdentity(incoming)) ? stored : incoming;
+    }
+
+    private static String picIdentity(String url) {
+        int q = url.indexOf('?');
+        return q < 0 ? url : url.substring(0, q);
     }
 
     private void setArtwork() {
@@ -7309,11 +7461,28 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
      * 原 checkHistory 唯一调用方已改为两阶段拆分，此处保留拆分后的两半。
      */
     private void checkHistoryUi(Vod item) {
-        mHistory = History.find(getHistoryKey());
-        mHistory = mHistory == null ? createHistory(item) : mHistory;
-        if (!TextUtils.isEmpty(getWallPic())) mHistory.setWallPic(getWallPic());
-        if (!TextUtils.isEmpty(getMark())) mHistory.setVodRemarks(getMark());
-        if (Setting.isIncognito() && mHistory.getKey().equals(getHistoryKey())) mHistory.delete();
+        // 缓存再入第二趟守卫（账 vod-history-fav-entry-return-20261117 §1-2 方案①）：
+        // 内存 mHistory 已是同键行、播放器里正装着在播集时，不换绑数据库旧行。
+        // 内存对象由 updateHistory（点集改集名/集址）与 onTimeChanged（写实时进度）
+        // 实时维护，本就比落盘行新；换绑会把在播集进度写进旧集行、退出落盘成串集行，
+        // 第二趟再同步的选集高亮也随之跳回旧集。在播信号与 checkFlag /
+        // bindDetailService 的 preservePlayback 同款：service() != null &&
+        // !player().isEmpty()（装着媒体即在播会话，暂停同理）。
+        // 换源路 mHistory 仍是旧源行、键不同，不进此守卫，find＋carry 定版零变化；
+        // 守卫时只走 UI 侧幂等动作（refreshOpeningEnding/setVodName/updateHistory
+        // 采集/setArtwork/setScale），wallPic/mark 首趟已写过同一对象、不重写
+        // （mark 重写还会盖掉 updateHistory 刚写上的在播集名）。
+        boolean keepLive = mHistory != null
+                && TextUtils.equals(mHistory.getKey(), getHistoryKey())
+                && service() != null && !player().isEmpty();
+        if (!keepLive) {
+            mHistory = History.find(getHistoryKey());
+            mHistory = mHistory == null ? createHistory(item) : mHistory;
+            if (!TextUtils.isEmpty(getWallPic())) mHistory.setWallPic(getWallPic());
+            if (!TextUtils.isEmpty(getMark())) mHistory.setVodRemarks(getMark());
+            applySourceSwitchCarry();
+            if (Setting.isIncognito() && mHistory.getKey().equals(getHistoryKey())) mHistory.delete();
+        }
         refreshOpeningEnding();
         mHistory.setVodName(item.getName());
         PlaybackEventCollector.get().updateHistory(mHistory);
@@ -7418,11 +7587,26 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         if (exit && service() != null) PlaybackEventCollector.get().onStop(player());
         if (!canSavePlaybackHistory(mHistory)) return;
         History history = mHistory.copy();
-        Task.execute(() -> {
-            if (history.getDuration() > 0) history.merge().save();
-            else history.save();
-            if (exit) RefreshEvent.history();
-        });
+        if (exit) {
+            // 退出写改同步落盘（账 vod-history-fav-entry-return-20261117 §2-2 次序修）：
+            // 旧形把写扔进 Task 共享池异步跑，历史页 onResume 的同步读（getForHome）
+            // 抢在写落盘前读到退出前旧行，写完后 RefreshEvent 再读一次纠正——回页
+            // 先旧后跳。退出三处调用（返回路两支＋onDestroy）都在主线程、且都在
+            // finish 之前，退出写就地同步落盘后，写完成先于页面切换，回页第一次
+            // 读即终态，事件只作其余面的通知、不再承担纠正。写量上界：merge 的
+            // findByName 一查＋同名合并至多几行删改＋一行 upsert，本地 SQLite
+            // 单行级，不重于历史页每次回页已在主线程同步付的全表读。非退出保存
+            // （详情/换源等在播中保存）仍走池异步，语义与时机零变化。
+            persistHistory(history);
+            RefreshEvent.history();
+        } else {
+            Task.execute(() -> persistHistory(history));
+        }
+    }
+
+    private void persistHistory(History history) {
+        if (history.getDuration() > 0) history.merge().save();
+        else history.save();
     }
 
     private void syncHistory() {
@@ -7431,10 +7615,23 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         Task.execute(history::save);
     }
 
+    /**
+     * 同集判定（与落点同口径）：落点回选（Flag.find）认的是集址→集名评分→集号，
+     * 进度门旧形只认集名逐字相等——源站改集名写法（第05集↔05）或轮换集址时，
+     * 落点靠集号落对了集，进度门却判异集把进度清零、从头播（历史/收藏进页实证链）。
+     * 改与落点同口径：集址相等、集名相等、集号相等，任一成立即同集。
+     */
+    private boolean isSameEpisode(Episode item, Episode historyEpisode) {
+        if (item == null || historyEpisode == null) return false;
+        if (item.matchesName(historyEpisode)) return true;
+        if (!TextUtils.isEmpty(item.getUrl()) && item.getUrl().equals(historyEpisode.getUrl())) return true;
+        return item.getNumber() != -1 && item.getNumber() == historyEpisode.getNumber();
+    }
+
     private void updateHistory(Episode item) {
         Flag flag = getFlag();
         String vodFlag = flag == null ? "" : flag.getFlag();
-        boolean sameEpisode = item.matchesName(mHistory.getEpisode());
+        boolean sameEpisode = isSameEpisode(item, mHistory.getEpisode());
         boolean sameFlag = TextUtils.equals(mHistory.getVodFlag(), vodFlag);
         if ((!sameEpisode || !sameFlag) && service() != null) {
             updatePlaybackHistoryPosition();
@@ -7491,7 +7688,8 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         Keep keep = Keep.find(getHistoryKey());
         if (keep != null) {
             keep.setVodName(mHistory.getVodName());
-            keep.setVodPic(mHistory.getVodPic());
+            // 收藏行封面同走写侧归一（stablePic）：与历史行同图同口径，不随签名轮换翻串
+            keep.setVodPic(stablePic(keep.getVodPic(), mHistory.getVodPic()));
             keep.save();
         }
     }
@@ -7601,6 +7799,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             return;
         }
         mAudioStageVisible = visible;
+        applyScrollBottomInset();
         syncPiPForPlaybackMode();
         if (!visible) mAudioLightEffectAnimated = false;
         mBinding.audioStage.setVisibility(visible ? View.VISIBLE : View.GONE);

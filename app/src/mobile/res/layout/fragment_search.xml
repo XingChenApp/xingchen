@@ -20,8 +20,9 @@
             android:id="@+id/back"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="@drawable/xc_circle_glass"
             android:contentDescription="返回"
+            android:padding="10dp"
             android:src="@drawable/ic_control_back"
             app:tint="#464B53" />
 
@@ -63,8 +64,9 @@
             android:id="@+id/sourceSettings"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="@drawable/xc_circle_glass"
             android:contentDescription="选择搜索源"
+            android:padding="10dp"
             android:src="@drawable/ic_control_setting"
             app:tint="#464B53" />
 
@@ -77,8 +79,13 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginTop="2dp"
+        android:background="@drawable/xc_capsule_glass"
+        android:paddingStart="12dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="4dp"
         android:text="✨ 试试说：周星驰的喜剧电影"
-        android:textColor="#8A9199"
+        android:textColor="#464B53"
         android:textSize="12sp"
         android:visibility="gone" />
 
@@ -99,6 +106,11 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginTop="8dp"
+        android:background="@drawable/xc_capsule_glass"
+        android:paddingStart="12dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="4dp"
         android:text="搜索联想"
         android:textColor="#101216"
         android:textSize="13sp"
@@ -116,13 +128,22 @@
 
         <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/record"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:background="@drawable/xc_capsule_glass"
+            android:paddingStart="12dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="6dp"
             android:text="搜索历史"
             android:textColor="#121417"
             android:textSize="15sp"
             android:textStyle="bold" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
         <androidx.appcompat.widget.AppCompatImageButton
             android:id="@+id/clearHistory"
@@ -143,17 +164,6 @@
         android:paddingStart="12dp"
         android:paddingTop="8dp"
         android:paddingEnd="12dp"
-        app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
-        app:spanCount="3" />
-
-    <!-- Search results grid -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/resultRecycler"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:padding="8dp"
         app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
         app:spanCount="3" />
 

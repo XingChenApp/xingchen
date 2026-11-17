@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Environment;
+import android.provider.DocumentsContract;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.bean.DownloadRecord;
@@ -42,6 +43,12 @@ public class DownloadManager {
     private static final long STOP_WAIT_TIMEOUT_MS = 10_000L;
     private final Map<String, StopBarrier> stopping = new ConcurrentHashMap<>();
     private final Set<String> resumePending = ConcurrentHashMap.newKeySet();
+
+    // 路径认领锁：add 的「去重扫表→定保存路径→入表」必须整段串行——
+    // 批量入队在后台线程、单集入队在界面线程，两边并发 add 时若查认领
+    // 与占路径被插队，两条同名任务能各拿到同一个未落盘路径（根见
+    // addLocked 定路径段注释）。
+    private final Object addLock = new Object();
 
     // 件 1 落盘：restore 只跑一次（谁先触发谁跑）；进度落盘节流账
     // （上次落盘时刻＋百分比），DB 只是展示/恢复口径，不跟回调同频写库。
@@ -275,6 +282,13 @@ public class DownloadManager {
             Notify.show("下载链接为空");
             return null;
         }
+        synchronized (addLock) {
+            return addLocked(url, name, headers, pic, qualityName, variantBandwidth, dedupe);
+        }
+    }
+
+    private DownloadTask addLocked(String url, String name, Map<String, String> headers,
+                                   String pic, String qualityName, long variantBandwidth, boolean dedupe) {
         restore();
         for (DownloadTask existing : dedupe ? tasks.values() : java.util.Collections.<DownloadTask>emptyList()) {
             if (!url.equals(existing.getUrl())) continue;
@@ -311,15 +325,27 @@ public class DownloadManager {
         task.setPic(pic);
         task.setQualityName(qualityName);
         task.setVariantBandwidth(variantBandwidth);
-        // 确定保存路径
+        // 确定保存路径：唯一性要对两本账都成立——盘上已有文件，以及任务
+        // 表里已被别的任务认领的路径。只查盘必漏一大批：m3u8 的目标文件
+        // 合并前根本不在盘上（分片在 <名>.mp4.segs 里），HTTP 的也要等
+        // 下载器线程落笔，排队中的任务更是一直没文件。两条同名任务（单集
+        // 入队 name 只有剧名、批量里集名为空/同名都会撞）因此能拿到同一
+        // 路径＝共用同一个文件与同一个 .segs 分片目录：m3u8 分片按序号
+        // 互相跳过续用、合并出的是另一集（154 真机「点这个播另一个」），
+        // HTTP 则后写覆盖先写。_N 后缀顺延到两本账都空为止（音乐侧
+        // findPendingFile 本就按 名/_N 两形认文件，同口径）。
         File dir = getDownloadDir(context);
         if (!dir.exists()) dir.mkdirs();
         String ext = task.isM3u8() ? ".mp4" : getExtension(url);
-        File target = new File(dir, sanitizeFileName(name) + ext);
-        // 避免重名（只剩不同 url 撞同名走到这里）
+        java.util.Set<String> claimed = new java.util.HashSet<>();
+        for (DownloadTask t : tasks.values()) {
+            if (t.getFilePath() != null) claimed.add(t.getFilePath());
+        }
+        String baseName = sanitizeFileName(name);
+        File target = new File(dir, baseName + ext);
         int i = 1;
-        while (target.exists()) {
-            target = new File(dir, sanitizeFileName(name) + "_" + (i++) + ext);
+        while (target.exists() || claimed.contains(target.getAbsolutePath())) {
+            target = new File(dir, baseName + "_" + (i++) + ext);
         }
         task.setFilePath(target.getAbsolutePath());
         task.setStatus(DownloadTask.STATUS_WAITING);
@@ -553,6 +579,9 @@ public class DownloadManager {
         StopBarrier barrier = stopping.remove(taskId);
         if (task != null && task.getFilePath() != null) {
             File file = new File(task.getFilePath());
+            // 未完成 m3u8 的分片目录随任务一并删（DL-H3-5）：推导与下载侧同形（父目录＋目标名＋.segs）；
+            // 已完成任务合并时已自清、HTTP 从无此目录，不存在即空转，原删除口径不变
+            File segsDir = new File(file.getParent(), file.getName() + ".segs");
             if (barrier != null && !barrier.isFinished()) {
                 // C-25: 旧线程（尤其 m3u8 合并）可能还会写/重建目标文件，
                 // 等它停笔后再删；超时（上限同 STOP_WAIT_TIMEOUT_MS）也删，
@@ -565,14 +594,24 @@ public class DownloadManager {
                         Thread.currentThread().interrupt();
                     }
                     file.delete();
+                    deleteSegmentsDir(segsDir);
                 }, "download-delete-wait");
                 deleteWaiter.setDaemon(true);
                 deleteWaiter.start();
             } else {
                 file.delete();
+                deleteSegmentsDir(segsDir);
             }
         }
         if (task != null) notifyChanged(task);
+    }
+
+    /** 分片目录删除：与 M3u8Downloader.deleteDir 同形（分片平铺在目录里，一层删净再删目录本身） */
+    private static void deleteSegmentsDir(File dir) {
+        if (dir == null || !dir.exists()) return;
+        File[] files = dir.listFiles();
+        if (files != null) for (File f : files) f.delete();
+        dir.delete();
     }
 
     /**
@@ -637,29 +676,53 @@ public class DownloadManager {
         Context context = App.get();
         java.util.Set<File> dirs = new java.util.LinkedHashSet<>();
         dirs.add(getDownloadDir(context));
+        // 换过目录后内置默认根也扫：换根前落在那里的无记录存量不能因为
+        // 换根就再也收编不进来（有记录的靠记录里的绝对路径对账，不靠扫）
+        dirs.add(defaultDownloadDir(context));
         File legacy = new File(context.getFilesDir(), "Download");
         if (legacy.exists()) dirs.add(legacy);
-        for (File dir : dirs) {
-            File[] files = dir.listFiles();
-            if (files == null) continue;
-            for (File file : files) {
-                if (!file.isFile() || file.length() == 0) continue;
-                String name = file.getName();
-                if (name.endsWith(".progress") || name.endsWith(".id") || name.endsWith(".tmp")) continue;
-                if (new File(file.getAbsolutePath() + ".progress").exists()) continue;
-                if (knownPaths.contains(file.getAbsolutePath())) continue;
-                DownloadTask task = new DownloadTask("orphan-" + file.lastModified() + "-" + name.hashCode(),
-                        "", stripExtension(name), file.lastModified());
-                task.setFilePath(file.getAbsolutePath());
-                task.setStatus(DownloadTask.STATUS_COMPLETED);
-                task.setDownloadedBytes(file.length());
-                task.setTotalBytes(file.length());
-                task.setFinishTime(file.lastModified());
-                // url 无从考：留空串占位（DownloadTask 构造对 null 已兼容判 m3u8）
-                if (tasks.putIfAbsent(task.getId(), task) == null) {
-                    DownloadStore.save(task);
-                    notifyChanged(task);
-                }
+        // 历次用过的自选根全进扫描集（DL-H3-3）：自选→自选换根后，旧根的无记录存量同样收编
+        for (String root : getUsedCustomRoots(context)) {
+            if (root != null && !root.isEmpty()) dirs.add(new File(root));
+        }
+        for (File dir : dirs) adoptOrphansIn(dir, knownPaths);
+    }
+
+    /** 换根当场收编（DL-H3-4）：restore 每进程只跑一次，换新根后新根里的无记录存量
+     * 原形要等下次启动才进列表——换根成功后由下载页调本口，对新根单独跑一遍同一收编口径 */
+    public void adoptNewRoot(File dir) {
+        if (dir == null) return;
+        com.fongmi.android.tv.utils.Task.execute(() -> {
+            java.util.Set<String> knownPaths = new java.util.HashSet<>();
+            for (DownloadTask task : tasks.values()) {
+                if (task.getFilePath() != null) knownPaths.add(task.getFilePath());
+            }
+            adoptOrphansIn(dir, knownPaths);
+        });
+    }
+
+    /** 单根收编：口径与 restore 的 adoptOrphans 完全一致（排除旁车/临时/半截，有记录的不重建） */
+    private void adoptOrphansIn(File dir, java.util.Set<String> knownPaths) {
+        if (dir == null) return;
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        for (File file : files) {
+            if (!file.isFile() || file.length() == 0) continue;
+            String name = file.getName();
+            if (name.endsWith(".progress") || name.endsWith(".id") || name.endsWith(".tmp")) continue;
+            if (new File(file.getAbsolutePath() + ".progress").exists()) continue;
+            if (knownPaths.contains(file.getAbsolutePath())) continue;
+            DownloadTask task = new DownloadTask("orphan-" + file.lastModified() + "-" + name.hashCode(),
+                    "", stripExtension(name), file.lastModified());
+            task.setFilePath(file.getAbsolutePath());
+            task.setStatus(DownloadTask.STATUS_COMPLETED);
+            task.setDownloadedBytes(file.length());
+            task.setTotalBytes(file.length());
+            task.setFinishTime(file.lastModified());
+            // url 无从考：留空串占位（DownloadTask 构造对 null 已兼容判 m3u8）
+            if (tasks.putIfAbsent(task.getId(), task) == null) {
+                DownloadStore.save(task);
+                notifyChanged(task);
             }
         }
     }
@@ -835,24 +898,123 @@ public class DownloadManager {
     }
 
     /** 任务最近播放时刻回写（件 6 容量口径的 lastActivity 一半） */
-    public void touchPlayed(String filePath) {
-        if (filePath == null) return;
+    /** 按落盘路径查任务（标题回读/播放时刻回写共用同一口） */
+    public DownloadTask findByPath(String filePath) {
+        if (filePath == null) return null;
         for (DownloadTask task : tasks.values()) {
-            if (filePath.equals(task.getFilePath())) {
-                task.setLastPlayTime(System.currentTimeMillis());
-                persist(task);
-                return;
+            if (filePath.equals(task.getFilePath())) return task;
+        }
+        return null;
+    }
+
+    public void touchPlayed(String filePath) {
+        DownloadTask task = findByPath(filePath);
+        if (task == null) return;
+        task.setLastPlayTime(System.currentTimeMillis());
+        persist(task);
+    }
+
+    private static final String KEY_DIR_PATH = "xingchen.download_dir_path";
+    private static final String KEY_DIR_URI = "xingchen.download_dir_uri";
+    /** 历次用过的自选根清单（DL-H3-3）：换根后旧根里的无记录存量仍要进收编扫描集，靠这份清单找回 */
+    private static final String KEY_USED_ROOTS = "xingchen.download_dir_used_roots";
+
+    /** 内置默认根：app 私有外部目录 XingChen 子目录 */
+    private static File defaultDownloadDir(Context context) {
+        return new File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "XingChen");
+    }
+
+    /** 他亲手选定的下载根（绝对路径，未选过为空串） */
+    public static String getCustomDirPath(Context context) {
+        String path = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_DIR_PATH, "");
+        return path == null ? "" : path;
+    }
+
+    /** 他选目录时的 SAF tree uri（只作下次选目录的初始位置与留底，落盘不走它） */
+    public static String getCustomDirUri(Context context) {
+        String uri = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_DIR_URI, "");
+        return uri == null ? "" : uri;
+    }
+
+    public static void setCustomDir(Context context, String path, String uri) {
+        android.content.SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        // 换根留痕（DL-H3-3）：旧根与新根都记进用过的根清单，收编扫描集才找得回旧根的无记录存量
+        java.util.Set<String> used = new java.util.HashSet<>(prefs.getStringSet(KEY_USED_ROOTS, java.util.Collections.emptySet()));
+        String old = getCustomDirPath(context);
+        if (!old.isEmpty()) used.add(old);
+        if (path != null && !path.isEmpty()) used.add(path);
+        prefs.edit()
+                .putString(KEY_DIR_PATH, path == null ? "" : path)
+                .putString(KEY_DIR_URI, uri == null ? "" : uri)
+                .putStringSet(KEY_USED_ROOTS, used)
+                .apply();
+    }
+
+    /** 历次用过的自选根（收编扫描集用，DL-H3-3） */
+    public static java.util.Set<String> getUsedCustomRoots(Context context) {
+        java.util.Set<String> used = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getStringSet(KEY_USED_ROOTS, java.util.Collections.emptySet());
+        return used == null ? java.util.Collections.emptySet() : used;
+    }
+
+    /**
+     * SAF tree uri → 绝对路径（下载内核全是路径制，选目录只认能落成真实
+     * 路径的位置）：只认系统外部存储提供方——primary 卷映射内部存储根，
+     * 其余卷（SD 卡）映射 /storage/&lt;卷id&gt;；别的提供方（云盘/下载
+     * 提供方等）没有稳定真实路径，返回 null，由界面提示换位置。
+     */
+    public static String pathFromTreeUri(Uri uri) {
+        if (uri == null) return null;
+        if (!"com.android.externalstorage.documents".equals(uri.getAuthority())) return null;
+        String docId;
+        try {
+            docId = DocumentsContract.getTreeDocumentId(uri);
+        } catch (Exception e) {
+            return null;
+        }
+        if (docId == null) return null;
+        int sep = docId.indexOf(':');
+        if (sep < 0) return null;
+        String volume = docId.substring(0, sep);
+        String rel = docId.substring(sep + 1);
+        File base = "primary".equalsIgnoreCase(volume)
+                ? Environment.getExternalStorageDirectory()
+                : new File("/storage/" + volume);
+        return rel == null || rel.isEmpty() ? base.getAbsolutePath()
+                : new File(base, rel).getAbsolutePath();
+    }
+
+    /** 可写探针：建目录＋写一个探针文件再删掉，全过才算这个目录真能落盘（须在后台线程调） */
+    public static boolean probeWritable(File dir) {
+        if (dir == null) return false;
+        try {
+            if (!dir.exists() && !dir.mkdirs()) return false;
+            if (!dir.isDirectory()) return false;
+            File probe = new File(dir, ".xingchen_probe");
+            java.io.FileOutputStream out = new java.io.FileOutputStream(probe);
+            try {
+                out.write(0);
+                out.flush();
+            } finally {
+                out.close();
             }
+            if (probe.exists() && !probe.delete()) probe.deleteOnExit();
+            return true;
+        } catch (Exception e) {
+            return false;
         }
     }
 
     /**
-     * 下载目录唯一真源（件 7）：app 私有外部目录 XingChen 子目录；
-     * 旧版 filesDir/Download 仍在用时用旧的。原 SAF 选目录 UI 从未
-     * 真生效（选了也忽略），已摘除——本方法即实际落盘口径，展示也调它。
+     * 下载目录唯一真源（件 7＋换目录）：他亲手选定的根优先；没选过走
+     * 内置默认（app 私有外部目录 XingChen 子目录，旧版 filesDir/Download
+     * 仍在用时用旧的）。已下载与进行中任务的路径都在记录里存绝对路径，
+     * 换根只影响新任务落点，不动存量、不搬家。本方法即实际落盘口径，
+     * 展示也调它。
      */
     public static File getDownloadDir(Context context) {
-        File dir = new File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "XingChen");
+        String custom = getCustomDirPath(context);
+        if (!custom.isEmpty()) return new File(custom);
+        File dir = defaultDownloadDir(context);
         // 兼容旧版：filesDir/Download
         File legacy = new File(context.getFilesDir(), "Download");
         if (legacy.exists() && !dir.exists()) return legacy;

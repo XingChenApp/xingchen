@@ -323,22 +323,13 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
 
     protected void applyResizeMode(int resizeMode) {
         requestedResizeMode = resizeMode;
-        int effectiveResizeMode = effectiveResizeMode(resizeMode);
-        logSurfaceState("applyResizeMode before mode=" + resizeMode + " effective=" + effectiveResizeMode);
+        logSurfaceState("applyResizeMode before mode=" + resizeMode);
         PlayerView view = getExoView();
-        view.setResizeMode(effectiveResizeMode);
+        view.setResizeMode(resizeMode);
         view.requestLayout();
         View surface = view.getVideoSurfaceView();
         if (surface != null) surface.requestLayout();
-        logSurfaceState("applyResizeMode after mode=" + resizeMode + " effective=" + effectiveResizeMode);
-    }
-
-    private int effectiveResizeMode(int resizeMode) {
-        PlayerManager manager = player();
-        if (manager != null && manager.isMpv() && !manager.isMpvSurfaceDirect() && resizeMode == AspectRatioFrameLayout.RESIZE_MODE_FIT) {
-            return AspectRatioFrameLayout.RESIZE_MODE_FILL;
-        }
-        return resizeMode;
+        logSurfaceState("applyResizeMode after mode=" + resizeMode);
     }
 
     protected void onReclaim() {

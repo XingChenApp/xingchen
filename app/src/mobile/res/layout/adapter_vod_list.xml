@@ -5,6 +5,7 @@
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
     android:background="@drawable/shape_vod_list"
+    android:foreground="@drawable/shape_vod"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:padding="12dp">
@@ -25,6 +26,7 @@
             android:id="@+id/name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:ellipsize="end"
             android:singleLine="true"
             android:textColor="@color/white"
             android:textSize="14sp"
@@ -35,6 +37,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
+            android:ellipsize="end"
             android:singleLine="true"
             android:textColor="@color/white"
             android:textSize="12sp"

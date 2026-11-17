@@ -2108,12 +2108,25 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         Scriptable amb = ambientEvalScope.get();
         if (amb != null) {
             target = amb;
-        } else if (target != null) {
-            while (target instanceof org.mozilla.javascript.NativeCall) {
-                Scriptable parent = target.getParentScope();
-                if (parent == null) break;
-                target = parent;
+            // 落点裁定续（聚阅 SrcParse 案，账 hk-two-issues-root-20261117
+            // 续节）：ambient 是当发子 scope（根 scope 的原型子层、父链为
+            // 空）时，若调用方真 var scope 是 ambient 的祖先（原型/父链
+            // 可达），声明落 ambient 对调用方不可见——$.require 的模块
+            // 函数经 Hikerurl.js:89 的 new Function 编译、家恒在当发根
+            // scope，其内裸 require 装的库（如 SrcParse.js 的 视频处理）
+            // 落子 scope 即 ReferenceError（2026-11-16 真机日志
+            // hk-plugin#89(Function)#90 实证；回放 JyVideoPro 三态对验：
+            // 现行形逐字复现、收祖先形与官单 scope 形同过）。此形落点
+            // 收祖先：子 scope 经原型链仍读得到，根侧与模块侧都可见，
+            // 与官「库代码在调用方作用域链求值」同果。ambient 在场的
+            // 其余形（延迟回调以定义 scope 登记 ambient 等）调用方链顶
+            // 与 ambient 同体或互不为祖先，维持 ambient 优先原判。
+            Scriptable walked = callerScope != null ? varScopeOf(callerScope) : null;
+            if (walked != null && walked != amb && isScopeAncestor(walked, amb)) {
+                target = walked;
             }
+        } else if (target != null) {
+            target = varScopeOf(target);
         }
         Object oldDeadline = armEvalDeadline();
         SourceGate.Mark prevMark = swapHkMark();
@@ -2130,6 +2143,37 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             restoreMark(prevMark);
             restoreEvalDeadline(oldDeadline);
         }
+    }
+
+    /** 调用方真 var scope：沿 NativeCall 激活链上溯首个非激活 scope。 */
+    private static Scriptable varScopeOf(Scriptable s) {
+        Scriptable t = s;
+        while (t instanceof org.mozilla.javascript.NativeCall) {
+            Scriptable parent = t.getParentScope();
+            if (parent == null) break;
+            t = parent;
+        }
+        return t;
+    }
+
+    /** a 是否在 s 的可见链上（父 scope 链＋原型链双路，防环、限量）。 */
+    private static boolean isScopeAncestor(Scriptable a, Scriptable s) {
+        if (a == null || s == null) return false;
+        java.util.Set<Scriptable> seen = java.util.Collections.newSetFromMap(
+                new java.util.IdentityHashMap<>());
+        java.util.ArrayDeque<Scriptable> queue = new java.util.ArrayDeque<>();
+        queue.add(s);
+        while (!queue.isEmpty()) {
+            Scriptable cur = queue.poll();
+            if (cur == null || !seen.add(cur)) continue;
+            if (cur == a) return true;
+            if (seen.size() > 64) return false;
+            Scriptable parent = cur.getParentScope();
+            if (parent != null) queue.add(parent);
+            Scriptable proto = cur.getPrototype();
+            if (proto != null) queue.add(proto);
+        }
+        return false;
     }
 
     /** B#6：appendLineVar 产物首行 "const MY_PRE_LINE = <n>;" 里的 n（无前置声明回 -1）。 */
@@ -2406,7 +2450,62 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // 本发装配失败显形（与官串内 eval 失败同终局）。
         putDisplayNameInto(fresh);
         ensurePluginIn(fresh);
+        supplyPrivatePreload(fresh);
         return fresh;
+    }
+
+    /**
+     * 框架私有段预载的装配期供给（聚阅甲案，2026-11-17）：
+     * 官 globalmap.js 尾 evalPrivateJS 明文（AES/ECB/PKCS5Padding、键
+     * "hk6666666109" 补字符 '0' 至 32 位，2026-11-17 解密亲验）在每次
+     * 求值的前缀装配（getMyRule→getJsPlugin→goPreRule→importGM）里恒跑：
+     * MY_RULE.author 空 ∧ 母规则 preRule 以 "//by.帅√`人才" 结尾 ∧ 标题含
+     * 聚影|聚阅 ∧ kv「依赖」含 /src48597962/ 或 /mybb520/ 时，
+     * codePath＝「依赖」去掉末段（/[^/]*$/），裸 require
+     * (codePath + 'SrcJuMethod.js') 把整套方法库评进当前作用域。
+     * 官靠进程单例持久作用域跨求值恒供；咱家逐发新作用域，此前供给只剩
+     * 两路：规则码网络链（getSrcHome 校验/轮换＋globalmap 取码）在装配内
+     * 跑通才有、与 LIB_CARRY 喂账（喂账实链在详情链），「开主页→直接点
+     * 封面」流里两路皆空，子页 erji 首读 cachepath 即 ReferenceError 静默死。
+     * 本步在同一装配位置（装配末步、正文求值之前）、同一组条件（条件本体
+     * 即框架自带的防篡改判据，非宿主另设门槛）下，经 require0 同道
+     * （hour=-1、本地 libs 缓存＋版本校验，与官段裸 require 同参）取码、
+     * captureLibCarry 同账记一笔、evalIntoScope 评入本发作用域——供的即
+     * 官段 require 的同一文件全文，不摘名、不垫单名。本发作用域内已由
+     * 规则链供上（getObjCode 在位）时跳过重复评入；取码失败只记
+     * SpiderDebug 不拆装配（官段走 toast 支时页面照常，与此同形）。
+     */
+    private void supplyPrivatePreload(Scriptable fresh) {
+        try {
+            HkRule r = rule;
+            if (r == null) return;
+            String title = r.getTitle();
+            if (title == null || !(title.contains("聚影") || title.contains("聚阅"))) return;
+            String author = r.getAuthor();
+            if (author != null && !author.isEmpty()) return;
+            String preRule = r.getPreRule();
+            if (preRule == null || !preRule.endsWith("//by.帅√`人才")) return;
+            String rely = getItemNow("依赖", "", title);
+            if (rely == null || !(rely.contains("/src48597962/") || rely.contains("/mybb520/"))) return;
+            Object probe = evalIntoScope(fresh, "typeof getObjCode", "hkPrivatePreloadProbe");
+            if ("function".equals(probe)) return;
+            String codePath = rely.replaceAll("[^/]*$", "");
+            String libUrl = codePath + "SrcJuMethod.js";
+            Object code = require0(null, libUrl, -1, null, null, false, title, 0);
+            if (!(code instanceof String) || ((String) code).isEmpty()) {
+                com.github.catvod.crawler.SpiderDebug.log("hk",
+                        "privatePreload no-code rule=%s url=%s", title, libUrl);
+                return;
+            }
+            captureLibCarry((String) code);
+            evalIntoScope(fresh, (String) code, libUrl);
+            com.github.catvod.crawler.SpiderDebug.log("hk",
+                    "privatePreload supplied rule=%s url=%s", title, libUrl);
+        } catch (Throwable e) {
+            com.github.catvod.crawler.SpiderDebug.log("hk",
+                    "privatePreload failed rule=%s err=%s",
+                    rule == null ? "" : rule.getTitle(), String.valueOf(e));
+        }
     }
 
     /**
@@ -6906,11 +7005,16 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                     final String opt;
                     if (o instanceof Map) {
                         Map<String, Object> m = (Map<String, Object>) o;
-                        u = String.valueOf(m.get("url"));
+                        // 乙案通道对官（2026-11-17）：url 键缺位照官 getString
+                        // 回 null 语义归 ""，不许 String.valueOf 把缺位变成
+                        // 字面串 "null" 拿去发请求（官 batchExecute 对空 url
+                        // 是跳过占位、结果留 null，见下方任务内空 url 支）。
+                        Object uv = m.get("url");
+                        u = uv == null ? "" : String.valueOf(uv);
                         Object op = m.get("options");
                         opt = op == null ? null : GSON.toJson(op);
                     } else {
-                        u = String.valueOf(o);
+                        u = o == null ? "" : String.valueOf(o);
                         opt = null;
                     }
                     pool.execute(() -> {
@@ -6920,19 +7024,32 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                         // finally 恢复点与主路 enter/exitAmbientScope 同形栈式恢复。
                         Scriptable ambPrev = enterAmbientScope(capturedScope);
                         try {
+                            // 乙案通道对官（2026-11-17，官源 JSEngine.batchExecute
+                            // :1800-1836）：url 空/缺位——官 getString 回空即
+                            // countDown 跳过、本项不执行、组装时留 null；此前
+                            // 咱家照样发请求（或拿字面 "null" 发）并回 ""，
+                            // 与官缺位形不一致，本支照官跳过留 null。
+                            if (!u.isEmpty()) {
                             // 8.83 batchFetch 每项调 fetch 本体：内部协议项同走
                             // fetchByHiker 分发（JE:11648 区；G8）
                             if (u.startsWith("hiker://") || u.startsWith("file://")) {
                                 Object r = fetchByHiker(u, null, optFlagFromJson(opt, "toHex"), optFlagFromJson(opt, "inputStream"));
                                 if (r instanceof String) results.put(idx, (String) r);
-                                else { closeFetchStream(r); results.put(idx, ""); }
+                                // 非串结果（inputStream 流等）：官执行器回串
+                                // 判型失败被 batchExecute 的 catch 收走、本项
+                                // 留 null；此前咱家压 ""，照官改留 null。
+                                else closeFetchStream(r);
                             } else {
                                 Object r = fetchSync(u, opt);
                                 if (r instanceof String) results.put(idx, (String) r);
-                                else { closeFetchStream(r); results.put(idx, ""); }
+                                else closeFetchStream(r);
+                            }
                             }
                         }
-                        catch (Throwable t) { results.put(idx, ""); }
+                        // 执行器逃逸异常：官 batchExecute catch 后不 put、
+                        // 本项留 null（普通取数失败由 fetchSync/fetch 本体
+                        // 回 ""，不经此支）；此前咱家压 ""，照官改留 null。
+                        catch (Throwable t) { }
                         finally {
                             exitAmbientScope(ambPrev);
                             latch.countDown();

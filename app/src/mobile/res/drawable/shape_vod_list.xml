@@ -4,6 +4,7 @@
 
     <corners android:radius="8dp" />
 
-    <solid android:color="@color/black_20" />
+    <!-- 列表行白字衬底：原 black_20 压任意壁纸对比不足（全查文字对比族），改衬底定值 black_60 -->
+    <solid android:color="@color/black_60" />
 
 </shape>

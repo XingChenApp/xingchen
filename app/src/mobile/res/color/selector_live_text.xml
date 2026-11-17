@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:color="@color/white" android:state_selected="true" />
+    <!-- 选中字色与 classic 支同口径（深字压浅容器，见 shape_live 选中行底），原选中未选同白、只靠约 8% 行底差分不清（直播全查 L5-4） -->
+    <item android:color="?attr/colorOnSecondaryContainer" android:state_selected="true" />
     <item android:color="@color/white" />
 </selector>

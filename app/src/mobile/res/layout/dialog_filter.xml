@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.recyclerview.widget.RecyclerView xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- 封顶照 TypeDialog 同形：CustomRecyclerView 的 app:maxHeight 真量测封顶，代码侧再按屏高比例复写（FilterDialog.initView） -->
+<com.fongmi.android.tv.ui.custom.CustomRecyclerView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/recycler"
     android:layout_width="match_parent"
@@ -10,4 +11,5 @@
     android:overScrollMode="never"
     android:paddingHorizontal="20dp"
     android:paddingVertical="20dp"
-    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+    app:maxHeight="376dp" />
