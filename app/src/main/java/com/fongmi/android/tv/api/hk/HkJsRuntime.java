@@ -267,6 +267,18 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         }
     }
 
+    /**
+     * 列表求值的分段交付作废信号（双圆点案，账 hk-loading-dots §一.5/§一.7）：
+     * PRE 段落表确认失败、汇点已记 voided 时，parse 入口以它收口——不是求值
+     * 错误、也不是顶替取消：调用方应按「本发分段没上屏、整发作废」走失败
+     * 出口，绝不把汇点合成表（内含未上屏的占位段）当结果绑上屏。
+     */
+    public static final class DeliveryVoidedException extends Exception {
+        DeliveryVoidedException() {
+            super("hk js list delivery voided: PRE segment not landed");
+        }
+    }
+
     private static final class ListEvalMark {
         final long gen;
         /**
@@ -505,21 +517,13 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         this.bindObjectListener = listener;
     }
 
-    /**
-     * S3 求值中途回页通道的宿主承接面（官 callbackHomeResult 注册回调的
-     * onSuccess 同位）：列表 parse 求值期间，PRE 段与正式 AFTER 段经
-     * HkFindDelivery 的分段监听同步递到本监听、由桥层（HkEngineBridge.
-     * parseHomeJs）转页面 bindArrayToView 分段落表。装配口径与
-     * bindObjectListener 同族：桥层在 parse 前置入、后置 null 清除，
-     * parseListInternal 在提交时捕获成本发局部、任务内挂到本发汇点上；
-     * 未置时（如 HkEngine 同步路）无通道、交付只记账走合成返回表（旧形）。
-     */
-    private volatile HkFindDelivery.SegmentListener findSegmentListener;
-
-    /** 桥层装配口：列表 parse 求值前置入分段承接、求值后置 null 清除。 */
-    public void setFindSegmentListener(HkFindDelivery.SegmentListener listener) {
-        this.findSegmentListener = listener;
-    }
+    // S3 求值中途回页通道的宿主承接面（官 callbackHomeResult 注册回调的
+    // onSuccess 同位）自双圆点案起改本发入参直挂（账 hk-loading-dots
+    // §一.7 RACE 钉根）：分段监听随 parseList 调用入参递入、任务内只挂本
+    // 发汇点——旧形经本类共享字段中转（桥写字段→提交时捕获→桥 finally
+    // 清场），同规则另一发的清场落进「已写未捕获」缝里能把本发监听清成
+    // null，PRE/AFTER 只记账不上屏、收口合成表把占位焊进正文。字段与
+    // setFindSegmentListener 装配口已整摘，无中转、无清场。
     /** refreshPage 请求标记（JS 线程写，宿主线程读后清零）。 */
     private volatile boolean refreshRequested;
     /**
@@ -9666,7 +9670,7 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     public List<HkItem> parseList(String jsCode, String myUrl, int page, Object listScope) throws Exception {
         // 先发代次、先顶掉在跑的同身份旧发再排队：它的结果必被同页 ticket 作废
         ListEvalMark mark = newListMark(listScope);
-        return parseListInternal(jsCode, myUrl, page, mark);
+        return parseListInternal(jsCode, myUrl, page, mark, null);
     }
 
     /**
@@ -9676,11 +9680,12 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
     public List<HkItem> parseListUnmarked(HkRule rule, String jsCode, String myUrl, int page) throws Exception {
         synchronized (ruleEvalLock) {
             bindRule(rule);
-            return parseListInternal(jsCode, myUrl, page, null);
+            return parseListInternal(jsCode, myUrl, page, null, null);
         }
     }
 
-    private List<HkItem> parseListInternal(String jsCode, String myUrl, int page, ListEvalMark mark) throws Exception {
+    private List<HkItem> parseListInternal(String jsCode, String myUrl, int page, ListEvalMark mark,
+                                           HkFindDelivery.SegmentListener segListener) throws Exception {
         // 提交时捕获当前绑定，任务在引擎线程开头重申：防提交与执行之间
         // 别的页 bindRule 换掉 this.rule 造成串页（与带规则入口的锁互补）
         final HkRule boundRule = this.rule;
@@ -9690,9 +9695,11 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
         // 任务局部，任务内只读/只写局部捕获，字段本体不再被任务读。
         final String boundResBody = evalResCodeBody;
         final BindObjectToViewListener boundListener = bindObjectListener;
-        // S3 回页通道承接面同口径提交时捕获（与 boundListener 同族）：任务内
-        // 只把捕获值挂到本发汇点，字段本体不被任务读、不被任务清。
-        final HkFindDelivery.SegmentListener boundSegListener = findSegmentListener;
+        // S3 回页通道承接面本发直挂（双圆点案改形，账 hk-loading-dots
+        // §一.7）：监听是调用方入参 segListener、随本发走，任务内只把它挂到
+        // 本发汇点——不再经运行时共享字段中转捕获（旧形有他发 finally 清场
+        // 把本发监听清成 null 的竞态，RACE 钉根），无字段可读可清。
+        final HkFindDelivery.SegmentListener boundSegListener = segListener;
         java.util.concurrent.Future<List<HkItem>> future = submit(() -> {
             if (boundRule != null) this.rule = boundRule;
             syncKvToBoundRule();
@@ -9784,10 +9791,22 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
                         // 按 ListEvalSupersededException 丢弃本发。
                         throw new ListEvalSupersededException();
                     }
+                    // 分段作废优先于求值错误归账（双圆点案）：PRE 落空时交付层
+                    // 抛的断求值信号可能被脚本 try/catch 接住后又以别形冒出，
+                    // 或原样穿出——汇点已记 voided 者一律按作废收口，不记求值
+                    // 错误、不回合成表。
+                    if (findSink != null && findSink.isVoided()) {
+                        throw new DeliveryVoidedException();
+                    }
                     // 之前异常直接上抛到 HkEngine.home() 被吞掉只剩 debug 日志，
                     // UI 永远只显示"加载失败"。先把根因记下来，供 getError()/空态展示。
                     error = jsErrorMsg(e);
                     throw e;
+                }
+                // 脚本把断求值信号接住、求值面看似正常收尾时同口径作废收口：
+                // 汇点合成表含没上屏的 PRE 段（占位），回它绑上屏即焊死。
+                if (findSink != null && findSink.isVoided()) {
+                    throw new DeliveryVoidedException();
                 }
                 synchronized (findSink) {
                     return new ArrayList<>(findSink.items());
@@ -9825,6 +9844,11 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
             if (ee.getCause() instanceof ListEvalSupersededException) {
                 throw (ListEvalSupersededException) ee.getCause();
             }
+            // 分段作废信号同口径解包（双圆点案）：调用方据此走作废失败出口，
+            // 不当普通求值失败归账、更不回合成表。
+            if (ee.getCause() instanceof DeliveryVoidedException) {
+                throw (DeliveryVoidedException) ee.getCause();
+            }
             throw ee;
         }
     }
@@ -9839,12 +9863,22 @@ public class HkJsRuntime implements HkSelector.JsEvaluator, Parser.JsEvaluator {
      * （见 ListEvalMark.scope），被顶掉抛 {@link ListEvalSupersededException}。
      */
     public List<HkItem> parseList(HkRule rule, String jsCode, String myUrl, int page, Object listScope) throws Exception {
+        return parseList(rule, jsCode, myUrl, page, listScope, null);
+    }
+
+    /**
+     * 带分段承接的同上入口（桥首页路专用）：segListener 随本发入参直挂本发
+     * 汇点（双圆点案，账 hk-loading-dots §一.7）——不经任何运行时共享字段
+     * 中转，他发的收尾清场够不到本发监听；null 即无求值中途回页通道。
+     */
+    public List<HkItem> parseList(HkRule rule, String jsCode, String myUrl, int page, Object listScope,
+                                  HkFindDelivery.SegmentListener segListener) throws Exception {
         // 先发代次、先顶替再抢锁：旧列表求值的调用方正持锁在 Future.get 上长等，
         // 先在锁外把在跑的同身份旧求值打断，锁才放得出来、当前求值才不必等它整段跑完。
         ListEvalMark mark = newListMark(listScope);
         synchronized (ruleEvalLock) {
             bindRule(rule);
-            return parseListInternal(jsCode, myUrl, page, mark);
+            return parseListInternal(jsCode, myUrl, page, mark, segListener);
         }
     }
 

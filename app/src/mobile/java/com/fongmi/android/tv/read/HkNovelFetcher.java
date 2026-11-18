@@ -103,10 +103,12 @@ public class HkNovelFetcher {
             HkHomeParser.findList("novel", chapterUrl, rule, rule.getFindRule(), html, 1,
                     new HashMap<>(), new HkHomeParser.Callback() {
                         @Override
-                        public void bindArrayToView(String key, List<HkItem> list) {
+                        public boolean bindArrayToView(String key, List<HkItem> list) {
+                            // 同步收下整表即落表（接口口径，账 hk-loading-dots §一.7）。
                             if (list != null) out.addAll(list);
                             bound[0] = true;
                             latch.countDown();
+                            return true;
                         }
 
                         @Override

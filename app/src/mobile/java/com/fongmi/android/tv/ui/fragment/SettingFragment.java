@@ -36,6 +36,8 @@ import org.greenrobot.eventbus.ThreadMode;
 public class SettingFragment extends BaseFragment implements ConfigListener, SiteListener, LiveListener {
 
     private FragmentSettingBinding mBinding;
+    /** 下载副题等 restore 完成的一次性补刷是否已登记（防 onResume/切签连发重复登记） */
+    private boolean downloadRestoreRefreshArmed;
 
     public static SettingFragment newInstance() {
         return new SettingFragment();
@@ -216,12 +218,26 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
                 mBinding.textXingchenSub.setText(AppVersion.fullName());
             }
         } catch (Exception e) { android.util.Log.e("SettingFragment", "refresh version subtitle failed", e); }
-        // Download subtitle - isolated：接 DownloadManager 现成任务表（DownloadActivity 同源），
-        // onResume 时 updateSubtitles 重跑，进出下载页后数字会刷新。任务表只在进程内（重启后清空），与下载页口径一致。
+        // Download subtitle - isolated：接 DownloadManager 任务表（DownloadActivity 同源），
+        // onResume 时 updateSubtitles 重跑，进出下载页后数字会刷新。任务表靠 restore 从
+        // 落盘记录灌回：呈现前先触发 restore（幂等），未完成时空表不作数——副题先留
+        // 布局缺省，完成当刻经一次性回调补刷（不然重启后没进过下载页就恒显暂无任务）。
         try {
-            if (mBinding.textDownloadSub != null) {
-                java.util.List<com.fongmi.android.tv.utils.download.DownloadTask> tasks =
-                        com.fongmi.android.tv.utils.download.DownloadManager.get().getTasks();
+            com.fongmi.android.tv.utils.download.DownloadManager dm =
+                    com.fongmi.android.tv.utils.download.DownloadManager.get();
+            dm.restore();
+            if (!dm.isRestoreCompleted()) {
+                // 布局缺省文案就是「暂无下载任务」，未完成时先清空，不许拿假空表结论示人
+                if (mBinding.textDownloadSub != null) mBinding.textDownloadSub.setText("");
+                if (!downloadRestoreRefreshArmed) {
+                    downloadRestoreRefreshArmed = true;
+                    dm.runWhenRestored(() -> {
+                        downloadRestoreRefreshArmed = false;
+                        if (mBinding != null) updateSubtitles();
+                    });
+                }
+            } else if (mBinding.textDownloadSub != null) {
+                java.util.List<com.fongmi.android.tv.utils.download.DownloadTask> tasks = dm.getTasks();
                 int active = 0;
                 int completed = 0;
                 int failed = 0;

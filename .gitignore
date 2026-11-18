@@ -30,3 +30,6 @@ third_party/sources/
 plans/
 .codex/task-state/
 docs/
+
+# 符号门 javac 参数文件（本机自查产物，不许入库）
+javac.*.args

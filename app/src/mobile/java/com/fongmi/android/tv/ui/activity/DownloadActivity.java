@@ -49,7 +49,18 @@ public class DownloadActivity extends BaseActivity {
     }
 
     private DownloadTaskAdapter adapter;
-    private final DownloadManager.Listener downloadListener = task -> refreshTasksThrottled();
+    private final DownloadManager.Listener downloadListener = new DownloadManager.Listener() {
+        @Override
+        public void onTaskChanged(DownloadTask task) {
+            refreshTasksThrottled();
+        }
+
+        @Override
+        public void onRestoreCompleted() {
+            // 件 1 恢复收口补刷：首入时压住的空态/计数靠这发落定
+            if (!isDestroyed()) refreshTasks();
+        }
+    };
     /** 进度刷新节流（DL4-10）：进度回调每分片一发，原形每发全量重绑＋全表 stat 重扫。
      *  500ms 尾沿合并——取值口径：同 App 节流族内较疏值（短剧关注链 throttleFirst 500ms 同档；
      *  KTV 音高轨 350ms 是单条进度发射、比整表重绑轻，故不取），500ms 内多次回调只补刷一次。 */
@@ -151,17 +162,24 @@ public class DownloadActivity extends BaseActivity {
     private void refreshTasks() {
         lastRefreshAtMs = android.os.SystemClock.uptimeMillis();
         List<DownloadTask> tasks = DownloadManager.get().getTasks();
-        binding.tvEmpty.setVisibility(tasks.isEmpty() ? View.VISIBLE : View.GONE);
+        boolean restored = DownloadManager.get().isRestoreCompleted();
+        // 件 1 恢复时机：对账未完成时内存表还没灌回，空表不作数——不画空态、
+        // 不露「共 0 个任务」，等 onRestoreCompleted 补刷落定；进程内再入
+        // restore 早已完成，照旧即时画。灌回途中逐条到的任务照常先上列表。
+        binding.tvEmpty.setVisibility(restored && tasks.isEmpty() ? View.VISIBLE : View.GONE);
         binding.rvDownloads.setVisibility(tasks.isEmpty() ? View.GONE : View.VISIBLE);
+        binding.tvCount.setVisibility(restored ? View.VISIBLE : View.GONE);
         if (adapter != null) adapter.setTasks(tasks);
-        // 副行「共 N 个任务 · 占用 X」：占用含文件 stat，后台算完回填
-        Task.execute(() -> {
-            long usage = DownloadManager.get().totalUsageBytes();
-            com.fongmi.android.tv.App.post(() -> {
-                if (isFinishing() || isDestroyed()) return;
-                binding.tvCount.setText("共 " + tasks.size() + " 个任务 · 占用 " + DownloadTask.formatSize(usage));
+        if (restored) {
+            // 副行「共 N 个任务 · 占用 X」：占用含文件 stat，后台算完回填
+            Task.execute(() -> {
+                long usage = DownloadManager.get().totalUsageBytes();
+                com.fongmi.android.tv.App.post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    binding.tvCount.setText("共 " + tasks.size() + " 个任务 · 占用 " + DownloadTask.formatSize(usage));
+                });
             });
-        });
+        }
         maybeShowCapacityReport();
     }
 

@@ -189,8 +189,19 @@ public class App extends Application implements Application.ActivityLifecycleCal
         // 类名拆字串＋反射，同上方 LabBoot 与本文件备份避让的桥化
         // 口径：朋友版导出手术摘短剧本体，硬引用与整串类名都会卡
         // 导出/特征词扫；类不在时静默跳过。
+        // 点火挂「启动直达短剧」开关（2026-11-18，账 redo-batch1
+        // -20261118）：延迟帖发火前先经同一反射口读偏好源
+        // .isLaunchDirect（与根页直达判定同一偏好源）——开关开才
+        // 点火；关则本帖直接返回，开机一字不碰引擎（类都不加载），
+        // 引擎装载回到「点进短剧那一下」的入场门点火。开关类不在
+        // （朋友版已摘短剧本体）同样按关处理：无引擎可点、静默跳过。
         post(() -> {
             try {
+                Object direct = Class.forName("com.fongmi.android.tv." + "hong" + "guo"
+                                + ".ui." + "Hg" + "Store")
+                        .getMethod("isLaunchDirect")
+                        .invoke(null);
+                if (!Boolean.TRUE.equals(direct)) return;
                 Class.forName("com.fongmi.android.tv." + "hong" + "guo"
                                 + ".engine." + "Hg" + "EngineRuntime")
                         .getMethod("prewarm")

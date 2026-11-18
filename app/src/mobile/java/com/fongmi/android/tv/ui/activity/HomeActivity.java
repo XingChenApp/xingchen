@@ -462,18 +462,7 @@ public class HomeActivity extends BaseActivity implements XcBottomBar.OnItemSele
             }
             return insets;
         });
-        // 状态栏压暗罩（Hm-5）：高度跟状态栏真实 inset 走，状态栏隐藏（网页沉浸等）时归零不留空带；不消费 inset，下游照旧
-        ViewCompat.setOnApplyWindowInsetsListener(mBinding.statusScrim, (v, insets) -> {
-            int top = insets.isVisible(WindowInsetsCompat.Type.statusBars()) ? insets.getInsets(WindowInsetsCompat.Type.statusBars()).top : 0;
-            ViewGroup.LayoutParams lp = v.getLayoutParams();
-            if (lp.height != top) {
-                lp.height = top;
-                v.setLayoutParams(lp);
-            }
-            return insets;
-        });
         ViewCompat.requestApplyInsets(mBinding.navigation);
-        ViewCompat.requestApplyInsets(mBinding.statusScrim);
     }
 
     /** MiniBarHost：迷你条贴在底栏上方，多留底栏高度。 */

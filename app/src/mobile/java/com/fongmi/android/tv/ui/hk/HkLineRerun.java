@@ -131,13 +131,16 @@ public final class HkLineRerun {
                     .params(context, 1, true, sub, Boolean.TRUE, Boolean.FALSE)
                     .process("ARTICLE_LIST", new HkArticleListModel.Callback() {
                         @Override
-                        public void bindArrayToView(String key, List<HkItem> list) {
+                        public boolean bindArrayToView(String key, List<HkItem> list) {
+                            // 本消费方在调用线程同步收下整表（无页面落表一环），
+                            // 落表回报恒 true（接口口径，账 hk-loading-dots §一.7）。
                             List<Ep> episodes = collect(list, prefix, pageCah);
                             if (episodes.isEmpty()) {
                                 guarded.onError("该线路没有可播的集，请换一条线路");
                             } else {
                                 guarded.onEpisodes(episodes);
                             }
+                            return true;
                         }
 
                         @Override

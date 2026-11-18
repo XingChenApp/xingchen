@@ -30,7 +30,12 @@ public class HkArticleListModel {
 
     /** 对应原版 BaseCallback&lt;ArticleList&gt;。 */
     public interface Callback {
-        void bindArrayToView(String key, List<HkItem> list);
+        /**
+         * 落表回报：true＝已真落到页面活表；false＝未落表（票据失效被吞、
+         * 或落表等待没等到）。分段 PRE 的落表确认靠它回求值线程（账
+         * hk-loading-dots §一.5/§一.7），非分段绑不读此回报。
+         */
+        boolean bindArrayToView(String key, List<HkItem> list);
 
         void bindObjectToView(String key, HkItem item);
 
@@ -313,8 +318,11 @@ public class HkArticleListModel {
         }
 
         @Override
-        public void bindArrayToView(String key, List<HkItem> list) {
-            if (isValid()) baseCallback.bindArrayToView(key, list);
+        public boolean bindArrayToView(String key, List<HkItem> list) {
+            // 票据失效被吞＝没落表，如实回 false（分段 PRE 据此作废本发；
+            // 票据环本身是官同形、不动，账 hk-loading-dots §一.7 TICKET 臂）。
+            if (!isValid()) return false;
+            return baseCallback.bindArrayToView(key, list);
         }
 
         @Override
@@ -354,11 +362,11 @@ public class HkArticleListModel {
         }
 
         @Override
-        public void bindArrayToView(String key, List<HkItem> list) {
+        public boolean bindArrayToView(String key, List<HkItem> list) {
             if (list != null && !list.isEmpty() && isValid() && bridge != null) {
                 bridge.updateMemoryPage(rule.getUrl(), rule.getTitle(), finalPage);
             }
-            baseCallback.bindArrayToView(key, list);
+            return baseCallback.bindArrayToView(key, list);
         }
 
         @Override

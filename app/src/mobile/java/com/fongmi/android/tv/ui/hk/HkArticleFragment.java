@@ -1737,14 +1737,20 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
     }
 
     @Override
-    public void bindArrayToView(String key, List<HkItem> list) {
-        bindArrayToView(key, list, false);
+    public boolean bindArrayToView(String key, List<HkItem> list) {
+        return bindArrayToView(key, list, false);
     }
 
-    /** 照抄原版 bindArrayToView(String, List, boolean)。 */
-    public void bindArrayToView(String key, List<HkItem> list, boolean fromCache) {
-        if (getContext() == null) return;
-        if (fromCache && adapter != null && !adapter.getList().isEmpty()) return;
+    /**
+     * 照抄原版 bindArrayToView(String, List, boolean)。
+     * 落表回报（双圆点案补，账 hk-loading-dots §一.5/§一.7）：回本发的落表体
+     * 是否真在 UI 线程跑完——分段 PRE 靠它回求值线程确认，落空即本发作废；
+     * 上下文已没了回 false；缓存已在屏的跳绑回 true（内容已在屏上、无需落）。
+     * 非分段调用方不读此回报，行为不变。
+     */
+    public boolean bindArrayToView(String key, List<HkItem> list, boolean fromCache) {
+        if (getContext() == null) return false;
+        if (fromCache && adapter != null && !adapter.getList().isEmpty()) return true;
         boolean isNew = !TextUtils.isEmpty(key) && key.endsWith("ARTICLE_LIST_NEW");
         boolean isPre = !TextUtils.isEmpty(key) && key.startsWith("ARTICLE_LIST_PRE");
         boolean isAfter = !TextUtils.isEmpty(key) && key.startsWith("ARTICLE_LIST_AFTER");
@@ -1765,13 +1771,20 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         injectTextConfig(list);
         updateReadLayout(list);
         try {
-            runWaitUI(() -> applyListToView(isNew, isPre, isAfter, articlesIdStr, fromCache, list, key));
+            boolean landed = runWaitUI(() -> applyListToView(isNew, isPre, isAfter, articlesIdStr, fromCache, list, key));
+            if (!landed) {
+                // 落表没等到（超时/中断）：如实回报未落——分段 PRE 的调用方据
+                // 此作废本发（交付层收口），本口不另走 error 出口、不重试。
+                SpiderDebug.log("hk", "bindArrayToView 落表未落地 key=%s", key);
+            }
+            return landed;
         } catch (Exception e) {
             // 新数据落表失败不再静默停在旧内容/加载态（残项处置 2026-11-14）：
             // 走本页既有 error 失败出口（收圈、页码回退、错误窗显形）。
             SpiderDebug.log("hk", "bindArrayToView runWaitUI failed key=%s err=%s", key, e.toString());
             Log.e(TAG, "bindArrayToView 落表失败", e);
             error("解析失败", "页面数据展示失败：" + e, "500", e);
+            return false;
         }
     }
 
@@ -2023,34 +2036,45 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                 && java.util.Objects.equals(stableExtra(a.getExtra()), stableExtra(b.getExtra()));
     }
 
-    /** 照抄原版 runWaitUI：投递到 UI 线程并以 CountDownLatch 等待（最长 30 秒）；已在 UI 线程时直接跑。 */
-    private void runWaitUI(Runnable runnable) {
+    /**
+     * 照抄原版 runWaitUI：投递到 UI 线程并以 CountDownLatch 等待（最长 30 秒）；已在 UI 线程时直接跑。
+     * 落表回报（双圆点案补，账 hk-loading-dots §一.5/§一.7）：回 true 当且仅当
+     * 投递体在等待内真跑完；超时/被中断回 false 并留日志——旧形把 await 结果
+     * 扔掉、异常吞掉、零日志，PRE 绑落空时求值无声继续跑到删令，删令撞空表
+     * 被丢、占位焊死。回 false 的处置在调用方（分段 PRE 据此作废本发），本
+     * 口只负责如实回报，不在此加重试/兜底。
+     */
+    private boolean runWaitUI(Runnable runnable) {
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
             runnable.run();
-            return;
+            return true;
         }
         java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        boolean[] completed = {false};
+        Runnable posted = () -> {
+            try {
+                runnable.run();
+                completed[0] = true;
+            } finally {
+                latch.countDown();
+            }
+        };
         if (getActivity() != null) {
-            getActivity().runOnUiThread(() -> {
-                try {
-                    runnable.run();
-                } finally {
-                    latch.countDown();
-                }
-            });
+            getActivity().runOnUiThread(posted);
         } else {
-            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                try {
-                    runnable.run();
-                } finally {
-                    latch.countDown();
-                }
-            });
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(posted);
         }
         try {
-            latch.await(30, java.util.concurrent.TimeUnit.SECONDS);
-        } catch (Exception ignored) {
+            if (!latch.await(30, java.util.concurrent.TimeUnit.SECONDS)) {
+                SpiderDebug.log("hk", "runWaitUI 落表等待超时（30s）未落地");
+                return false;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            SpiderDebug.log("hk", "runWaitUI 落表等待被中断 err=%s", e.toString());
+            return false;
         }
+        return completed[0];
     }
 
     private void clearGlideMemory() {

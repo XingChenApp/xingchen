@@ -30,6 +30,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * 里、删除事件到页面时无对象可删（占位永不撤）。故 Sink 可挂一只分段监听：
  * deliverPre 记账后、deliver 打出 AFTER 段时，同步（求值线程）把该段递给
  * 监听——与官回调同位同时机；无监听时行为与旧形逐字一致（合成返回表）。
+ *
+ * 落表确认与作废（双圆点案 §一.5/§一.7，账 hk-loading-dots-dig-20261118）：
+ * 官不变量是 PRE 段先落在活表上、求值才继续。监听 onSegment 回报本段是否
+ * 真落表；PRE 段回报未落（如页面落表等待超时）时本发当场作废：汇点记
+ * voided、deliverPre 抛 SegmentVoidedException 断掉本发求值——不许带着没
+ * 上屏的 PRE 继续跑到删令与正式交付（继续跑的终态是删令撞空表被丢、合成
+ * 表重绑把占位焊进正文）。作废后本汇点不再递任何段；parse 入口见 voided
+ * 改抛 HkJsRuntime.DeliveryVoidedException，不回合成表。
  */
 public final class HkFindDelivery {
 
@@ -40,9 +48,23 @@ public final class HkFindDelivery {
      * 分段交付监听（官 callbackHomeResult 注册回调的 onSuccess 同位）：PRE 段
      * 在求值中途触发、AFTER 段在正式交付触发，均在求值线程同步回调；载荷为
      * 该段条目的副本。phase=null 的单段正式交付不经此口（调用方走合成返回表）。
+     * 返回值＝本段是否真落到页面活表上（落表确认，账 hk-loading-dots §一.7）：
+     * PRE 段回 false 触发本发作废（见类头注）；AFTER 段的返回值只经
+     * notifySegment 透出、deliver 不据此改记账。
      */
     public interface SegmentListener {
-        void onSegment(String phase, List<HkItem> items);
+        boolean onSegment(String phase, List<HkItem> items);
+    }
+
+    /**
+     * PRE 段落表确认失败、本发作废的断求值信号（运行时异常：须穿过 Rhino
+     * 交付口回到求值控制流，脚本侧 try/catch 接住与否都不改作废事实——汇点
+     * 已记 voided，parse 入口据此改抛 DeliveryVoidedException 收口）。
+     */
+    public static final class SegmentVoidedException extends RuntimeException {
+        SegmentVoidedException(String key) {
+            super("hk find segment PRE not landed, delivery voided (key=" + key + ")");
+        }
     }
 
     /** 一次交付：phase 标记（PRE/AFTER/null）＋本段条目。 */
@@ -63,6 +85,7 @@ public final class HkFindDelivery {
         private final List<Delivery> deliveries = new ArrayList<>();
         private final List<HkItem> items = new ArrayList<>();
         private boolean closed;
+        private volatile boolean voided;
         private volatile SegmentListener segmentListener;
 
         Sink(String key, String type) {
@@ -75,11 +98,26 @@ public final class HkFindDelivery {
             this.segmentListener = listener;
         }
 
-        /** 把一段交付同步递给监听（求值线程）；无监听/空载荷（记账形）不递。 */
-        void notifySegment(String phase, List<HkItem> payload) {
+        /**
+         * 把一段交付同步递给监听（求值线程），回报是否真落表：无监听/空载荷
+         * （记账形）不递、恒报 true（无通道即无确认义务，旧形）；本汇点已
+         * 作废时不再递任何段、报 false。监听自身回什么报什么。
+         */
+        boolean notifySegment(String phase, List<HkItem> payload) {
+            if (voided) return false;
             SegmentListener listener = segmentListener;
-            if (listener == null || payload == null) return;
-            listener.onSegment(phase, new ArrayList<>(payload));
+            if (listener == null || payload == null) return true;
+            return listener.onSegment(phase, new ArrayList<>(payload));
+        }
+
+        /** 本发是否已因 PRE 落空作废（parse 入口据此改抛作废异常、不回合成表）。 */
+        public boolean isVoided() {
+            return voided;
+        }
+
+        /** 记作废（deliverPre 在 PRE 落表确认失败时调，此后本汇点不再递段）。 */
+        void markVoided() {
+            voided = true;
         }
 
         public String key() {
@@ -148,7 +186,13 @@ public final class HkFindDelivery {
         sink.add(PHASE_PRE, payload);
         // 求值中途回页（官 onSuccess(PRE) 同位）：占位段先上屏，后续条目修改
         // 事件才有活表可删（S3）。监听回调在求值线程同步跑完才继续求值。
-        sink.notifySegment(PHASE_PRE, payload);
+        // 落表确认（账 hk-loading-dots §一.5/§一.7）：PRE 没真落到活表上即
+        // 本发作废——记 voided 并抛断求值，不许继续跑到删令（删令只会撞空
+        // 表被丢）与正式交付（合成表重绑会把占位焊进正文）。
+        if (!sink.notifySegment(PHASE_PRE, payload)) {
+            sink.markVoided();
+            throw new SegmentVoidedException(sink.key());
+        }
         return true;
     }
 

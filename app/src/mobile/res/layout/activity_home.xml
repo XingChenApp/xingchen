@@ -4,15 +4,6 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
-    <!-- 状态栏压暗罩（Hm-5）：状态栏白图标压任意自选壁纸无兜底，亮壁纸上看不清。
-         高度由 HomeActivity 按状态栏真实 inset 写入（隐藏时归零），罩值与详情页顶罩同定值；
-         层级在 container 之下、短剧舞台之下，只罩状态栏这一条，不压顶栏玻璃胶囊。 -->
-    <View
-        android:id="@+id/status_scrim"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_alignParentTop="true"
-        android:background="@drawable/shape_page_top_scrim" />
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/container"
         android:layout_width="match_parent"

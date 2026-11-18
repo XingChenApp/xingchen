@@ -39,7 +39,13 @@ public final class HkHomeParser {
 
     /** 对应 BaseCallback&lt;ArticleList&gt; 的两法（桥适配到 Model 的 Callback）。 */
     public interface Callback {
-        void bindArrayToView(String key, List<HkItem> list);
+        /**
+         * 落表回报：true＝本段已真落到页面活表（或已被消费方同步收下）；
+         * false＝未落表。分段 PRE 的落表确认靠它回求值线程（账
+         * hk-loading-dots §一.5/§一.7）：PRE 回 false 即本发作废，不许带着
+         * 没上屏的占位段继续跑到删令。非分段的普通整表绑不读此回报。
+         */
+        boolean bindArrayToView(String key, List<HkItem> list);
 
         /** 环 25-1：官 BaseArticleCallback.bindObjectToView——addListener 的
          * onUpdate(key, value) 以仅 title=value 的条目绑回、页面按 key 分发。

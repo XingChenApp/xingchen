@@ -216,16 +216,20 @@ public final class HkEngineBridge implements HkArticleListModel.EngineBridge {
             // PRE 段在求值中途以本载 key 落替换路先上屏（占位得见、删除事件有
             // 活表可删），正式段以 AFTER key 落追加路；分段收口后不再整表重绑
             // ——合成表含已删占位、重绑会令占位复活。无 PRE 的普通载行为不变。
+            // 递交改本发直挂（双圆点案，账 hk-loading-dots §一.7 RACE 钉根）：
+            // 监听只活在本发局部、随下方 parseList 入参递进运行时挂本发汇点；
+            // 旧形写运行时共享字段＋finally 清场，同规则另一发的清场能落进
+            // 「已写未捕获」缝把本发监听清成 null（PRE 只记账不上屏、收口合
+            // 成表焊死占位）。监听回报落表与否：PRE 未落由交付层当场作废本发。
             java.util.concurrent.atomic.AtomicBoolean segmented =
                     new java.util.concurrent.atomic.AtomicBoolean(false);
-            rt.setFindSegmentListener((phase, segItems) -> {
+            HkFindDelivery.SegmentListener segListener = (phase, segItems) -> {
                 if (HkFindDelivery.PHASE_AFTER.equals(phase)) {
                     segmented.set(true);
-                    callback.bindArrayToView(HkFindDelivery.PHASE_AFTER, segItems);
-                } else {
-                    callback.bindArrayToView(key, segItems);
+                    return callback.bindArrayToView(HkFindDelivery.PHASE_AFTER, segItems);
                 }
-            });
+                return callback.bindArrayToView(key, segItems);
+            };
             // 预抓正文必须递进运行时：getResCode() 靠它取首页 HTML。搜索路（parseSearchJs）
             // 与 HkEngine.home 都设了，唯独首页这条漏了——靠 getResCode 的规则（如漫小肆）
             // 拿到的恒是空正文，列表解析全空、轮播类脚本直接崩（item.img of undefined）。
@@ -233,17 +237,23 @@ public final class HkEngineBridge implements HkArticleListModel.EngineBridge {
             List<HkItem> list;
             try {
                 // 走第①块备好的带规则重载：求值前按当前页规则重绑（与 runtimeFor 的重绑同口径，双保险）
-                // 顶替身份随 options 自模型递入：顶替只在本页面的新发之间（账 hk-import-firstload-empty-dig §六.1）
+                // 顶替身份随 options 自模型递入：顶替只在本页面的新发之间（账 hk-import-firstload-empty-dig §六.1）；
+                // 无身份时自成一个新身份（与旧四参重载内部 new Object() 同义）。
+                // 分段监听随本发入参直递（见上方 segListener 注），finally 无清场。
                 Object evalScope = options == null ? null : options.get(HkArticleListModel.KEY_LIST_EVAL_SCOPE);
-                list = evalScope != null
-                        ? rt.parseList(rule, findRule, url, page, evalScope)
-                        : rt.parseList(rule, findRule, url, page);
+                list = rt.parseList(rule, findRule, url, page,
+                        evalScope != null ? evalScope : new Object(), segListener);
             } finally {
                 rt.setEvalResCodeBody(null);
                 rt.setBindObjectToViewListener(null);
-                rt.setFindSegmentListener(null);
             }
             if (!segmented.get()) callback.bindArrayToView(key, list);
+        } catch (HkJsRuntime.DeliveryVoidedException voided) {
+            // 分段作废（双圆点案，账 hk-loading-dots §一.5/§一.7）：PRE 段没
+            // 真落到活表上、本发已在交付层作废——不回合成表（内含没上屏的
+            // 占位段、绑上即焊死），走本页失败出口让这一发显式失败，不装成功。
+            SpiderDebug.log("hk", "hk: home findList delivery voided rule=%s", rule.getTitle());
+            callback.error("JS解析失败", rule.getTitle() + "解析失败！分段数据未能上屏，本次加载作废", "404", null);
         } catch (HkJsRuntime.ListEvalSupersededException cancelled) {
             // 本发已被同页面更新的加载顶替（取消语义）：静默丢弃——不回空表、
             // 不报解析失败，继任发的回调自会落页（官形：结果真假与上屏分离）。
@@ -308,8 +318,10 @@ public final class HkEngineBridge implements HkArticleListModel.EngineBridge {
         HkHomeParser.findList(actionType, url, rule, findRule, html, page, injectMap,
                 new HkHomeParser.Callback() {
                     @Override
-                    public void bindArrayToView(String key, List<HkItem> list) {
-                        callback.bindArrayToView(key, list);
+                    public boolean bindArrayToView(String key, List<HkItem> list) {
+                        // 落表回报原样透传（分段 PRE 确认链的一环，账
+                        // hk-loading-dots §一.7）。
+                        return callback.bindArrayToView(key, list);
                     }
 
                     @Override

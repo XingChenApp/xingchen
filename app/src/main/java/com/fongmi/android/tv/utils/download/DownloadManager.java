@@ -54,6 +54,10 @@ public class DownloadManager {
     // （上次落盘时刻＋百分比），DB 只是展示/恢复口径，不跟回调同频写库。
     private final java.util.concurrent.atomic.AtomicBoolean restoreStarted =
             new java.util.concurrent.atomic.AtomicBoolean();
+    // 恢复完成信号：restore 收口处置位＋发等待者/监听——呈现层判读任务表
+    // 是否可信的唯一口（未完成时空表只是「还没灌回来」，不许当成没任务）。
+    private volatile boolean restoreCompleted;
+    private final List<Runnable> restoreWaiters = new ArrayList<>();
     private final Map<String, long[]> persistMarks = new ConcurrentHashMap<>();
 
     /** 被 pause 摘除的一组下载器（同一任务至多一种），等它们全部收尾才算停稳。 */
@@ -87,6 +91,11 @@ public class DownloadManager {
 
     public interface Listener {
         void onTaskChanged(DownloadTask task);
+
+        /** 件 1 恢复对账完成（restore 灌回内存表＋收编后只发一发）：完成前
+         * 任务表可能还是空的，呈现层收到这发才把读到的表当真。 */
+        default void onRestoreCompleted() {
+        }
     }
 
     public static synchronized DownloadManager get() {
@@ -616,7 +625,7 @@ public class DownloadManager {
 
     /**
      * 件 1 恢复对账：幂等只跑一次，触发点＝DownloadActivity 首开 /
-     * DownloadService 启动 / 首次 add，谁先到谁触发。不在 App.onCreate
+     * DownloadService 启动 / 首次 add / 设置页副题读点，谁先到谁触发。不在 App.onCreate
      * 同步做，全程后台线程：读记录→逐条对账→灌回内存表→扫盘收编孤儿。
      */
     public void restore() {
@@ -634,7 +643,42 @@ public class DownloadManager {
                 }
             }
             adoptOrphans(knownPaths);
+            markRestoreCompleted();
             onRestoreDone();
+        });
+    }
+
+    /** 恢复对账是否已完成：false 时 getTasks() 读到的空表不作数 */
+    public boolean isRestoreCompleted() {
+        return restoreCompleted;
+    }
+
+    /**
+     * 等恢复完成的一次性回调（给不常驻监听的呈现读点用，如设置页副题）：
+     * 已完成立即主线程发；未完成登记，完成当刻发后即摘，不留常驻。
+     */
+    public void runWhenRestored(Runnable action) {
+        if (action == null) return;
+        synchronized (restoreWaiters) {
+            if (!restoreCompleted) {
+                restoreWaiters.add(action);
+                return;
+            }
+        }
+        App.post(action);
+    }
+
+    /** 恢复完成收口：先置位再发信号，保证回调里回读 isRestoreCompleted() 已为真 */
+    private void markRestoreCompleted() {
+        List<Runnable> waiters;
+        synchronized (restoreWaiters) {
+            restoreCompleted = true;
+            waiters = new ArrayList<>(restoreWaiters);
+            restoreWaiters.clear();
+        }
+        App.post(() -> {
+            for (Runnable waiter : waiters) waiter.run();
+            for (Listener l : new ArrayList<>(listeners)) l.onRestoreCompleted();
         });
     }
 
