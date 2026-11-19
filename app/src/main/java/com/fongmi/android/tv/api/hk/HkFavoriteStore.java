@@ -213,6 +213,25 @@ public class HkFavoriteStore {
     }
 
     /**
+     * 按规则整批删除（删规则连带清，宿主面）：只摘 ruleTitle 命中的记录，
+     * 其余规则的收藏不动。与其它写路径同一严格口：盘上记录解析失败
+     * （tryReadAll 回 null）时中止回 false，不许拿空表覆盖可能完好的数据。
+     */
+    public static boolean removeByRule(String ruleTitle) {
+        if (TextUtils.isEmpty(ruleTitle)) return false;
+        List<HkFavorite> list = tryReadAll();
+        if (list == null) return false;
+        boolean changed = false;
+        for (int i = list.size() - 1; i >= 0; i--) {
+            if (ruleTitle.equals(list.get(i).getRuleTitle())) {
+                list.remove(i);
+                changed = true;
+            }
+        }
+        return !changed || writeAll(list);
+    }
+
+    /**
      * 历史数据迁移（一次性）：此前海阔详情星标误写入主 App Keep 的记录
      * （key = hk_规则名@@@集地址@@@cid）搬回海阔收藏，原 Keep 行删除。
      * 后台线程执行，幂等（prefs 标记）。

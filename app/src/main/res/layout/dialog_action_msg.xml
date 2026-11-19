@@ -14,6 +14,15 @@
         android:textSize="16sp"
         android:textStyle="bold" />
 
+    <ImageView
+        android:id="@+id/actionMsgImage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:adjustViewBounds="true"
+        android:scaleType="fitCenter"
+        android:visibility="gone" />
+
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

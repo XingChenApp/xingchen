@@ -256,6 +256,7 @@ public class ListenMiniBar implements MiniBarPolicy.Actions {
     }
 
 
+
     /**
      * 听书条白名单（潇洒哥 2026-10-29 亲定「只在阅读页显示，别处一律不挂」）：
      * 听书会话（audiobook／tts）只许在阅读页（ui.activity.ReadingShelfActivity，
@@ -273,7 +274,7 @@ public class ListenMiniBar implements MiniBarPolicy.Actions {
      */
     private boolean isListenOffReadingPage(Activity host, String visibleId) {
         return !"com.fongmi.android.tv.ui.activity.ReadingShelfActivity"
-                        .equals(host.getClass().getName());
+                .equals(host.getClass().getName());
     }
 
     private void attachBar(Activity host, String visibleId) {
@@ -308,20 +309,20 @@ public class ListenMiniBar implements MiniBarPolicy.Actions {
             }
             detachBar();
         }
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+        FrameLayout.LayoutParams lp;
+        lp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.gravity = Gravity.BOTTOM;
-        // 2026-10-25 用户点名改悬浮：音乐条往上抬、两边收——左右边距 16dp、底浮空 18dp
-        // （见 bottomMargin 音乐分支），配条布局 elevation 12dp 拉开层次；听书条不动。
+        // 2026-10-25 用户点名改悬浮：条往上抬、两边收——左右边距 16dp、底浮空 18dp
+        // （见 bottomMargin），配条布局 elevation 12dp 拉开层次
         int side = ReadingSkin.dp(host, 16);
         lp.leftMargin = side;
         lp.rightMargin = side;
         lp.bottomMargin = bottomMargin(host);
         decor.addView(barView, lp);
         hostRef = new WeakReference<>(host);
-        // 条自身淡入（200ms；页面级过渡这批不做，等海阔试水后统一上）；
-        // 例外：播放页收回落点重挂——契约旗在时免淡入直接满显，防落点闪一下
+        // 条自身淡入（200ms；页面级过渡这批不做，等海阔试水后统一上）
         try {
             barView.animate().cancel();
             barView.setAlpha(0f);
@@ -343,7 +344,10 @@ public class ListenMiniBar implements MiniBarPolicy.Actions {
         if (host instanceof MiniBarHost) {
             try {
                 extra = ((MiniBarHost) host).miniBarBottomExtraPx();
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                // 宿主报底距抛错不许空吞成 0（B12 留痕）：条会贴错位，日志里要能查到是谁
+                SpiderDebug.log("minibar", "miniBarBottomExtraPx failed host=%s err=%s",
+                        host.getClass().getName(), t);
             }
         }
         return nav + extra + ReadingSkin.dp(host, 12);
@@ -569,9 +573,6 @@ public class ListenMiniBar implements MiniBarPolicy.Actions {
         }
         btnPlay.setImageResource(playing ? R.drawable.ic_music_pause : R.drawable.ic_music_play);
     }
-
-
-
 
 
 

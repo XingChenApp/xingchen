@@ -185,13 +185,12 @@ public final class ChoiceDialog extends DialogFragment {
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setContentView(createView(LayoutInflater.from(requireContext())));
         dialog.setCanceledOnTouchOutside(true);
+        // 摆位在 show 之前落定（原 onStart 里整段改窗是出框后再定尺寸，会动一下）
+        applyWindow(dialog);
         return dialog;
     }
 
-    @Override
-    public void onStart() {
-        super.onStart();
-        Dialog dialog = getDialog();
+    private void applyWindow(Dialog dialog) {
         Window window = dialog == null ? null : dialog.getWindow();
         if (window == null) return;
         WindowManager.LayoutParams params = window.getAttributes();
@@ -204,6 +203,14 @@ public final class ChoiceDialog extends DialogFragment {
         window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
         window.setAttributes(params);
         window.setLayout(params.width, params.height);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        Dialog dialog = getDialog();
+        Window window = dialog == null ? null : dialog.getWindow();
+        if (window == null) return;
         window.getDecorView().post(this::focusSelectedItem);
     }
 

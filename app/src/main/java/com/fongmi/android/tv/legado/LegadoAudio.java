@@ -137,37 +137,8 @@ public class LegadoAudio {
         for (String line : text.split("\\r?\\n")) {
             String u = line.trim();
             if (u.startsWith("http://") || u.startsWith("https://")) return u;
-            // 短剧听书的正文段回的是进程内令牌标识（修复批件一 1B，
-            // 形态判读的定义在注册表一处）：它就是本章的播放地址，
-            // 同认。判读经下方反射口问注册表，本文件不留类名整串
-            // （剥离后要留下的文件，整串会让剥离终检误炸；剥离版
-            // 注册表不在位、问不到按不是处理，与旧形同义）。
-            if (isDramaStreamUri(u)) return u;
         }
         return "";
-    }
-
-    // 短剧令牌注册表类名拆开拼（同 legado 桥的现成体例）。
-    private static final String STREAM_REGISTRY =
-            "com.fongmi.android.tv.hon" + "guo.proxy.Hg" + "StreamRegistry";
-
-    private static volatile java.lang.reflect.Method streamUriMethod;
-    private static volatile boolean streamUriTried;
-
-    /** 问注册表的令牌标识判读（反射装配＋一次缓存；不在位恒 false）。 */
-    private static boolean isDramaStreamUri(String u) {
-        try {
-            if (!streamUriTried) {
-                streamUriTried = true;
-                streamUriMethod = Class.forName(STREAM_REGISTRY)
-                        .getMethod("isPlaybackUri", String.class);
-            }
-            if (streamUriMethod == null) return false;
-            Object r = streamUriMethod.invoke(null, u);
-            return r instanceof Boolean && (Boolean) r;
-        } catch (Throwable ignored) {
-            return false;
-        }
     }
 
     private static String msg(Throwable t) {

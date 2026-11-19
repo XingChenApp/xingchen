@@ -46,4 +46,18 @@ public abstract class BaseAlertDialog extends DialogFragment {
         params.width = (int) (ResUtil.getScreenWidth() * factor);
         getDialog().getWindow().setAttributes(params);
     }
+
+    /**
+     * onCreateDialog 专用法：彼时 getDialog() 尚为空，只能对 super 返回的本地
+     * dialog 落宽。居中框摆位口径（2026-11-16 定案＋2026-11-20 全修批）：宽高与
+     * 位置必须在 show 之前落定、首帧即终态——子类把原 onStart 里的 setWidth /
+     * setLayout 改到 onCreateDialog 里对本地 dialog 调用本法或同形语句，
+     * 不再在 onStart 里改窗。
+     */
+    protected void setWidth(Dialog dialog, float factor) {
+        if (dialog == null || dialog.getWindow() == null) return;
+        WindowManager.LayoutParams params = dialog.getWindow().getAttributes();
+        params.width = (int) (ResUtil.getScreenWidth() * factor);
+        dialog.getWindow().setAttributes(params);
+    }
 }

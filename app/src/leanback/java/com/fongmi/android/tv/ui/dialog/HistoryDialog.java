@@ -1,5 +1,10 @@
 package com.fongmi.android.tv.ui.dialog;
 
+import android.app.Dialog;
+import android.os.Bundle;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentActivity;
 import androidx.viewbinding.ViewBinding;
 
@@ -99,9 +104,17 @@ public class HistoryDialog extends BaseAlertDialog implements ConfigAdapter.OnCl
     }
 
     @Override
+    @NonNull
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里 setWidth 是出框后改宽，会动一下）；
+        // 列表为空时 onStart 仍会自关，宽先落不影响那条路
+        setWidth(dialog, 0.4f);
+        return dialog;
+    }
+
     public void onStart() {
         super.onStart();
         if (adapter.getItemCount() == 0) dismiss();
-        else setWidth(0.4f);
     }
 }

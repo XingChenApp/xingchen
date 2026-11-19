@@ -7,6 +7,7 @@ import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.setting.Setting;
 
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -60,6 +61,24 @@ public final class HkHistoryRecorder {
         return HkDetailBridge.siteKey(resTitle)
                 + AppDatabase.SYMBOL + id
                 + AppDatabase.SYMBOL + VodConfig.getCid();
+    }
+
+    /**
+     * 删规则连带清历史（宿主面，同步直删，与本类读口同线程口径）：该规则
+     * 名下全部 History 行逐行走行实例 delete()（连带 Track 行，与点播侧
+     * Config.delete 连带删历史的行级同形）。键前缀＝站点段＋分隔符
+     * （{@code hk_<标题>@@@}，@@@ 终止防标题互为前缀误伤，如「聚」与
+     * 「聚阅」）；DAO 前缀查不设时间窗，历史页不可见的过期行一并清。
+     */
+    public static void deleteByRule(String resTitle) {
+        if (TextUtils.isEmpty(resTitle)) return;
+        String prefix = HkDetailBridge.siteKey(resTitle) + AppDatabase.SYMBOL;
+        List<History> rows = AppDatabase.get().getHistoryDao()
+                .findByKeyPrefix(VodConfig.getCid(), prefix);
+        if (rows == null) return;
+        for (History h : rows) {
+            if (h != null) h.delete();
+        }
     }
 
     public static History findByKey(String key) {

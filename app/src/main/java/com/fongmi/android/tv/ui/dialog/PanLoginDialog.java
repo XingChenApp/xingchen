@@ -1,6 +1,8 @@
 package com.fongmi.android.tv.ui.dialog;
 
+import android.app.Dialog;
 import android.graphics.Bitmap;
+import android.os.Bundle;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
@@ -15,6 +17,8 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.viewbinding.ViewBinding;
@@ -127,18 +131,25 @@ public class PanLoginDialog extends BaseAlertDialog {
     }
 
     @Override
+    @NonNull
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里 configureWindow 是出框后改宽高，会动一下）
+        configureWindow(dialog);
+        return dialog;
+    }
+
     public void onStart() {
         super.onStart();
-        configureWindow();
         // 输入法修复：弹窗显示后确保 WebView 持有焦点，点击页面 input 框可调起输入法
         if (binding != null && binding.webview != null && binding.webview.getVisibility() == View.VISIBLE) {
             binding.webview.requestFocus(View.FOCUS_DOWN);
         }
     }
 
-    private void configureWindow() {
-        if (getDialog() == null || getDialog().getWindow() == null) return;
-        Window window = getDialog().getWindow();
+    private void configureWindow(Dialog dialog) {
+        if (dialog == null || dialog.getWindow() == null) return;
+        Window window = dialog.getWindow();
         WindowManager.LayoutParams params = window.getAttributes();
         int width = Math.min(Math.round(ResUtil.getScreenWidth(requireContext()) * 0.92f), ResUtil.dp2px(620));
         params.width = Math.max(width, ResUtil.dp2px(320));
@@ -231,7 +242,9 @@ public class PanLoginDialog extends BaseAlertDialog {
         binding.btnDone.setText("完成登录");
         setupWebView();
         binding.webview.loadUrl(loginUrl);
-        configureWindow();
+        // 模式切换（已登录→重新登录）时高度口径随 optionsMode 变，同值重落一次；
+        // 这是用户点按驱动的框内切换，不是出框摆位（出框摆位已在 onCreateDialog 落定）
+        configureWindow(getDialog());
     }
 
     private void setupWebView() {

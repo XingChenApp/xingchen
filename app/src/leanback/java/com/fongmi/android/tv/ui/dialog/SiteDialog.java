@@ -101,6 +101,8 @@ public class SiteDialog extends BaseAlertDialog implements SiteAdapter.OnClickLi
         dialog.setContentView(getBinding().getRoot());
         initView();
         initEvent();
+        // 摆位在 show 之前落定（原 onStart 里 applyWindow 是出框后改宽，会动一下）
+        applyWindow(dialog.getWindow());
         return dialog;
     }
 
@@ -124,12 +126,12 @@ public class SiteDialog extends BaseAlertDialog implements SiteAdapter.OnClickLi
             this.activity = null;
         });
         runAfterFirstPreDraw("shell preDraw", () -> loadList(false));
+        // 摆位在 show 之前落定（原 show 后才 applyWindow：首帧默认宽、随后跳到终宽）
+        applyWindow(directDialog.getWindow());
         long showDialogStart = System.currentTimeMillis();
         log("show call start total=%sms", cost());
         directDialog.show();
         log("show call end cost=%sms total=%sms", cost(showDialogStart), cost());
-        applyWindow(directDialog.getWindow());
-        log("window applied total=%sms", cost());
     }
 
     @Override
@@ -141,7 +143,11 @@ public class SiteDialog extends BaseAlertDialog implements SiteAdapter.OnClickLi
     private void initShellView() {
         long start = System.currentTimeMillis();
         setRootWidth();
-        setRecyclerHeight(INITIAL_BATCH);
+        // 列表高在首帧前按终值钉死：终高只取决于可见站点数（本地同步可数），
+        // 原按 INITIAL_BATCH 预设、loadList 在首帧后按真实条数改高——站点少于一批时
+        // 框先按满高出帧、随后缩下来，就是动一下。现预设值与 loadList 的落点同值，
+        // 它再写一遍也不动。计数口径与 SiteAdapter.addAll 一致（未隐藏的站点）。
+        setRecyclerHeight(Math.min(visibleSiteCount(), INITIAL_BATCH));
         binding.searchBar.setVisibility(View.GONE);
         binding.keyword.setVisibility(View.GONE);
         binding.actionGap.setVisibility(View.GONE);
@@ -219,6 +225,12 @@ public class SiteDialog extends BaseAlertDialog implements SiteAdapter.OnClickLi
         if (decoration == null) binding.recycler.addItemDecoration(decoration = new SpaceItemDecoration(getCount(), 16));
         if (binding.recycler.getLayoutManager() == null) binding.recycler.setLayoutManager(new GridLayoutManager(getDialogActivity(), getCount()));
         log("recycler ready adapter=%s layout=%s total=%sms", binding.recycler.getAdapter() != null, binding.recycler.getLayoutManager() != null, cost());
+    }
+
+    private int visibleSiteCount() {
+        int count = 0;
+        for (Site site : VodConfig.get().getSites()) if (!site.isHide()) count++;
+        return count;
     }
 
     private void setRecyclerHeight(int count) {
@@ -348,8 +360,6 @@ public class SiteDialog extends BaseAlertDialog implements SiteAdapter.OnClickLi
     @Override
     public void onStart() {
         super.onStart();
-        Window window = getDialog() == null ? null : getDialog().getWindow();
-        applyWindow(window);
         if (adapter.getItemCount() == 0) dismiss();
     }
 }

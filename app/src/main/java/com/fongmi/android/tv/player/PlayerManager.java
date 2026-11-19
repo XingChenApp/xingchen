@@ -63,6 +63,7 @@ import com.fongmi.android.tv.player.danmaku.LiveDanmakuMessage;
 import com.fongmi.android.tv.player.danmaku.LiveDanmakuMetrics;
 import com.fongmi.android.tv.player.danmaku.LiveDanmakuParser;
 import com.fongmi.android.tv.player.danmaku.LiveDanmakuWebSocketSession;
+import com.fongmi.android.tv.player.danmaku.SpiderDanmakuSession;
 import com.fongmi.android.tv.player.danmaku.live.LiveDanmakuCoordinator;
 import com.fongmi.android.tv.player.danmaku.live.LiveDanmakuStamp;
 import com.fongmi.android.tv.player.danmaku.live.LiveRoomResolver;
@@ -193,6 +194,7 @@ public class PlayerManager implements ParseCallback {
     private final LiveDanmakuMetrics liveDanmakuMetrics;
     private DanmakuController danmakuController;
     private LiveDanmakuWebSocketSession liveDanmakuSession;
+    private SpiderDanmakuSession spiderDanmakuSession;
     private final LiveDanmakuCoordinator liveDanmakuCoordinator;
     private PlayerEngine engine;
     private VideoSize videoSize;
@@ -223,6 +225,11 @@ public class PlayerManager implements ParseCallback {
     // offer 的目标 buffer/batcher 是两路共用的同一份（同一时刻只有一路在跑）。
     private final List<LiveDanmakuMessage> liveDanmakuGatewayPendingMessages = new ArrayList<>();
     private long liveDanmakuGatewayPendingGeneration = -1L;
+    // 源自供（spider://）路未激活窗口的待喂缓冲：与网关路同口径（逐条到达、按代武装、
+    // 上限同一 LIVE_DANMAKU_PENDING_CAP、超限丢最旧），条目是已解析的 Item 形
+    // （带 type/size/colors，LiveDanmakuMessage 装不下），装配时才造 media3 Danmaku。
+    private final List<SpiderDanmakuSession.Item> spiderDanmakuPendingItems = new ArrayList<>();
+    private long spiderDanmakuPendingGeneration = -1L;
     private long pendingSwitchPositionMs = C.TIME_UNSET;
     private long pendingInitialStartPositionMs = C.TIME_UNSET;
     private float pendingSwitchSpeed = 1f;
@@ -377,6 +384,7 @@ public class PlayerManager implements ParseCallback {
         stopNativeAudioSession();
         clearDanmaku("release");
         releaseLiveDanmakuSession();
+        releaseSpiderDanmakuSession();
         liveDanmakuCoordinator.release();
         liveDanmakuBatcher.release();
         App.removeCallbacks(liveDanmakuMetricsRunnable);
@@ -634,9 +642,11 @@ public class PlayerManager implements ParseCallback {
         return getDanmakus() != null && getDanmakus().stream().anyMatch(Danmaku::isSelected);
     }
 
-    /** 直播弹幕已挂载（与管线自身的连会话判定同口径：当前弹幕地址分级为 live）；点播弹幕不在此列，走 haveDanmaku()。 */
+    /** 直播弹幕已挂载（与管线自身的连会话判定同口径：当前弹幕地址分级为 live 或 spider 自供）；点播弹幕不在此列，走 haveDanmaku()。 */
     public boolean haveLiveDanmaku() {
-        return !TextUtils.isEmpty(currentDanmakuUrl) && DanmakuUrlPolicy.classify(currentDanmakuUrl).isLive();
+        if (TextUtils.isEmpty(currentDanmakuUrl)) return false;
+        DanmakuUrlPolicy.SourceType type = DanmakuUrlPolicy.classify(currentDanmakuUrl);
+        return type.isLive() || type.isSpider();
     }
 
     public boolean canSetOpening(long position, long duration) {
@@ -998,9 +1008,12 @@ public class PlayerManager implements ParseCallback {
         if (danmakuController != null) danmakuController.setEnabled(enabled);
         if (!enabled) {
             stopLiveDanmakuSession("hidden");
+            stopSpiderDanmakuSession("hidden");
             liveDanmakuCoordinator.suspend("hidden");
         } else if (danmakuForeground && DanmakuUrlPolicy.classify(currentDanmakuUrl).isLive()) {
             connectLiveDanmakuSession(currentDanmakuUrl);
+        } else if (danmakuForeground && DanmakuUrlPolicy.classify(currentDanmakuUrl).isSpider()) {
+            connectSpiderDanmakuSession(currentDanmakuUrl);
         } else if (danmakuForeground) {
             liveDanmakuCoordinator.resume();
         }
@@ -1011,10 +1024,13 @@ public class PlayerManager implements ParseCallback {
         danmakuForeground = foreground;
         if (!foreground) {
             stopLiveDanmakuSession("background");
+            stopSpiderDanmakuSession("background");
             discardLiveDanmakuPending();
             liveDanmakuCoordinator.suspend("background");
         } else if (DanmakuSetting.isShow() && DanmakuUrlPolicy.classify(currentDanmakuUrl).isLive()) {
             connectLiveDanmakuSession(currentDanmakuUrl);
+        } else if (DanmakuSetting.isShow() && DanmakuUrlPolicy.classify(currentDanmakuUrl).isSpider()) {
+            connectSpiderDanmakuSession(currentDanmakuUrl);
         } else if (DanmakuSetting.isShow()) {
             liveDanmakuCoordinator.resume();
         }
@@ -4612,10 +4628,24 @@ public class PlayerManager implements ParseCallback {
             danmakuLoadInProgress = false;
             if (SpiderDebug.isEnabled()) SpiderDebug.log("danmaku", "select live source pending websocket connection %s", DanmakuUrlPolicy.logSummary(url));
             liveDanmakuCoordinator.stop("gateway_source");
+            stopSpiderDanmakuSession("gateway_source");
             if (danmakuForeground && DanmakuSetting.isShow()) connectLiveDanmakuSession(url);
             return;
         }
+        if (sourceType.isSpider()) {
+            danmakuController.clearItems();
+            loadingDanmakuKey = null;
+            danmakuLoadStartedAtMs = 0;
+            danmakuLoadInProgress = false;
+            if (SpiderDebug.isEnabled()) SpiderDebug.log("danmaku", "select spider source pending subscription %s", DanmakuUrlPolicy.logSummary(url));
+            stopLiveDanmakuSession("spider_source");
+            liveDanmakuCoordinator.stop("spider_source");
+            if (force) stopSpiderDanmakuSession("force_reload");
+            if (danmakuForeground && DanmakuSetting.isShow()) connectSpiderDanmakuSession(url);
+            return;
+        }
         stopLiveDanmakuSession("static_source");
+        stopSpiderDanmakuSession("static_source");
         liveDanmakuCoordinator.stop("static_source");
         loadingDanmakuKey = key;
         danmakuLoadStartedAtMs = SystemClock.elapsedRealtime();
@@ -4649,6 +4679,7 @@ public class PlayerManager implements ParseCallback {
     private void clearDanmaku(String reason) {
         if (SpiderDebug.isEnabled()) SpiderDebug.log("danmaku", "clear reason=%s current=%s", reason, DanmakuUrlPolicy.logSummary(currentDanmakuUrl));
         stopLiveDanmakuSession(reason);
+        stopSpiderDanmakuSession(reason);
         liveDanmakuCoordinator.stop(reason);
         liveDanmakuBatcher.clear();
         liveDanmakuBuffer.clear();
@@ -4787,13 +4818,136 @@ public class PlayerManager implements ParseCallback {
     }
 
     /**
+     * 源自供（spider://）路连接：订阅经 SiteApi.danmaku 落到蜘蛛 danmaku(id, emit)，
+     * 与网关路同点做 buffer/batcher reset＋待喂武装；代次由会话自持、镜像进
+     * liveDanmakuGeneration（ws 会话同形）。py 报错/超时只在会话内转错误态，
+     * 不回主链（见 onSpiderDanmakuState）。
+     */
+    private void connectSpiderDanmakuSession(String url) {
+        if (TextUtils.isEmpty(url)) return;
+        if (spiderDanmakuSession == null) {
+            spiderDanmakuSession = new SpiderDanmakuSession(new SpiderDanmakuSession.Listener() {
+                @Override
+                public void onItem(long generation, SpiderDanmakuSession.Item item) {
+                    onSpiderDanmakuItem(generation, item);
+                }
+
+                @Override
+                public void onState(long generation, String state, String msg) {
+                    onSpiderDanmakuState(generation, state, msg);
+                }
+            });
+        }
+        liveDanmakuGeneration = spiderDanmakuSession.connect(url);
+        liveDanmakuBuffer.reset(liveDanmakuGeneration);
+        liveDanmakuBatcher.reset(liveDanmakuGeneration);
+        armPendingSpiderDanmakuItems(liveDanmakuGeneration);
+    }
+
+    private void stopSpiderDanmakuSession(String reason) {
+        disarmPendingSpiderDanmakuItems();
+        if (spiderDanmakuSession != null) liveDanmakuGeneration = spiderDanmakuSession.stop(reason);
+    }
+
+    private void releaseSpiderDanmakuSession() {
+        if (spiderDanmakuSession == null) return;
+        spiderDanmakuSession.release();
+        spiderDanmakuSession = null;
+        disarmPendingSpiderDanmakuItems();
+    }
+
+    /** 自供条目到达（会话线程）：代符才收；未激活进待喂缓冲、激活直达 offer（网关路同口径）。 */
+    private void onSpiderDanmakuItem(long generation, SpiderDanmakuSession.Item item) {
+        if (generation != liveDanmakuGeneration) return;
+        liveDanmakuMetrics.onFrame();
+        if (!liveDanmakuPlaybackActive) {
+            bufferPendingSpiderDanmakuItem(generation, item);
+            return;
+        }
+        offerSpiderDanmakuItems(generation, Collections.singletonList(item));
+    }
+
+    /** 自供状态（ready/retrying/error）：只落日志；error 时丢待喂（源已收口，攒着无意义）。 */
+    private void onSpiderDanmakuState(long generation, String state, String msg) {
+        if (SpiderDebug.isEnabled()) SpiderDebug.log("danmaku-spider", "state=%s generation=%d msg=%s", state, generation, msg);
+        if ("error".equals(state)) disarmPendingSpiderDanmakuItems();
+    }
+
+    /** 自供路 offer 同路点：装配时刻打播放进度戳（onLiveDanmakuBatch 同口径）、过期点按收到时刻＋普通档 TTL。 */
+    private void offerSpiderDanmakuItems(long generation, List<SpiderDanmakuSession.Item> items) {
+        long scheduledAtMs = SystemClock.elapsedRealtime();
+        App.post(() -> {
+            if (generation != liveDanmakuGeneration || items.isEmpty() || danmakuController == null || !DanmakuSetting.isShow()) return;
+            liveDanmakuMetrics.onBatch(items.size(), SystemClock.elapsedRealtime() - scheduledAtMs);
+            long timeMs = LiveDanmakuStamp.timeMsAt(player == null ? 0L : player.getCurrentPosition());
+            List<androidx.media3.ui.danmaku.Danmaku> batch = new ArrayList<>(items.size());
+            for (SpiderDanmakuSession.Item item : items) {
+                batch.add(new androidx.media3.ui.danmaku.Danmaku(item.text(), timeMs, item.type(), item.colorArgb(), item.size(), item.colors())
+                        .setLiveExpiryElapsedRealtimeMs(item.receivedAtMs() + LiveDanmakuBuffer.DEFAULT_NORMAL_TTL_MS));
+            }
+            danmakuController.offerLiveBatch(batch);
+        });
+    }
+
+    /** 连接时按代武装自供待喂缓冲（与 buffer/batcher 的 reset 同点、同代）。 */
+    private void armPendingSpiderDanmakuItems(long generation) {
+        synchronized (spiderDanmakuPendingItems) {
+            spiderDanmakuPendingItems.clear();
+            spiderDanmakuPendingGeneration = generation;
+        }
+    }
+
+    /** 停订/错误/释放：清自供待喂并解除武装，旧代条目不许补喂进新房。 */
+    private void disarmPendingSpiderDanmakuItems() {
+        synchronized (spiderDanmakuPendingItems) {
+            spiderDanmakuPendingItems.clear();
+            spiderDanmakuPendingGeneration = -1L;
+        }
+    }
+
+    /** 只清自供待喂不清武装：暂停丢弃待喂（discardLiveDanmakuPending）时与平台/网关路同点调用。 */
+    private void clearPendingSpiderDanmakuItems() {
+        synchronized (spiderDanmakuPendingItems) {
+            spiderDanmakuPendingItems.clear();
+        }
+    }
+
+    /** 自供条目逐条到达，缓冲也逐条收；只收武装代、上限同一 LIVE_DANMAKU_PENDING_CAP、超限丢最旧（网关路同口径）。 */
+    private void bufferPendingSpiderDanmakuItem(long generation, SpiderDanmakuSession.Item item) {
+        synchronized (spiderDanmakuPendingItems) {
+            if (generation != spiderDanmakuPendingGeneration) return;
+            spiderDanmakuPendingItems.add(item);
+            while (spiderDanmakuPendingItems.size() > LIVE_DANMAKU_PENDING_CAP) spiderDanmakuPendingItems.remove(0);
+        }
+    }
+
+    /** 播放激活时补喂自供待喂：取出整批、解除武装，复核代与激活态后走与直达同路的 offer。 */
+    private void flushPendingSpiderDanmakuItems() {
+        List<SpiderDanmakuSession.Item> pending;
+        long generation;
+        synchronized (spiderDanmakuPendingItems) {
+            if (spiderDanmakuPendingItems.isEmpty()) {
+                spiderDanmakuPendingGeneration = -1L;
+                return;
+            }
+            generation = spiderDanmakuPendingGeneration;
+            pending = new ArrayList<>(spiderDanmakuPendingItems);
+            spiderDanmakuPendingItems.clear();
+            spiderDanmakuPendingGeneration = -1L;
+        }
+        if (generation != liveDanmakuGeneration || !liveDanmakuPlaybackActive) return;
+        offerSpiderDanmakuItems(generation, pending);
+    }
+
+    /**
      * 平台直连直播弹幕旁路触发（设计第五节缺口 4）：spec 自带 LIVE 网关弹幕源时网关路优先、
      * 本路不启；否则把装配点信号快照交给 Coordinator 识别，命中平台房间才直连。
      * 只加旁路调用，不改 setDanmakus/autoSearchDanmaku 与起播主链语义。
      */
     private void maybeStartLivePlatformDanmaku() {
         if (spec == null) return;
-        if (DanmakuUrlPolicy.classify(currentDanmakuUrl).isLive()) return;
+        DanmakuUrlPolicy.SourceType currentType = DanmakuUrlPolicy.classify(currentDanmakuUrl);
+        if (currentType.isLive() || currentType.isSpider()) return;
         // 快照由 PlaySpec 组：vodId 优先详情 vod id（play 结果的 Vod 恒空，只用它识别恒落空）
         liveDanmakuCoordinator.onPlayback(spec.liveDanmakuSnapshot());
     }
@@ -4930,6 +5084,7 @@ public class PlayerManager implements ParseCallback {
     private void discardLiveDanmakuPending() {
         clearPendingPlatformLiveMessages();
         clearPendingGatewayLiveMessages();
+        clearPendingSpiderDanmakuItems();
         liveDanmakuBuffer.discardPending();
         liveDanmakuBatcher.reset(liveDanmakuGeneration);
         clearLiveDanmakuRenderer(liveDanmakuGeneration);
@@ -6303,6 +6458,7 @@ public class PlayerManager implements ParseCallback {
             liveDanmakuPlaybackActive = isPlaying;
             if (isPlaying) flushPendingPlatformLiveMessages();
             if (isPlaying) flushPendingGatewayLiveMessages();
+            if (isPlaying) flushPendingSpiderDanmakuItems();
             if (!isPlaying) discardLiveDanmakuPending();
             if (isPlaying) scheduleNetworkProtection(0);
             else if (player.getPlaybackState() == Player.STATE_READY && !player.getPlayWhenReady()) {

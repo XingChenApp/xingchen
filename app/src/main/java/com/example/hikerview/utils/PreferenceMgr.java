@@ -13,7 +13,11 @@ import java.util.HashSet;
  * 本批落 HeavyTaskUtil 等解锁面实际用到的法：put 两重载、getBoolean/getInt/getString/getLong
  * 各两重载，逐字照官（含 getLong 的 ClassCastException 回退 int 并回写、put 的类型分发与
  * null 写空串、失败语义照官）；内类 SharedPreferencesCompat 全落（反射 apply、失败 commit 照官）。
- * 官类其余法（all/clear/contains/get/getAll/getFloat/getImage/putImage/remove 等）未落、记名在案。
+ * 2026-11-19 PY源盒子对接批续补两法（账 hk-pybox-usable-20261119 件 5）：get 四参通用形
+ * （官 smali:142 按 default 类型分发，本文件以既有 typed get 法承接同阶梯）、remove 三参
+ * （官 smali:1012，edit().remove 后走 SharedPreferencesCompat.apply）——盒子标准基类
+ * base/hiker.py 的缓存三法（setCache/getCache/delCache）按名直调这两法。
+ * 官类其余法（all/clear/contains/get 三参形/getAll/getFloat/getImage/putImage 等）仍未落、记名在案。
  * 默认文件 FILE_NAME="share_data" 照官；SETTING_CONFIG="setting_config" 照官。
  */
 public class PreferenceMgr {
@@ -100,6 +104,40 @@ public class PreferenceMgr {
             put(context, fileName, key, Long.valueOf(value));
             return value;
         }
+    }
+
+    /**
+     * 官 get(Context, String, String, Object) 通用形：按 default 的类型分发到对应
+     * typed 取法（String/Integer/Boolean/Float/Long/Set 阶梯，官 smali:142 实证），
+     * 阶梯外回 default 本身。PY源盒子 base/hiker.py 的 getCache 经此法（default 恒 String）。
+     */
+    public static Object get(Context context, String fileName, String key, Object defaultValue) {
+        if (defaultValue instanceof String) {
+            return getString(context, fileName, key, (String) defaultValue);
+        } else if (defaultValue instanceof Integer) {
+            return getInt(context, fileName, key, (Integer) defaultValue);
+        } else if (defaultValue instanceof Boolean) {
+            return getBoolean(context, fileName, key, (Boolean) defaultValue);
+        } else if (defaultValue instanceof Float) {
+            SharedPreferences sp = context.getSharedPreferences(fileName, 0);
+            return sp.getFloat(key, (Float) defaultValue);
+        } else if (defaultValue instanceof Long) {
+            return getLong(context, fileName, key, (Long) defaultValue);
+        } else if (defaultValue instanceof java.util.Set) {
+            SharedPreferences sp = context.getSharedPreferences(fileName, 0);
+            @SuppressWarnings("unchecked")
+            java.util.Set<String> def = (java.util.Set<String>) defaultValue;
+            return sp.getStringSet(key, def);
+        }
+        return defaultValue;
+    }
+
+    /** 官 remove(Context, String, String)：摘单键后经 SharedPreferencesCompat 落盘。 */
+    public static void remove(Context context, String fileName, String key) {
+        SharedPreferences sp = context.getSharedPreferences(fileName, 0);
+        SharedPreferences.Editor editor = sp.edit();
+        editor.remove(key);
+        SharedPreferencesCompat.apply(editor);
     }
 
     /** 官 PreferenceMgr$SharedPreferencesCompat 逐字转写。 */

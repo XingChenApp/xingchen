@@ -201,7 +201,7 @@ public final class LabRunner {
                 ensureDependency(c, pkgId, cmd, port);
                 String command = expand(c, pkgId, cmd.command, port, merged);
                 ERRORS.remove(key);
-                runShell(c, pkgId, key, command, pkgId, listener);
+                runShell(c, pkgId, key, command, pkgId, listener, port);
             } catch (Exception e) {
                 String m = e.getMessage();
                 // 失败原因进 ERRORS（lastError 的数据源）：与默认命令那条 startCommand 同口径，
@@ -327,7 +327,7 @@ public final class LabRunner {
         ProcessBuilder builder = new ProcessBuilder("/system/bin/sh");
         builder.directory(cwd);
         builder.redirectErrorStream(true);
-        applyEnv(c, pkgId, builder.environment());
+        applyEnv(c, pkgId, builder.environment(), portOf(c, pkgId));
         Process p = builder.start();
         RUNNING.put(key, p);
         // 输入通道登记不许吞：失败让它抛到 startTerminal 的 throws 出口（终端页会提示起不来），
@@ -402,7 +402,7 @@ public final class LabRunner {
                 // 那条路口径对齐（上游运行前统一 prepareDependency）
                 ensureDependency(c, pkgId, cmd, port);
                 String command = expand(c, pkgId, cmd.command, port, merged);
-                runShell(c, pkgId, keyOf(pkgId), command, pkgId, listener);
+                runShell(c, pkgId, keyOf(pkgId), command, pkgId, listener, port);
                 if (listener != null) listener.onOutput("");
             } catch (Exception e) {
                 String m = e.getMessage();
@@ -588,7 +588,7 @@ public final class LabRunner {
         return expandVars(sb.toString(), vars, depth + 1);
     }
 
-    private static void runShell(Context c, String pkgId, String key, String command, String logName, Listener listener) throws Exception {
+    private static void runShell(Context c, String pkgId, String key, String command, String logName, Listener listener, int port) throws Exception {
         // 失败只从这一处往上抛：listener 通知归调用方（start/startCommand）唯一出口。
         // 此前这里也通知一遍、还不进 ERRORS，与 start 的 catch 两头不一致、双回调。
         // 进程退出后的 onExit 由 pump 负责，与启动失败分开。
@@ -617,7 +617,7 @@ public final class LabRunner {
         ProcessBuilder builder = new ProcessBuilder("/system/bin/setsid", "/system/bin/sh", "-c", command);
         builder.directory(cwd);
         builder.redirectErrorStream(true);
-        applyEnv(c, pkgId, builder.environment());
+        applyEnv(c, pkgId, builder.environment(), port);
         String nodeNote = applyNodeProxy(c, pkgId, builder.environment());
         Process process = builder.start();
         RUNNING.put(key, process);
@@ -744,7 +744,7 @@ public final class LabRunner {
         }
     }
 
-    private static void applyEnv(Context c, String pkgId, Map<String, String> env) {
+    private static void applyEnv(Context c, String pkgId, Map<String, String> env, int port) {
         LabRegistry.Svc pkg = LabRegistry.get(c).svc(pkgId);
         String runtime = pkg == null || pkg.runtime == null ? "none" : pkg.runtime;
         Set<String> path = new LinkedHashSet<>();
@@ -781,6 +781,16 @@ public final class LabRunner {
                 env.put(e.getKey(), e.getValue());
             }
         }
+        // 启动口径下发（放在包声明 var_path 之前：包自己声明了同名变量时以包的为准）：
+        // 本次分配口以 PORT/LAB_PORT 两名下发、临时目录收进包内 tmp/，见 launchEnvVars。
+        // 此前分配口只经命令里的 {port} 占位到达服务——裸脚本这类命令里没占位的包，
+        // 服务只能绑自己的缺省口，与服务页登记的分配口两张皮（tgdrama 绑 15278、
+        // 壳子敲分配口扑空即此）；环境是第二条到达路，不挑命令形态。
+        File launchPkgDir = LabPaths.packageDir(c, pkgId);
+        for (Map.Entry<String, String> e : launchEnvVars(port, launchPkgDir).entrySet()) {
+            if ("TMPDIR".equals(e.getKey())) new File(e.getValue()).mkdirs();
+            env.put(e.getKey(), e.getValue());
+        }
         // 包声明环境变量（上游 Item.var_path，此前导入按 String 读、运行期也没人注入，
         // 整段是死的，G-5）：PATH 并入进程 PATH（相对段落包内、含 com.termux 的跳过），
         // 其余键作环境变量（相对值落包内、占位展开），LD_LIBRARY_PATH 前插不覆盖
@@ -816,8 +826,8 @@ public final class LabRunner {
         }
         // 全局代理（实验室设置页）：开着就给进程 http_proxy/https_proxy/no_proxy
         if (LabSettings.proxyOn(c)) {
-            String port = LabSettings.proxyPort(c);
-            String proxy = "http://127.0.0.1:" + port;
+            String proxyPort = LabSettings.proxyPort(c);
+            String proxy = "http://127.0.0.1:" + proxyPort;
             env.put("http_proxy", proxy);
             env.put("https_proxy", proxy);
             env.put("HTTP_PROXY", proxy);
@@ -858,6 +868,24 @@ public final class LabRunner {
     static boolean nodeProxyWanted(LabRegistry.Svc pkg) {
         if (pkg == null || !pkg.nodeProxy) return false;
         return !"mihomo".equals(pkg.runtime) && !"mihomo".equals(pkg.id);
+    }
+
+    /**
+     * 启动口径变量表（纯函数，便于单测）：这次启动给包分配的口以两名下发——
+     * PORT（通用约定，大量脚本与服务框架直接读它认监听口）与 LAB_PORT
+     * （实验室专名，与命令前缀里的 LAB_HOST_PORT 同族）；TMPDIR 指到包内
+     * tmp/——运行时缺省临时目录在星辰目录下不一定可达（tgdrama 的原生库
+     * 暂存回退靠 tempfile.gettempdir() 取落点，缺省落点飘忽），收进包
+     * 私有目录才稳。port ≤ 0（终端这类没分配口的场合）只给 TMPDIR。
+     */
+    static Map<String, String> launchEnvVars(int port, File pkgDir) {
+        Map<String, String> out = new java.util.LinkedHashMap<>();
+        if (port > 0) {
+            out.put("PORT", String.valueOf(port));
+            out.put("LAB_PORT", String.valueOf(port));
+        }
+        if (pkgDir != null) out.put("TMPDIR", new File(pkgDir, "tmp").getAbsolutePath());
+        return out;
     }
 
     /**

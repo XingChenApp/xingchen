@@ -327,7 +327,7 @@ public class Vod implements Parcelable, Diffable<Vod> {
     }
 
     public boolean isAction() {
-        return !getAction().isEmpty();
+        return !getAction().isEmpty() || "action".equals(getTag());
     }
 
     public void checkPic(String pic) {

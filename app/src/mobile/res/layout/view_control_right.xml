@@ -36,19 +36,6 @@
         android:textSize="14sp"
         android:visibility="gone" />
 
-    <!-- 评论入口（竖屏全屏右侧栏，紧挨选集）：预抓到评论才显示，显隐与 episodesVertical 同步裁定 -->
-    <androidx.appcompat.widget.AppCompatTextView
-        android:id="@+id/commentVertical"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_marginTop="12dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:gravity="center"
-        android:text="评论"
-        android:textColor="#FFFFFF"
-        android:textSize="14sp"
-        android:visibility="gone" />
-
     <androidx.appcompat.widget.AppCompatImageView
         android:id="@+id/castVertical"
         android:layout_width="48dp"

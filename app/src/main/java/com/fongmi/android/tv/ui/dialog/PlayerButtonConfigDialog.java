@@ -2,6 +2,7 @@ package com.fongmi.android.tv.ui.dialog;
 
 import android.app.Dialog;
 import android.graphics.Color;
+import android.os.Bundle;
 import android.graphics.drawable.ColorDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -10,6 +11,7 @@ import android.view.Window;
 import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.ItemTouchHelper;
@@ -57,9 +59,15 @@ public class PlayerButtonConfigDialog extends BaseAlertDialog {
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-        Dialog dialog = getDialog();
+    @NonNull
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里整段改窗是出框后再定尺寸，会动一下）
+        applyWindow(dialog);
+        return dialog;
+    }
+
+    private void applyWindow(Dialog dialog) {
         if (dialog == null) return;
         Window window = dialog.getWindow();
         if (window == null) return;
@@ -73,6 +81,10 @@ public class PlayerButtonConfigDialog extends BaseAlertDialog {
         params.height = (int) (screenHeight * (land ? 0.9f : 0.72f));
         window.setAttributes(params);
         window.setLayout(params.width, params.height);
+    }
+
+    public void onStart() {
+        super.onStart();
         binding.recycler.post(() -> {
             if (adapter != null) adapter.focus(0, R.id.visible);
             else binding.recycler.requestFocus();

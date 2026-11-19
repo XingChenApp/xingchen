@@ -46,7 +46,6 @@ public class Danmaku {
         PLATFORM_NAMES.put("bahamut", "巴哈姆特");
         PLATFORM_NAMES.put("dandan", "弹弹play");
         PLATFORM_NAMES.put("aiyifan", "爱壹帆");
-        PLATFORM_NAMES.put("hongguo", "红果");
         PLATFORM_NAMES.put("acfun", "A站");
         PLATFORM_NAMES.put("cctv", "央视");
         PLATFORM_NAMES.put("cntv", "央视");

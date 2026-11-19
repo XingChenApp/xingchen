@@ -1,4 +1,8 @@
 package com.fongmi.android.tv.ui.dialog;
+import android.app.Dialog;
+import android.os.Bundle;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import android.text.TextUtils;
 import android.view.View;
@@ -68,9 +72,16 @@ public class InfoDialog extends BaseAlertDialog {
     }
 
     @Override
+    @NonNull
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里 setWidth 是出框后改宽，会动一下）
+        setWidth(dialog, ResUtil.isLand(requireContext()) ? 0.62f : 0.92f);
+        return dialog;
+    }
+
     public void onStart() {
         super.onStart();
-        setWidth(ResUtil.isLand(requireContext()) ? 0.62f : 0.92f);
     }
 
     @Override

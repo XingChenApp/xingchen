@@ -158,6 +158,9 @@ public final class ClashGate {
         SourceGate.clearSession(owner, attr[0], attr[1]);
     }
 
+
+
+
     public static void register(Context context) {
         final Context app = context.getApplicationContext();
         SourceGate.register(new SourceGate.Provider() {
@@ -165,7 +168,8 @@ public final class ClashGate {
             public boolean enabled() {
                 // 门控 = 内核在跑 且（总开关开 或 任一音乐源开了走节点）。
                 // 音乐单源走节点不再要求总开关先开：发请求前按需拉起内核
-                // （FreeJsBridge 的桥内拉起）；
+                // （FreeJsBridge 的桥内拉起）；本门控只是「决策层醒没醒」，
+                // 每个请求最终仍由 shouldProxy 按归属逐个裁决。
                 // PikPak 默认带上、只随总开关（总开关开时本门控已由第一项成立）；
                 // 其它源维持原语义（总开关关 → 它们的按源开关不生效）。
                 if (!MihomoManager.get().isRunning()) return false;

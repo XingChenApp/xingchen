@@ -42,6 +42,8 @@ public class UaDialog extends BaseAlertDialog {
         Dialog dialog = LightDialog.create(requireContext(), getString(R.string.player_ua), getBinding().getRoot());
         initView();
         initEvent();
+        // 摆位在 show 之前落定（原 onStart 里 setWidth 是出框后改宽，会动一下）
+        setWidth(dialog, 0.55f);
         return dialog;
     }
 
@@ -113,7 +115,6 @@ public class UaDialog extends BaseAlertDialog {
     @Override
     public void onStart() {
         super.onStart();
-        setWidth(0.55f);
         EventBus.getDefault().register(this);
     }
 

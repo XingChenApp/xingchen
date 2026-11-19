@@ -135,7 +135,8 @@ final class PlaybackPerformanceModal {
 
         dialog.setContentView(root);
         dialog.setCanceledOnTouchOutside(true);
-        dialog.setOnShowListener(ignored -> resize(dialog, context));
+        // 摆位在 show 之前落定（原挂 OnShow：调用方 show 后才改宽，出框会动一下）
+        resize(dialog, context);
         return new Shell(dialog, body, footer);
     }
 

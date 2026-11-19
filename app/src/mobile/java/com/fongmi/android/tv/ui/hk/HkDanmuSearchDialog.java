@@ -178,13 +178,12 @@ public final class HkDanmuSearchDialog extends DialogFragment {
             dismissed = false;
             onPopupCreate();
         });
+        // 摆位在 show 之前落定（原 onStart 里改宽与重力是出框后再定，会动一下）
+        applyWindow(dialog);
         return dialog;
     }
 
-    @Override
-    public void onStart() {
-        super.onStart();
-        Dialog dialog = getDialog();
+    private void applyWindow(Dialog dialog) {
         Window window = dialog == null ? null : dialog.getWindow();
         if (window == null) return;
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));

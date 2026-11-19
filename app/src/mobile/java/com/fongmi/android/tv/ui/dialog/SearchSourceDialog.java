@@ -46,7 +46,17 @@ public class SearchSourceDialog extends BaseAlertDialog {
         setupVodColumn();
         setupPyColumn();
         setupJsColumn();
-        setWidth(0.92f);
+    }
+
+    @androidx.annotation.NonNull
+    @Override
+    public android.app.Dialog onCreateDialog(@androidx.annotation.Nullable android.os.Bundle savedInstanceState) {
+        android.app.Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 宽在此处对本地 dialog 落定：initView 在 super.onCreateDialog 内部执行、
+        // 那时 getDialog() 还没赋值，原 initView 里的 setWidth(0.92f) 实际落空；
+        // 挪到这里按原值在 show 之前钉死
+        setWidth(dialog, 0.92f);
+        return dialog;
     }
 
     private void setupVodColumn() {

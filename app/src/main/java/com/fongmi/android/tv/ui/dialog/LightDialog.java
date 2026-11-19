@@ -48,7 +48,9 @@ public final class LightDialog {
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setContentView(root(context, title, content, positive, listener(dialog, onPositive), negative, listener(dialog, onNegative), neutral, listener(dialog, onNeutral)));
         dialog.setCanceledOnTouchOutside(true);
-        dialog.setOnShowListener(d -> applyWindow(dialog, context, landFactor, portFactor, maxDp));
+        // 摆位在 show 之前落定（原挂 OnShow：调用方 show 后才改宽，出框会动一下；
+        // 本类是全壳共用件，所有经它建的框一并受益）
+        applyWindow(dialog, context, landFactor, portFactor, maxDp);
         return dialog;
     }
 

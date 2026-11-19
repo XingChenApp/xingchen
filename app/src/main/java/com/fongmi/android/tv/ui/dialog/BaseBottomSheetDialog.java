@@ -30,10 +30,6 @@ public abstract class BaseBottomSheetDialog extends BottomSheetDialogFragment {
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {
         BottomSheetDialog dialog = (BottomSheetDialog) super.onCreateDialog(savedInstanceState);
-        dialog.setOnShowListener(d -> {
-            if (!isAdded() || getContext() == null) return;
-            setBehavior(dialog);
-        });
         Window window = dialog.getWindow();
         if (window == null) return dialog;
         // 进出统一口径：滑上滑下＋淡入淡出 200ms（与裸 Dialog 底部面板的 XcBottomSheetSlide 同一套）。
@@ -50,6 +46,21 @@ public abstract class BaseBottomSheetDialog extends BottomSheetDialogFragment {
             if (Util.isFullscreen(getActivity())) window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         }
         return dialog;
+    }
+
+    /**
+     * 行为状态必须在第一帧布局之前落定：旧法挂在 OnShow 上——OnShow 经 Handler
+     * 派发，可能晚于首帧布局，面板先按折叠/窥视高度出帧、再被 setState(EXPANDED)
+     * 带着动画滑到展开位，就是用户实拍的「弹出来还会动一下」。onStart 在
+     * super.onStart()（内部 show()）返回后同步执行、早于首帧 traversal，此时把
+     * 状态钉成 EXPANDED＋跳过折叠态，首帧布局即终态。子类覆写 onStart 时都会
+     * 先调 super.onStart()，本逻辑对全部子类统一生效。
+     */
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (!isAdded() || getContext() == null) return;
+        if (getDialog() instanceof BottomSheetDialog) setBehavior((BottomSheetDialog) getDialog());
     }
 
     @Nullable

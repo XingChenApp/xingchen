@@ -312,10 +312,12 @@ public class CloudDriveActivity extends BaseActivity {
                 dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
                         | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING);
             }
-            // 尺寸在显示这一拍同步定版，不走 post 延后拽尺寸（开框乱动的共用病根，见 sizeDialogNow）
-            sizeDialogNow(dialog, 0.7f);
             input.requestFocus();
         });
+        // 尺寸在 show 之前定版：sizeDialogNow 是手动测量、不依赖出框，在 show 前测得的
+        // 自然高与原 OnShow 里测的完全一致——原挂 OnShow 仍是出框后改尺寸（开框乱动的
+        // 共用病根，见 sizeDialogNow 注释），挪到 show 前首帧即终态
+        sizeDialogNow(dialog, 0.7f);
         dialog.show();
     }
 
@@ -1224,10 +1226,11 @@ public class CloudDriveActivity extends BaseActivity {
                 .setNegativeButton("关闭", null);
         if (st.hasMore) builder.setNeutralButton("加载更多", null);
         AlertDialog dialog = builder.create();
-        // 尺寸同步定版（封顶六成），不走 post 拽尺寸
+        // 尺寸在 show 之前定版
+        // （手动测量不依赖出框，原挂 OnShow 仍是出框后改尺寸），不走 post 拽尺寸
         dialog.setOnShowListener(d -> {
-            sizeDialogNow(dialog, 0.6f);
         });
+        sizeDialogNow(dialog, 0.6f);
         dialog.show();
         if (st.hasMore) {
             // 覆盖按钮的默认点击（默认会关弹窗）：改成不关弹窗、就地续拉下一页往后拼接。
@@ -1520,10 +1523,12 @@ public class CloudDriveActivity extends BaseActivity {
             st.path.add(new Crumb(dir.getId(), dir.getName()));
             fetchPickerDirs(st, adapter, tvPath);
         });
-        // 尺寸同步定版（封顶六成），不走 post 拽尺寸
+        // 尺寸在 show 之前定版
+        // （手动测量不依赖出框：此刻量的是空列表态，与原 OnShow 时量的是同一态、同一高），
+        // 不走 post 拽尺寸；目录数据到达后在框内滚动，不再改窗
         dialog.setOnShowListener(d -> {
-            sizeDialogNow(dialog, 0.6f);
         });
+        sizeDialogNow(dialog, 0.6f);
         dialog.show();
         fetchPickerDirs(st, adapter, tvPath);
     }

@@ -25,6 +25,8 @@ import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.hk.HkHttpParser;
 import com.fongmi.android.tv.api.hk.HkRule;
 import com.fongmi.android.tv.api.hk.HkItem;
+import com.fongmi.android.tv.api.hk.HkChapters;
+import com.fongmi.android.tv.api.hk.HkEpisodeDryClassifier;
 import com.fongmi.android.tv.api.hk.event.OnBackEvent;
 import com.fongmi.android.tv.api.hk.event.home.SetPageLastChapterRuleEvent;
 import com.fongmi.android.tv.api.hk.event.home.SetPageParamsEvent;
@@ -1673,8 +1675,12 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
 
     /**
      * 照 8.83 ArticleListIsland 的 showSelectOptions 消费（JE.showSelectOptions post
-     * SelectExtra 本体、页面订阅弹框）：宿主存活＋isResumed 门后弹选项，选中以
-     * MY_INDEX＋js、input=选中项标题回求值，求值结果非空/非 "undefined"/
+     * SelectExtra 本体、页面订阅弹框）：宿主门（官 MainActivity 只 isOnPause/
+     * isFinishing 两件、在咱家 HkListActivity 宿主半）过后岛直达渲染、页内无
+     * 第二道门——本法原多加的 !isResumed() 一层官无此形（官 MainActivity 委派
+     * 亲读 smali:21790 只取当前页规则直调岛），JS 求值在片段未 resumed 时点
+     * 完成即被静默丢，2026-11-19 照官摘除（账 hk-domain-popup-fix-20261119）。
+     * 选中以 MY_INDEX＋js、input=选中项标题回求值，求值结果非空/非 "undefined"/
      * 非 "hiker://empty" 时走 dealUrlSimply（第九阶段接线，复核订正五差）：
      * options2 支 span 恒 2、options 支 span＝col（缺省 3）；标题空缺省「请选择」；
      * bottom 走底部形（useCenter(false)）；回求值走 evalJS(code, input, false)
@@ -1686,10 +1692,19 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         if (event == null) return;
         boolean hasOptions = event.getOptions() != null && !event.getOptions().isEmpty();
         boolean hasOptions2 = event.getOptions2Titles() != null && !event.getOptions2Titles().isEmpty();
-        if (!hasOptions && !hasOptions2) return;
-        if (getActivity() == null || getActivity().isFinishing() || !isResumed()) return;
+        if (!hasOptions && !hasOptions2) {
+            SpiderDebug.log("hk", "showSelectOptions 丢弃 rule=%s reason=no-options", event.getRuleTitle());
+            return;
+        }
+        if (getActivity() == null || getActivity().isFinishing()) {
+            SpiderDebug.log("hk", "showSelectOptions 丢弃 rule=%s reason=activity-gone", event.getRuleTitle());
+            return;
+        }
         HkRule r = articleListRuleDTO;
-        if (r == null) return;
+        if (r == null) {
+            SpiderDebug.log("hk", "showSelectOptions 丢弃 rule=%s reason=no-rule", event.getRuleTitle());
+            return;
+        }
         List<String> titles = hasOptions2 ? event.getOptions2Titles() : event.getOptions();
         HkCenterListPopup popup = new HkCenterListPopup(requireContext());
         popup.withTitle(TextUtils.isEmpty(event.getTitle()) ? "请选择" : event.getTitle());
@@ -2728,7 +2743,8 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         }
         android.webkit.WebView wv = webViewHolder.getWebView();
         if (wv == null || webViewContainer == null) return;
-        // x5Extra 的 UA 在此统一应用（原版 updateWebView 同款位置）
+        // 照官 updateWebView 已建框支（源行 3977-3980）：地址同步前再设一次 x5Extra UA。
+        // 建框支的首设在 HkWebViewHolder.ensureWebView 内、首载之前（官源行 3942-3944 同位）。
         HkX5Extra x5 = webViewHolder.getX5Extra();
         if (x5 != null && !TextUtils.isEmpty(x5.getUa())) {
             try {
@@ -2762,10 +2778,12 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         } else if (webViewContainer.getChildCount() > 0) {
             webViewContainer.removeAllViews();
         }
-        // 地址同步：变了加载新的，没变刷新一次（原版同款；变空的静音分支缺 mute 脚本资源，暂略）
+        // 地址同步：照官源行 3983-3995——变了经 holder.loadUrlCheckReferer 加载
+        // （referer 非空带 {Referer} 头，官源行 3986 唯一调用点），没变 reload 一次；
+        // 变空的静音分支缺 mute 脚本资源，暂略（官源行 3997-4002）。
         String target = webViewHolder.getUrl();
         if (!TextUtils.isEmpty(target)) {
-            if (!target.equals(wv.getUrl())) wv.loadUrl(target);
+            if (!target.equals(wv.getUrl())) webViewHolder.loadUrlCheckReferer(target);
             else wv.reload();
         }
     }
@@ -4492,10 +4510,20 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
             String clickedType = clicked.getType();
             while (start - 1 >= 0 && clickedType.equals(list.get(start - 1).getType())) start--;
         }
+        // 干跑 ACTION 门（详情桥同款分类接点击收段路，账
+        // vod-episode-action-pollution-20261119 §六）：模式切换钮（书签UI
+        // 解析页 ▶播放/📥提取/⬇下载）与集数同 col_type 同段、url 带
+        // @lazyRule=，chapterCandidate 的静态排除表按 2026-10-15 口径
+        // 恒豁免、结构上拦不住；官收段算法本身也不逐条判——咱家详情桥
+        // 一路早有干跑分类（classifyDetailItems 打标、admitEpisodeRuns
+        // 剔 ACTION），点击路此前没有，本门补齐。结论以本发缓存承接
+        // （HkItem 无 dryVerdict 字段，不为此改模型）。
+        java.util.Map<HkItem, Boolean> dryActionCache = new java.util.HashMap<>();
         for (int i = start; i < position; i++) {
             HkItem it = list.get(i);
             if (!chapterCandidate(it, playList, playListCls)) continue;
             if (isDupTitleEntry(it, clickedRawUrl)) continue;
+            if (isDryActionItem(it, dryActionCache)) continue;
             chapters.add(buildChapter(it, i, titlePrefix, codeAndHeader, false));
         }
         HkChapter cur = new HkChapter();
@@ -4518,9 +4546,58 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
             // 官形后段终止：非 playlist 时，首个过了过滤但与被点条目异型的
             // 条目即段尾、整段收束（被过滤掉的条目不终止段，同官 smali 序）。
             if (!playList && !clicked.getType().equals(it.getType())) break;
+            // 干跑门插在断段判定之后：异型条目照旧先断段，不许因先被
+            // 干跑剔掉而把段外条目续进来（同型 ACTION 钮本就不断段）。
+            if (isDryActionItem(it, dryActionCache)) continue;
             chapters.add(buildChapter(it, i, titlePrefix, codeAndHeader, false));
         }
         return chapters;
+    }
+
+    /**
+     * 干跑 ACTION 判定（与 HkRouter.classifyDetailItems 同门同判据）：
+     * 候选 url 须可播形态（HkChapters.isPlayForm）、未被四排除
+     * （HkChapters.isExcluded）、且是 JS 型 lazy（isJsLazy），才送
+     * HkEpisodeDryClassifier.classifyLazyItem 干跑；判 ACTION 才剔。
+     * 真集数钮（黄色仓库/91短剧形：$('hiker://empty…').lazyRule(…)
+     * 解真播放地址）按干跑结果判、不按「带不带 @lazyRule=」一刀切
+     * （2026-10-15 口径）：干跑下 fetch 回空而回空串/抛错的落 UNKNOWN
+     * 保留、纯串拼出可播址的落 PLAYABLE 保留；干跑即回动作串的（如
+     * 失败回 toast:// 的解析器）与详情桥一路径同判 ACTION——两路一致
+     * （回放实证见账 hk-drygate-20261119）。逐条隔离：取桥失败、干跑抛错、
+     * 运行时缺失一律按未判（保留），不许因分类层故障丢真集数（与详情桥
+     * 整环失败补 UNKNOWN 同口径）。结论按条目缓存在本发 getChapters 内。
+     */
+    private boolean isDryActionItem(HkItem item, java.util.Map<HkItem, Boolean> cache) {
+        Boolean cached = cache.get(item);
+        if (cached != null) return cached;
+        boolean action = false;
+        try {
+            String u = item.getUrl() == null ? "" : item.getUrl().trim();
+            if (HkChapters.isPlayForm(u)
+                    && !HkChapters.isExcluded(item.getColType(), u)
+                    && HkEpisodeDryClassifier.isJsLazy(u)) {
+                HkRule r = articleListRule != null ? articleListRule : articleListRuleDTO;
+                if (r != null) {
+                    com.fongmi.android.tv.api.hk.HkJsRuntime rt = HkEngineManager.runtimeFor(r);
+                    HkEngineManager.ensureInit(rt);
+                    String pageUrl = !TextUtils.isEmpty(myUrl) ? myUrl
+                            : (r.getUrl() == null ? "" : r.getUrl());
+                    action = HkEpisodeDryClassifier.classifyLazyItem(rt, u, pageUrl)
+                            == HkEpisodeDryClassifier.Verdict.ACTION;
+                    if (action) {
+                        try {
+                            SpiderDebug.log("hk", "drop-action-entry title=%s", item.getTitle());
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+            action = false;
+        }
+        cache.put(item, action);
+        return action;
     }
 
     /**
@@ -5315,11 +5392,16 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
                     if (getContext() == null) return;
                     java.io.File root = getContext().getExternalFilesDir(null);
                     if (root == null) root = getContext().getFilesDir();
-                    java.io.File dir = new java.io.File(new java.io.File(root, "cache"), dirName);
-                    if (!dir.exists()) dir.mkdirs();
-                    java.io.File out = new java.io.File(dir, TextUtils.isEmpty(fileName) ? "file" : fileName);
+                    java.io.File cacheDir = new java.io.File(root, "cache");
+                    if (!cacheDir.exists()) cacheDir.mkdirs();
+                    // 官口径（UriUtils.getFilePathFromURI）：拷贝落点本身就是
+                    // cache/_fileSelect_<文件名> 这个文件，不是同名目录；已有同名先删再拷，
+                    // $15.success 收到的就是它的绝对路径（订正旧形：旧形拷进同名目录、
+                    // 又把目录名牌当 input 传出，与官正好对调，见 hk-import-fail-bookmarks 账）。
+                    java.io.File out = new java.io.File(cacheDir, dirName);
+                    if (out.exists()) out.delete();
                     copyUriToFile(uri, out);
-                    onFileSelectCopied(uri, js, dirName, out.getAbsolutePath());
+                    onFileSelectCopied(uri, js, out.getAbsolutePath());
                 } catch (Exception ignored) {
                     // 原版 failed() 为空实现：拷贝失败不关弹窗、不回流，照抄
                 }
@@ -5327,12 +5409,13 @@ public class HkArticleFragment extends Fragment implements HkArticleListModel.Ca
         }
     }
 
-    /** 照抄 $15.success：活动已结束则整段不执行；后台求值（MY_PATH=file uri 取其 path、否则取拷贝路径），结果回主线程关弹窗并 clickItem 回灌。 */
-    private void onFileSelectCopied(android.net.Uri uri, String js, String input, String copiedPath) {
+    /** 照抄 $15.success：活动已结束则整段不执行；后台求值（input＝拷贝文件绝对路径、MY_PATH＝UriUtils.getFilePath(原 uri)，解析不到为 null），结果回主线程关弹窗并 clickItem 回灌。 */
+    private void onFileSelectCopied(android.net.Uri uri, String js, String input) {
         if (getActivity() == null || getActivity().isFinishing()) return;
         HkArticleListModel.EngineBridge bridge = HkArticleListModel.getEngineBridge();
         if (bridge == null) return;
-        String myPath = "file".equals(uri.getScheme()) ? uri.getPath() : copiedPath;
+        String myPath = getContext() == null ? null
+                : com.example.hikerview.utils.UriUtils.getFilePath(getContext(), uri);
         String result = bridge.evalFileSelect(articleListRule, js, input, myUrl, myPath);
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> {

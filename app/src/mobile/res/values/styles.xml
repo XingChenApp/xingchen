@@ -1,11 +1,5 @@
 <resources>
 
-    <!-- 评论面板横屏形态：右侧划入/划出（窗口动画） -->
-    <style name="HongguoCommentRightAnim">
-        <item name="android:windowEnterAnimation">@anim/hongguo_panel_right_in</item>
-        <item name="android:windowExitAnimation">@anim/hongguo_panel_right_out</item>
-    </style>
-
     <style name="Theme.Base" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
         <item name="android:statusBarColor">@color/transparent</item>
         <item name="android:navigationBarColor">@color/transparent</item>
@@ -297,7 +291,4 @@
 
     <!-- U4：M3 Switch 本体缩放 0.75（瓜子源码只给缩放系数，本征轨宽／轨高是 M3 库值，不冒充瓜子值）。
          v1 稿开关统一强调色：钮恒白、开态轨珊瑚红、关态轨浅灰（白钮在红轨上显眼，上一稿白钮不显的毛病靠钮色写死白根治）。 -->
-
-
-
 </resources>

@@ -58,6 +58,20 @@ public class ReadingShelfActivity extends AppCompatActivity {
         context.startActivity(new Intent(context, ReadingShelfActivity.class));
     }
 
+    /** 落签附加（start 带签位版专用）：新建实例时落到指定签。 */
+    private static final String EXTRA_TAB = "shelf_tab";
+
+    /**
+     * 带签位回书架：栈里已有书架就回那一个（CLEAR_TOP 保它原签与
+     * 原位），没有才新建并落到指定签。既有 start(Context) 口径不变。
+     */
+    public static void start(Context context, String tab) {
+        Intent i = new Intent(context, ReadingShelfActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        if (tab != null) i.putExtra(EXTRA_TAB, tab);
+        context.startActivity(i);
+    }
+
     /** 当前栏：小说/漫画/听书分开归栏，取值 NOVEL/COMIC/AUDIO。 */
     private static final String STATE_CURRENT_TAB = "currentTab";
     private String currentTab = "NOVEL";
@@ -95,6 +109,11 @@ public class ReadingShelfActivity extends AppCompatActivity {
         // 旋转重建：恢复旋转前的栏（buildUi/refresh 都按 currentTab 建页，须在建页前恢复）
         if (savedInstanceState != null) {
             String tab = savedInstanceState.getString(STATE_CURRENT_TAB);
+            if ("NOVEL".equals(tab) || "COMIC".equals(tab) || "AUDIO".equals(tab)) currentTab = tab;
+        }
+        // 带签位新建（回书架专用口）：无重建存档时按附加落签
+        if (savedInstanceState == null) {
+            String tab = getIntent().getStringExtra(EXTRA_TAB);
             if ("NOVEL".equals(tab) || "COMIC".equals(tab) || "AUDIO".equals(tab)) currentTab = tab;
         }
         ReadingSkin.enableEdgeToEdge(this, true);
@@ -216,7 +235,6 @@ public class ReadingShelfActivity extends AppCompatActivity {
 
         setContentView(root);
     }
-
 
     /** 整页按当前栏重建（书卡片＋分区＋源聚合卡）。 */
     private void refresh() {

@@ -2207,6 +2207,16 @@ public class HkListActivity extends AppCompatActivity
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // 照官 BaseActivity.onCreate 同点位（smali 源行 73-75，super 之后、
+        // 一切 init 之前）：存档带 recycleMe 旗（阅读主题页存档时由
+        // onSaveInstanceState 打上）→ 当场 finish。恢复出的旧 Fragment 纵在
+        // 容器里也到不了 onViewCreated→initData（视图分发在宿主 onCreate
+        // 返回后），喂空规则进模型池线程崩 getPreRule 的路从这里断
+        //（账 hk-prerule-npe-20261119 §八）。
+        if (savedInstanceState != null && savedInstanceState.getBoolean("recycleMe", false)) {
+            finish();
+            return;
+        }
         webCarrierPage = getIntent() != null && getIntent().getBooleanExtra(EXTRA_WEB_CARRIER_PAGE, false);
         // 窗口登记册（fix5 的 HkWindowRegistry）已随窗口形态整件退役：同任务
         // 压栈形态下没有窗口可登记、重开同规则恒新开一页（账
@@ -2309,6 +2319,32 @@ public class HkListActivity extends AppCompatActivity
                 .commitNow();
         // 精修 P4：与主 App 同一套渐入渐出（不改继承，只加两行）
         XcFadeTransition.applyEnter(this);
+    }
+
+    /** 照官 FilmListActivity.finishWhenRestore()：阅读主题页恢复时直接收页。 */
+    private boolean finishWhenRestore() {
+        return rule != null && isReadThemeUrl(rule.getUrl());
+    }
+
+    /**
+     * 照官 BaseActivity.onSaveInstanceState 同形（smali 源行 102-104）：
+     * finishWhenRestore() 为假时不调 super——FragmentManager 状态不落盘，
+     * 系统恢复时容器里没有旧 Fragment 可恢复，页面恒由 instance(rule)
+     * 新建；规则摄入全空走回收框路时容器为空、没有东西能喂模型。为真
+     * （阅读主题）才存档并打 recycleMe 旗，恢复时由 onCreate 首行 finish。
+     * 咱家此前无此覆写、走 AppCompat 缺省全存：恢复出的旧 Fragment 没走
+     * 过 instance()、DTO 为空，在宿主提前 return 的两条路上（数据全空/
+     * Gson 解失败）不被 replace 摘除，照常 initData 把空规则喂给模型、
+     * 池线程崩在 getPreRule（2026-11-19 两发，账 hk-prerule-npe-20261119）。
+     * 本链无 SavedStateRegistry/SavedStateHandle 消费方，不调 super 无
+     * 其他落点受损（三源集核过）。
+     */
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        if (finishWhenRestore()) {
+            outState.putBoolean("recycleMe", true);
+            super.onSaveInstanceState(outState);
+        }
     }
 
     /** 照原版 FilmListActivity.isReadTheme()：规则 url 含 #readTheme# 或 #autoReader#。 */
@@ -2480,9 +2516,25 @@ public class HkListActivity extends AppCompatActivity
      */
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onShowSelectOptions(ShowSelectOptionsEvent event) {
-        if (isOnPause() || isFinishing()) return;
+        // 诊断行（2026-11-19，账 hk-domain-popup-fix-20261119）：官全链无日志、
+        // 真机分不清「没调」与「调了被吞」，咱家诊断面在此与桥投递点各记一行，
+        // 只记规则名＋去向/丢弃因，不改行为。
+        if (isOnPause() || isFinishing()) {
+            if (event != null) {
+                com.github.catvod.crawler.SpiderDebug.log("hk",
+                        "showSelectOptions 丢弃 rule=%s reason=host-gate", event.getRuleTitle());
+            }
+            return;
+        }
         if (event == null) return;
-        if (fragment != null) fragment.onShowSelectOptions(event);
+        if (fragment == null) {
+            com.github.catvod.crawler.SpiderDebug.log("hk",
+                    "showSelectOptions 丢弃 rule=%s reason=no-fragment", event.getRuleTitle());
+            return;
+        }
+        com.github.catvod.crawler.SpiderDebug.log("hk",
+                "showSelectOptions 消费 rule=%s", event.getRuleTitle());
+        fragment.onShowSelectOptions(event);
     }
 
     /**

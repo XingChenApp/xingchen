@@ -60,6 +60,20 @@ public class ImgUtil {
         load(url, 96, target);
     }
 
+    /**
+     * 取消一发在途取图：clear 之后该 target 永不再收到 onResourceReady（Glide 契约）。
+     * 播放器中枢换封面时先清旧 target——旧图晚到在源头消失，不靠消费方代次计数丢弃
+     * （2026-11-19 守卫扫除① A2：取图任务句柄化，ImgUtil 契约补此口）。
+     */
+    public static void clear(CustomTarget<?> target) {
+        if (target == null) return;
+        try {
+            Glide.with(App.get()).clear(target);
+        } catch (Throwable e) {
+            Logger.t(TAG).e(e, "bitmap clear failed");
+        }
+    }
+
     /** 带目标尺寸的位图取图：大图面（CD 盘面／唱片架袖套，显示径可达 400dp）须按显示尺寸取，
      *  96dp 默认档贴到大面必然糊。默认重载保持 96 不动（首页小卡／榜单等小图面共用）。 */
     public static void load(String url, int sizeDp, CustomTarget<Bitmap> target) {

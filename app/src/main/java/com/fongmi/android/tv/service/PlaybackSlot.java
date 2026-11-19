@@ -30,11 +30,7 @@ public final class PlaybackSlot {
         /** 音乐（音乐服务，通知 1004） */
         MUSIC,
         /** 主 PlaybackService（xc_video／通知 1001）：点播·直播·听书·TTS 共用 */
-        MAIN,
-        /** 短剧听书（听书服务，通知 1005） */
-        HG_AUDIO,
-        /** 短剧视频（视频发布口，框架会话／通知 1006） */
-        HG_VIDEO
+        MAIN
     }
 
     public interface Participant {
@@ -48,6 +44,9 @@ public final class PlaybackSlot {
     private static final Map<Source, Participant> PARTICIPANTS = new ConcurrentHashMap<>();
     private static volatile Source owner;
     private static volatile Source fallback;
+    /** 媒体卡在岗事实（provider 真发出过该源的媒体通知）：与持位/候补同册——
+     * 音乐服务原先自养的跨实例静态标记并入本账（2026-11-19 守卫扫除④ D24）。 */
+    private static final java.util.Set<Source> MEDIA_CARD_POSTED = ConcurrentHashMap.newKeySet();
 
     private PlaybackSlot() {
     }
@@ -72,8 +71,22 @@ public final class PlaybackSlot {
         if (ownedByOther(source)) App.post(participant::onSlotYielded);
     }
 
+    /** 记/读某源的媒体卡在岗事实：置位只许在 provider 通知变更回调，清位在降前台与注销。 */
+    public static void setMediaCardPosted(Source source, boolean posted) {
+        if (source == null) return;
+        if (posted) MEDIA_CARD_POSTED.add(source);
+        else MEDIA_CARD_POSTED.remove(source);
+    }
+
+    public static boolean isMediaCardPosted(Source source) {
+        return source != null && MEDIA_CARD_POSTED.contains(source);
+    }
+
     public static void unregister(Source source, Participant participant) {
         if (source == null) return;
+        // 在岗事实随登记一起摘：参与者销毁后事实自动归零，不再靠各服务在
+        // onDestroy 里手工回置跨实例静态（音乐 H3 那次漏复位就是散养的账）
+        MEDIA_CARD_POSTED.remove(source);
         if (participant != null) PARTICIPANTS.remove(source, participant);
         else PARTICIPANTS.remove(source);
         Participant reclaimable = null;

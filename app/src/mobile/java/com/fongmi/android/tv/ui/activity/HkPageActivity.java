@@ -105,6 +105,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import com.fongmi.android.tv.ui.hk.HkAdUrlBlocker;
+import com.fongmi.android.tv.ui.hk.HkArticleListModel;
 import com.fongmi.android.tv.ui.hk.HkDetailBridge;
 import com.fongmi.android.tv.ui.hk.HkDialogs;
 import com.fongmi.android.tv.ui.hk.HkDynamicBgView;
@@ -336,6 +337,24 @@ public class HkPageActivity extends BaseActivity {
         showView(V_RULES);
         refreshRules();
         handleOpenFileIntent(getIntent());
+        promptFileAccessOnce();
+    }
+
+    /**
+     * 海阔入口文件授权提示（用户 2026-10-23 规矩：App 自己发现、明面提示、一键去开）。
+     * 海阔规则要读公共目录（如 Download 里的磁力数据库），未授「所有文件访问」时
+     * 引擎侧读文件异常被规则吞掉、页面只显 0 条，用户无从知道是授权没给。此前海阔
+     * 链上没有任何一处提示去开，补在海阔入口（本页 initView）：已授权直接返回、
+     * 不打扰；未授权只在首次进海阔时经 PermissionUtil.requestFile 走现成一键引导
+     * （与首页/文件页同路：有系统授权页则一键跳设置、否则退回读写运行时权限），
+     * 弹前先落持久旗，之后再进海阔不再弹（去重，账 hk-import-fail-ui7 第六轮）。
+     */
+    private void promptFileAccessOnce() {
+        if (com.fongmi.android.tv.setting.Setting.hasFileAccess()) return;
+        if (com.github.catvod.utils.Prefers.getBoolean("hk_file_access_prompted", false)) return;
+        com.github.catvod.utils.Prefers.put("hk_file_access_prompted", true);
+        com.fongmi.android.tv.utils.PermissionUtil.requestFile(this, allGranted -> {
+        });
     }
 
     @Override
@@ -891,6 +910,7 @@ public class HkPageActivity extends BaseActivity {
         binding.btnSelectAllRules.setOnClickListener(v -> toggleSelectAllRules());
         binding.btnDeleteSelectedRules.setOnClickListener(v -> showDeleteSelectedConfirm());
         binding.btnSelectDone.setOnClickListener(v -> exitRuleSelectMode());
+        binding.btnExportSelectedRules.setOnClickListener(v -> exportSelectedRules());
         // 点 🔍：搜规则（首页直接 inline 按名过滤小程序卡片）；长按 🔍：搜内容（全局搜索）
         // 用户拍板（2026-10-24）：不许再弹「搜内容/搜规则」二选一弹窗，多此一举
         binding.btnSearchRule.setOnClickListener(v -> toggleInlineSearch());
@@ -1096,6 +1116,7 @@ public class HkPageActivity extends BaseActivity {
         binding.btnSelectAllRules.setVisibility(View.VISIBLE);
         binding.btnDeleteSelectedRules.setVisibility(View.VISIBLE);
         binding.btnSelectDone.setVisibility(View.VISIBLE);
+        binding.btnExportSelectedRules.setVisibility(View.VISIBLE);
         updateSelectBar();
         ruleAdapter.notifyDataSetChanged();
     }
@@ -1112,12 +1133,14 @@ public class HkPageActivity extends BaseActivity {
         binding.btnSelectAllRules.setVisibility(View.GONE);
         binding.btnDeleteSelectedRules.setVisibility(View.GONE);
         binding.btnSelectDone.setVisibility(View.GONE);
+        binding.btnExportSelectedRules.setVisibility(View.GONE);
         ruleAdapter.notifyDataSetChanged();
     }
 
     private void updateSelectBar() {
         int n = ruleSelectedTitles.size();
         binding.btnDeleteSelectedRules.setText(n > 0 ? "删除（" + n + "）" : "删除");
+        binding.btnExportSelectedRules.setText(n > 0 ? "导出（" + n + "）" : "导出");
         boolean all = n > 0 && n == rules.size();
         binding.btnSelectAllRules.setText(all ? "取消全选" : "全选");
     }
@@ -1164,6 +1187,45 @@ public class HkPageActivity extends BaseActivity {
                 }).start())
                 .setNegativeButton("取消", null)
                 .show();
+    }
+
+    /**
+     * 多选导出：勾选规则打成一个合集包（.hkpkg，内含逐条自包含 .hkzip），
+     * 保存到 Download 并调起分享（与单条文件导出 doExportAsHkZip 同路）。
+     * 包内顺序按列表显示顺序，不按勾选先后。
+     */
+    private void exportSelectedRules() {
+        if (ruleSelectedTitles.isEmpty()) {
+            Notify.show("先选要导出的小程序");
+            return;
+        }
+        final List<String> targets = new ArrayList<>();
+        for (HkRule r : rules) {
+            if (ruleSelectedTitles.contains(r.getTitle())) targets.add(r.getTitle());
+        }
+        for (String t : ruleSelectedTitles) {
+            if (!targets.contains(t)) targets.add(t);
+        }
+        new Thread(() -> {
+            try {
+                File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                java.io.File out = HkRuleManager.get().exportCollectionPackage(targets, dir);
+                App.post(() -> {
+                    Notify.show("已导出到：" + out.getAbsolutePath());
+                    try {
+                        Intent share = new Intent(Intent.ACTION_SEND);
+                        share.setType("application/zip");
+                        share.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(out));
+                        startActivity(Intent.createChooser(share, "分享小程序合集包"));
+                    } catch (Exception e) {
+                        android.util.Log.e("HkPage", "export share failed", e);
+                        Notify.show("文件已导出，但分享打开失败");
+                    }
+                });
+            } catch (Exception e) {
+                App.post(() -> Notify.show("导出失败：" + e.getMessage()));
+            }
+        }).start();
     }
 
     /** 多选模式下卡片右上角的勾选标记（代码添加，不改卡片布局）：未选空心圈、已选黄底白勾。 */
@@ -2088,7 +2150,11 @@ public class HkPageActivity extends BaseActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        // 8.83 onActivityResult(5273)：fileSelect 文件选择结果，文件名注入 _fileSelect_<name> 后执行 JS
+        // 8.83 onActivityResult(5273)＋$15.success：fileSelect 回流与规则页同形——
+        // 拷文件到 cache/_fileSelect_<文件名>，evalJS(getMyRule＋MY_URL＋MY_PATH＋js,
+        // input＝拷贝绝对路径)，结果回主线程按 fileSelectPosition 回灌成一次点击。
+        // （旧形只 putMyVar 文件名变量后 eval(code, "")：input 恒空、不拷贝、不注
+        // MY_PATH、无 getMyRule 前导、结果不回灌，与官全差，见 hk-import-fail-bookmarks 账。）
         if (requestCode == REQ_FILE_SELECT) {
             String js = fileSelectJs;
             fileSelectJs = "";
@@ -2104,15 +2170,49 @@ public class HkPageActivity extends BaseActivity {
                     }
                 } catch (Throwable ignored) {
                 }
-                if (name.isEmpty()) name = uri.getLastPathSegment();
-                final String varName = "_fileSelect_" + (name == null ? "" : name);
+                if (name == null || name.isEmpty()) {
+                    String seg = uri.getLastPathSegment();
+                    if (seg != null) {
+                        int slash = seg.lastIndexOf('/');
+                        name = slash >= 0 ? seg.substring(slash + 1) : seg;
+                    }
+                }
+                if (name == null) name = "";
+                final String dirName = "_fileSelect_" + name;
                 final String code = js;
-                // 把文件内容读出来注入变量（8.83 用 UriUtils 读文件，这里简化：只注入文件名变量，JS 可按需用 _fileSelect_ 取）
+                final int position = fileSelectPosition;
+                final HkRule rule = currentRule;
+                final String myUrl = hkRuleUrl();
                 new Thread(() -> {
                     try {
-                        HkJsRuntime rt = getRouter().getEngine().getJsRuntime();
-                        rt.putMyVar(varName, uri.toString());
-                        rt.eval(code, "");
+                        java.io.File root = getExternalFilesDir(null);
+                        if (root == null) root = getFilesDir();
+                        java.io.File cacheDir = new java.io.File(root, "cache");
+                        if (!cacheDir.exists()) cacheDir.mkdirs();
+                        java.io.File out = new java.io.File(cacheDir, dirName);
+                        if (out.exists()) out.delete();
+                        try (java.io.InputStream in = getContentResolver().openInputStream(uri);
+                             java.io.OutputStream os = new java.io.FileOutputStream(out)) {
+                            if (in == null) throw new java.io.IOException("openInputStream null");
+                            byte[] buf = new byte[8192];
+                            int n;
+                            while ((n = in.read(buf)) != -1) os.write(buf, 0, n);
+                        }
+                        if (rule == null) return;
+                        HkArticleListModel.EngineBridge bridge = HkArticleListModel.getEngineBridge();
+                        if (bridge == null) return;
+                        String myPath = com.example.hikerview.utils.UriUtils.getFilePath(this, uri);
+                        String result = bridge.evalFileSelect(rule, code, out.getAbsolutePath(), myUrl, myPath);
+                        if (result != null && !result.isEmpty() && !"undefined".equalsIgnoreCase(result)) {
+                            runOnUiThread(() -> {
+                                if (isFinishing()) return;
+                                if (position >= 0 && position < videos.size()) {
+                                    HkItem it = videos.get(position);
+                                    it.setUrl(result);
+                                    onContentItemClick(it);
+                                }
+                            });
+                        }
                     } catch (Throwable e) {
                         android.util.Log.d("HkPage", "fileSelect eval failed: " + e.getMessage());
                     }
@@ -3379,6 +3479,10 @@ public class HkPageActivity extends BaseActivity {
                 .setMessage("确定删除「" + rule.getTitle() + "」吗？")
                 .setPositiveButton("删除", (d, w) -> new Thread(() -> {
                     HkRuleManager.get().delete(rule.getTitle());
+                    // 分组映射：delete() 已清盘上 JSON，本页内存副本同口摘除
+                    // （与批删 :1153 同形），防随后整表回写把孤儿键写回。
+                    ruleGroupMap.remove(rule.getTitle());
+                    saveRuleGroupMap();
                     App.post(this::refreshRules);
                 }).start())
                 .setNegativeButton("取消", null)
@@ -5675,7 +5779,7 @@ public class HkPageActivity extends BaseActivity {
             }
         }
         if (handleActionUrl(url, it)) return;
-        // 8.83 clickItem(2948)：fileSelect://<js> 打开文件选择器，选完后把文件名注入 _fileSelect_<name> 并执行 JS
+        // 8.83 clickItem(2948)：fileSelect://<js> 存 JS 开文件选择器，选完走 onActivityResult 回流（拷贝＋evalJS＋结果回灌，见 REQ_FILE_SELECT 支）
         if (url.startsWith("fileSelect://")) {
             fileSelectJs = url.substring("fileSelect://".length());
             fileSelectPosition = videos.indexOf(it);
@@ -8226,16 +8330,14 @@ public class HkPageActivity extends BaseActivity {
             configureWebHolder(pageWebHolder, ct, url, desc, extra);
             if (pageWebHolder.getWebkitHolder() == null) {
                 pageWebHolder.ensureWebView(HkPageActivity.this);
-                // 建面缺省 UA 抓存（3-B 续）：ensureWebView 同步返回时 settings UA 尚未被
-                // 任何条目 UA 覆写（initWebView 只读存 systemUA、不写 UA；条目 UA 推送只在
-                // 下方已建面支；loadUrl 的 onPageStarted 回调在本主线程任务后才跑），此刻
-                // 读到的即该 WebView 建面时的缺省值。建面失败（wv 为 null）保持 null。
-                android.webkit.WebView freshWv = pageWebHolder.getWebView();
-                if (freshWv != null) {
-                    try {
-                        pageWebDefaultUa = freshWv.getSettings().getUserAgentString();
-                    } catch (Throwable ignored) {
-                    }
+                // 建面缺省 UA 抓存（3-B 续）：取 HkWebkitHolder 在 initWebView 时存下的
+                // systemUA（建面缺省原值）。不再读实时 settings——ensureWebView 已照官
+                // 在首载前把条目 UA 写进 settings（官 ArticleListFragment 源行 3944，
+                // 2026-11-19 身份线批），实时读会把首条目 UA 误当缺省、下方无 UA 条目
+                // 的「恢复缺省」将恢复错值。建面失败（holder 未建）保持 null。
+                if (pageWebHolder.getWebkitHolder() != null) {
+                    String sysUa = pageWebHolder.getSystemUA();
+                    if (sysUa != null && !sysUa.isEmpty()) pageWebDefaultUa = sysUa;
                 }
                 return;
             }
@@ -8246,9 +8348,10 @@ public class HkPageActivity extends BaseActivity {
             if (wv == null) return;
             // UA 对称恢复（3-B 续）：与新开 holder 等价——新条目带 UA 设其 UA、无 UA 把
             // settings UA 恢复为建面缺省（抓存值），不再单向残留旧条目 UA。本体
-            // HkWebkitHolder.checkUa 的回落终点是 useUa/systemUA、不认条目 extra UA
-            // （其旧 extra UA 非空门已按官摘除，C1 复核订正），整页打开路不跨条目复用
-            // 同一 WebView，此串台是本页级列表复用 holder 独有，故只收本面。
+            // HkWebkitHolder.checkUa 的 extra UA 非空门已照 IArticleWebHolder.checkUa
+            // smali 实文补回（2026-11-19 身份线批）：带 UA 时读链不跑；门开（无 UA）
+            // 时读链回落终点仍是 useUa/systemUA、不认条目 extra UA。整页打开路不跨
+            // 条目复用同一 WebView，此串台是本页级列表复用 holder 独有，故只收本面。
             HkX5Extra x5 = pageWebHolder.getX5Extra();
             if (x5 != null && !TextUtils.isEmpty(x5.getUa())) {
                 try {

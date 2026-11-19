@@ -146,8 +146,9 @@ public final class RemoteTrustDialog {
         binding.deviceStatusRefresh = () -> refreshDeviceStatus(activity, binding);
         binding.bindCodeRefresh = () -> refreshBindCodeIfNeeded(activity, binding);
         render(activity, binding);
+        // 摆位在 show 之前落定（原挂 OnShow 首行：show 后才改宽，出框会动一下）；OnShow 只留接线
+        configureWindow(activity, dialog);
         dialog.setOnShowListener(d -> {
-            configureWindow(activity, dialog);
             binding.close.setOnClickListener(v -> dialog.dismiss());
             binding.bindCodeButton.setOnClickListener(v -> copyCode(activity, binding));
             binding.enableToggle.setOnClickListener(v -> toggleEnabled(activity, binding));
@@ -958,8 +959,9 @@ public final class RemoteTrustDialog {
             }
             return false;
         });
+        // 摆位在 show 之前落定（原挂 OnShow：show 后才改宽，出框会动一下）；OnShow 只留抢焦点
+        configureSmallModalWindow(activity, dialog);
         dialog.setOnShowListener(d -> {
-            configureSmallModalWindow(activity, dialog);
             dialogBinding.code.requestFocus();
         });
         showModal(dialog);
@@ -1176,8 +1178,9 @@ public final class RemoteTrustDialog {
             }
             return false;
         });
+        // 摆位在 show 之前落定（原挂 OnShow：show 后才改宽，出框会动一下）；OnShow 只留抢焦点
+        configureSmallModalWindow(activity, dialog);
         dialog.setOnShowListener(d -> {
-            configureSmallModalWindow(activity, dialog);
             dialogBinding.input.requestFocus();
         });
         showModal(dialog);
@@ -1293,8 +1296,9 @@ public final class RemoteTrustDialog {
             if (state.editing) exitConfigEdit(activity, binding, state);
             else exitConfigAdd(activity, binding, state);
         });
+        // 摆位在 show 之前落定（原挂 OnShow：show 后才改宽，出框会动一下）；OnShow 只留刷列表
+        configureConfigWindow(activity, dialog);
         dialog.setOnShowListener(v -> {
-            configureConfigWindow(activity, dialog);
             refreshRemoteConfigList(activity, binding, state, false);
         });
         showModal(dialog);
@@ -2182,7 +2186,8 @@ public final class RemoteTrustDialog {
             dialog.dismiss();
             startRemoteSync(activity, binding, selected);
         });
-        dialog.setOnShowListener(d -> configureSmallModalWindow(activity, dialog));
+        // 摆位在 show 之前落定（原挂 OnShow：show 后才改宽，出框会动一下）
+        configureSmallModalWindow(activity, dialog);
         showModal(dialog);
     }
 
@@ -2983,7 +2988,8 @@ public final class RemoteTrustDialog {
         dialog.setOnDismissListener(d -> {
             if (binding.serverQrDialog == dialog) binding.serverQrDialog = null;
         });
-        dialog.setOnShowListener(d -> configureSmallModalWindow(activity, dialog));
+        // 摆位在 show 之前落定（原挂 OnShow：show 后才改宽，出框会动一下）
+        configureSmallModalWindow(activity, dialog);
         binding.serverQrDialog = showModal(dialog);
     }
 

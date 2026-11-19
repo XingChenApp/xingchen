@@ -1,4 +1,7 @@
 package com.fongmi.android.tv.ui.dialog;
+import android.app.Dialog;
+import android.os.Bundle;
+import androidx.annotation.Nullable;
 
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
@@ -298,9 +301,17 @@ public class SiteDialog extends BaseAlertDialog implements SiteAdapter.OnClickLi
             }
             waitingConfig = true;
             showStatus(R.string.site_loading);
-        } else {
-            configureWindow();
         }
+    }
+
+    @NonNull
+    @Override
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定：公式与内容无关，原 onStart/showStatus/refreshSites
+        // 三处出框后重落同值——首帧前先钉死，后两处重落同值不再引起位移
+        configureWindow(dialog);
+        return dialog;
     }
 
     @Override
@@ -342,8 +353,12 @@ public class SiteDialog extends BaseAlertDialog implements SiteAdapter.OnClickLi
     }
 
     private void configureWindow() {
-        if (getDialog() == null || getDialog().getWindow() == null) return;
-        Window window = getDialog().getWindow();
+        configureWindow(getDialog());
+    }
+
+    private void configureWindow(Dialog dialog) {
+        if (dialog == null || dialog.getWindow() == null) return;
+        Window window = dialog.getWindow();
         WindowManager.LayoutParams params = window.getAttributes();
         boolean land = ResUtil.isLand(requireContext());
         int width = Math.min(Math.round(ResUtil.getScreenWidth(requireContext()) * (land ? 0.5f : 0.92f)), ResUtil.dp2px(620));

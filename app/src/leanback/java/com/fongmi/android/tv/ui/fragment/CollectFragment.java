@@ -148,7 +148,7 @@ public class CollectFragment extends BaseFragment implements CustomScroller.Call
     public void onItemClick(Vod item) {
         if (item.isAction()) {
             if (!ActionResult.handleCard(requireActivity(), item, json -> mViewModel.action(item.getSiteKey(), json)))
-                mViewModel.action(item.getSiteKey(), item.getAction());
+                mViewModel.action(item.getSiteKey(), item.getAction().isEmpty() ? item.getId() : item.getAction());
             return;
         }
         requireActivity().setResult(Activity.RESULT_OK);

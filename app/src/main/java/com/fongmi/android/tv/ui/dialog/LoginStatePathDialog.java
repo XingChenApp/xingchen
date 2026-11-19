@@ -2,6 +2,7 @@ package com.fongmi.android.tv.ui.dialog;
 
 import android.app.Dialog;
 import android.graphics.Color;
+import android.os.Bundle;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
@@ -18,6 +19,7 @@ import android.view.WindowManager;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.widget.LinearLayoutCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
@@ -128,12 +130,16 @@ public class LoginStatePathDialog extends BaseAlertDialog {
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-        if (getDialog() == null) return;
-        setCancelable(false);
-        getDialog().setCanceledOnTouchOutside(false);
-        Window window = getDialog().getWindow();
+    @NonNull
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里整段改窗是出框后再定尺寸，会动一下）
+        applyWindow(dialog);
+        return dialog;
+    }
+
+    private void applyWindow(Dialog dialog) {
+        Window window = dialog == null ? null : dialog.getWindow();
         if (window == null) return;
         WindowManager.LayoutParams params = window.getAttributes();
         int screenWidth = ResUtil.getScreenWidth(requireContext());
@@ -148,6 +154,13 @@ public class LoginStatePathDialog extends BaseAlertDialog {
         ViewGroup.LayoutParams rootParams = binding.getRoot().getLayoutParams();
         rootParams.height = params.height;
         binding.getRoot().setLayoutParams(rootParams);
+    }
+
+    public void onStart() {
+        super.onStart();
+        if (getDialog() == null) return;
+        setCancelable(false);
+        getDialog().setCanceledOnTouchOutside(false);
         if (!appPanelCollapsed) binding.appRecycler.requestFocus();
         else if (!sdcardPanelCollapsed) binding.sdcardRecycler.requestFocus();
         else binding.appTitle.requestFocus();

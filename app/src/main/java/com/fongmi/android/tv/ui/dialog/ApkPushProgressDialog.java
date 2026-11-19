@@ -1,5 +1,11 @@
 package com.fongmi.android.tv.ui.dialog;
 
+import android.app.Dialog;
+import android.os.Bundle;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.text.TextUtils;
@@ -77,11 +83,18 @@ public final class ApkPushProgressDialog extends BaseAlertDialog {
     }
 
     @Override
+    @NonNull
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里 configureWindow 是出框后改宽高，会动一下）
+        configureWindow(dialog);
+        return dialog;
+    }
+
     public void onStart() {
         super.onStart();
         setCancelable(false);
         if (getDialog() != null) getDialog().setCanceledOnTouchOutside(false);
-        configureWindow();
         binding.cancel.requestFocus();
     }
 
@@ -132,8 +145,8 @@ public final class ApkPushProgressDialog extends BaseAlertDialog {
         return TextUtils.isEmpty(text) ? "00:00" : text;
     }
 
-    private void configureWindow() {
-        Window window = getDialog() == null ? null : getDialog().getWindow();
+    private void configureWindow(Dialog dialog) {
+        Window window = dialog == null ? null : dialog.getWindow();
         if (window == null) return;
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);

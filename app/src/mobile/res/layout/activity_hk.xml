@@ -104,7 +104,7 @@
                             android:visibility="gone" />
 
 
-                        <!-- 多选模式才显示：全选 / 删除 / 完成 -->
+                        <!-- 多选模式才显示：全选 / 删除 / 完成 / 导出 -->
                         <TextView
                             android:id="@+id/btn_select_all_rules"
                             android:layout_width="wrap_content"
@@ -146,6 +146,22 @@
                             android:paddingLeft="14dp"
                             android:paddingRight="14dp"
                             android:text="完成"
+                            android:textColor="#101216"
+                            android:textSize="14sp"
+                            android:visibility="gone" />
+
+                        <!-- 多选模式才显示：导出（完成之后，样式与同排钮同款） -->
+                        <TextView
+                            android:id="@+id/btn_export_selected_rules"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/hk_btn_glass"
+                            android:gravity="center"
+                            android:minWidth="56dp"
+                            android:paddingLeft="14dp"
+                            android:paddingRight="14dp"
+                            android:text="导出"
                             android:textColor="#101216"
                             android:textSize="14sp"
                             android:visibility="gone" />

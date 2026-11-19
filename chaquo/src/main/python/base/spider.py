@@ -1,13 +1,43 @@
 import re
 import os
+import sys
 import json
 import time
+import hashlib
+import threading
 import requests
 from lxml import etree
 from com.github.catvod import Proxy
 from com.chaquo.python import Python
 from abc import abstractmethod, ABCMeta
 from importlib.machinery import SourceFileLoader
+
+
+# 已加载依赖模块表：键 (模块名, 文件内容摘要) -> 模块对象。与 app.py 的
+# spider() 同口径：同一份文件在一个进程内只执行一次，类身份不被反复加载
+# 冲掉（桥的类关联是进程全局按最后定义覆写的，见 app.py 注释）。依赖文件
+# 被 download() 更新后摘要变化，照旧重新加载新版。
+_loaded_dep_modules = {}
+_dep_load_lock = threading.Lock()
+
+
+def _load_dep_module(name, path):
+    with open(path, 'rb') as f:
+        digest = hashlib.sha256(f.read()).hexdigest()
+    key = (name, digest)
+    module = _loaded_dep_modules.get(key)
+    if module is None:
+        with _dep_load_lock:
+            module = _loaded_dep_modules.get(key)
+            if module is None:
+                # load_module() 对 sys.modules 里已有的同名模块是原地重跑
+                # （命名空间被新代码覆盖、类对象当场换掉）。先摘掉旧登记，
+                # 让本次加载生成全新模块对象：新版进 sys.modules[name] 供
+                # 按名 import，旧对象原样留给已持有它的调用方，不被冲掉。
+                sys.modules.pop(name, None)
+                module = SourceFileLoader(name, path).load_module()
+                _loaded_dep_modules[key] = module
+    return module
 
 
 class Spider(metaclass=ABCMeta):
@@ -66,7 +96,7 @@ class Spider(metaclass=ABCMeta):
     def loadModule(self, name):
         cache_dir = Python.getPlatform().getApplication().getCacheDir().getAbsolutePath()
         path = os.path.join(os.path.join(cache_dir, 'py'),  f'{name}.py')
-        return SourceFileLoader(name, path).load_module()
+        return _load_dep_module(name, path)
 
     def regStr(self, reg, src, group=1):
         m = re.search(reg, src)

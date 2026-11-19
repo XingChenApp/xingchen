@@ -158,8 +158,31 @@ public class HkWebViewHolder {
     }
 
     /**
+     * 照抄原版 ArticleWebViewHolder.loadUrlCheckReferer（源行 321-326）：
+     * x5Extra 的 referer 非空 → loadUrl(url, {Referer: referer})，否则裸 loadUrl(url)。
+     * 官调用点只有 updateWebView 的地址同步一处（源行 3986）；咱家另用于下方
+     * 建框首载（咱家首载在本方法内、官首载即该同步点，同一加载须同形带头）。
+     */
+    public void loadUrlCheckReferer(String url) {
+        WebView wv = getWebView();
+        if (wv == null) return;
+        if (x5Extra != null && x5Extra.getReferer() != null && !x5Extra.getReferer().isEmpty()) {
+            java.util.Map<String, String> headers = new java.util.HashMap<>();
+            headers.put("Referer", x5Extra.getReferer());
+            wv.loadUrl(url, headers);
+        } else {
+            wv.loadUrl(url);
+        }
+    }
+
+    /** 建面缺省 UA：HkWebkitHolder 在 initWebView 时存下的 systemUA（任何条目 UA 覆写之前的值）。 */
+    public String getSystemUA() {
+        return webkitHolder != null ? webkitHolder.getSystemUA() : "";
+    }
+
+    /**
      * 照原版 updateWebView 的创建点语义：新建 WebView → 交 HkWebkitHolder 配置（initWebView）→ 加载。
-     * 视频条目（isVideoItem）加载 videoUrl（带 videoHeaders），普通条目加载 url。
+     * 视频条目（isVideoItem）加载 videoUrl（带 videoHeaders），普通条目经 loadUrlCheckReferer 加载 url。
      */
     public void ensureWebView(Activity activity) {
         if (webkitHolder != null || activity == null) return;
@@ -188,11 +211,21 @@ public class HkWebViewHolder {
         if (bridgePlayHandler != null) webkitHolder.setBridgePlayHandler(bridgePlayHandler);
         webkitHolder.setUrl(url);
         webkitHolder.initWebView(activity);
+        // 照官 updateWebView 建框支（ArticleListFragment 源行 3942-3944）：initWebView
+        // 之后、任何 loadUrl 之前先把 x5Extra 的 UA 设进 settings，UA 恒先于首载；
+        // 官首载在其后的地址同步（源行 3986），咱家首载在本方法尾，同序落点在此。
+        // 已建框支地址同步前的再设一次由 HkArticleFragment.updateWebView 承担（官源行 3980 同位）。
+        if (x5Extra != null && x5Extra.getUa() != null && !x5Extra.getUa().isEmpty()) {
+            try {
+                wv.getSettings().setUserAgentString(x5Extra.getUa());
+            } catch (Exception ignored) {
+            }
+        }
         if (isVideoItem() && videoUrl != null && !videoUrl.isEmpty()) {
             if (videoHeaders != null && !videoHeaders.isEmpty()) wv.loadUrl(videoUrl, videoHeaders);
             else wv.loadUrl(videoUrl);
         } else if (url != null && !url.isEmpty()) {
-            wv.loadUrl(url);
+            loadUrlCheckReferer(url);
         }
     }
 

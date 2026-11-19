@@ -3,6 +3,7 @@ package com.fongmi.android.tv.clash;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,7 +21,7 @@ import java.util.List;
  * <li>{@link #KIND_BOOK}：书源（Legado 书源仓库），按 bookSourceUrl；阅读取数（正文/图片/音频/缓存下载）用。
  * <li>{@link #KIND_MUSIC}：音乐源（FreeJS 插件），按 srcUrl（音乐源的唯一身份，与桥的 key 同口径）；
  *     插件接口请求与脚本下载经桥/源管理打点后走本表决策。语义：单源开了即生效、
- *     不要求总开关先开（「需代理」是这类源的接入定案，见 源管理 的指定源镜像）。
+ *     不要求总开关先开（「需代理」是这类源的接入定案，见源管理的指定源镜像）。
  * <li>{@link #KIND_PIKPAK}：PikPak 网盘，id 固定为 DrivePikPak.ID（"pikpak"），仅作打点归属；
  *     不设单源开关、不查本表——默认带上：节点总开关开着、内核在跑就走节点
  *     （用户 2026-10-26 口径「直接给他带上就行了，还单独搞个开关？」）。
@@ -74,12 +75,14 @@ public final class SourceProxyPolicy {
     /**
      * 壳子网络层决策入口：这个来源的请求要不要走本地节点口。
      * 音乐：单源开了走节点即生效，不再要求节点总开关先开（用户口径：开了就生效；
-     * 音乐侧「需代理」指定源由源管理把定案镜像进本表，见 源管理）。
+     * 音乐侧「需代理」指定源由源管理把定案镜像进本表）。
      * PikPak：默认带上，不设单源开关、不查本表，只看节点总开关（总开关开即走节点）。
      * 其它源：维持原语义，总开关关 → 一律直连。
      */
     public static boolean shouldProxy(Context context, String kind, String id) {
-        if (KIND_MUSIC.equals(kind)) return isEnabled(context, kind, id);
+        if (KIND_MUSIC.equals(kind)) {
+            return isEnabled(context, kind, id);
+        }
         if (KIND_PIKPAK.equals(kind)) return ClashSettings.isEnabled(context);
         if (!ClashSettings.isEnabled(context)) return false;
         return isEnabled(context, kind, id);

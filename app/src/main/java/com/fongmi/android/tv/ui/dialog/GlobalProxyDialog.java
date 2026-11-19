@@ -1,6 +1,8 @@
 package com.fongmi.android.tv.ui.dialog;
 
+import android.app.Dialog;
 import android.graphics.Color;
+import android.os.Bundle;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Handler;
 import android.os.Looper;
@@ -9,6 +11,8 @@ import android.view.Gravity;
 import android.view.Window;
 import android.view.WindowManager;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.viewbinding.ViewBinding;
@@ -63,9 +67,16 @@ public class GlobalProxyDialog extends BaseAlertDialog {
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-        Window window = getDialog() == null ? null : getDialog().getWindow();
+    @NonNull
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里改重力与宽是出框后再定，会动一下）
+        applyWindow(dialog);
+        return dialog;
+    }
+
+    private void applyWindow(Dialog dialog) {
+        Window window = dialog == null ? null : dialog.getWindow();
         if (window == null) return;
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         window.setGravity(Gravity.CENTER);
@@ -74,6 +85,10 @@ public class GlobalProxyDialog extends BaseAlertDialog {
         float density = getResources().getDisplayMetrics().density;
         params.width = Math.min((int) (screenWidth * 0.94), (int) (700 * density));
         window.setAttributes(params);
+    }
+
+    public void onStart() {
+        super.onStart();
     }
 
     @Override

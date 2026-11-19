@@ -39,7 +39,8 @@ public final class DialogUtil {
 
     public void showAsCard(Context context, AlertDialog alertDialog, int w) {
         useCardBg(alertDialog);
-        alertDialog.show();
+        // 宽在 show 之前落定（值与官形公式一字不变，只是把 show 后改宽挪到 show 前：
+        // 首帧默认宽、随后跳到卡片宽＝出框动一下）
         if (alertDialog.getWindow() != null) {
             Window window = alertDialog.getWindow();
             WindowManager.LayoutParams attributes = window.getAttributes();
@@ -50,6 +51,7 @@ public final class DialogUtil {
                 window2.setAttributes(attributes);
             }
         }
+        alertDialog.show();
     }
 
     private int getPopupWidth(Context context, int w) {

@@ -126,14 +126,4 @@
         <item>标准</item>
     </string-array>
 
-    <string name="hongguo_comment">评论</string>
-    <string name="hongguo_comment_series_tab">剧评</string>
-    <string name="hongguo_comment_episode_tab">本集评论</string>
-    <string name="hongguo_comment_empty">还没有评论</string>
-    <string name="hongguo_comment_failed">评论没拉出来，点此重试</string>
-    <string name="hongguo_comment_loading">加载中…</string>
-    <string name="hongguo_comment_replies">回复</string>
-    <string name="hongguo_comment_more_replies">展开更多回复</string>
-    <string name="hongguo_comment_reply_to">回复 %s</string>
-    <string name="hongguo_comment_likes">赞 %d</string>
 </resources>

@@ -584,11 +584,13 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         if (TextUtils.isEmpty(id) || id.equals(oldId)) return;
         saveHistory();
         getIntent().putExtras(intent);
+        initHistory();
         checkId();
     }
 
     @Override
     protected void initView(Bundle savedInstanceState) {
+        initHistory();
         long start = System.currentTimeMillis();
         SpiderDebug.log("video-flow", "initView start sinceLaunch=%dms key=%s id=%s", getLaunchCost(start), getKey(), getId());
         if (!isCast() && hasInitialPreview()) showInitialPreview();
@@ -3092,28 +3094,33 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     }
 
     private void configureKaraokeResultDialog(AlertDialog dialog, KaraokeResultView view) {
+        // 窗几何在 show 之前落定（本法在 show 前被调）：旧法把 setLayout 挂 OnShow，
+        // 框先按默认宽出帧再改宽＝「弹出来还会动一下」；OnShow 只留藏系统栏与抢焦点
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            WindowManager.LayoutParams params = window.getAttributes();
+            if (isLandscapeAudioSheet()) {
+                params.dimAmount = 0f;
+                params.gravity = Gravity.CENTER;
+                params.x = 0;
+                params.y = 0;
+                window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+                window.setAttributes(params);
+                window.setLayout(view.getPreferredDialogWidth(), WindowManager.LayoutParams.WRAP_CONTENT);
+            } else {
+                params.dimAmount = 0.62f;
+                params.gravity = Gravity.CENTER;
+                window.setAttributes(params);
+                window.setLayout(view.getPreferredDialogWidth(), WindowManager.LayoutParams.WRAP_CONTENT);
+                window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            }
+        }
         dialog.setOnShowListener(d -> {
-            Window window = dialog.getWindow();
-            if (window != null) {
-                window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
-                WindowManager.LayoutParams params = window.getAttributes();
-                if (isLandscapeAudioSheet()) {
-                    params.dimAmount = 0f;
-                    params.gravity = Gravity.CENTER;
-                    params.x = 0;
-                    params.y = 0;
-                    window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-                    window.setAttributes(params);
-                    window.setLayout(view.getPreferredDialogWidth(), WindowManager.LayoutParams.WRAP_CONTENT);
-                    Util.hideSystemUI(window);
-                    Util.hideSystemUI(this);
-                } else {
-                    params.dimAmount = 0.62f;
-                    params.gravity = Gravity.CENTER;
-                    window.setAttributes(params);
-                    window.setLayout(view.getPreferredDialogWidth(), WindowManager.LayoutParams.WRAP_CONTENT);
-                    window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-                }
+            Window w = dialog.getWindow();
+            if (w != null && isLandscapeAudioSheet()) {
+                Util.hideSystemUI(w);
+                Util.hideSystemUI(this);
             }
             view.requestActionFocus();
         });
@@ -3670,8 +3677,12 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     }
 
     private void checkHistory(Vod item) {
-        mHistory = History.find(getHistoryKey());
-        mHistory = mHistory == null ? createHistory(item) : mHistory;
+        // 往进页占位上填（不换对象）：落盘有行把行状态整表搬入占位，
+        // 没行按 createHistory 原口径拿详情填占位——键与定版前逐字一致，
+        // 主键一行，不造第二条。
+        History found = History.find(getHistoryKey());
+        if (found == null) fillHistory(mHistory, item);
+        else if (found != mHistory) mHistory.adopt(found);
         if (!TextUtils.isEmpty(getWallPic())) mHistory.setWallPic(getWallPic());
         if (!TextUtils.isEmpty(getMark())) mHistory.setVodRemarks(getMark());
         if (Setting.isIncognito() && mHistory.getKey().equals(getHistoryKey())) mHistory.delete();
@@ -3720,15 +3731,27 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         mBinding.video.requestFocus();
     }
 
-    private History createHistory(Vod item) {
-        History history = new History();
+    /**
+     * 进页即建历史占位：页面已握站点 key 与影片 id（详情就是凭这个去拉的），
+     * 按 getHistoryKey 现行同一构成先把 History 建出来——手势器与控制条在
+     * initView 期即活，详情异步回来之前它们摸到的就是这个占位对象，
+     * 不再撞空。占位只带身份（键＋cid），内容由详情定版时 fillHistory /
+     * adopt 往本对象上填，落盘恒走主键一行，不造第二条。
+     */
+    private void initHistory() {
+        mHistory = new History();
+        mHistory.setKey(getHistoryKey());
+        mHistory.setCid(VodConfig.getCid());
+    }
+
+    /** 原 createHistory 的填法，改成往既有对象（进页占位）上填，赋值逐项不变。 */
+    private void fillHistory(History history, Vod item) {
         history.setKey(getHistoryKey());
         history.setCid(VodConfig.getCid());
         history.setVodName(item.getName());
         history.setVodPic(getInitialArtwork(item));
         history.setWallPic(getWallPic());
         history.findEpisode(item.getFlags());
-        return history;
     }
 
     private void saveHistory() {
@@ -5156,22 +5179,23 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
             showAudioDrawerSheet(dialog, drawerAtStart);
             return;
         }
-        dialog.setOnShowListener(d -> {
-            FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
-            if (sheet == null) return;
+        // 展开态在 show 之前钉死（旧法挂 OnShow：先按折叠高出首帧、再滑开＝「弹出来还会动一下」）；
+        // setContentView 后容器与 behavior 已关联，此处直接落定，首帧即终态
+        FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (sheet != null) {
             sheet.setBackgroundColor(Color.TRANSPARENT);
-            BottomSheetBehavior<FrameLayout> behavior;
+            BottomSheetBehavior<FrameLayout> behavior = null;
             try {
                 behavior = BottomSheetBehavior.from(sheet);
             } catch (IllegalArgumentException e) {
                 SpiderDebug.log("bottomsheet", "behavior unavailable, degraded: %s", e.getMessage());
-                return;
             }
-            behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-            behavior.setSkipCollapsed(true);
-            behavior.setDraggable(draggable);
-            hideSystemBarsForAudioSheet(dialog);
-        });
+            if (behavior != null) {
+                behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                behavior.setSkipCollapsed(true);
+                behavior.setDraggable(draggable);
+            }
+        }
         dialog.show();
         applyAudioSheetWindowGlass(dialog);
         hideSystemBarsForAudioSheet(dialog);
@@ -5201,29 +5225,29 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
             showCompactPlaybackSheet(dialog);
             return;
         }
-        dialog.setOnShowListener(d -> {
-            FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
-            if (sheet == null) return;
+        // 抽屉高与展开态在 show 之前钉死（旧法挂 OnShow：出框后再改高＝「弹出来还会动一下」）
+        FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (sheet != null) {
             sheet.setBackgroundColor(Color.TRANSPARENT);
             int height = audioDrawerHeight();
             ViewGroup.LayoutParams params = sheet.getLayoutParams();
             params.height = height;
             sheet.setLayoutParams(params);
-            BottomSheetBehavior<FrameLayout> behavior;
+            BottomSheetBehavior<FrameLayout> behavior = null;
             try {
                 behavior = BottomSheetBehavior.from(sheet);
             } catch (IllegalArgumentException e) {
                 SpiderDebug.log("bottomsheet", "behavior unavailable, degraded: %s", e.getMessage());
-                return;
             }
-            behavior.setFitToContents(false);
-            behavior.setExpandedOffset(Math.max(0, ResUtil.getScreenHeight(this) - height));
-            behavior.setPeekHeight(height);
-            behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-            behavior.setSkipCollapsed(true);
-            behavior.setDraggable(false);
-            hideSystemBarsForAudioSheet(dialog);
-        });
+            if (behavior != null) {
+                behavior.setFitToContents(false);
+                behavior.setExpandedOffset(Math.max(0, ResUtil.getScreenHeight(this) - height));
+                behavior.setPeekHeight(height);
+                behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                behavior.setSkipCollapsed(true);
+                behavior.setDraggable(false);
+            }
+        }
         dialog.show();
         applyAudioSheetWindowGlass(dialog);
         hideSystemBarsForAudioSheet(dialog);
@@ -5237,9 +5261,10 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     }
 
     private void showAudioDrawerSheet(BottomSheetDialog dialog, boolean atStart) {
-        dialog.setOnShowListener(d -> {
-            FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
-            if (sheet == null) return;
+        // 抽屉的宽高/重力/边距与展开态全部在 show 之前钉死（旧法挂 OnShow：出框后再改
+        // 尺寸与位置＝「弹出来还会动一下」）；setContentView 后容器已在，此处直接落定
+        FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (sheet != null) {
             sheet.setBackgroundColor(Color.TRANSPARENT);
             int height = audioDrawerHeight();
             int bottomMargin = audioDrawerBottomMargin();
@@ -5253,21 +5278,21 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
                 params.setMargins(atStart ? ResUtil.dp2px(16) : 0, mStatusBarInset + ResUtil.dp2px(16), atStart ? 0 : ResUtil.dp2px(16), bottomMargin);
             }
             sheet.setLayoutParams(raw);
-            BottomSheetBehavior<FrameLayout> behavior;
+            BottomSheetBehavior<FrameLayout> behavior = null;
             try {
                 behavior = BottomSheetBehavior.from(sheet);
             } catch (IllegalArgumentException e) {
                 SpiderDebug.log("bottomsheet", "behavior unavailable, degraded: %s", e.getMessage());
-                return;
             }
-            behavior.setFitToContents(false);
-            behavior.setExpandedOffset(Math.max(0, ResUtil.getScreenHeight(this) - height - bottomMargin));
-            behavior.setPeekHeight(height);
-            behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-            behavior.setSkipCollapsed(true);
-            behavior.setDraggable(false);
-            hideSystemBarsForAudioSheet(dialog);
-        });
+            if (behavior != null) {
+                behavior.setFitToContents(false);
+                behavior.setExpandedOffset(Math.max(0, ResUtil.getScreenHeight(this) - height - bottomMargin));
+                behavior.setPeekHeight(height);
+                behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                behavior.setSkipCollapsed(true);
+                behavior.setDraggable(false);
+            }
+        }
         dialog.show();
         applyAudioSheetWindowGlass(dialog);
         hideSystemBarsForAudioSheet(dialog);
@@ -5275,9 +5300,13 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     }
 
     private void showAudioQueueDrawerDialog(Dialog dialog) {
-        dialog.show();
+        // 窗几何在 show 之前一次钉死（旧法 show 后才 setLayout：首帧是默认摆位、随后跳到
+        // 抽屉位＝「弹出来还会动一下」）；藏系统栏与抢焦点仍在 show 之后
         Window window = dialog.getWindow();
-        if (window == null) return;
+        if (window == null) {
+            dialog.show();
+            return;
+        }
         int height = audioQueueDrawerHeight();
         int top = Math.max(0, audioQueueDrawerScreenHeight() - height - audioDrawerBottomMargin());
         window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
@@ -5293,6 +5322,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         window.setAttributes(params);
         window.setLayout(audioDrawerWidth(), height);
         window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        dialog.show();
         window.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
         hideSystemBarsForAudioDialog(dialog);
         focusAudioQueueSelectedItem();

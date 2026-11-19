@@ -1,11 +1,15 @@
 package com.fongmi.android.tv.ui.dialog;
 
+import android.app.Dialog;
 import android.graphics.Color;
+import android.os.Bundle;
 import android.graphics.drawable.ColorDrawable;
 import android.view.Gravity;
 import android.view.Window;
 import android.view.WindowManager;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentManager;
 import androidx.viewbinding.ViewBinding;
 
@@ -74,20 +78,24 @@ public class MpvConfigHistoryDialog extends BaseAlertDialog implements MpvConfig
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-        if (adapter.getItemCount() == 0) {
-            dismiss();
-        } else if (Util.isLeanback()) {
-            setWidth(0.4f);
-        } else {
-            configureWindow();
-        }
+    @NonNull
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里 setWidth/configureWindow 是出框后改宽，会动一下）；
+        // 列表为空时 onStart 仍会自关，宽先落不影响那条路
+        if (Util.isLeanback()) setWidth(dialog, 0.4f);
+        else configureWindow(dialog);
+        return dialog;
     }
 
-    private void configureWindow() {
-        if (getDialog() == null || getDialog().getWindow() == null) return;
-        Window window = getDialog().getWindow();
+    public void onStart() {
+        super.onStart();
+        if (adapter.getItemCount() == 0) dismiss();
+    }
+
+    private void configureWindow(Dialog dialog) {
+        if (dialog == null || dialog.getWindow() == null) return;
+        Window window = dialog.getWindow();
         WindowManager.LayoutParams params = window.getAttributes();
         boolean land = ResUtil.isLand(requireContext());
         int width = Math.min(Math.round(ResUtil.getScreenWidth(requireContext()) * (land ? 0.5f : 0.84f)), ResUtil.dp2px(520));

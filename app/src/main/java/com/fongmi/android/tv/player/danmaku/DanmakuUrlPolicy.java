@@ -19,6 +19,7 @@ public final class DanmakuUrlPolicy {
             String scheme = lower(uri.getScheme());
             if ("http".equals(scheme) || "https".equals(scheme)) return validNetworkUri(uri) ? SourceType.STATIC : SourceType.UNSUPPORTED;
             if ("ws".equals(scheme) || "wss".equals(scheme)) return validNetworkUri(uri) ? SourceType.LIVE : SourceType.UNSUPPORTED;
+            if ("spider".equals(scheme)) return validSpiderUri(uri) ? SourceType.SPIDER : SourceType.UNSUPPORTED;
             if ("file".equals(scheme)) return uri.getPath() == null || uri.getPath().isBlank() ? SourceType.UNSUPPORTED : SourceType.STATIC;
             if ("content".equals(scheme)) return uri.getRawAuthority() == null || uri.getRawAuthority().isBlank() ? SourceType.UNSUPPORTED : SourceType.STATIC;
             return SourceType.UNSUPPORTED;
@@ -77,6 +78,17 @@ public final class DanmakuUrlPolicy {
 
     public static boolean isDirectHost(String host) {
         return isLoopbackHost(host) || isPrivateIpv4(host) || isPrivateIpv6(host);
+    }
+
+    // spider://<siteKey>/<id>：与 app SiteApi.danmaku 的地址校验同口径（authority=站点 key、
+    // 恰一段非空路径、无 query/fragment），解析细节由 SiteApi 在订阅时按 android Uri 再验一遍。
+    private static boolean validSpiderUri(URI uri) {
+        String authority = uri.getRawAuthority();
+        if (authority == null || authority.isBlank()) return false;
+        if (uri.getRawQuery() != null || uri.getRawFragment() != null) return false;
+        String path = uri.getPath();
+        if (path == null || path.length() < 2 || !path.startsWith("/")) return false;
+        return path.indexOf('/', 1) < 0;
     }
 
     private static boolean validNetworkUri(URI uri) {
@@ -155,7 +167,7 @@ public final class DanmakuUrlPolicy {
     private static String safeScheme(String scheme) {
         String value = lower(scheme);
         return switch (value) {
-            case "http", "https", "ws", "wss", "file", "content" -> value;
+            case "http", "https", "ws", "wss", "file", "content", "spider" -> value;
             default -> "other";
         };
     }
@@ -177,6 +189,7 @@ public final class DanmakuUrlPolicy {
         EMPTY,
         STATIC,
         LIVE,
+        SPIDER,
         UNSUPPORTED;
 
         public boolean isStatic() {
@@ -187,8 +200,12 @@ public final class DanmakuUrlPolicy {
             return this == LIVE;
         }
 
+        public boolean isSpider() {
+            return this == SPIDER;
+        }
+
         public boolean isSupported() {
-            return isStatic() || isLive();
+            return isStatic() || isLive() || isSpider();
         }
     }
 }

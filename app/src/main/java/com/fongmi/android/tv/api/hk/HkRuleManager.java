@@ -7,6 +7,7 @@ import android.util.Base64;
 import android.util.Log;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.setting.SiteHealthStore;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -20,12 +21,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,6 +45,8 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
+import org.json.JSONObject;
+
 /**
  * 海阔规则的存取管（设计文档 §4.1）。
  * 存储：filesDir/plugins/hk/&lt;规则名&gt;.json，与 plugins/py、plugins/js 并列。
@@ -53,6 +60,10 @@ public class HkRuleManager {
     private static final String DATA_DIR = "plugins/hk/data";
     private static final String PREFS = "hk_rule";
     private static final String KEY_ENABLED_PREFIX = "enabled_";
+    // 分组映射的存放面是 HkPageActivity 的 prefs（其 PREFS／KEY_RULE_GROUPS）：
+    // main 源集够不着 mobile 源集的 Activity 常量，按值对齐并在此记名。
+    private static final String GROUP_PREFS = "xingchen";
+    private static final String KEY_RULE_GROUP_MAP = "hk_rule_group_map";
 
     // 云口令（云剪贴板）：格式 云{version}oooole/{path}，version 为 1~10。
     // 逆向自海阔视界官方 App（com.example.hikerviewg v8.83）各 Importer 的真实通道（2026-10-10 实测）：
@@ -682,7 +693,7 @@ public class HkRuleManager {
                                 String en = e.getName();
                                 String eb = en.substring(en.lastIndexOf('/') + 1);
                                 if (!eb.startsWith(".") && eb.toLowerCase(Locale.ROOT).endsWith(".js")) {
-                                    data.libs.put(eb, readStream(zin));
+                                    data.libs.put(eb, readStreamNoClose(zin));
                                 }
                             }
                             zin.closeEntry();
@@ -703,7 +714,7 @@ public class HkRuleManager {
                                 String eb = en.substring(en.lastIndexOf('/') + 1);
                                 // 防路径穿越：跳过绝对路径、含 .. 与隐藏文件条目
                                 if (!en.startsWith("/") && !en.contains("..") && !eb.startsWith(".")) {
-                                    sink.put(en, readStream(zin));
+                                    sink.put(en, readStreamNoClose(zin));
                                 }
                             }
                             zin.closeEntry();
@@ -1017,13 +1028,24 @@ public class HkRuleManager {
         return count;
     }
 
-    /** 经典 IO 读流（API 24 可用，不依赖 java.nio）。 */
+    /** 经典 IO 读流（API 24 可用，不依赖 java.nio）：读完关流，只许独占流（每条目新建的流）用。 */
     private static byte[] readStream(InputStream in) throws Exception {
+        byte[] bytes = readStreamNoClose(in);
+        in.close();
+        return bytes;
+    }
+
+    /**
+     * 读流不关版：共用流专用——一条 ZipInputStream 循环读多条目时读完一条不许关流，
+     * 关了整条流即死、后续条目连同 closeEntry 一并抛「Stream closed」（parseHkZip 内层
+     * libs.zip／data.zip／data2.zip 三支曾因此恒抛「解包失败」、data2 永不落盘）。
+     * 共用流的关闭由持有方的 try-with-resources 统一负责。
+     */
+    private static byte[] readStreamNoClose(InputStream in) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         byte[] buf = new byte[8192];
         int n;
         while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-        in.close();
         return out.toByteArray();
     }
 
@@ -1825,7 +1847,8 @@ public class HkRuleManager {
     }
 
     /**
-     * 导出规则为 .hkzip 包：rule.json + require.json（若有）+ libs.zip（若有附带库）。
+     * 导出规则为 .hkzip 包：rule.json + require.json（若有）+ libs.zip（若有附带库）
+     * + data.zip / data2.zip（若有资产树），包体见 buildRulePackageBytes。
      *
      * @return 导出的文件
      */
@@ -1834,7 +1857,7 @@ public class HkRuleManager {
     }
 
     /**
-     * 导出规则为 .zip 包：内容与 .hkzip 完全相同（rule.json + require.json + libs.zip），仅后缀为 .zip。
+     * 导出规则为 .zip 包：内容与 .hkzip 完全相同（rule.json + require.json + libs.zip + data.zip + data2.zip），仅后缀为 .zip。
      * 海阔里常见"xxx.zip"规则包（如"黄色仓库.zip"），与 .hkzip 互通，导入走同一套解析。
      *
      * @return 导出的文件
@@ -1845,15 +1868,76 @@ public class HkRuleManager {
 
     /** 导出规则包的公共实现：ext 决定后缀（.hkzip / .zip），包内容一致。 */
     private File exportRulePackage(String title, File destDir, String ext) throws Exception {
-        File src = new File(getDir(), safeFileName(title) + ".json");
-        if (!src.exists()) throw new IllegalArgumentException("规则不存在：" + title);
+        // 包体与合集内层包共用 buildRulePackageBytes（rule.json＋require.json＋
+        // libs.zip＋data.zip＋data2.zip 自包含）。2026-11-19 补齐：此前单条导出
+        // 在此处自拼包体、不带 data/data2，靠资产的规则（如风影靠 data2 的
+        // ycl.js）单条导出即丢资产、对方导入即坏；缺口实证见导出账。
+        byte[] bytes = buildRulePackageBytes(title);
         if (destDir != null && !destDir.exists()) destDir.mkdirs();
         File dest = new File(destDir != null ? destDir : getDir(), safeFileName(title) + ext);
-        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(dest.toPath()))) {
+        Files.write(dest.toPath(), bytes);
+        return dest;
+    }
+
+    private void writeZipEntry(ZipOutputStream zos, String name, byte[] bytes) throws Exception {
+        ZipEntry entry = new ZipEntry(name);
+        zos.putNextEntry(entry);
+        zos.write(bytes);
+        zos.closeEntry();
+    }
+
+    /**
+     * 导出勾选的多条规则为一个合集包（.hkpkg）：包内每条规则一个自包含
+     * .hkzip（rule.json 原文＋require.json＋libs.zip＋data.zip＋data2.zip），
+     * 走合集导入路（isCollectionPackage→extractCollectionPackage→逐个点选
+     * 单包导入）可原样导回。文件名照官分享命名形：yyyy-MM-dd-N个小程序。
+     *
+     * @param titles 勾选的规则标题（顺序即包内顺序）
+     * @return 导出的合集包文件
+     */
+    public File exportCollectionPackage(List<String> titles, File destDir) throws Exception {
+        if (titles == null || titles.isEmpty()) throw new IllegalArgumentException("未选中任何规则");
+        if (destDir != null && !destDir.exists()) destDir.mkdirs();
+        String date = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(new Date());
+        File dest = new File(destDir != null ? destDir : getDir(),
+                date + "-" + titles.size() + "个小程序.hkpkg");
+        // 先写临时文件，全部成功才换成正式名，免得半成品留在导出目录
+        File tmp = new File(dest.getParentFile(), dest.getName() + ".tmp");
+        Set<String> usedNames = new HashSet<>();
+        try {
+            try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(tmp.toPath()))) {
+                for (String title : titles) {
+                    String base = safeFileName(title);
+                    String name = base + ".hkzip";
+                    int k = 2;
+                    while (!usedNames.add(name)) name = base + "(" + (k++) + ").hkzip";
+                    writeZipEntry(zos, name, buildRulePackageBytes(title));
+                }
+            }
+        } catch (Exception e) {
+            tmp.delete();
+            throw e;
+        }
+        if (dest.exists()) dest.delete();
+        if (!tmp.renameTo(dest)) {
+            tmp.delete();
+            throw new IllegalArgumentException("导出文件落盘失败：" + dest.getAbsolutePath());
+        }
+        return dest;
+    }
+
+    /**
+     * 单条规则的自包含包字节：rule.json＋require.json＋libs.zip＋data.zip／
+     * data2.zip（该规则在外部 Documents 下的两棵资产树，相对路径原样）——
+     * 靠包内资产的规则（如 data2 里的脚本/图片）靠这两包才能整包导回。
+     * 合集内层 .hkzip 与单条文件导出（exportRulePackage）共用此构建器。
+     */
+    private byte[] buildRulePackageBytes(String title) throws Exception {
+        File src = new File(getDir(), safeFileName(title) + ".json");
+        if (!src.exists()) throw new IllegalArgumentException("规则不存在：" + title);
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        try (ZipOutputStream zos = new ZipOutputStream(bos)) {
             writeZipEntry(zos, "rule.json", Files.readAllBytes(src.toPath()));
-            // 环13 对官导出（8.83 ShareRuleUtil）：登记簿非空时把登记簿根的
-            // require.json 原文件与各 RequireItem.file（全局 libs 内实文件）
-            // 打进包；旧形读内部 data/<title>/ 的副本，导入落点修回官根后恒空。
             File require = new File(getRequireFilesDir(title), "require.json");
             List<com.example.hikerview.ui.rules.model.RequireItem> reqItems =
                     com.example.hikerview.ui.rules.service.require.RequireUtils.getRequireItems(title);
@@ -1873,15 +1957,29 @@ public class HkRuleManager {
                 }
                 if (anyLib) writeZipEntry(zos, "libs.zip", libsZip.toByteArray());
             }
+            byte[] dataZip = zipDirectoryBytes(getExternalDataDir(title));
+            if (dataZip != null) writeZipEntry(zos, "data.zip", dataZip);
+            byte[] data2Zip = zipDirectoryBytes(getExternalData2Dir(title));
+            if (data2Zip != null) writeZipEntry(zos, "data2.zip", data2Zip);
         }
-        return dest;
+        return bos.toByteArray();
     }
 
-    private void writeZipEntry(ZipOutputStream zos, String name, byte[] bytes) throws Exception {
-        ZipEntry entry = new ZipEntry(name);
-        zos.putNextEntry(entry);
-        zos.write(bytes);
-        zos.closeEntry();
+    /** 把一棵目录树打成 zip 字节（条目名＝相对路径，/ 分隔，顺序按路径排序）；无文件返回 null。 */
+    private byte[] zipDirectoryBytes(File dir) throws Exception {
+        if (dir == null || !dir.isDirectory()) return null;
+        List<File> files = new ArrayList<>();
+        collectFiles(dir, files);
+        if (files.isEmpty()) return null;
+        files.sort((a, b) -> a.getAbsolutePath().compareTo(b.getAbsolutePath()));
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        try (ZipOutputStream zos = new ZipOutputStream(bos)) {
+            for (File f : files) {
+                String rel = dir.toPath().relativize(f.toPath()).toString().replace('\\', '/');
+                writeZipEntry(zos, rel, Files.readAllBytes(f.toPath()));
+            }
+        }
+        return bos.toByteArray();
     }
 
     /** 列出所有已导入规则（损坏的文件跳过，不影响整体；异常写入文件日志方便定位）。 */
@@ -1972,13 +2070,24 @@ public class HkRuleManager {
         return f.exists() ? f.lastModified() : -1;
     }
 
-    /** 删除规则（含启用开关记录与规则数据目录：kv/自带库都在里面，
-     *  不清的话坏缓存删规则重装也甩不掉，UU视频实证）。 */
+    /** 删除规则（他亲定：咱家删除直接清空，不学原版「删行＋重置清文件」分家）：
+     *  本体、配置、内外数据目录、外部登记簿、publicItem 同名键、海阔历史、
+     *  收藏、按规则授权、分组映射、站点健康键、启用开关与桥内存账一并清净，
+     *  装回同名规则从零开始。含启用开关记录与规则数据目录的旧因仍在：kv/自带
+     *  库都在里面，不清的话坏缓存删规则重装也甩不掉，UU视频实证。逐面清单
+     *  与相碰推演见账 hk-rule-delete-leftovers §七。 */
     public boolean delete(String title) {
         if (title == null) return false;
         File f = new File(getDir(), safeFileName(title) + ".json");
         boolean ok = !f.exists() || f.delete();
         if (ok) SAVE_STAMP.incrementAndGet();
+        // 规则配置（initConfig/长按规则设置落盘）：不清的话装回同名规则
+        // 旧 config（host 等）原样复活。
+        try {
+            File cf = new File(getConfigDir(), safeFileName(title) + ".json");
+            if (cf.exists()) cf.delete();
+        } catch (Throwable ignored) {
+        }
         try {
             deleteRecursive(getDataDir(title));
         } catch (Throwable ignored) {
@@ -1988,6 +2097,64 @@ public class HkRuleManager {
         // 否则装回同名规则会读到已删规则的旧账（账 hk-engine-singleton-land #10）。
         try {
             HkJsRuntime.onRuleDeleted(title);
+        } catch (Throwable ignored) {
+        }
+        // 外部三目录（登记簿＋规则私有文件、合集 data、data2）：排在桥内存
+        // 清账之后——先停该规则的定时器再删文件，缩小删后被写回的窗口
+        // （在跑的一发 JS 仍可能写回个别文件，与内部 data 目录同形残窗，
+        // 记名于账 §七.4）。路径与 getRequireFilesDir/getExternalDataDir/
+        // getExternalData2Dir 同根，但不走那三口（它们会 mkdirs，删除面
+        // 不许先建再删）；登记簿目录名用标题原串、data/data2 用净化名，
+        // 与各自写口逐字一致。
+        try {
+            File docs = externalDocsDir();
+            deleteRecursive(new File(docs, "rules/files/" + title));
+            deleteRecursive(new File(docs, "data/" + safeFileName(title)));
+            deleteRecursive(new File(docs, "data2/" + safeFileName(title)));
+        } catch (Throwable ignored) {
+        }
+        // publicItem 同名键：走 HkJsRuntime 的墓碑＋合并写那条路摘，不清的
+        // 话装回同名规则读到旧值；没摘净并入 ok=false（与启用标记同理）。
+        try {
+            if (!HkJsRuntime.removePublicItemKey(title)) {
+                Log.e(TAG, "删除规则时 publicItem 同名键摘除失败：" + title);
+                ok = false;
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "删除规则时 publicItem 同名键摘除异常：" + title, t);
+            ok = false;
+        }
+        // 海阔历史行（连带 Track）：点播侧「真删条目连带删其名下历史」的
+        // 同口径落点（旧形孤儿行留存、历史页点开只弹「该小程序已删除」）。
+        try {
+            HkHistoryRecorder.deleteByRule(title);
+        } catch (Throwable t) {
+            Log.e(TAG, "删除规则时历史连带清失败：" + title, t);
+        }
+        // 海阔收藏整批（旧形只有逐条取消与全清两口，被删规则的整批留存）。
+        try {
+            if (!HkFavoriteStore.removeByRule(title)) {
+                Log.e(TAG, "删除规则时收藏连带清失败：" + title);
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "删除规则时收藏连带清异常：" + title, t);
+        }
+        // 按规则授权全清：不清的话装回同名规则静默继承旧授权、不再弹窗；
+        // 没清成并入 ok=false（与启用标记同理）。
+        try {
+            if (!HkAuthManager.clearByRule(title)) {
+                Log.e(TAG, "删除规则时授权清理失败：" + title);
+                ok = false;
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "删除规则时授权清理异常：" + title, t);
+            ok = false;
+        }
+        // 分组映射孤儿键：全入口统一在此摘，不再分入口（旧形只有批删一路清）。
+        removeRuleGroupMapping(title);
+        // 站点健康分 hk_<标题> 键（键形与记账点验实见账 §七.8）。
+        try {
+            SiteHealthStore.removeSite(HkDetailBridge.siteKey(title));
         } catch (Throwable ignored) {
         }
         try {
@@ -2002,6 +2169,35 @@ public class HkRuleManager {
             ok = false;
         }
         return ok;
+    }
+
+    /** 外部 Documents 根（与 getExternalDataDir/getRequireFilesDir 同根，
+     *  但不 mkdirs——删除面专用）。 */
+    private File externalDocsDir() {
+        Context ctx = appContext();
+        File docs = ctx == null ? null : ctx.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+        return docs == null ? new File("Documents") : docs;
+    }
+
+    /** 分组映射摘键：映射存 HkPageActivity 的 prefs（GROUP_PREFS/
+     *  KEY_RULE_GROUP_MAP，值是标题→分组的 JSON 对象串），删除口在此直改
+     *  盘上 JSON，单删/文章页删/错误工具删等无 Activity 在场入口统一覆盖；
+     *  管理器页的内存副本在其页内删除路另有摘除（批删既有、单删同批补齐），
+     *  文章页删时的页内存残窗记名于账 §七.5。 */
+    private void removeRuleGroupMapping(String title) {
+        try {
+            Context ctx = appContext();
+            if (ctx == null) return;
+            SharedPreferences sp = ctx.getSharedPreferences(GROUP_PREFS, Context.MODE_PRIVATE);
+            String raw = sp.getString(KEY_RULE_GROUP_MAP, null);
+            if (raw == null) return;
+            JSONObject obj = new JSONObject(raw);
+            if (!obj.has(title)) return;
+            obj.remove(title);
+            sp.edit().putString(KEY_RULE_GROUP_MAP, obj.toString()).apply();
+        } catch (Exception e) {
+            Log.e(TAG, "删除规则时分组映射摘键失败：" + title, e);
+        }
     }
 
     private static void deleteRecursive(File f) {

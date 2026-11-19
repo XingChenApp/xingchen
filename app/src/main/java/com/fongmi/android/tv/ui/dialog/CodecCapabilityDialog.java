@@ -64,8 +64,9 @@ public final class CodecCapabilityDialog {
     private void show() {
         dialog = LightDialog.create(activity, activity.getString(R.string.codec_capability_title), createContent(), activity.getString(R.string.codec_capability_copy), v -> copy(), activity.getString(R.string.dialog_negative), null);
         update(true);
-        dialog.show();
+        // 尺寸在 show 之前落定（原 show 后才 applySize：首帧是 LightDialog 默认宽、随后跳到本框宽）
         applySize();
+        dialog.show();
     }
 
     private View createContent() {

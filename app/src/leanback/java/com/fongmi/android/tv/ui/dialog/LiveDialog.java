@@ -100,22 +100,31 @@ public class LiveDialog extends BaseAlertDialog implements LiveAdapter.OnClickLi
         return true;
     }
 
+    @androidx.annotation.NonNull
+    @Override
+    public android.app.Dialog onCreateDialog(@androidx.annotation.Nullable android.os.Bundle savedInstanceState) {
+        android.app.Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里 setWidth/setDrawerWindow 是出框后改窗，会动一下）；
+        // 列表为空时 onStart 仍会自关，摆位先落不影响那条路
+        if (drawer) setDrawerWindow(dialog);
+        else setWidth(dialog, 0.4f);
+        return dialog;
+    }
+
     @Override
     public void onStart() {
         super.onStart();
         if (adapter.getItemCount() == 0) dismiss();
-        else if (drawer) setDrawerWindow();
-        else setWidth(0.4f);
     }
 
-    private void setDrawerWindow() {
-        if (getDialog() == null || getDialog().getWindow() == null) return;
-        WindowManager.LayoutParams params = getDialog().getWindow().getAttributes();
+    private void setDrawerWindow(android.app.Dialog dialog) {
+        if (dialog == null || dialog.getWindow() == null) return;
+        WindowManager.LayoutParams params = dialog.getWindow().getAttributes();
         params.gravity = Gravity.END | Gravity.TOP;
         params.width = Math.max(ResUtil.dp2px(360), Math.min(ResUtil.dp2px(520), Math.round(ResUtil.getScreenWidth() * 0.32f)));
         params.height = WindowManager.LayoutParams.MATCH_PARENT;
-        getDialog().getWindow().setBackgroundDrawable(new ColorDrawable(0x00000000));
-        getDialog().getWindow().setAttributes(params);
-        getDialog().getWindow().setLayout(params.width, WindowManager.LayoutParams.MATCH_PARENT);
+        dialog.getWindow().setBackgroundDrawable(new ColorDrawable(0x00000000));
+        dialog.getWindow().setAttributes(params);
+        dialog.getWindow().setLayout(params.width, WindowManager.LayoutParams.MATCH_PARENT);
     }
 }

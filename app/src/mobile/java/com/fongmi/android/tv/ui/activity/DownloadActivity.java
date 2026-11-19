@@ -200,8 +200,9 @@ public class DownloadActivity extends BaseActivity {
         if (tvMessage != null) tvMessage.setText(msg.toString());
         android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(this).setView(dialogView).create();
         dialogView.findViewById(R.id.btn_ok).setOnClickListener(v -> dialog.dismiss());
-        dialog.show();
+        // 摆位在 show 之前落定（原 show 后才 centerDialog：首帧默认宽、随后跳到 320dp）
         centerDialog(dialog, 320);
+        dialog.show();
     }
 
     /** 居中框统一口径：位置居中、宽在代码写死（dp 换算），不靠系统自适应 */
@@ -350,18 +351,24 @@ public class DownloadActivity extends BaseActivity {
         });
         if (current > 0) recycler.post(() -> recycler.scrollToPosition(current));
         dialog.findViewById(R.id.cancel).setOnClickListener(v -> dialog.dismiss());
-        dialog.show();
-        centerDialog(dialog, 320);
         if (listCapDp > 0) {
-            int capPx = (int) (listCapDp * getResources().getDisplayMetrics().density);
-            recycler.post(() -> {
-                if (recycler.getHeight() <= capPx) return;
+            // 列表高在 show 之前钉死：按终宽（320dp 减根左右各 16dp）实测一条条目，
+            // 总高超顶即把列表高写死为顶值（约八行可见、框内滚动，他 2026-11-16 定案）。
+            // 旧法在 post 里等布局完再压高——框先按全量高出帧、随后缩下来，就是动一下。
+            float density = getResources().getDisplayMetrics().density;
+            int capPx = (int) (listCapDp * density);
+            android.view.View item = getLayoutInflater().inflate(R.layout.item_download_thread, recycler, false);
+            item.measure(android.view.View.MeasureSpec.makeMeasureSpec((int) (288 * density), android.view.View.MeasureSpec.EXACTLY),
+                    android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED));
+            if (item.getMeasuredHeight() * labels.length > capPx) {
                 android.view.ViewGroup.LayoutParams lp = recycler.getLayoutParams();
                 lp.height = capPx;
                 recycler.setLayoutParams(lp);
-                if (current > 0) recycler.scrollToPosition(current);
-            });
+            }
         }
+        // 摆位在 show 之前落定（原 show 后才 centerDialog：首帧默认宽、随后跳到 320dp）
+        centerDialog(dialog, 320);
+        dialog.show();
     }
 
     private void showThreadDialog() {
@@ -413,7 +420,8 @@ public class DownloadActivity extends BaseActivity {
             Notify.show("已删除 " + count + " 个任务");
             dialog.dismiss();
         });
-        dialog.show();
+        // 摆位在 show 之前落定（原 show 后才 centerDialog：首帧默认宽、随后跳到 320dp）
         centerDialog(dialog, 320);
+        dialog.show();
     }
 }

@@ -4,6 +4,7 @@ import os
 import requests
 import json
 import textwrap
+import threading
 from urllib.parse import urljoin
 
 try:
@@ -45,6 +46,17 @@ _install_dns_bridge()
 
 _file_hashes = {}
 _module_seq = itertools.count(1)
+
+# 已加载模块表：键 (文件名, 源码摘要) -> 模块对象。同一份源码在一个进程内
+# 只执行一次，之后的 spider() 直接在缓存模块上新建 Spider() 实例。
+# 桥（Chaquopy）的 Java 类 <-> Python 类关联是进程全局、按「最后定义」覆写
+# 的：每次重跑整份 py 都会把全部类对象换新，先前实例注册的回调在派发时
+# 就对不上类、进桥的恢复路径（158 上 tgdrama 的 PyProxy 抽象方法崩即此）。
+# 让「一份源码一套类」在加载器本体成立，类身份才稳定。源码变了摘要就变，
+# 照旧全新加载；表随进程存活，不随实例 destroy 清除（与 sys.modules
+# 只进不出的现行口径一致，只是同源不再无限新增）。
+_loaded_modules = {}
+_spider_load_lock = threading.Lock()
 
 
 # 首页加载代次（修 3）：Java 侧每次作废旧首页加载时代次 +1 并经 set_home_generation
@@ -118,9 +130,18 @@ def spider(cache, source, file_name=None):
     if _file_hashes.get(name) != digest:
         writeFile(path, data)
         _file_hashes[name] = digest
-    mod_name = name.split('.')[0] + '_' + str(next(_module_seq))
-    from importlib.machinery import SourceFileLoader
-    raw = SourceFileLoader(mod_name, path).load_module().Spider()
+    module = _loaded_modules.get((name, digest))
+    if module is None:
+        # 并发创建时同一份源码只许执行一次：锁内再查一遍。
+        # 加载失败照旧把异常抛出去，不登记、不吞，与原行为一致。
+        with _spider_load_lock:
+            module = _loaded_modules.get((name, digest))
+            if module is None:
+                mod_name = name.split('.')[0] + '_' + str(next(_module_seq))
+                from importlib.machinery import SourceFileLoader
+                module = SourceFileLoader(mod_name, path).load_module()
+                _loaded_modules[(name, digest)] = module
+    raw = module.Spider()
     return _Runner(raw) if _Runner is not None else raw
 
 

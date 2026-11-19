@@ -1,4 +1,7 @@
 package com.fongmi.android.tv.ui.dialog;
+import android.app.Dialog;
+import android.os.Bundle;
+import androidx.annotation.Nullable;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -110,14 +113,21 @@ public class CastDialog extends BaseAlertDialog implements DeviceAdapter.OnClick
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-        configureWindow();
+    @NonNull
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里 configureWindow 是出框后改宽，会动一下）
+        configureWindow(dialog);
+        return dialog;
     }
 
-    private void configureWindow() {
-        if (getDialog() == null || getDialog().getWindow() == null) return;
-        Window window = getDialog().getWindow();
+    public void onStart() {
+        super.onStart();
+    }
+
+    private void configureWindow(Dialog dialog) {
+        if (dialog == null || dialog.getWindow() == null) return;
+        Window window = dialog.getWindow();
         WindowManager.LayoutParams params = window.getAttributes();
         boolean land = ResUtil.isLand(requireContext());
         int width = Math.min(Math.round(ResUtil.getScreenWidth(requireContext()) * (land ? 0.6f : 0.94f)), ResUtil.dp2px(700));

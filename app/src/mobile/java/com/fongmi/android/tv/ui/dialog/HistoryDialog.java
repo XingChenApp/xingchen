@@ -1,4 +1,7 @@
 package com.fongmi.android.tv.ui.dialog;
+import android.app.Dialog;
+import android.os.Bundle;
+import androidx.annotation.Nullable;
 
 import android.content.Context;
 import android.graphics.Color;
@@ -122,15 +125,23 @@ public class HistoryDialog extends BaseAlertDialog implements ConfigAdapter.OnCl
     }
 
     @Override
+    @NonNull
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里 configureWindow 是出框后改宽，会动一下）；
+        // 列表为空时 onStart 仍会自关，宽先落不影响那条路
+        configureWindow(dialog);
+        return dialog;
+    }
+
     public void onStart() {
         super.onStart();
         if (adapter.getItemCount() == 0) dismiss();
-        else configureWindow();
     }
 
-    private void configureWindow() {
-        if (getDialog() == null || getDialog().getWindow() == null) return;
-        Window window = getDialog().getWindow();
+    private void configureWindow(Dialog dialog) {
+        if (dialog == null || dialog.getWindow() == null) return;
+        Window window = dialog.getWindow();
         WindowManager.LayoutParams params = window.getAttributes();
         boolean land = ResUtil.isLand(requireContext());
         int width = Math.min(Math.round(ResUtil.getScreenWidth(requireContext()) * (land ? 0.5f : 0.84f)), ResUtil.dp2px(520));

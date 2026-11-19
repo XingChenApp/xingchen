@@ -5,7 +5,9 @@ import android.text.TextUtils;
 import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.github.catvod.crawler.SpiderDebug;
+import com.github.catvod.net.CookieStore;
 import com.github.catvod.net.GlobalProxy;
+import com.github.catvod.net.Net;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Path;
 import com.github.catvod.utils.Util;
@@ -19,6 +21,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import okhttp3.HttpUrl;
 import okhttp3.Response;
 
 public class Loader {
@@ -40,6 +43,28 @@ public class Loader {
     }
 
     private final PyObject app;
+
+    // 新形态桥模块（app2）：与 app 同为进程级模块对象，永不 close。导入失败
+    // 只记日志、置 null，新形态分发自动关停，老路一字不受影响。
+    private final PyObject app2;
+
+    // 新形态 Net 的 Cookie 通道：接咱家 CookieStore（按 host 存取），与
+    // FongMi PyLoader 传 JsHost 作 cookies 的位置等价（站点级 Cookie 共享）。
+    private static final Net.Cookies COOKIES = new Net.Cookies() {
+        @Override
+        public String getCookie(String url) {
+            HttpUrl parsed = url == null ? null : HttpUrl.parse(url);
+            return parsed == null ? null : CookieStore.get(parsed.host());
+        }
+
+        @Override
+        public boolean setCookie(String url, String cookie) {
+            HttpUrl parsed = url == null ? null : HttpUrl.parse(url);
+            if (parsed == null || cookie == null) return false;
+            CookieStore.save(parsed, cookie);
+            return true;
+        }
+    };
 
     public Loader() {
         if (!Python.isStarted()) Python.start(Platform.create());
@@ -66,6 +91,13 @@ public class Loader {
         GlobalProxy.syncPython();
         // app 是进程级模块对象：随 Loader（PyLoader 持有）活到进程结束，永不 close。
         app = Python.getInstance().getModule("app");
+        PyObject newApp = null;
+        try {
+            newApp = Python.getInstance().getModule("app2");
+        } catch (RuntimeException error) {
+            SpiderDebug.log("python-spider", error);
+        }
+        app2 = newApp;
     }
 
     // 进程级预热实例：App 冷启动用 warmUp() 提前把 Python 拉起来。这个实例
@@ -90,6 +122,24 @@ public class Loader {
     public Spider spider(String api) {
         String name = scriptName(api);
         String source = source(api, name);
+        return createOld(api, source, name);
+    }
+
+    /**
+     * 带站点 key 的创建入口（PyLoader 唯一调用）：源码先按 PyForm 判形态——
+     * 新形态走 app2 并行路（隔离运行时＋四适配器），老形态与 spider(api)
+     * 完全同一条老路。判据只看源码特征（见 PyForm），老源永不误分。
+     * 源码在此只作判据取样：新路按 FongMi 语义把 api 原串交 Python 侧
+     * read_source 取数（远程走 Net 通道、本地读文件、内联直用），不复用这份。
+     */
+    public com.github.catvod.crawler.Spider spider(String api, String siteKey) {
+        String name = scriptName(api);
+        String source = source(api, name);
+        if (app2 != null && PyForm.isNewForm(source)) return spiderNew(api, siteKey);
+        return createOld(api, source, name);
+    }
+
+    private Spider createOld(String api, String source, String name) {
         PyObject obj;
         java.util.concurrent.Future<PyObject> create = CREATE_EXECUTOR.submit(() -> app.callAttr("spider", Path.py().getAbsolutePath(), source, name));
         try {
@@ -113,6 +163,50 @@ public class Loader {
             throw new RuntimeException(e);
         }
         return new Spider(app, obj, api);
+    }
+
+    // 新形态创建（照 FongMi Loader.spider 形态）：先建站点级 Net，再经 app2
+    // 建隔离运行时；创建超时/取消/失败的分类口径与 createOld 完全一致，
+    // 失败时照 FongMi releaseSpider 关 Net＋释放运行时，不留孤儿。
+    private SpiderNew spiderNew(String api, String siteKey) {
+        Net net = new Net(COOKIES, siteKey);
+        java.util.concurrent.Future<PyObject> create = CREATE_EXECUTOR.submit(() -> app2.callAttr("spider", Path.py().getAbsolutePath(), api, siteKey, net));
+        PyObject obj;
+        try {
+            obj = create.get(60, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            create.cancel(true);
+            IllegalStateException failure = new IllegalStateException("python spider create timeout: " + api, e);
+            releaseNew(net, null, failure);
+            throw failure;
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            RuntimeException failure = cause instanceof RuntimeException ? (RuntimeException) cause : new RuntimeException(cause);
+            releaseNew(net, null, failure);
+            throw failure;
+        } catch (InterruptedException e) {
+            create.cancel(true);
+            Thread.currentThread().interrupt();
+            RuntimeException failure = new RuntimeException(e);
+            releaseNew(net, null, failure);
+            throw failure;
+        }
+        SpiderNew spider = new SpiderNew(app2, obj, COOKIES, null, net);
+        spider.siteKey = siteKey;
+        return spider;
+    }
+
+    private void releaseNew(Net net, PyObject obj, Throwable failure) {
+        try {
+            net.close();
+        } catch (RuntimeException | Error error) {
+            if (error != failure) failure.addSuppressed(error);
+        }
+        try {
+            if (obj != null) app2.callAttr("release", obj);
+        } catch (RuntimeException | Error error) {
+            if (error != failure) failure.addSuppressed(error);
+        }
     }
 
     private String source(String api, String name) {

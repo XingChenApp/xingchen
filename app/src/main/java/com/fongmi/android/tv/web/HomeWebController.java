@@ -21,6 +21,10 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.ValueCallback;
 
+import androidx.webkit.ScriptHandler;
+import androidx.webkit.WebViewCompat;
+import androidx.webkit.WebViewFeature;
+
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
 import com.github.catvod.crawler.SpiderDebug;
@@ -38,27 +42,37 @@ import com.fongmi.android.tv.utils.Task;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.fongmi.android.tv.utils.Util;
 import com.fongmi.android.tv.utils.WebViewUtil;
+import com.fongmi.android.tv.web.ext.WebHomeExtension;
+import com.fongmi.android.tv.web.ext.WebHomeExtensionRegistry;
 import com.google.common.net.HttpHeaders;
 import com.google.gson.JsonObject;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public class HomeWebController {
 
     private static final String BRIDGE = "fongmiBridge";
     private static final int SLOW_KEY_MS = 24;
     private static final long LOAD_TIMEOUT_MS = 15000;
+    private static final long EXTENSION_RELOAD_MIN_INTERVAL_MS = 5000;
     private static HomeWebController active;
+    private static boolean extensionReloadRequested;
 
     private final Listener listener;
     private final Activity activity;
+    private final Set<String> injectedExtensions;
+    private final Runnable extensionReloadRunnable;
     private final boolean debugTools;
     private WebView webView;
     private final float density;
+    private ScriptHandler documentStartHandler;
     private Site site;
+    private String documentStartKey;
     private String defaultUserAgent;
     private String homePage;
     private volatile String lastPageUrl;
@@ -67,6 +81,7 @@ public class HomeWebController {
     private String lastViewportKey;
     private long pauseAt;
     private long lastKeyAt;
+    private long lastExtensionReloadAt;
     private int inlineEvaluationCount;
     private int loadToken;
     private int loadTimeoutRecoveries;
@@ -91,8 +106,16 @@ public class HomeWebController {
         this.listener = listener;
         this.debugTools = debugTools;
         this.density = activity.getResources().getDisplayMetrics().density;
+        this.injectedExtensions = new HashSet<>();
+        this.extensionReloadRunnable = this::consumeExtensionReload;
         active = this;
         init();
+    }
+
+    public static void requestExtensionReload() {
+        extensionReloadRequested = true;
+        HomeWebController controller = active;
+        if (controller != null) App.post(controller::consumeExtensionReload);
     }
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
@@ -133,9 +156,12 @@ public class HomeWebController {
             Task.execute(() -> DialectSourceTag.resolve(current.getKey(), current.getApi()));
         }
         rawAdapter = WebHomeRawAdapter.create(url, site.getHeader());
+        prepareExtensions(site);
+        registerDocumentStartScripts();
         if (reload) {
             sdkReady = false;
             lastViewportKey = "";
+            injectedExtensions.clear();
             bridgeInvokeSeen = false;
             bridgePlaySeen = false;
             cancelTakeover();
@@ -153,6 +179,11 @@ public class HomeWebController {
             webView.clearCache(false);
             loadUrl(reloadUrl(homePage));
         }
+    }
+
+    public void reloadExtensions() {
+        extensionReloadRequested = true;
+        consumeExtensionReload();
     }
 
     private void loadUrl(String url) {
@@ -240,6 +271,7 @@ public class HomeWebController {
         active = this;
         webView.setVisibility(View.VISIBLE);
         focusWebView("show");
+        consumeExtensionReload();
     }
 
     public void hide() {
@@ -410,6 +442,7 @@ public class HomeWebController {
         webView.onResume();
         webView.resumeTimers();
         recoverAfterResume();
+        consumeExtensionReload();
     }
 
     public void onPause() {
@@ -451,6 +484,7 @@ public class HomeWebController {
 
     public void destroy() {
         destroyed = true;
+        removeDocumentStartScripts();
         cancelTakeover();
         rawAdapter = null;
         webView.stopLoading();
@@ -501,6 +535,7 @@ public class HomeWebController {
         listener.onWebLoading();
         sdkReady = false;
         lastViewportKey = "";
+        injectedExtensions.clear();
         loadUrl(reloadUrl(target, true));
         return true;
     }
@@ -581,6 +616,8 @@ public class HomeWebController {
                 bridgePlaySeen = false;
                 sdkReady = false;
                 lastViewportKey = "";
+                injectedExtensions.clear();
+                markDocumentStartInjected();
                 listener.onWebLoading();
             }
 
@@ -660,7 +697,105 @@ public class HomeWebController {
             if (destroyed) return;
             sdkReady = true;
             injectOpenGateHook();
+            injectExtensions(WebHomeExtension.RUN_AT_END);
+            webView.postDelayed(() -> injectExtensions(WebHomeExtension.RUN_AT_IDLE), 600);
         });
+    }
+
+    private void consumeExtensionReload() {
+        if (!extensionReloadRequested || paused || !isVisible() || site == null || TextUtils.isEmpty(homePage)) return;
+        long now = System.currentTimeMillis();
+        long wait = EXTENSION_RELOAD_MIN_INTERVAL_MS - (now - lastExtensionReloadAt);
+        if (wait > 0) {
+            webView.removeCallbacks(extensionReloadRunnable);
+            webView.postDelayed(extensionReloadRunnable, wait);
+            return;
+        }
+        extensionReloadRequested = false;
+        lastExtensionReloadAt = now;
+        Site current = site;
+        WebHomeExtensionRegistry.get().refresh(current, () -> {
+            if (site == null || !current.getKey().equals(site.getKey())) return;
+            registerDocumentStartScripts();
+            reload();
+        });
+    }
+
+    private void prepareExtensions(Site site) {
+        String key = site.getKey();
+        WebHomeExtensionRegistry.get().prepare(site, () -> {
+            if (this.site == null || !key.equals(this.site.getKey())) return;
+            registerDocumentStartScripts();
+            injectExtensions(WebHomeExtension.RUN_AT_END);
+            webView.postDelayed(() -> injectExtensions(WebHomeExtension.RUN_AT_IDLE), 600);
+        });
+    }
+
+    private void registerDocumentStartScripts() {
+        removeDocumentStartScripts();
+        if (site == null || !isDocumentStartSupported()) return;
+        String script = documentStartScript();
+        if (TextUtils.isEmpty(script)) return;
+        try {
+            documentStartHandler = WebViewCompat.addDocumentStartJavaScript(webView, script, Collections.singleton("*"));
+            documentStartKey = site.getKey();
+            SpiderDebug.log("webhome-ext", "document-start registered site=%s", documentStartKey);
+        } catch (Throwable e) {
+            documentStartHandler = null;
+            documentStartKey = "";
+            SpiderDebug.log("webhome-ext", "document-start register failed site=%s error=%s", site.getKey(), e.getMessage());
+        }
+    }
+
+    private void removeDocumentStartScripts() {
+        try {
+            if (documentStartHandler != null) documentStartHandler.remove();
+        } catch (Throwable e) {
+            SpiderDebug.log("webhome-ext", "document-start remove failed error=%s", e.getMessage());
+        }
+        documentStartHandler = null;
+        documentStartKey = "";
+    }
+
+    private String documentStartScript() {
+        if (site == null) return "";
+        StringBuilder script = new StringBuilder();
+        for (WebHomeExtension extension : WebHomeExtensionRegistry.get().get(site.getKey())) {
+            if (!WebHomeExtension.RUN_AT_START.equals(extension.getRunAt())) continue;
+            if (script.length() == 0) script.append(getSdk());
+            script.append('\n').append(extension.script(site.getKey()));
+        }
+        return script.toString();
+    }
+
+    private void markDocumentStartInjected() {
+        if (site == null || TextUtils.isEmpty(documentStartKey) || !documentStartKey.equals(site.getKey())) return;
+        for (WebHomeExtension extension : WebHomeExtensionRegistry.get().get(site.getKey())) {
+            if (!WebHomeExtension.RUN_AT_START.equals(extension.getRunAt())) continue;
+            injectedExtensions.add(extension.getId());
+            WebHomeExtensionRegistry.get().recordInject(extension, site.getKey(), WebHomeExtension.RUN_AT_START);
+        }
+    }
+
+    private boolean isDocumentStartSupported() {
+        try {
+            return WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT);
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
+    private void injectExtensions(String runAt) {
+        if (!sdkReady || site == null || !isVisible()) return;
+        for (WebHomeExtension extension : WebHomeExtensionRegistry.get().get(site.getKey())) {
+            if (!extension.shouldInjectAt(runAt)) continue;
+            if (!injectedExtensions.add(extension.getId())) continue;
+            if (WebHomeExtension.RUN_AT_START.equals(extension.getRunAt())) SpiderDebug.log("webhome-ext", "document-start downgraded id=%s site=%s", extension.getId(), site.getKey());
+            SpiderDebug.log("webhome-ext", "inject id=%s runAt=%s target=%s site=%s", extension.getId(), extension.getRunAt(), runAt, site.getKey());
+            WebHomeExtensionRegistry.get().recordInject(extension, site.getKey(), runAt);
+            if (debugTools) dispatchDebugConsole("EXT", "inject id=" + extension.getId() + " runAt=" + extension.getRunAt() + " target=" + runAt);
+            webView.evaluateJavascript(extension.script(site.getKey()), null);
+        }
     }
 
     // ===== 桥方言源点播接管（账 html-jhs-playbtn-bridge-20261111 §六/§七）=====
@@ -1062,6 +1197,11 @@ public class HomeWebController {
                     check:(items)=>invoke('pan.check',{items}),
                     play:(payload)=>invoke('pan.play',payload||{})
                   };
+                  const ext={
+                    info:()=>invoke('ext.info',{}),
+                    log:(message,data)=>invoke('ext.log',{message,data}),
+                    toast:(message)=>invoke('ext.toast',{message})
+                  };
                   const ui={
                     setToolbar:(visible)=>invoke('ui.setToolbar',{visible:visible!==false}),
                     setChrome:(options)=>invoke('ui.setChrome',options||{}),
@@ -1078,6 +1218,7 @@ public class HomeWebController {
                       history:()=>invoke('app.history',{})
                     },
                     pan,
+                    ext,
                     device:{info:()=>invoke('device.info',{})},
                     site:{info:()=>invoke('site.info',{})},
                     config:{info:()=>invoke('config.info',{})},
@@ -1105,6 +1246,7 @@ public class HomeWebController {
                     pan,
                     check:window.fongmi.pan.check,
                     cache,
+                    ext,
                     ui,
                     device:window.fongmi.device.info,
                     site:window.fongmi.site.info,

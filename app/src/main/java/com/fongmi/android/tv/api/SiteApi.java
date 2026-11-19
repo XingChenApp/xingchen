@@ -62,6 +62,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.json.JSONObject;
+
+import java.util.function.Consumer;
+
 import okhttp3.Call;
 import okhttp3.Response;
 
@@ -150,6 +154,24 @@ public class SiteApi {
 
     private static String ac(int type) {
         return type == 0 ? "videolist" : "detail";
+    }
+
+    /**
+     * 源自供弹幕订阅口（FongMi 5.8.9 SiteApi.danmaku 原文）：解析 spider://<siteKey>/<id>，
+     * 按 key 取蜘蛛调 danmaku(id, emit)，返回的订阅句柄由调用方关闭（即 py 的 stop）。
+     * 地址形不对抛 IllegalArgumentException、蜘蛛没返回句柄抛 IllegalStateException，
+     * 都由订阅方（播放器 SpiderDanmakuSession）接住转错误态，不进播放主链。
+     */
+    @NonNull
+    public static AutoCloseable danmaku(@NonNull Uri uri, @NonNull Consumer<JSONObject> emit) throws Exception {
+        String key = uri.getAuthority();
+        List<String> ids = uri.getPathSegments();
+        if (!"spider".equalsIgnoreCase(uri.getScheme()) || key == null || key.isEmpty() || ids.size() != 1 || ids.get(0).isEmpty() || uri.getQuery() != null || uri.getFragment() != null) throw new IllegalArgumentException("Invalid live danmaku source");
+        String id = ids.get(0);
+        SpiderDebug.log("danmaku", "key=%s,id=%s", key, id);
+        AutoCloseable subscription = BaseLoader.get().getSpider(key).danmaku(id, emit);
+        if (subscription == null) throw new IllegalStateException("danmaku must return a subscription");
+        return subscription;
     }
 
     private static final long DETAIL_CACHE_TTL = 5 * 60 * 1000;
@@ -1298,7 +1320,19 @@ public class SiteApi {
         // 零调用），恒 0 却装作可切线；记忆表已整件删净（毛病3(v)）。
         Result result = new Result();
         result.setUrl(play.getUrl(0));
-        result.setParse(0);
+        // video:// 视频页形（账 hk-ai-video-play-fix-20261119）：HkPlay
+        // 的 url 保留 video:// 原形（集身份在交接/重播链上靠它认形），
+        // 本处是唯一剥壳点——剥壳后置 parse=1，交播放器自有嗅探
+        // （ParseJob/CustomWebView，带本结果请求头）嗅出真流，与官
+        // 播放器数据源拦截 video:// 后 startVideoFind 同位。其余结果
+        // 恒直链 parse=0，与旧形一致。
+        if (play.isVideoPage()) {
+            String vu = play.getUrl(0);
+            result.setUrl(vu.startsWith("video://") ? vu.substring("video://".length()).trim() : vu);
+            result.setParse(1);
+        } else {
+            result.setParse(0);
+        }
         result.setFlag(flag);
         java.util.Map<String, String> lineHeaders = play.getHeaders(0);
         if (!lineHeaders.isEmpty()) result.setHeader(lineHeaders);

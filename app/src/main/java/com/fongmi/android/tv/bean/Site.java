@@ -89,6 +89,10 @@ public class Site implements Parcelable {
     private JsonElement webHomeChrome;
 
     @Ignore
+    @SerializedName("extensions")
+    private JsonElement extensions;
+
+    @Ignore
     @SerializedName("type")
     private Integer type;
 
@@ -279,6 +283,14 @@ public class Site implements Parcelable {
 
     public void setWebHomeChrome(JsonElement webHomeChrome) {
         this.webHomeChrome = webHomeChrome;
+    }
+
+    public JsonElement getExtensions() {
+        return extensions;
+    }
+
+    public void setExtensions(JsonElement extensions) {
+        this.extensions = extensions;
     }
 
     public Integer getType() {

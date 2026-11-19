@@ -106,6 +106,32 @@ public class History implements Diffable<History> {
         return item;
     }
 
+    /**
+     * 把另一条同键历史的落盘状态整表搬进本对象（键与对象身份不变）。
+     * 播放页进页即建占位历史、详情回来往占位上填时用：手势/按钮在详情
+     * 未回的窗口里写的一直是占位对象，定版靠本方法把落盘行状态搬入，
+     * 不换对象、不造第二条（键是主键，落盘恒一行）。
+     */
+    public void adopt(History item) {
+        vodPic = item.vodPic;
+        wallPic = item.wallPic;
+        vodName = item.vodName;
+        vodFlag = item.vodFlag;
+        vodRemarks = item.vodRemarks;
+        episodeUrl = item.episodeUrl;
+        revSort = item.revSort;
+        revPlay = item.revPlay;
+        createTime = item.createTime;
+        opening = item.opening;
+        ending = item.ending;
+        position = item.position;
+        duration = item.duration;
+        speed = item.speed;
+        scale = item.scale;
+        cid = item.cid;
+        updateTime = item.updateTime;
+    }
+
     public static History objectFrom(String str) {
         try {
             History history = App.gson().fromJson(str, History.class);

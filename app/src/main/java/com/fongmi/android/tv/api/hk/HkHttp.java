@@ -201,7 +201,11 @@ public class HkHttp {
             String value = v.trim();
             if (value.startsWith("http://") || value.startsWith("https://")) {
                 DnsOverHttps doh = autoDoh(value);
-                if (doh != null) return doh.lookup(hostname);
+                if (doh != null) {
+                    List<InetAddress> r = doh.lookup(hostname);
+                    List<InetAddress> clean = sanitizeAddresses(r);
+                    return clean.isEmpty() ? r : clean;
+                }
             } else if (!value.isEmpty()) {
                 // 空格分隔的 IP 列表，直接当静态地址用
                 List<InetAddress> out = new java.util.ArrayList<>();
@@ -211,13 +215,17 @@ public class HkHttp {
                     } catch (Exception ignored) {
                     }
                 }
-                if (!out.isEmpty()) return out;
+                if (!out.isEmpty()) {
+                    List<InetAddress> clean = sanitizeAddresses(out);
+                    return clean.isEmpty() ? out : clean;
+                }
             }
         }
         List<InetAddress> sys = Dns.SYSTEM.lookup(hostname);
-        // 结果里混着 [::] 这类空地址时先剔掉：它永远连不上，留在列表里会被
-        // 当成一条路由白试甚至拖死整批连接（18J.TV、Cloudfront 封面图实证）
-        List<InetAddress> clean = stripAnyLocal(sys);
+        // 结果先过 sanitizeAddresses：混着 [::] 这类空地址时剔掉（它永远连不上，
+        // 留在列表里会被当成一条路由白试甚至拖死整批连接，18J.TV、Cloudfront
+        // 封面图实证），双栈结果再做 IPv4 优选（见 sanitizeAddresses 注释）。
+        List<InetAddress> clean = sanitizeAddresses(sys);
         if (!clean.isEmpty()) return clean;
         // 系统解析只回空地址（[::] 这类坏记录，真机 huangseb.com、91crdjai.com 实证）：
         // 换阿里 DoH 再试一次，有可用地址就用它；都没有维持原结果走原失败路径。
@@ -225,22 +233,43 @@ public class HkHttp {
             DnsOverHttps doh = autoDoh("https://dns.alidns.com/dns-query");
             if (doh != null) {
                 List<InetAddress> alt = doh.lookup(hostname);
-                if (hasUsableAddress(alt)) return stripAnyLocal(alt);
+                if (hasUsableAddress(alt)) return sanitizeAddresses(alt);
             }
         } catch (Throwable ignored) {
         }
         return sys;
     }
 
-    /** 剔除空地址（:: / 0.0.0.0）；全是空地址时返回空表，交给调用方走兜底。 */
-    private static List<InetAddress> stripAnyLocal(List<InetAddress> list) {
-        List<InetAddress> out = new java.util.ArrayList<>();
+    /**
+     * 地址清洗＋IPv4 优选（与 catvod OkDns.sanitize 同语义，海阔解析层各出口共用）：
+     * 先无条件剔除空地址（:: / 0.0.0.0）；清洗后 ≤1 条原样返回；多条时取 IPv4
+     * 子集（剔 127.x 回环），子集非空只回子集；无 IPv4（纯 IPv6）回退清洗后的
+     * 原列表，纯 v6 站照常可用。结果可为空表，由调用方按既有口径决定
+     * （各调用点现行约定：为空回原结果走原失败路径）。
+     *
+     * <p>IPv4 优选此前只有短剧/catvod 路（OkDns）有，海阔路独缺：2026-11-19
+     * 真机实证，用户手机网络走不通 IPv6，黄色仓库域名 hsck21.cctv23.cc 双栈
+     * 解析被 OkHttp 先试 v6，15 秒连接超时连撞三次白等约 46 秒。本层补齐后
+     * 海阔取数/图片各解析出口与 catvod 同口径。</p>
+     */
+    private static List<InetAddress> sanitizeAddresses(List<InetAddress> list) {
+        List<InetAddress> usable = new java.util.ArrayList<>();
         if (list != null) {
             for (InetAddress a : list) {
-                if (a != null && !a.isAnyLocalAddress()) out.add(a);
+                if (a != null && !a.isAnyLocalAddress()) usable.add(a);
             }
         }
-        return out;
+        if (usable.size() <= 1) return usable;
+        List<InetAddress> ipv4 = new java.util.ArrayList<>();
+        for (InetAddress a : usable) {
+            if (a instanceof java.net.Inet6Address) continue;
+            String host = a.getHostAddress();
+            if (host == null) continue;
+            // 跳过 127.x.x.x 回环（劫持常见，与 OkDns 同口径）
+            if (host.startsWith("127.")) continue;
+            ipv4.add(a);
+        }
+        return ipv4.isEmpty() ? usable : ipv4;
     }
 
     private static boolean hasUsableAddress(List<InetAddress> list) {
@@ -329,16 +358,20 @@ public class HkHttp {
 
     /** 给任意 Dns 套与 HK_DNS 同款的 10 秒解析封顶（守护线程池代查、超时按解析失败处理）。 */
     private static Dns cappedDns(Dns delegate) {
-        if (delegate == null) return Dns.SYSTEM;
+        // 委托为空（如阿里 DoH 构造失败）回系统解析，但仍经下面的封顶＋清洗，
+        // 不留原样直回的解析出口
+        // delegate 参数在上方可能被重赋值，不能直接被 lambda 捕获（javac effectively-final）；
+        // 先落 final 局部再捕获，语义不变。
+        final Dns dns = delegate == null ? Dns.SYSTEM : delegate;
         return new Dns() {
             @Override
             public List<InetAddress> lookup(String hostname) throws UnknownHostException {
                 java.util.concurrent.Future<List<InetAddress>> f =
-                        DNS_POOL.submit(() -> delegate.lookup(hostname));
+                        DNS_POOL.submit(() -> dns.lookup(hostname));
                 try {
                     List<InetAddress> r = f.get(DNS_TIMEOUT_SEC, java.util.concurrent.TimeUnit.SECONDS);
-                    // 同图片既有口径：混着的 [::] 空地址先剔掉（有真地址时）
-                    List<InetAddress> clean = stripAnyLocal(r);
+                    // 同全局口径：过 sanitizeAddresses（剔空地址＋IPv4 优选，有真地址时）
+                    List<InetAddress> clean = sanitizeAddresses(r);
                     return clean.isEmpty() ? r : clean;
                 } catch (java.util.concurrent.TimeoutException e) {
                     f.cancel(true);
@@ -418,7 +451,8 @@ public class HkHttp {
         Dns d;
         if (value.startsWith("http://") || value.startsWith("https://")) {
             DnsOverHttps doh = autoDoh(value);
-            d = doh != null ? cappedDns(doh) : Dns.SYSTEM;
+            // DoH 建不出时回系统解析也经 cappedDns，与 DoH 支同过封顶＋sanitizeAddresses 口径
+            d = doh != null ? cappedDns(doh) : cappedDns(Dns.SYSTEM);
         } else {
             List<InetAddress> ips = new java.util.ArrayList<>();
             for (String ip : value.split("\\s+")) {
@@ -430,8 +464,14 @@ public class HkHttp {
             List<InetAddress> fixed = ips;
             String boundHost = host;
             d = hostname -> {
-                if (boundHost != null && boundHost.equals(hostname) && !fixed.isEmpty()) return fixed;
-                return Dns.SYSTEM.lookup(hostname);
+                // 两支同过 sanitizeAddresses（剔空地址＋IPv4 优选），为空回原结果走原失败路径
+                if (boundHost != null && boundHost.equals(hostname) && !fixed.isEmpty()) {
+                    List<InetAddress> clean = sanitizeAddresses(fixed);
+                    return clean.isEmpty() ? fixed : clean;
+                }
+                List<InetAddress> r = Dns.SYSTEM.lookup(hostname);
+                List<InetAddress> clean = sanitizeAddresses(r);
+                return clean.isEmpty() ? r : clean;
             };
         }
         AUTO_DNS_BY_VALUE.put(cacheKey, d);
@@ -718,8 +758,8 @@ public class HkHttp {
                     DNS_POOL.submit(() -> delegate.lookup(hostname));
             try {
                 List<InetAddress> r = f.get(DNS_TIMEOUT_SEC, java.util.concurrent.TimeUnit.SECONDS);
-                // 同取数侧：混着的 [::] 空地址先剔掉（有真地址时），免得图片连接白试死路由
-                List<InetAddress> clean = stripAnyLocal(r);
+                // 同取数侧：过 sanitizeAddresses（剔空地址＋IPv4 优选，有真地址时），免得图片连接白试死路由
+                List<InetAddress> clean = sanitizeAddresses(r);
                 return clean.isEmpty() ? r : clean;
             } catch (java.util.concurrent.TimeoutException e) {
                 f.cancel(true);
@@ -734,7 +774,7 @@ public class HkHttp {
                         DnsOverHttps fb = hkDoh != null ? hkDoh : autoDoh("https://dns.alidns.com/dns-query");
                         if (fb != null) {
                             List<InetAddress> alt = fb.lookup(hostname);
-                            List<InetAddress> cleanAlt = stripAnyLocal(alt);
+                            List<InetAddress> cleanAlt = sanitizeAddresses(alt);
                             if (!cleanAlt.isEmpty()) return cleanAlt;
                             if (alt != null && !alt.isEmpty()) return alt;
                         }
@@ -871,7 +911,8 @@ public class HkHttp {
     // 使海阔 JS 请求与 HkHttp 同走 CookieJar / 内容类型拦截器配置；
     // DNS 走 HK_AUTO_DNS：未注册域名=系统解析（与原版默认一致），规则 registerDNS
     // 注册过的域名走其 DoH/IP（原版 DohProvidersKt.autoDomain 机制；图片 client
-    // 另用 HK_IMAGE_DNS，口径不变）。
+    // 另用 HK_IMAGE_DNS，口径不变）。解析结果各出口统一过 sanitizeAddresses
+    // （剔空地址＋IPv4 优选，与 catvod OkDns 同语义，2026-11-19 补齐海阔路独缺的一环）。
     public static OkHttpClient client() {
         if (client == null) {
             synchronized (HkHttp.class) {
@@ -933,6 +974,14 @@ public class HkHttp {
                     b.cookieJar(HkCookieJar.get(App.get()));
                     // 按源定向：与图片 client 同套选择器链
                     b.proxySelector(SourceGate.wrapSelector(GlobalProxy.wrapSelector(java.net.ProxySelector.getDefault())));
+                    // 8.83 全局 client 的 dispatcher 显式设 maxRequestsPerHost=16
+                    // （Application.smali line 146：OkGo 全局 dispatcher
+                    // setMaxRequestsPerHost(0x10)）；主面 maxRequests 总量官未设
+                    // （全树零命中），不设。图片 client 是另一只 dispatcher
+                    // （per-host 48），两面不合并。账 hk-fetch-official-dig 环 8。
+                    okhttp3.Dispatcher dispatcher = new okhttp3.Dispatcher();
+                    dispatcher.setMaxRequestsPerHost(16);
+                    b.dispatcher(dispatcher);
                     client = b.build();
                 }
             }

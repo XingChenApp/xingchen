@@ -277,7 +277,7 @@ public class TypeFragment extends BaseFragment implements CustomScroller.Callbac
     public void onItemClick(Vod item, android.view.View coverView) {
         if (item.isAction()) {
             if (!ActionResult.handleCard(requireActivity(), item, json -> mViewModel.action(getKey(), json)))
-                mViewModel.action(getKey(), item.getAction());
+                mViewModel.action(getKey(), item.getAction().isEmpty() ? item.getId() : item.getAction());
         } else if (item.isFolder()) {
             getParent().openFolder(item.getId(), mExtends);
         } else {

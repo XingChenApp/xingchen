@@ -1,0 +1,2 @@
+8cfdf756414fb527d564e06c0d719bf753026ed6bec60cd2eb847a93bcb1752e  arm64-v8a/chaquopy.so
+edbee3abae042045b79d072c110a5daba2bf1f68f14f43c6e9dcfa347b726167  armeabi-v7a/chaquopy.so

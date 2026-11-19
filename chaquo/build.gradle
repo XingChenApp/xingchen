@@ -47,5 +47,84 @@ android {
 
 dependencies {
     implementation project(':catvod')
+    // py 新形态 self.js 宿主（JsHost）直用 :quickjs 的 whl 上下文；:quickjs 只依赖
+    // :catvod，无环。whl 包装经其 api 依赖（libs.quickjs.*）传递可见。
+    implementation project(':quickjs')
     coreLibraryDesugaring libs.desugar
+}
+
+// ── 形态乙换装（chaquopy-formb，详见 chaquopy-formb/README.md）────────────────
+// 桥崩治本：只把 java Cython 包（F1/F2）拿出来咱家维护，其余桥件仍用官方
+// Chaquopy 17.0.0 成品。官方插件把 Maven 成品 chaquopy.so 生成进 assets
+// （generate<Variant>PythonMiscAssets）之后、PythonBuildAssets 算 build.json
+// 资产哈希之前（该任务 doFirst），用 chaquopy-formb/prebuilt 里重编的同名件
+// 覆盖同一位置，哈希与实物一致；同任务 doLast 再校验哈希，对不上直接失败。
+def chaquopyFormbDir = file("chaquopy-formb")
+def chaquopyFormbHashes = [:]
+new File(chaquopyFormbDir, "expected-sha256.txt").eachLine { line ->
+    def m = (line =~ /^([0-9a-f]{64})\s+(\S+)\/chaquopy\.so$/)
+    if (m.matches()) chaquopyFormbHashes[m.group(2)] = m.group(1)
+}
+def chaquopyFormbSha256 = { File f ->
+    def md = java.security.MessageDigest.getInstance("SHA-256")
+    f.withInputStream { s ->
+        def buf = new byte[65536]
+        int n
+        while ((n = s.read(buf)) != -1) md.update(buf, 0, n)
+    }
+    return md.digest().encodeHex().toString()
+}
+tasks.configureEach { t ->
+    if (t.name ==~ /generate.+PythonBuildAssets/) {
+        // 换装落点＝本任务 doFirst（2026-11-20 首跑实证修订）：同任务 doLast 按
+        // 登记序执行，本文件 configureEach 在脚本评估期登记、插件的生成动作在
+        // afterEvaluate 的 register 配置里才登记——挂在 misc 任务 doLast 上的
+        // 换装会跑在插件生成之前（bootstrap-native 尚不存在，首跑即挂 found 0）。
+        // 本任务以 misc 等资产任务为输入依赖，doFirst 执行时 misc 输出必已生成
+        // 完毕；插件写 build.json 哈希的动作是本任务 doLast，doFirst 换装仍在
+        // 算哈希之前，哈希与实物一致。定位不靠目录假设：递归找 java/chaquopy.so
+        // 本体，ABI 取其上两级目录名（与下方校验同一口径）。misc 目录位置：
+        // buildOut＝assets/build/<变体>，misc 在其上两级 assets/misc/<变体>
+        // （161 二编实证：少上溯一级会落进 assets/build/misc 空目录 found 0）。
+        t.inputs.files(fileTree(new File(chaquopyFormbDir, "prebuilt")) { include "*/chaquopy.so" })
+        t.doFirst {
+            def buildOut = t.outputs.files.singleFile
+            def miscDir = new File(new File(buildOut.parentFile.parentFile, "misc"), buildOut.name)
+            def found = []
+            if (miscDir.exists()) {
+                miscDir.eachFileRecurse { f ->
+                    if (f.name == "chaquopy.so" && f.parentFile.name == "java") found << f
+                }
+            }
+            if (found.size() != 1) {
+                throw new GradleException("chaquopy-formb: expected exactly 1 chaquopy.so in ${miscDir}, found ${found.size()}")
+            }
+            def target = found.get(0)
+            def abi = target.parentFile.parentFile.name
+            def prebuilt = new File(chaquopyFormbDir, "prebuilt/${abi}/chaquopy.so")
+            if (!prebuilt.exists()) {
+                throw new GradleException("chaquopy-formb: no prebuilt for ABI ${abi}: ${prebuilt}")
+            }
+            target.bytes = prebuilt.bytes
+            logger.lifecycle("chaquopy-formb: swapped ${abi} chaquopy.so (F1/F2 build)")
+        }
+        t.doLast {
+            def buildOut = t.outputs.files.singleFile
+            def miscDir = new File(new File(buildOut.parentFile.parentFile, "misc"), buildOut.name)
+            def found = []
+            miscDir.eachFileRecurse { f ->
+                if (f.name == "chaquopy.so" && f.parentFile.name == "java") found << f
+            }
+            if (found.size() != 1) {
+                throw new GradleException("chaquopy-formb: expected exactly 1 chaquopy.so in ${miscDir}, found ${found.size()}")
+            }
+            def soFile = found.get(0)
+            def abi = soFile.parentFile.parentFile.name
+            def actual = chaquopyFormbSha256(soFile)
+            if (chaquopyFormbHashes[abi] != actual) {
+                throw new GradleException("chaquopy-formb: ${abi} chaquopy.so hash mismatch (swap missing?): ${actual}")
+            }
+            logger.lifecycle("chaquopy-formb: verified ${abi} chaquopy.so sha256=${actual}")
+        }
+    }
 }

@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.ui.dialog;
 
+import android.app.Dialog;
+import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -7,6 +9,7 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
@@ -79,9 +82,16 @@ public class SyncPathDialog extends BaseAlertDialog {
     }
 
     @Override
+    @NonNull
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里 setWidth 是出框后改宽，会动一下）
+        setWidth(dialog, ResUtil.isLand(requireContext()) ? 0.52f : 0.92f);
+        return dialog;
+    }
+
     public void onStart() {
         super.onStart();
-        setWidth(ResUtil.isLand(requireContext()) ? 0.52f : 0.92f);
     }
 
     private void rebuild() {

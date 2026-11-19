@@ -19,6 +19,7 @@ import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.setting.CustomCspSetting;
 import com.fongmi.android.tv.utils.UrlUtil;
+import com.fongmi.android.tv.web.ext.WebHomeExtensionRegistry;
 import com.github.catvod.bean.Doh;
 import com.github.catvod.bean.Header;
 import com.github.catvod.bean.Proxy;
@@ -99,6 +100,7 @@ public class VodConfig extends BaseConfig {
         rules = null;
         parses = null;
         dynamicSites.clear();
+        WebHomeExtensionRegistry.get().setGlobalSources(null, "");
         BaseLoader.get().clear("vod-config-clear");
         // 配置都没了，旧配置的在途首页加载整体作废：不推代次的话，它跑完会
         // 按同 key 把旧结果写进新配置的首页缓存（新配置先吃一口旧数据）。
@@ -179,6 +181,7 @@ public class VodConfig extends BaseConfig {
         initWall(config, object);
         initSite(config, object);
         initParse(config, object);
+        WebHomeExtensionRegistry.get().setGlobalSources(object.get("webHomeExtensions"), config.getUrl());
         config.setLogo(Json.safeString(object, "logo"));
         config.setAssrt(Json.safeString(object, "assrt"));
         config.setNotice(Json.safeString(object, "notice"));

@@ -132,6 +132,18 @@ public class SiteHealthStore {
         Prefers.remove(KEY);
     }
 
+    /**
+     * 按站点键摘除一条健康记录（删海阔规则连带清其 hk_&lt;标题&gt; 键用）：
+     * 内存表摘键后走既有延迟落盘；无此键时无操作。
+     */
+    public static void removeSite(String siteKey) {
+        if (skip(siteKey)) return;
+        synchronized (SiteHealthStore.class) {
+            ensureLoaded();
+            if (items.remove(key(siteKey)) != null) markDirty();
+        }
+    }
+
     public static int getColor(Site site) {
         Status status = getStatus(site);
         if (status == Status.GOOD) return COLOR_GOOD;

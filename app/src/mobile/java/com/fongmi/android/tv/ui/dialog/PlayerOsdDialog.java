@@ -60,13 +60,12 @@ public final class PlayerOsdDialog extends DialogFragment {
         if (checked == null) checked = new boolean[0];
         initView();
         binding.close.setOnClickListener(view -> dismiss());
+        // 摆位在 show 之前落定（原 onStart 里整段改窗是出框后再定尺寸，会动一下）
+        applyWindow(dialog);
         return dialog;
     }
 
-    @Override
-    public void onStart() {
-        super.onStart();
-        Dialog dialog = getDialog();
+    private void applyWindow(Dialog dialog) {
         Window window = dialog == null ? null : dialog.getWindow();
         if (window == null) return;
         int screenWidth = ResUtil.getScreenWidth(requireContext());

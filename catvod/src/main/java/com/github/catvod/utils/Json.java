@@ -2,9 +2,12 @@ package com.github.catvod.utils;
 
 import android.text.TextUtils;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.Strictness;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -15,6 +18,14 @@ import java.util.List;
 import java.util.Map;
 
 public class Json {
+
+    // 严格 JSON 解析（FongMi 新仓原文移植，Net 缓存与 Local 存取的校验口）。
+    private static final Gson STRICT = new GsonBuilder().setStrictness(Strictness.STRICT).create();
+
+    public static JsonElement strict(String value) {
+        if (value == null || value.isBlank()) throw new IllegalArgumentException("Value must be JSON");
+        return STRICT.fromJson(value, JsonElement.class);
+    }
 
     public static JsonElement parse(String json) {
         try {

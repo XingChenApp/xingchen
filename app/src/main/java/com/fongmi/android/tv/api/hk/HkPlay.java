@@ -118,6 +118,28 @@ public class HkPlay {
      * 地址出门。非懒产出恒空。
      */
     private String lazyStagePage = "";
+    /**
+     * video:// 视频页标记（账 hk-ai-video-play-fix-20261119）：本结果的
+     * url 是 {@code video://} 标明的「视频页地址」——海阔语义里它不是
+     * 直链，是等播放器嗅探出真流的页面地址（官 DownloadDialogUtil 原话
+     * 「当前地址只能在播放器界面嗅探到真实视频后才能下载」；官播放器
+     * VideoPlayerActivity 在数据源拦截处剥 video:// 后走 startVideoFind
+     * 嗅探）。置位时 url 字段保留 {@code video://} 原形整串（集身份在
+     * 交接/重播链上靠它认形，不许在解析层提前剥掉），唯一剥壳点在
+     * SiteApi.hkPlayerContent 组 Result 时：剥壳＋置 parse=1 交播放器
+     * 自有嗅探（ParseJob/CustomWebView）。仅当余量是 http(s) 且非媒体
+     * 直链形、未带 #isVideo=true# 直链声明时置位；媒体形余量照旧剥壳
+     * 直播，不置位。
+     */
+    private boolean videoPage;
+
+    public boolean isVideoPage() {
+        return videoPage;
+    }
+
+    public void setVideoPage(boolean videoPage) {
+        this.videoPage = videoPage;
+    }
 
     public String getLazyStagePage() {
         return lazyStagePage == null ? "" : lazyStagePage;

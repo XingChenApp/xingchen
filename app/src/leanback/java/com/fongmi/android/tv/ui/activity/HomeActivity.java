@@ -618,7 +618,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     public void onItemClick(Vod item) {
         if (item.isAction()) {
             if (!ActionResult.handleCard(this, item, json -> mViewModel.action(getHome().getKey(), json)))
-                mViewModel.action(getHome().getKey(), item.getAction());
+                mViewModel.action(getHome().getKey(), item.getAction().isEmpty() ? item.getId() : item.getAction());
         }
         else if (getHome().isIndex()) CollectActivity.start(this, item.getName());
         else VideoActivity.start(this, getHome().getKey(), item.getId(), item.getName(), item.getPic());

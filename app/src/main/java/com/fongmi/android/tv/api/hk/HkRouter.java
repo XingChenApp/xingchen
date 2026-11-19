@@ -467,6 +467,11 @@ public class HkRouter {
             SpiderDebug.log("hk", "play exit blocked lazy-degraded rule=%s host=%s", rule.getTitle(), hostOf(u));
             throw new IllegalStateException("海阔懒解析未返回播放地址，请换一条试试");
         }
+        // video:// 视频页形（账 hk-ai-video-play-fix-20261119）：地址已
+        // 成形、等播放器嗅探（HkPlay.videoPage 已标），scheme 位的
+        // "video" 是标记本身，不按未解析拦；剥壳与嗅探在
+        // SiteApi.hkPlayerContent 组 Result 时一次做完。
+        if (out.isVideoPage()) return;
         if (PLAYABLE_SCHEMES.contains(scheme)) return;
         // P2P 四形未标 playType 时（如懒函数直回 magnet）同为合法终形：
         // hkPlayerContent 的 isP2pPlayLink 门会按实际地址分流迅雷边下边播
@@ -575,11 +580,31 @@ public class HkRouter {
         // 2. ; URL 增强（必须在 # 截断之前：8.83 是先从完整串解析 ;{...} 请求头块、
         // 再剥标记；旧顺序先按 # 一刀切，url#标记;{Referer@x} 的请求头块会被连带丢掉）
         u = splitEnhancement(u, out);
+        // video:// 余量的直链声明先记下：# 段在下一步被截断、声明随之
+        // 消失，步骤 3 的页面形判定要靠它（只认本串自身带的
+        // #isVideo=true#，与 isLazyDegraded 的豁免同口径）。
+        boolean declaredDirect = u.contains("isVideo=true");
         // 2.5 # 页面标识截断（#threads 等已在 0.5 提取完毕）
         int hash = u.indexOf('#');
         if (hash >= 0) u = u.substring(0, hash).trim();
-        // 3. video://
-        if (u.startsWith("video://")) u = u.substring(8).trim();
+        // 3. video:// 视频页标记（账 hk-ai-video-play-fix-20261119）：
+        // 余量是 http(s) 页面形（非媒体直链、未声明 isVideo 直播、无
+        // @rule=/@lazyRule= 解析段）时，整串保留 video:// 原形并标
+        // videoPage——海阔语义里它是等播放器嗅探出真流的页面地址，
+        // 不是直链；旧形在此无条件剥壳、步骤 8 把裸页面网址当直链
+        // 出门，引擎拿到 HTML 播放页必然解析失败（书签UI「正片」实证：
+        // Exo 对同一页面网址先后认 x-mpegURL/octet-stream 终 FATAL、
+        // mpv 走 ytdl_hook 因无 youtube-dl 失败）。余量是媒体直链形或
+        // 带直链声明时照旧剥壳直播。带 @lazyRule= 的入参不在此判：
+        // 懒结果的形态由 applyLazyResult 按同一判据定。
+        if (u.startsWith("video://")) {
+            String rest = u.substring(8).trim();
+            if (lazyRuleText == null && isVideoPageForm(rest, declaredDirect, out.isForceM3u8())) {
+                out.setVideoPage(true);
+            } else {
+                u = rest;
+            }
+        }
         // 4. @lazyRule=（已在步骤0提取）
         if (lazyRuleText != null) {
             // 官 dealLazyRule 收口（账 heji-subrule-sort-20261114）：普通行
@@ -897,7 +922,23 @@ public class HkRouter {
             SpiderDebug.log("hk", "lazy degraded (page echoed) rule=%s host=%s", rule.getTitle(), hostOf(v));
             return;
         }
-        out.setUrl(splitEnhancement(v, out));
+        // video:// 标记形（账 hk-ai-video-play-fix-20261119）：懒结果带
+        // video:// 时与 playRoute 步骤 3 同判——页面形标 videoPage、
+        // 保原形出门等播放器嗅探；直链形（媒体形/isVideo 声明）剥壳
+        // 直播。旧形整串原样写进 out：页面形在出口被 scheme 正表抛
+        // 「未解析成播放地址」（与被点集经点击路的裸页面直喂引擎是
+        // 同一地址的两种死法），直链形同罪被抛——两路就此同形。
+        if (v.startsWith("video://")) {
+            String rest = v.substring(8).trim();
+            if (isVideoPageForm(rest, v.contains("isVideo=true"), out.isForceM3u8())) {
+                out.setVideoPage(true);
+                out.setUrl(splitEnhancement(v, out));
+            } else {
+                out.setUrl(splitEnhancement(rest, out));
+            }
+        } else {
+            out.setUrl(splitEnhancement(v, out));
+        }
         SpiderDebug.log("hk", "lazy resolved rule=%s -> %s", rule.getTitle(), hostOf(out.getUrl()));
     }
 
@@ -1171,6 +1212,25 @@ public class HkRouter {
     }
 
     /** 结果是否形如媒体直链（去 # 标记后看 http 前缀与常见媒体后缀/关键字）。 */
+    /**
+     * {@code video://} 余量是否「视频页」形（账 hk-ai-video-play-fix-20261119，
+     * playRoute 步骤 3 与 applyLazyResult 共用同一判据）：余量是 http(s)
+     * 地址、不带 {@code @rule=}/{@code @lazyRule=} 解析段、不是媒体直链
+     * 形（{@link #looksLikeMediaUrl}）、整串未带 #isVideo=true# 直链声明
+     * （declaredDirect）、且未被 #isM3u8# 强制按 m3u8 处理（forceM3u8）
+     * ——全备才是等播放器嗅探的页面地址；任一不备按直链剥壳直播。
+     * 非 http(s) 余量（如 javascript: 占位）不是页面也不是流，不在此
+     * 列：剥壳后由出口 scheme 正表按未解析收口，两路同终态。
+     */
+    private static boolean isVideoPageForm(String rest, boolean declaredDirect, boolean forceM3u8) {
+        if (rest == null) return false;
+        String r = rest.trim();
+        if (!r.startsWith("http://") && !r.startsWith("https://")) return false;
+        if (r.contains("@rule=") || r.contains("@lazyRule=")) return false;
+        if (declaredDirect || forceM3u8) return false;
+        return !looksLikeMediaUrl(r);
+    }
+
     private static boolean looksLikeMediaUrl(String url) {
         if (url == null) return false;
         String l = url.toLowerCase();

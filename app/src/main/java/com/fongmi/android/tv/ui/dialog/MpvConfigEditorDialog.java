@@ -2,6 +2,7 @@ package com.fongmi.android.tv.ui.dialog;
 
 import android.app.Dialog;
 import android.graphics.Color;
+import android.os.Bundle;
 import android.graphics.drawable.ColorDrawable;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -9,6 +10,8 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.view.ViewGroup;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentManager;
 import androidx.viewbinding.ViewBinding;
 
@@ -98,9 +101,16 @@ public class MpvConfigEditorDialog extends BaseAlertDialog {
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-        Dialog dialog = getDialog();
+    @NonNull
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里整段改窗＋post 里再 setLayout 一遍，
+        // 都是出框后改尺寸，会动一下；post 重落一并摘除）
+        applyWindow(dialog);
+        return dialog;
+    }
+
+    private void applyWindow(Dialog dialog) {
         Window window = dialog == null ? null : dialog.getWindow();
         if (window == null) return;
         boolean land = ResUtil.isLand(requireContext());
@@ -119,7 +129,10 @@ public class MpvConfigEditorDialog extends BaseAlertDialog {
             rootParams.height = params.height;
             binding.getRoot().setLayoutParams(rootParams);
         }
-        binding.getRoot().post(() -> window.setLayout(params.width, params.height));
+    }
+
+    public void onStart() {
+        super.onStart();
         if (Util.isLeanback()) binding.back.post(() -> binding.back.requestFocus());
         else if (creating) binding.editor.requestFocus();
     }

@@ -1,6 +1,8 @@
 package com.fongmi.android.tv.ui.dialog;
 
+import android.app.Dialog;
 import android.graphics.Bitmap;
+import android.os.Bundle;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
@@ -14,6 +16,8 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.viewbinding.ViewBinding;
@@ -68,14 +72,21 @@ public class ShieldWebViewDialog extends BaseAlertDialog {
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-        configureWindow();
+    @NonNull
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里 configureWindow 是出框后改宽高，会动一下）
+        configureWindow(dialog);
+        return dialog;
     }
 
-    private void configureWindow() {
-        if (getDialog() == null || getDialog().getWindow() == null) return;
-        Window window = getDialog().getWindow();
+    public void onStart() {
+        super.onStart();
+    }
+
+    private void configureWindow(Dialog dialog) {
+        if (dialog == null || dialog.getWindow() == null) return;
+        Window window = dialog.getWindow();
         WindowManager.LayoutParams params = window.getAttributes();
         int width = Math.min(Math.round(ResUtil.getScreenWidth(requireContext()) * 0.92f), ResUtil.dp2px(620));
         params.width = Math.max(width, ResUtil.dp2px(320));

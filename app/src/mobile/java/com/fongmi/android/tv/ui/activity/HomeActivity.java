@@ -7,18 +7,14 @@ import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.database.Cursor;
-import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
-import android.widget.TextView;
 
-import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.core.content.pm.ShortcutInfoCompat;
 import androidx.core.content.pm.ShortcutManagerCompat;
@@ -26,8 +22,6 @@ import androidx.core.graphics.drawable.IconCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
-import androidx.fragment.app.FragmentTransaction;
 import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.App;
@@ -163,9 +157,8 @@ public class HomeActivity extends BaseActivity implements XcBottomBar.OnItemSele
     @Override
     protected void onStop() {
         super.onStop();
-        // 宿主存活步 6（清单 host-survival-step6-
-        // inventory；档位经补改复核反汇编订正）：宿主被不
-        // 透明页全盖（播放页等）后进程转入可回收档，三签
+        // 宿主存活步 6（档位经补改复核反汇编订正）：宿主被不
+        // 透明页全盖（播放页等）后进程转入可回收档，
         // 图墙与全域封面的 Glide 内存缓存＋位图池仍占着
         // 数十至上百 MB——在此整表释放。档位用
         // TRIM_MEMORY_BACKGROUND：Glide 5.0.7 在 UI_HIDDEN
@@ -631,7 +624,6 @@ public class HomeActivity extends BaseActivity implements XcBottomBar.OnItemSele
         if (mManager == null || !mManager.isVisible(0)) return false;
         return !isWebHomeChromeActive() || !WebHomeChrome.IMMERSIVE.equals(getWebHomeChromeMode());
     }
-
 
     private void refreshAiFloat() {
         refreshAiFloatNow();

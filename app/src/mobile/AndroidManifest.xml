@@ -155,6 +155,9 @@
 
 
 
+        <!-- 非播放页重做新增页（2026-11-20 定稿）：导入歌单独立页、插件详情独立页 -->
+
+
 
         <activity
             android:name=".ui.activity.FeaturesActivity"
@@ -482,14 +485,6 @@
             android:configChanges="screenSize|smallestScreenSize|screenLayout"
             android:screenOrientation="fullUser" />
 
-        
-
-        
-
-        
-
-
-        
 
         <!-- 实验室：独立包 ui.lab -->
         <activity
@@ -684,36 +679,6 @@
             android:name=".ui.activity.ScanActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout"
             android:screenOrientation="fullUser" />
-
-
-        
-
-        
-        
-        
-
-        
-        <!-- 短剧三签宿主条目已退役（2026-11-09 舞台并入根页）：
-             三签舞台长在 HomeActivity 内（宿主直属），
-             无独立 Activity 条目；横屏页登顶时整栈旋转由根页
-             configChanges 承接、Fragment 分发 onConfigurationChanged
-             与旧宿主同链。 -->
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-
-
-
-
 
         <!-- 外部本地媒体直达门（2026-10-27）：文件管理器/相册等外部应用点开
              content/file 的音视频直接投到本页，不再先把 HomeActivity 的主任务

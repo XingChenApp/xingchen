@@ -440,6 +440,11 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
         return x5Extra == null ? null : x5Extra.getUa();
     }
 
+    /** initWebView 时存下的建面缺省 UA（官 IArticleWebHolder.systemUA 同字段）；条目 UA 覆写不改此值。 */
+    public String getSystemUA() {
+        return systemUA;
+    }
+
     protected String getUserAgentString() {
         if (webView != null) return webView.getSettings().getUserAgentString();
         return "";
@@ -450,15 +455,20 @@ public class HkWebkitHolder implements HkWebViewHelper.ServiceWorkerInterceptor 
     }
 
     /**
-     * 照 WebViewHelper$5.onPageStarted 的 UA 段（smali:827 区）：dom 变化即
-     * 以 systemUA 为第二参调 UAModel.getAdjustUa，非空用之，否则回落
-     * useUa/systemUA。官此门只有 dom 非空且与 lastDom 不同两件——旧形另加
-     * 的 getExtraUa() 非空前置官无此门（extra UA 是另一路的入参、不是读链
-     * 开关），C1 复核订正已摘。
+     * 照 IArticleWebHolder.checkUa（smali:78-109）——官两客户端共用此一处：
+     * ArticleWebViewHolder$5（smali:331）与 ArticleWebkitHolder$2（smali:243）
+     * 的 onPageStarted 都调 holder.checkUa。门＝dom 非空、与 lastDom 不同、
+     * 且 getExtraUa() 为空：extra 带 ua 时整个 UA 读链不跑，片段/holder 设的
+     * extra UA 在页面生命内不被改写。门内以 systemUA 为第二参调
+     * UAModel.getAdjustUa（双参形出处见 UaHook 注），非空用之，否则回落
+     * useUa/systemUA；lastDom 恒在尾部更新（官同形）。
+     * 订正（2026-11-19）：旧注称「官无此门」系误读——旧转写源取的
+     * WebViewHelper$5 onPageStarted 面，其本体调的正是 IArticleWebHolder.
+     * checkUa、门在其中；C1 复核据误读摘门，本批照 smali 实文补回。
      */
     protected void checkUa(String url) {
         String dom = HkStringUtil.getDom(url);
-        if (dom != null && !dom.equals(lastDom)) {
+        if (dom != null && !dom.equals(lastDom) && TextUtils.isEmpty(getExtraUa())) {
             UaHook hook = uaHook;
             String adjustUa = hook == null ? null : hook.getAdjustUa(url, systemUA);
             if (!TextUtils.isEmpty(adjustUa)) {

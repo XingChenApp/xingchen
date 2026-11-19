@@ -9,8 +9,6 @@ import android.os.IBinder;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.ForwardingPlayer;
-import androidx.media3.exoplayer.ExoPlayer;
-import androidx.media3.exoplayer.Renderer;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
 import androidx.media3.session.CommandButton;
@@ -148,50 +146,8 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         onNewBinding = callback;
     }
 
-    /**
-     * 当前播放器（只读口）：按需建之后，未被任何真用事件触发
-     * 过时返回 null——调用方多为探针/只读语义（生命周期打点、
-     * 音乐侧停视频、服务端取值），都已按可为 null 写。构造只
-     * 走 ensurePlayer 的三个触发点，不许在此顺手建台。
-     */
     public PlayerManager player() {
         return player;
-    }
-
-    /** 会话壳播放器：零渲染器的 ExoPlayer——只撑会话的播放器
-     * 门面（命令/状态问答），永不真正解码：会话设条目全经
-     * wrap 拦截转交 PlayerManager，拦截口首访即 ensurePlayer
-     * 把会话换挂真台，壳在换挂当刻释放。 */
-    private Player buildShellPlayer() {
-        return new ExoPlayer.Builder(this,
-                (eventHandler, video, audio, primaryText, metadata) -> new Renderer[0])
-                .build();
-    }
-
-    /**
-     * 播放器按需建（件五）：首个真用事件到达时同步构造
-     * PlayerManager＋真播放器并把会话换挂真台（与
-     * onPlayerRebuild 同款换挂路），之后所有路径与旧形无差。
-     * 触发点只许三处：本地绑定到达（onBind LOCAL_BIND，绑
-     * 定方 onServiceConnected 前台已就绪）、带动作的
-     * startCommand、会话播放请求（wrap 拦截／onSetMediaItems）。
-     * 外部浏览绑定与 onGetSession 不是触发点——空探活只碰壳。
-     */
-    private void ensurePlayer() {
-        if (player != null || !alive) return;
-        long start = System.currentTimeMillis();
-        player = new PlayerManager(this);
-        if (isPrimaryService()) PlaybackEventCollector.get().setPlayer(player);
-        Player shell = exoPlayer;
-        exoPlayer = player.getPlayer();
-        exoPlayer.addListener(listener);
-        if (session != null) {
-            session.setPlayer(wrap(exoPlayer));
-            session.setMediaButtonPreferences(ImmutableList.of(buildRepeatButton(), buildStopButton()));
-        }
-        if (shell != null) shell.release();
-        player.setPlaybackForeground(playbackForeground);
-        if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-flow", "service player lazy-built cost=%dms", System.currentTimeMillis() - start);
     }
 
     private String serviceState() {
@@ -220,15 +176,12 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-flow", "service onCreate start");
         alive = true;
         if (isPrimaryService()) running = true;
-        // 播放器按需建（件五，账 155-log-dig-20261118 §五件五）：
-        // onCreate 只建会话壳——会话先绕一只零渲染器空壳播放器
-        // 立起来（目录/登记/通知面全在），PlayerManager＋真播放
-        // 器等首个真用事件才构造（ensurePlayer：本地绑定到达／
-        // 带动作的 startCommand／会话播放请求）。旧形 onCreate
-        // 全额建台，外部旧式浏览绑定每连一轮就空转一整套构建
-        // （155 窗内 8 轮、key 全 null）；空轮次自此只剩壳成本。
+        player = new PlayerManager(this);
         desktopLyrics = new DesktopLyricsWindow(this);
-        exoPlayer = buildShellPlayer();
+        if (isPrimaryService()) PlaybackEventCollector.get().setPlayer(player);
+        if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-flow", "service player ready cost=%dms", System.currentTimeMillis() - start);
+        exoPlayer = player.getPlayer();
+        exoPlayer.addListener(listener);
         session = new MediaLibrarySession.Builder(this, wrap(exoPlayer), this).setId(sessionId()).build();
         if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-flow", "service session ready cost=%dms", System.currentTimeMillis() - start);
         session.setSessionActivity(buildDefaultIntent());
@@ -264,28 +217,14 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     }
 
     private CommandButton buildRepeatButton() {
-        // 播放器未建时（会话壳期）按缺省不重复出钮；建台后
-        // ensurePlayer 与 onRepeatModeChanged 都会重戳偏好。
-        return new CommandButton.Builder(player != null && player.isRepeatOne() ? CommandButton.ICON_REPEAT_ONE : CommandButton.ICON_REPEAT_OFF).setSessionCommand(COMMAND_REPEAT).setDisplayName(getString(R.string.play_repeat)).build();
+        return new CommandButton.Builder(player.isRepeatOne() ? CommandButton.ICON_REPEAT_ONE : CommandButton.ICON_REPEAT_OFF).setSessionCommand(COMMAND_REPEAT).setDisplayName(getString(R.string.play_repeat)).build();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-lifecycle", "service startCommand action=%s flags=%d startId=%d %s", intent == null ? null : intent.getAction(), flags, startId, serviceState());
-        // 带动作的启动＝真用事件（件五触发点二）：先按需建台
-        // 再分发，无动作的拉起（纯保活/绑定伴随）不建。
-        if (intent != null && isActionCommand(intent.getAction())) ensurePlayer();
         if (intent != null) handleAction(intent.getAction());
         return super.onStartCommand(intent, flags, startId);
-    }
-
-    /** handleAction 认的动作集（与下方分发逐个对位）：只有
-     * 这些动作的 startCommand 才算带动作的真用事件。 */
-    private boolean isActionCommand(String action) {
-        return ActionEvent.PLAY.equals(action) || ActionEvent.PAUSE.equals(action)
-                || ActionEvent.PREV.equals(action) || ActionEvent.NEXT.equals(action)
-                || ActionEvent.STOP.equals(action) || ActionEvent.AUDIO.equals(action)
-                || ActionEvent.REPEAT.equals(action) || ActionEvent.REPLAY.equals(action);
     }
 
     private void handleAction(String action) {
@@ -311,13 +250,7 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     @Override
     public IBinder onBind(Intent intent) {
         if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-lifecycle", "service bind action=%s local=%s external=%s %s", intent == null ? null : intent.getAction(), isLocalBind(intent), isExternalBind(intent), serviceState());
-        if (isLocalBind(intent)) {
-            // 本地绑定到达＝真用事件（件五触发点一）：绑定方
-            // （播放页/听书页）onServiceConnected 后立刻经
-            // player() 取台，此处同步建好、时序与旧形无差。
-            ensurePlayer();
-            return binder;
-        }
+        if (isLocalBind(intent)) return binder;
         if (isExternalBind(intent)) externalBound = true;
         return super.onBind(intent);
     }
@@ -364,11 +297,6 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         if (player != null) {
             player.stop();
             player.release();
-        } else if (exoPlayer != null) {
-            // 播放器从未建：exoPlayer 还是会话壳，壳的播放
-            // 线程随此释放（真台在时壳已在 ensure 当刻释放、
-            // exoPlayer 是台身播放器、归 player.release 管）。
-            exoPlayer.release();
         }
         removeForeground();
         if (isPrimaryService()) Server.get().setService(null);
@@ -378,9 +306,6 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     }
 
     private void stopAndClear() {
-        // 播放器未建（空轮次自毁路）无可停可清：提取器任务
-        // 也只经播放器路起过，未建即无任务在飞。
-        if (player == null) return;
         if (isPrimaryService()) PlaybackEventCollector.get().onStop(player);
         player.stop();
         // 视频会话退出（suspend/shutdown）：被视频暂停的音乐显式续播。
@@ -407,12 +332,8 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         if (SpiderDebug.isEnabled()) SpiderDebug.log("playback-lifecycle", "service shutdown %s", serviceState());
         alive = false;
         if (isPrimaryService()) running = false;
-        // 播放器未建的空轮次自毁只剩收口动作（件五）：无台
-        // 可备终释、无条目可清，停前台＋stopSelf 照走。
-        if (player != null) {
-            player.prepareTerminalRelease();
-            stopAndClear();
-        }
+        player.prepareTerminalRelease();
+        stopAndClear();
         removeForeground();
         stopSelf();
     }
@@ -443,9 +364,6 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
 
     private void saveProgress() {
         if (hasNavigationCallback() || session == null) return;
-        // 播放器未建即无播放进度可存（空轮次 releaseExternal
-        // 同路进来，key 本就为 null、无账可记）。
-        if (player == null) return;
         // 听书隔离：audiobook: 开头的播放进度归 ReadingStore，不写点播历史
         try {
             if (player.getSpec() != null && player.getSpec().getKey() != null
@@ -633,10 +551,6 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     }
 
     private void interceptItem(@NonNull MediaItem item, long startPositionMs) {
-        // 会话播放请求＝真用事件（件五触发点三）：控制器把
-        // 条目设进会话即要播，先按需建台并把会话换挂真台，
-        // 再走既有拦截转交路。
-        ensurePlayer();
         if (isSameItem(item)) return;
         playViaManager(item, startPositionMs);
     }
@@ -852,10 +766,6 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     @NonNull
     @Override
     public ListenableFuture<MediaSession.MediaItemsWithStartPosition> onSetMediaItems(@NonNull MediaSession session, @NonNull MediaSession.ControllerInfo controller, @NonNull List<MediaItem> mediaItems, int startIndex, long startPositionMs) {
-        // 同触发点三：控制器设条目即播放请求——先建台换挂，
-        // 本回调返回后条目会被应用到会话播放器上，须在那
-        // 之前完成换挂，应用才落真台的 wrap 拦截口。
-        ensurePlayer();
         saveProgress();
         return Task.executor().submit(() -> {
             List<MediaItem> resolved = mediaItems.stream().map(BrowseTree::resolveOrKeep).toList();

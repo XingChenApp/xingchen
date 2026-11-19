@@ -4,13 +4,17 @@ import android.app.Activity;
 import android.content.Context;
 
 import java.lang.ref.WeakReference;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class Runtime {
 
     private volatile Supplier<Activity> activity;
     private volatile Consumer<String> toast;
+    private volatile BiFunction<String, Function<String, CompletableFuture<String>>, CompletableFuture<String>> dialog;
     private WeakReference<Context> context;
 
     private static Runtime get() {
@@ -49,6 +53,20 @@ public class Runtime {
         // toast 消费方由壳子注入，未注入时静默跳过，不许 NPE。
         Consumer<String> toast = get().toast;
         if (toast != null) toast.accept(text);
+    }
+
+    // 对话框宿主注册口（FongMi 新仓原文移植，py 新形态 dialog 适配器的落点）：
+    // 宿主由 App 侧注入；未注入时 dialog() 返回失败 future，与上游
+    // 「Dialog requires a compatible App」口径一致。本树 App 侧宿主未落（记名），
+    // 注册口先行，宿主接入时桥接零改动。
+    public static void setDialog(BiFunction<String, Function<String, CompletableFuture<String>>, CompletableFuture<String>> dialog) {
+        get().dialog = dialog;
+    }
+
+    public static CompletableFuture<String> dialog(String options, Function<String, CompletableFuture<String>> callback) {
+        BiFunction<String, Function<String, CompletableFuture<String>>, CompletableFuture<String>> dialog = get().dialog;
+        if (dialog == null) return com.github.catvod.utils.Task.failedFuture(new UnsupportedOperationException("Dialog requires a compatible App"));
+        return dialog.apply(options, callback);
     }
 
     private static class Loader {

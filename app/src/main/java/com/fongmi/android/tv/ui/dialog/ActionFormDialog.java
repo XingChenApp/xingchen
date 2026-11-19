@@ -45,9 +45,12 @@ import java.util.function.Consumer;
  * 动作协议表单/菜单的宿主渲染面（协议 E5/E6，参照缺位、按协议原文自建）：
  * type=input/multiInput 渲染输入框（带 selectData 或 id 为 file/path/dir/folder 的
  * 字段旁带「选择…」走 FileChooser，口径照 _____11 v191 收窄后的规则）；
- * type=menu 渲染选项行，点中把该行原文当动作发回（_fc_menu_pick 解析）。
+ * type=menu 渲染选项行：字符串选项点中把该行原文当动作发回（_fc_menu_pick 解析）；
+ * {name, action} 对象选项（OK影视/ys 形）点中按 ys 提交形组包
+ * {"action": 菜单 actionId, "value": {"menu": 选项 action 原文}} 发回。
  * 提交组包照 py 的 _pick_action_inputs 三式：input 数组回填 value、
- * 单输入走 value 纯文本。样式与点播域玻璃弹窗同一家。
+ * 单输入走 value 纯文本；另镜像一份 action 键（ys 形认的提交键，自家
+ * _action_impl 先读 action 再读 actionId、同值无冲突）。样式与点播域玻璃弹窗同一家。
  */
 public class ActionFormDialog extends DialogFragment {
 
@@ -123,19 +126,14 @@ public class ActionFormDialog extends DialogFragment {
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setContentView(binding.getRoot());
         if (form != null) build();
+        // 摆位在 show 之前落定（原 onResume 里整段改窗比 onStart 还晚，出框后必动一下）；
+        // form 为空时 onResume 仍会自关，几何先落不影响那条路
+        applyWindow(dialog);
         return dialog;
     }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-        if (form == null) {
-            dismissAllowingStateLoss();
-            return;
-        }
-        Dialog dialog = getDialog();
-        if (dialog == null) return;
-        Window window = dialog.getWindow();
+    private void applyWindow(Dialog dialog) {
+        Window window = dialog == null ? null : dialog.getWindow();
         if (window == null) return;
         WindowManager.LayoutParams params = window.getAttributes();
         params.width = (int) (ResUtil.getScreenWidth(requireActivity()) * (ResUtil.isLand(requireActivity()) ? 0.62f : 0.92f));
@@ -148,6 +146,12 @@ public class ActionFormDialog extends DialogFragment {
         window.setAttributes(params);
         window.setLayout(params.width, WindowManager.LayoutParams.WRAP_CONTENT);
         window.setWindowAnimations(R.style.HkDialogFade);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (form == null) dismissAllowingStateLoss();
     }
 
     private void build() {
@@ -169,14 +173,26 @@ public class ActionFormDialog extends DialogFragment {
         JsonArray options = form.has("option") && form.get("option").isJsonArray() ? form.getAsJsonArray("option") : new JsonArray();
         TextView first = null;
         for (JsonElement element : options) {
-            if (!element.isJsonPrimitive()) continue;
-            String text = element.getAsString();
-            TextView row = optionRow(text);
-            row.setOnClickListener(v -> {
-                if (submit != null) submit.accept(text);
-                release();
-                dismiss();
-            });
+            if (!isRenderableOption(element)) continue;
+            TextView row;
+            if (element.isJsonObject()) {
+                // ys 形对象选项：行文取 name，点中按 ys 提交形组包发回。
+                JsonObject option = element.getAsJsonObject();
+                row = optionRow(str(option, "name"));
+                row.setOnClickListener(v -> {
+                    if (submit != null) submit.accept(menuPickPackage(option));
+                    release();
+                    dismiss();
+                });
+            } else {
+                String text = element.getAsString();
+                row = optionRow(text);
+                row.setOnClickListener(v -> {
+                    if (submit != null) submit.accept(text);
+                    release();
+                    dismiss();
+                });
+            }
             binding.actionFormFields.addView(row);
             if (first == null) first = row;
         }
@@ -185,6 +201,36 @@ public class ActionFormDialog extends DialogFragment {
             TextView target = first;
             binding.getRoot().post(target::requestFocus);
         }
+    }
+
+    // ys 形菜单提交包：{"action": 菜单的 actionId, "value": {"menu": 选项 action 原文}}，
+    // 蜘蛛侧自行解包 menu 得到真正的 action/value（tgdrama action() 的 ys 支路）。
+    private String menuPickPackage(JsonObject option) {
+        JsonObject pkg = new JsonObject();
+        pkg.addProperty("action", str(form, "actionId"));
+        JsonObject value = new JsonObject();
+        JsonElement action = option.get("action");
+        if (action != null && action.isJsonPrimitive()) value.addProperty("menu", action.getAsString());
+        else if (action != null) value.addProperty("menu", App.gson().toJson(action));
+        pkg.add("value", value);
+        return App.gson().toJson(pkg);
+    }
+
+    /** 选项可渲染：字符串行（自家形），或带 name 与 action 的对象（ys 形）。 */
+    public static boolean isRenderableOption(JsonElement element) {
+        if (element == null) return false;
+        if (element.isJsonPrimitive()) return true;
+        if (!element.isJsonObject()) return false;
+        JsonObject option = element.getAsJsonObject();
+        JsonElement action = option.get("action");
+        return !str(option, "name").isEmpty() && action != null && (action.isJsonPrimitive() || action.isJsonObject());
+    }
+
+    /** 表单是否带至少一个可渲染选项（卡片级拦截判定 menu 是否为真表单用）。 */
+    public static boolean hasRenderableOption(JsonObject form) {
+        if (form == null || !form.has("option") || !form.get("option").isJsonArray()) return false;
+        for (JsonElement element : form.getAsJsonArray("option")) if (isRenderableOption(element)) return true;
+        return false;
     }
 
     private void buildInputs(String type) {
@@ -311,6 +357,10 @@ public class ActionFormDialog extends DialogFragment {
         } else if (!fields.isEmpty()) {
             out.addProperty("value", fields.get(0).edit.getText().toString());
         }
+        // 提交键镜像：ys 形只认 action 键；自家 _action_impl 先读 action 再读
+        // actionId，两键同值并存不冲突。input 数组/value 本体照旧（三式不动）。
+        String actionId = str(form, "actionId");
+        if (!actionId.isEmpty()) out.addProperty("action", actionId);
         if (submit != null) submit.accept(App.gson().toJson(out));
         release();
         dismiss();

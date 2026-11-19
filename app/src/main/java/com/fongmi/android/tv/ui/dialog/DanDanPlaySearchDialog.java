@@ -113,13 +113,13 @@ public final class DanDanPlaySearchDialog extends DialogFragment {
             setKeyword(keyword == null ? getTitle() : keyword);
             Util.showKeyboard(keywordView);
         });
+        // 摆位在 show 之前落定（原 onStart 里改宽是出框后再定，会动一下）；
+        // 高仍 WRAP_CONTENT：结果列表到达后才撑高，属内容驱动（账内 C 类点名）
+        applyWindow(dialog);
         return dialog;
     }
 
-    @Override
-    public void onStart() {
-        super.onStart();
-        Dialog dialog = getDialog();
+    private void applyWindow(Dialog dialog) {
         Window window = dialog == null ? null : dialog.getWindow();
         if (window == null) return;
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));

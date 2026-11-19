@@ -344,11 +344,25 @@ public class HkWebkitFetcher {
         return out.isEmpty() ? null : out;
     }
 
+    /**
+     * 照官 WebkitFetcher 的 UA 段（smali 源行 32-37）：ua 先取 options["ua"]，
+     * headers 含 "User-Agent" 时以其覆写（官原文是后写覆盖、非互斥回落），
+     * 结果非空才 setUserAgentString 设为 WebView 的设置 UA——navigator.userAgent
+     * 与全部子请求同此值。旧形只读 options["ua"]：headers 的 UA 只经 headersOf
+     * 进 loadUrl 请求头表、只盖首个主请求，设置 UA 恒手机默认（bad.news 五抠 §9.5）。
+     */
     private static void applyUa(WebView webView, Map<String, Object> options) {
         if (options == null) return;
-        Object ua = options.get("ua");
-        if (ua != null && !String.valueOf(ua).isEmpty()) {
-            webView.getSettings().setUserAgentString(String.valueOf(ua));
+        String ua = null;
+        Object o = options.get("ua");
+        if (o != null) ua = String.valueOf(o);
+        Object h = options.get("headers");
+        if (h instanceof Map) {
+            Object huv = ((Map<?, ?>) h).get("User-Agent");
+            if (huv != null) ua = String.valueOf(huv);
+        }
+        if (ua != null && !ua.isEmpty()) {
+            webView.getSettings().setUserAgentString(ua);
         }
     }
 }

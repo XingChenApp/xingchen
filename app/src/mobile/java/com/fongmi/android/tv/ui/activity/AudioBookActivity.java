@@ -169,7 +169,6 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
         }
     }
 
-
     /**
      * 借道专辑（海阔调用听书面）：出身旗＝专辑 hkRule 非空。借道按「调用」
      * 口径（他 2026-11-14/15 亲定）定生死——不注册可 detached 的会话、
@@ -1017,7 +1016,7 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
                     url = LegadoAudio.fetchAudioUrl(src, c.url, null);
                 }
             } catch (Throwable t) {
-                    runOnUiThread(() -> {
+                runOnUiThread(() -> {
                     String m = t instanceof LegadoException ? t.getMessage() : "音频地址解析失败";
                     ToastUtil.show(AudioBookActivity.this, "源级错误：" + m,
                             Toast.LENGTH_LONG);
@@ -1043,8 +1042,6 @@ public class AudioBookActivity extends Activity implements ServiceConnection {
             });
         }).start();
     }
-
-
 
     private void toggle() {
         if (mService == null) return;

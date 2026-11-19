@@ -8,35 +8,60 @@ import android.os.Build;
 import android.text.Html;
 import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.databinding.DialogActionMsgBinding;
+import com.fongmi.android.tv.utils.ImgUtil;
 import com.fongmi.android.tv.utils.ResUtil;
 
 /**
- * 动作协议 msgbox 指令的呈现面：{'action': {type:'msgbox', title, htmlMsg}}。
+ * 动作协议 msgbox 的呈现面：指令形 {'action': {type:'msgbox', title, htmlMsg}}
+ * 与卡片形（vod_id 即 msgbox 配置）共用。正文两形：htmlMsg 按 HTML 渲染
+ * （自家形），msg 按纯文本渲染（OK影视/ys 形）；带 imageUrl 时在正文上方
+ * 画图（imageHeight 为图高，单位 dp），扫码备选路靠它把码画出来。
  * 内层 py 的文字结果靠它才真的弹出来（协议 E10）。样式与点播域玻璃弹窗同一家
  * （shape_dialog_glass_white_panel 浅面毛玻璃＋深字），窗口口径照 AboutDialog。
+ * 带 onConfirm 时「确定」先回派再关窗：流程中间步的 msgbox（扫码待确认等）
+ * 靠它在关窗时通知蜘蛛续办；不带时确定只关窗，行为与旧版逐字相同。
  */
 public final class ActionMsgDialog {
 
     private ActionMsgDialog() {
     }
 
-    public static boolean show(Activity activity, String title, String htmlMsg) {
+    public static boolean show(Activity activity, String title, String body, boolean bodyIsHtml, String imageUrl, int imageHeightDp) {
+        return show(activity, title, body, bodyIsHtml, imageUrl, imageHeightDp, null);
+    }
+
+    public static boolean show(Activity activity, String title, String body, boolean bodyIsHtml, String imageUrl, int imageHeightDp, Runnable onConfirm) {
         if (activity == null || activity.isFinishing() || activity.isDestroyed()) return false;
         DialogActionMsgBinding binding = DialogActionMsgBinding.inflate(LayoutInflater.from(activity));
-        if (title == null || title.isEmpty()) binding.actionMsgTitle.setVisibility(android.view.View.GONE);
+        if (title == null || title.isEmpty()) binding.actionMsgTitle.setVisibility(View.GONE);
         else binding.actionMsgTitle.setText(title);
-        binding.actionMsgText.setText(fromHtml(htmlMsg == null ? "" : htmlMsg));
+        if (imageUrl != null && !imageUrl.isEmpty()) {
+            binding.actionMsgImage.setVisibility(View.VISIBLE);
+            if (imageHeightDp > 0) {
+                ViewGroup.LayoutParams params = binding.actionMsgImage.getLayoutParams();
+                params.height = ResUtil.dp2px(imageHeightDp);
+                binding.actionMsgImage.setLayoutParams(params);
+            }
+            ImgUtil.load("", imageUrl, binding.actionMsgImage, false);
+        }
+        binding.actionMsgText.setText(bodyIsHtml ? fromHtml(body == null ? "" : body) : body == null ? "" : body);
         Dialog dialog = new Dialog(activity);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setContentView(binding.getRoot());
-        binding.actionMsgConfirm.setOnClickListener(v -> dialog.dismiss());
-        dialog.show();
+        binding.actionMsgConfirm.setOnClickListener(v -> {
+            if (onConfirm != null) onConfirm.run();
+            dialog.dismiss();
+        });
+        // 摆位在 show 之前落定（原 show 后才 configureWindow：首帧默认宽、随后跳到终宽）
         configureWindow(activity, dialog);
+        dialog.show();
         binding.actionMsgConfirm.requestFocus();
         return true;
     }

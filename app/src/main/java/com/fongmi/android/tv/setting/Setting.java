@@ -470,6 +470,15 @@ public class Setting {
     }
 
 
+    public static boolean isWebHomeExtension() {
+        return Prefers.getBoolean("web_home_extension", true);
+    }
+
+    public static void putWebHomeExtension(boolean extension) {
+        Prefers.put("web_home_extension", extension);
+    }
+
+
     public static boolean isWebHomeFullscreen() {
         return Prefers.getBoolean("web_home_fullscreen", true);
     }

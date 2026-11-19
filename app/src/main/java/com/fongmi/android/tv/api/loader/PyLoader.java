@@ -214,10 +214,13 @@ public class PyLoader {
         this.recent = recent;
     }
 
-    /** 实例是否已销毁（chaquo 蜘蛛 destroy 后 obj 已关、再调只会撞 PyObject is closed）。 */
+    /** 实例是否已销毁（chaquo 蜘蛛 destroy 后 obj 已关、再调只会撞 PyObject is closed）。新形态桥同口径。 */
     private static boolean isDead(Spider spider) {
-        return spider instanceof com.fongmi.chaquo.Spider
-                && ((com.fongmi.chaquo.Spider) spider).isDestroyed();
+        if (spider instanceof com.fongmi.chaquo.Spider)
+            return ((com.fongmi.chaquo.Spider) spider).isDestroyed();
+        if (spider instanceof com.fongmi.chaquo.SpiderNew)
+            return ((com.fongmi.chaquo.SpiderNew) spider).isDestroyed();
+        return false;
     }
 
     /** 原因链里出现“已关闭对象”特征（与 BaseLoader seam 同口径）。 */
@@ -412,7 +415,7 @@ public class PyLoader {
         long spiderStart = System.currentTimeMillis();
         Spider spider;
         try {
-            spider = loader.spider(api);
+            spider = loader.spider(api, key);
         } catch (Throwable t) {
             if (isInterrupted(t)) {
                 SpiderDebug.log("pyloader", "create cancelled key=%s cost=%dms", key, System.currentTimeMillis() - spiderStart);

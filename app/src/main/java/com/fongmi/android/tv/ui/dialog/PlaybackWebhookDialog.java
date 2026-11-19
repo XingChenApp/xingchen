@@ -1,6 +1,8 @@
 package com.fongmi.android.tv.ui.dialog;
 
+import android.app.Dialog;
 import android.content.DialogInterface;
+import android.os.Bundle;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -18,6 +20,7 @@ import android.view.WindowManager;
 import android.widget.EditText;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.widget.LinearLayoutCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
@@ -95,10 +98,17 @@ public class PlaybackWebhookDialog extends BaseAlertDialog {
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-        if (getDialog() == null) return;
-        Window window = getDialog().getWindow();
+    @NonNull
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里整段改窗＋内容高度是出框后再定，会动一下）
+        applyWindow(dialog);
+        return dialog;
+    }
+
+    private void applyWindow(Dialog dialog) {
+        if (dialog == null) return;
+        Window window = dialog.getWindow();
         if (window == null) return;
         WindowManager.LayoutParams params = window.getAttributes();
         int screenWidth = ResUtil.getScreenWidth(requireContext());
@@ -118,6 +128,10 @@ public class PlaybackWebhookDialog extends BaseAlertDialog {
         scrollParams.weight = land ? 1 : 0;
         binding.contentScroll.setLayoutParams(scrollParams);
         binding.contentScroll.setMaxHeight(land ? 0 : (int) (screenHeight * 0.56f));
+    }
+
+    public void onStart() {
+        super.onStart();
         binding.add.requestFocus();
     }
 

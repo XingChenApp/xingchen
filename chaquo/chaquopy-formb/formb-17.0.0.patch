@@ -1,0 +1,71 @@
+diff -ru /home/hatch/workspace/chaquopy-formb/a/class.pxi /home/hatch/workspace/chaquopy-formb/b/class.pxi
+--- /home/hatch/workspace/chaquopy-formb/a/class.pxi	2026-11-19 15:10:26.019085530 +0000
++++ /home/hatch/workspace/chaquopy-formb/b/class.pxi	2026-11-19 15:27:27.331298295 +0000
+@@ -411,6 +411,13 @@
+     type.__setattr__(cls, name, member)  # Direct modification of cls.__dict__ is blocked.
+ 
+ 
++# The bridge's own protocol methods on proxy classes: the names ProxyClass.add_members
++# installs from the class itself (see proxy.pxi). These must always be resolved from the
++# class's own declared methods, never from the inherited interface declarations.
++cdef proxy_own_members = frozenset([
++    "<init>", "_chaquopyGetDict", "_chaquopySetDict", "_chaquopyGetType"])
++
++
+ # If the class has a declared or inherited Java member of the given name, this function ensures it's
+ # in cls.__dict__, and then returns it. Otherwise it returns None.
+ cdef reflect_member(cls, str name, bint inherit=True):
+@@ -429,8 +436,18 @@
+                     break
+ 
+     # To avoid infinite recursion, we need unimplemented methods in proxy classes (including
+-    # those from java.lang.Object) to fall through in Python to the inherited members.
+-    if isinstance(cls, ProxyClass):
++    # those from java.lang.Object) to fall through in Python to the inherited members. A
++    # JDK proxy class "declares" every interface method as a handler-forwarding stub, so
++    # resolving those from the class itself would re-enter the invocation handler.
++    #
++    # The bridge's own protocol methods are the exception: _chaquopyGetDict and its
++    # siblings are answered by PyInvocationHandler itself, and the proxy class's declared
++    # methods for them are concrete. Resolving them through the inherited fallback could
++    # install the abstract interface declaration (e.g. PyProxy._chaquopyGetDict) into a
++    # concrete proxy class, where it sticks and makes every later dispatch fail. These
++    # are exactly the names ProxyClass.add_members installs from the class itself, so
++    # resolve them the same way here.
++    if isinstance(cls, ProxyClass) and name not in proxy_own_members:
+         member = inherited
+     else:
+         member = find_member(cls, name, inherited)
+diff -ru /home/hatch/workspace/chaquopy-formb/a/proxy.pxi /home/hatch/workspace/chaquopy-formb/b/proxy.pxi
+--- /home/hatch/workspace/chaquopy-formb/a/proxy.pxi	2026-11-19 15:10:26.021916248 +0000
++++ /home/hatch/workspace/chaquopy-formb/b/proxy.pxi	2026-11-19 15:22:15.055286176 +0000
+@@ -14,15 +14,21 @@
+             if any([b.__name__ == PROXY_BASE_NAME for b in bases[1:]]):
+                 raise TypeError(f"{metacls.proxy_func} can only be used once in class bases")
+ 
+-            klass = metacls.get_klass(cls_name, bases[0])
+-            cls_dict["_chaquopy_j_klass"] = klass._chaquopy_this
+-            cls_dict["_chaquopy_name"] = klass.getName()
+-            cls = JavaClass.__new__(metacls, cls_name,
+-                                    get_bases(klass) + bases[1:],
+-                                    cls_dict)
++            # JavaClass.__new__ registers the class in jclass_cache before
++            # add_members installs its members. Hold class_lock (the same lock
++            # held by the jclass() lookup path) across the whole construction,
++            # so no other thread can resolve the class from the cache while it
++            # is still missing members.
++            with class_lock:
++                klass = metacls.get_klass(cls_name, bases[0])
++                cls_dict["_chaquopy_j_klass"] = klass._chaquopy_this
++                cls_dict["_chaquopy_name"] = klass.getName()
++                cls = JavaClass.__new__(metacls, cls_name,
++                                        get_bases(klass) + bases[1:],
++                                        cls_dict)
+ 
+-            metacls.add_members(cls)
+-            return cls
++                metacls.add_members(cls)
++                return cls
+ 
+     @classmethod
+     def add_members(metacls, cls):

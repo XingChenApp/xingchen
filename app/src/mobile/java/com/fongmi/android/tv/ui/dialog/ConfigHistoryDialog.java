@@ -368,11 +368,13 @@ public class ConfigHistoryDialog extends DialogFragment {
         binding = null;
     }
 
+    @NonNull
     @Override
-    public void onStart() {
-        super.onStart();
-        Dialog dialog = getDialog();
-        if (dialog != null && dialog.getWindow() != null) {
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        // 摆位在 show 之前落定（原 onStart 里整段改窗是出框后再定尺寸，会动一下）；
+        // 内容根的玻璃底不是窗几何，仍留在 onStart（彼时 binding 已建）
+        if (dialog.getWindow() != null) {
             Window window = dialog.getWindow();
             window.setWindowAnimations(R.style.HkDialogFade); // 统一淡入淡出 200ms
             WindowManager.LayoutParams params = window.getAttributes();
@@ -384,7 +386,13 @@ public class ConfigHistoryDialog extends DialogFragment {
             window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             window.getDecorView().setPadding(0, 0, 0, 0);
             window.setAttributes(params);
-            binding.getRoot().setBackgroundResource(R.drawable.dialog_glass);
         }
+        return dialog;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (binding != null) binding.getRoot().setBackgroundResource(R.drawable.dialog_glass);
     }
 }

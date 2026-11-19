@@ -569,7 +569,7 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
     public void onItemClick(Vod item, android.view.View coverView) {
         if (item.isAction()) {
             if (!ActionResult.handleCard(requireActivity(), item, json -> mViewModel.action(item.getSiteKey(), json)))
-                mViewModel.action(item.getSiteKey(), item.getAction());
+                mViewModel.action(item.getSiteKey(), item.getAction().isEmpty() ? item.getId() : item.getAction());
             return;
         }
         if (PAN115_SITE_KEY.equals(item.getSiteKey())) {

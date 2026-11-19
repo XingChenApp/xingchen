@@ -133,7 +133,7 @@ public class Result implements Parcelable {
 
     /**
      * 动作协议顶层表单/指令捕获（transient，同 readingSession 口径）：结果 JSON 顶层
-     * 带 actionId 且 type∈input/multiInput/menu/msgbox/browser 时，整包 JSON 暂存于此，
+     * 带 actionId 且 type∈input/multiInput/menu/msgbox/browser/webview 时，整包 JSON 暂存于此，
      * 由 retype() 在解析时写入，ActionResult 消费端据此渲染表单/弹窗。
      */
     private transient JsonObject actionForm;
@@ -234,7 +234,7 @@ public class Result implements Parcelable {
             JsonElement actionIdEl = object.get("actionId");
             if (typeEl != null && typeEl.isJsonPrimitive() && actionIdEl != null && actionIdEl.isJsonPrimitive()) {
                 String t = typeEl.getAsString();
-                if ("input".equals(t) || "multiInput".equals(t) || "menu".equals(t) || "msgbox".equals(t) || "browser".equals(t)) result.actionForm = object;
+                if ("input".equals(t) || "multiInput".equals(t) || "menu".equals(t) || "msgbox".equals(t) || "browser".equals(t) || "webview".equals(t)) result.actionForm = object;
             }
         } catch (Exception ignored) {
         }

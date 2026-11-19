@@ -83,6 +83,36 @@ public class HkAuthManager {
         return r + "|||" + a;
     }
 
+    /**
+     * 删规则连带清授权（宿主面）：摘掉该规则名下全部持久授权键
+     * （键＝{@code <标题>|||<apiName>}），并摘 canTouchUI 频控表的同名条目。
+     * 不清的话同名规则重装会静默继承旧授权、不再弹窗（删规则直接清空口径，
+     * 账 hk-rule-delete-leftovers §四 H）。
+     *
+     * @return 是否清成；失败回 false，调用方据此不许报删净
+     */
+    public static boolean clearByRule(String ruleTitle) {
+        if (ruleTitle == null) return false;
+        try {
+            String prefix = ruleTitle + "|||";
+            for (String k : UI_USE_MAP.keySet()) {
+                if (k.startsWith(ruleTitle + "@")) UI_USE_MAP.remove(k);
+            }
+            SharedPreferences sp = App.get().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+            SharedPreferences.Editor ed = null;
+            for (String k : sp.getAll().keySet()) {
+                if (k.startsWith(prefix)) {
+                    if (ed == null) ed = sp.edit();
+                    ed.remove(k);
+                }
+            }
+            if (ed != null) ed.apply();
+            return true;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
     /** 清除某一面的历史持久条目（仅 openAppIntent 改姿态时清自己那面）。 */
     private static void clearStored(String ruleTitle, String apiName) {
         try {

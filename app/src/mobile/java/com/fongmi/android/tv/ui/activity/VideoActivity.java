@@ -75,8 +75,6 @@ import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.DanmakuApi;
-import com.fongmi.android.tv.api.HongguoCommentApi;
-import com.fongmi.android.tv.api.HongguoDanmakuApi;
 import com.fongmi.android.tv.api.SiteApi;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.api.hk.HkDetail;
@@ -167,7 +165,6 @@ import com.fongmi.android.tv.ui.dialog.ChoiceDialog;
 import com.fongmi.android.tv.ui.dialog.CodecCapabilityDialog;
 import com.fongmi.android.tv.ui.dialog.ControlDialog;
 import com.fongmi.android.tv.ui.dialog.DanmakuDialog;
-import com.fongmi.android.tv.ui.dialog.HongguoCommentDialog;
 import com.fongmi.android.tv.ui.dialog.DanmakuSettingDialog;
 import com.fongmi.android.tv.ui.dialog.EpisodeGridDialog;
 import com.fongmi.android.tv.ui.dialog.EpisodeListDialog;
@@ -223,8 +220,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -300,19 +295,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private boolean mKaraokeResultShown;
     private boolean mUserExitedFullscreenForThisVideo;
     private boolean mShortDramaMode;
-    // 红果评论/弹幕（壳子直抓）：识别闸通过才预抓，预抓真拿到评论才露入口；状态按 historyKey 隔离
-    private final ExecutorService mHongguoExecutor = Executors.newSingleThreadExecutor();
-    private String mHongguoSeriesId = "";
-    private boolean mHongguoGate;
-    private boolean mCommentPrefetching;
-    private boolean mCommentAvailable;
-    private String mCommentPrefetchKey = "";
-    private HongguoCommentApi.Page mCommentSeriesPage;
-    private HongguoCommentApi.Page mCommentEpisodePage;
-    private String mCommentEpisodeVid = "";
-    private String mHongguoDanmakuVid = "";
-    private String mHongguoDanmakuPending = "";
-    private String mHongguoDanmakuPrefetchVid = "";
     private boolean mContentExpanded = false;
     // 外部 VIEW 本地媒体认领中（独立外部门投递）：权限门未回前 checkId 让路
     private boolean mExternalClaimPending;
@@ -1012,12 +994,14 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.swipeLayout.setRefreshing(true);
         saveHistory();
         getIntent().putExtras(intent);
+        initHistory();
         setOrient();
         checkId();
     }
 
     @Override
     protected void initView(Bundle savedInstanceState) {
+        initHistory();
         super.initView(savedInstanceState);
         // 外部本地媒体直达（独立外部门投递的原始 VIEW 意图）：先置认领中挡住
         // 首轮 checkId，认领本体排到页面建完再跑——权限已授予时回调是同步的，
@@ -1179,8 +1163,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     @SuppressLint("ClickableViewAccessibility")
     protected void initEvent() {
         mBinding.more.setOnClickListener(view -> onMore());
-        // 评论入口只在竖屏布局有此 id（占原一起看按钮位），横屏/平板布局为 null，须判空
-        if (mBinding.commentDetail != null) mBinding.commentDetail.setOnClickListener(view -> onComment());
         mBinding.keepBtn.setOnClickListener(view -> onKeep());
         mBinding.downloadBtn.setOnClickListener(view -> onDownload());
         mBinding.downloadBtn.setOnLongClickListener(view -> onDownloadLongPress());
@@ -1203,7 +1185,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.control.right.lock.setOnClickListener(view -> onLock());
         mBinding.control.right.rotate.setOnClickListener(view -> onRotate());
         mBinding.control.right.episodesVertical.setOnClickListener(view -> onEpisodes());
-        mBinding.control.right.commentVertical.setOnClickListener(view -> onComment());
         mBinding.control.right.castVertical.setOnClickListener(view -> onCast());
         mBinding.control.fullscreen.setOnClickListener(view -> onFullscreen());
         mBinding.control.danmaku.setOnClickListener(view -> onDanmakuShow());
@@ -1221,7 +1202,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.control.action.danmakuText.setOnClickListener(view -> onDanmaku());
         mBinding.control.action.moreText.setOnClickListener(view -> onMorePanel());
         mBinding.control.action.episodes.setOnClickListener(view -> onEpisodes());
-        mBinding.control.action.commentAction.setOnClickListener(view -> onComment());
         mBinding.audioPlay.setOnClickListener(view -> checkPlay());
         mBinding.audioNext.setOnClickListener(view -> checkNext());
         mBinding.audioPrev.setOnClickListener(view -> checkPrev());
@@ -2481,7 +2461,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
      * 410 自救均不碰。
      */
     private void setDetail(Vod item, boolean deferLists) {
-        prepareHongguoComments(item);
         renderDetailUi(item, deferLists);
         if (service() == null) {
             mPendingDetailVod = item;
@@ -3188,230 +3167,8 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         // 环42：官切集消费（VideoPlayerActivity 6725-6728）——新集起播且
         // danmPopup 在场、绑定表命中本集才 fetchDanmu；表空/无弹窗静默。
         if (mHkDanmuBinder != null) mHkDanmuBinder.onEpisodeStarted(hkSelectedEpisodeIndex(getFlag()));
-        onHongguoPlaybackStarted(result, playEpisode);
         if (mShortDramaMode && !isFullscreen()) enterFullscreen();
         preloadNextEpisode();
-    }
-
-    // ---------- 红果评论/弹幕（壳子直抓，与 HongguoCommentApi/HongguoDanmakuApi 配套） ----------
-
-    /** 识别闸（设计 §4.2）：id 清洗后是纯数字，且站名含「红果」或任一选集带 hg-episode-v1: token。 */
-    private boolean computeHongguoGate(List<Flag> flags) {
-        if (HongguoCommentApi.cleanSeriesId(getId()).isEmpty()) return false;
-        Site site = getSite();
-        if (site != null && site.getName() != null && site.getName().contains("红果")) return true;
-        if (flags != null) for (Flag flag : flags) {
-            if (flag == null || flag.getEpisodes() == null) continue;
-            for (Episode episode : flag.getEpisodes()) {
-                if (episode != null && !hgVid(episode.getUrl()).isEmpty()) return true;
-            }
-        }
-        return false;
-    }
-
-    private void resetHongguoState(String key) {
-        mCommentPrefetchKey = key;
-        mHongguoSeriesId = "";
-        mHongguoGate = false;
-        mCommentPrefetching = false;
-        mCommentAvailable = false;
-        mCommentSeriesPage = null;
-        mCommentEpisodePage = null;
-        mCommentEpisodeVid = "";
-        mHongguoDanmakuVid = "";
-        mHongguoDanmakuPending = "";
-        mHongguoDanmakuPrefetchVid = "";
-    }
-
-    /** 详情到达即判识别闸并预抓（短剧直进路径在 setPlayer 起播点补判）。 */
-    private void prepareHongguoComments(Vod item) {
-        String key = getHistoryKey();
-        if (!key.equals(mCommentPrefetchKey)) resetHongguoState(key);
-        mHongguoSeriesId = HongguoCommentApi.cleanSeriesId(getId());
-        mHongguoGate = computeHongguoGate(item == null ? null : item.getFlags());
-        if (mHongguoGate) prefetchComments();
-        updateCommentEntries();
-    }
-
-    /** 预抓：先试剧评首屏，剧评真为空再试当前集评论首屏；任一真拿到评论才露入口（用户定调：抓到才出现）。 */
-    private void prefetchComments() {
-        if (mCommentPrefetching || mCommentAvailable || mHongguoSeriesId.isEmpty()) return;
-        mCommentPrefetching = true;
-        String key = mCommentPrefetchKey;
-        String seriesId = mHongguoSeriesId;
-        Episode episode = getEpisode();
-        String vid = episode == null ? "" : hgVid(episode.getUrl());
-        mHongguoExecutor.execute(() -> {
-            HongguoCommentApi.Page series = HongguoCommentApi.seriesComments(seriesId, "");
-            HongguoCommentApi.Page episodePage = null;
-            boolean available = series != null && (series.total > 0 || !series.items.isEmpty());
-            if (!available && !vid.isEmpty()) {
-                episodePage = HongguoCommentApi.episodeComments(seriesId, vid, "");
-                available = episodePage != null && (episodePage.total > 0 || !episodePage.items.isEmpty());
-            }
-            HongguoCommentApi.Page fSeries = series;
-            HongguoCommentApi.Page fEpisode = episodePage;
-            boolean fAvailable = available;
-            App.post(() -> {
-                if (isFinishing() || isDestroyed() || !key.equals(mCommentPrefetchKey)) return;
-                mCommentPrefetching = false;
-                mCommentSeriesPage = fSeries;
-                if (fEpisode != null) {
-                    mCommentEpisodePage = fEpisode;
-                    mCommentEpisodeVid = vid;
-                }
-                mCommentAvailable = fAvailable;
-                updateCommentEntries();
-            });
-        });
-    }
-
-    /** 起播点：直进全屏等无详情路径在此补判识别闸；已开着的评论面板跟随切集；顺手备本集红果弹幕。 */
-    private void onHongguoPlaybackStarted(Result result, Episode playEpisode) {
-        if (playEpisode == null) return;
-        String key = getHistoryKey();
-        if (!key.equals(mCommentPrefetchKey)) resetHongguoState(key);
-        String vid = hgVid(playEpisode.getUrl());
-        if (!mHongguoGate) {
-            mHongguoSeriesId = HongguoCommentApi.cleanSeriesId(getId());
-            Site site = getSite();
-            boolean named = site != null && site.getName() != null && site.getName().contains("红果");
-            mHongguoGate = !mHongguoSeriesId.isEmpty() && (named || !vid.isEmpty());
-        }
-        if (!mHongguoGate) return;
-        prefetchComments();
-        for (androidx.fragment.app.Fragment fragment : getSupportFragmentManager().getFragments()) {
-            if (fragment instanceof HongguoCommentDialog) ((HongguoCommentDialog) fragment).refreshEpisode(vid);
-        }
-        prepareHongguoDanmaku(result, vid);
-        prefetchNextHongguoDanmaku(playEpisode);
-    }
-
-    /**
-     * 红果弹幕制备：识别为红果的剧起播时按集增量拉弹幕转本地 XML——首窗拿到就落盘挂载，
-     * 后续窗有新增重写同一文件、已挂的就重读。备好后进本集弹幕源列表（与 Result 同一列表引用，PlaySpec 共用）。
-     * 标记纪律：mHongguoDanmakuVid 只在制备真出货时置位，失败不置——同集下次起播/切集还能重试
-     * （旧口径发出制备前就置位，失败后本集永不再试，是「没弹幕」三脆弱点之一）。
-     */
-    private void prepareHongguoDanmaku(Result result, String vid) {
-        if (vid.isEmpty()) return;
-        if (vid.equals(mHongguoDanmakuVid)) return;
-        if (vid.equals(mHongguoDanmakuPending)) return;
-        if (!DanmakuSetting.isLoad() || !DanmakuSetting.isShow()) return;
-        mHongguoDanmakuPending = vid;
-        String key = mCommentPrefetchKey;
-        String seriesId = mHongguoSeriesId;
-        List<Danmaku> siteDanmakus = result.getDanmaku();
-        SpiderDebug.log("hongguo-danmaku", "prepare submit vid=%s series=%s", vid, seriesId);
-        mHongguoExecutor.execute(() -> {
-            // 时长传 0=未知（fetchToFile 正规未知路：靠服务端游标推进＋窗数上限收尾）；
-            // 本面不读红果包的模型缓存——VideoActivity 是双版共用件，不许引 tv.hongguo 包
-            // （朋友版剥红果包后会悬空，1.4.72 出包前 strip 实跑拦下后定版）。
-            Danmaku item = HongguoDanmakuApi.fetchToFile(seriesId, vid, 0,
-                    partial -> App.post(() -> onHongguoDanmakuReady(key, vid, siteDanmakus, partial)));
-            App.post(() -> {
-                if (vid.equals(mHongguoDanmakuPending)) mHongguoDanmakuPending = "";
-                SpiderDebug.log("hongguo-danmaku", "prepare done vid=%s item=%s", vid, item != null);
-                if (item == null) return;
-                mHongguoDanmakuVid = vid;
-                onHongguoDanmakuReady(key, vid, siteDanmakus, item);
-            });
-        });
-    }
-
-    /**
-     * 下一集弹幕预拉（用户口径：跟预加载一样，下一集提前拉）：当前集制备提交之后，把紧邻
-     * 下一集的弹幕顺手排进同一条单线程队列——排在本集制备之后，不抢本集的窗请求。
-     * 只落盘、永不挂载：预拉任务只调 fetchToFile 把文件备好，不碰 mHongguoDanmakuVid/
-     * Pending、不调 onHongguoDanmakuReady；切过去时走既有制备路，完整缓存直接用、
-     * 半截继续增量补。只预拉一集、不连环；连切多集时每轮起播按新位置重排新目标，
-     * 旧目标没拉完的只留半截文件（按 vid 落盘，将来真看到那集还能续），挂错集无路可走：
-     * 挂载唯一入口 onHongguoDanmakuReady 还要复核产出 vid 与当前集 vid 一致才挂。
-     * 双开关关着不预拉；预拉失败静默，切过去再走正常制备。
-     */
-    private void prefetchNextHongguoDanmaku(Episode current) {
-        if (!DanmakuSetting.isLoad() || !DanmakuSetting.isShow()) return;
-        if (!hasAdjacentEpisode(1)) return;
-        Episode next = getAdjacentEpisode(1);
-        if (next == null || next.isSelected() || TextUtils.isEmpty(next.getUrl())) return;
-        if (current != null && next.getUrl().equals(current.getUrl())) return;
-        String nextVid = hgVid(next.getUrl());
-        if (nextVid.isEmpty() || nextVid.equals(mHongguoDanmakuPrefetchVid)) return;
-        mHongguoDanmakuPrefetchVid = nextVid;
-        String seriesId = mHongguoSeriesId;
-        SpiderDebug.log("hongguo-danmaku", "prefetch submit vid=%s series=%s", nextVid, seriesId);
-        mHongguoExecutor.execute(() -> HongguoDanmakuApi.fetchToFile(seriesId, nextVid, 0));
-    }
-
-    /** 制备产出到达（首份/增量新版/最终版走同一处理）：已挂的正是这份就重读文件；还没挂按源弹幕优先口径裁决。 */
-    private void onHongguoDanmakuReady(String key, String vid, List<Danmaku> siteDanmakus, Danmaku item) {
-        if (isFinishing() || isDestroyed() || !key.equals(mCommentPrefetchKey)) return;
-        Episode current = getEpisode();
-        if (current == null || !vid.equals(hgVid(current.getUrl()))) return;
-        SpiderDebug.log("hongguo-danmaku", "ready vid=%s selected=%s siteEmpty=%s", vid, isHongguoDanmakuSelected(item), siteDanmakus.isEmpty());
-        if (isHongguoDanmakuSelected(item)) {
-            // 文件已增量长大：强制重读，用户正看的这份才跟得上
-            player().reloadDanmaku(item);
-            return;
-        }
-        // 源弹幕优先的既有口径：本站没给弹幕、且当前没挂任何弹幕时才自动挂上；否则只进列表供用户在弹幕面板里选
-        if (siteDanmakus.isEmpty() && !player().haveDanmaku()) {
-            SpiderDebug.log("hongguo-danmaku", "attach vid=%s", vid);
-            player().setDanmaku(item);
-        }
-        else if (!siteDanmakus.contains(item)) siteDanmakus.add(item);
-    }
-
-    /** 当前选中的弹幕是不是这份红果文件（按 url 对，PlaySpec 选中标记同口径）。 */
-    private boolean isHongguoDanmakuSelected(Danmaku item) {
-        PlaySpec spec = player().getSpec();
-        if (spec == null || spec.getDanmakus() == null) return false;
-        for (Danmaku danmaku : spec.getDanmakus()) {
-            if (danmaku != null && danmaku.isSelected() && item.getUrl().equals(danmaku.getUrl())) return true;
-        }
-        return false;
-    }
-
-    /** 三处入口（详情页标题右/竖屏右侧栏/横屏底排）同一裁定：没抓到评论一律不露。 */
-    private void updateCommentEntries() {
-        boolean show = mCommentAvailable;
-        if (mBinding.commentDetail != null) mBinding.commentDetail.setVisibility(show ? View.VISIBLE : View.GONE);
-        boolean verticalFullscreen = isFullscreen() && !isActualLand();
-        mBinding.control.right.commentVertical.setVisibility(show && verticalFullscreen && !isLock() ? View.VISIBLE : View.GONE);
-        // 竖屏全屏时底排让位给右侧栏（与选集同口径），横屏走底排
-        mBinding.control.action.commentAction.setVisibility(show && !verticalFullscreen ? View.VISIBLE : View.GONE);
-    }
-
-    private void onComment() {
-        if (!mCommentAvailable || mHongguoSeriesId.isEmpty()) return;
-        Episode episode = getEpisode();
-        String vid = episode == null ? "" : hgVid(episode.getUrl());
-        // 预抓的单集首屏只在集对得上时才给面板，错集不喂
-        HongguoCommentApi.Page episodePage = vid.equals(mCommentEpisodeVid) ? mCommentEpisodePage : null;
-        HongguoCommentDialog.create()
-                .seriesId(mHongguoSeriesId)
-                .episode(vid)
-                .rightSide(isFullscreen() && isActualLand())
-                .cached(mCommentSeriesPage, episodePage)
-                .show(this);
-        hideControl();
-    }
-
-    /**
-     * 单集 vid 提取（本页专用）：优先 hg-episode-v1: token 形；整串本身就是纯数字 vid 的
-     * 第三方 py 常见形态也认。共享 HongguoCommentApi.episodeVid 语义不动，免得牵连新面。
-     */
-    private static String hgVid(String episodeUrl) {
-        String vid = HongguoCommentApi.episodeVid(episodeUrl);
-        if (!vid.isEmpty() || episodeUrl == null) return vid;
-        String s = episodeUrl.trim();
-        if (HongguoCommentApi.isId(s)) return s;
-        // 旧格式 hg-episode-v1:<vid>（两段，共享 episodeVid 只认三段）也拆
-        if (s.startsWith("hg-episode-v1:")) {
-            String tail = s.substring("hg-episode-v1:".length());
-            if (HongguoCommentApi.isId(tail)) return tail;
-        }
-        return "";
     }
 
     /**
@@ -4757,10 +4514,11 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         binding.moreTextTrack.setVisibility(verticalFullscreen && (player().haveTrack(C.TRACK_TYPE_TEXT) || player().isVod()) ? View.VISIBLE : View.GONE);
         binding.moreDanmaku.setVisibility(verticalFullscreen ? View.VISIBLE : View.GONE);
         // 裸 BottomSheetDialog 在横屏会停在折叠态：自动 peek 按 16:9 公式算约等于 0，只露出标题行、内容全在折线下（真机实证面板是空的）
-        // 与本页其它播放弹窗同款处理（showAudioSheet）：show 时强制展开并跳过折叠态；behavior 未关联时降级为裸 show，不崩
-        dialog.setOnShowListener(d -> {
-            FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
-            if (sheet == null) return;
+        // 展开态必须在 show 之前钉死：旧法挂 OnShow——面板先按折叠高出首帧、再被展开动画滑开，
+        // 就是用户实拍的「弹出来还会动一下」。setContentView 后容器与 behavior 已关联，
+        // 此处直接钉 EXPANDED＋跳过折叠态，首帧即终态；behavior 未关联时降级为裸 show，不崩
+        FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (sheet != null) {
             try {
                 BottomSheetBehavior<FrameLayout> behavior = BottomSheetBehavior.from(sheet);
                 behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
@@ -4768,7 +4526,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             } catch (IllegalArgumentException e) {
                 SpiderDebug.log("bottomsheet", "more panel behavior unavailable, degraded: %s", e.getMessage());
             }
-        });
+        }
         dialog.show();
         hideControl();
     }
@@ -6604,30 +6362,30 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void configureKaraokeResultDialog(AlertDialog dialog, KaraokeResultView view) {
-        dialog.setOnShowListener(d -> {
-            Window window = dialog.getWindow();
-            if (window != null) {
-                window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
-                WindowManager.LayoutParams params = window.getAttributes();
-                if (isLandscapeAudioSheet()) {
-                    params.dimAmount = 0f;
-                    params.gravity = Gravity.CENTER;
-                    params.x = 0;
-                    params.y = 0;
-                    window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-                    window.setAttributes(params);
-                    window.setLayout(view.getPreferredDialogWidth(), WindowManager.LayoutParams.WRAP_CONTENT);
-                } else {
-                    params.dimAmount = 0.62f;
-                    params.gravity = Gravity.CENTER;
-                    params.y = isLand() ? -ResUtil.dp2px(12) : 0;
-                    window.setAttributes(params);
-                    window.setLayout(view.getPreferredDialogWidth(), WindowManager.LayoutParams.WRAP_CONTENT);
-                    window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-                }
+        // 窗几何在 show 之前落定（本法在 show 前被调）：旧法把 setLayout 挂 OnShow，
+        // 框先按默认宽出帧再改宽＝「弹出来还会动一下」；OnShow 只留抢焦点（必须出框后）
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams params = window.getAttributes();
+            if (isLandscapeAudioSheet()) {
+                params.dimAmount = 0f;
+                params.gravity = Gravity.CENTER;
+                params.x = 0;
+                params.y = 0;
+                window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+                window.setAttributes(params);
+                window.setLayout(view.getPreferredDialogWidth(), WindowManager.LayoutParams.WRAP_CONTENT);
+            } else {
+                params.dimAmount = 0.62f;
+                params.gravity = Gravity.CENTER;
+                params.y = isLand() ? -ResUtil.dp2px(12) : 0;
+                window.setAttributes(params);
+                window.setLayout(view.getPreferredDialogWidth(), WindowManager.LayoutParams.WRAP_CONTENT);
+                window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
             }
-            view.requestActionFocus();
-        });
+        }
+        dialog.setOnShowListener(d -> view.requestActionFocus());
     }
 
     private void completeKaraokeResult(int action) {
@@ -7267,7 +7025,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         // 竖排选集与底部行选集同一判定：集数<2（单片）不露，选集只对多集有意义
         mBinding.control.right.episodesVertical.setVisibility(isVerticalFullscreen && !isLock() && mEpisodeAdapter != null && getEpisodeCount() >= 2 ? View.VISIBLE : View.GONE);
         mBinding.control.right.castVertical.setVisibility(isVerticalFullscreen && !isLock() ? View.VISIBLE : View.GONE);
-        updateCommentEntries();
         mBinding.control.right.lock.setVisibility(isFullscreen() ? View.VISIBLE : View.GONE);
         mBinding.control.info.setVisibility(player().isEmpty() ? View.GONE : View.VISIBLE);
         mBinding.control.center.setVisibility(isLock() ? View.GONE : View.VISIBLE);
@@ -7476,8 +7233,12 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
                 && TextUtils.equals(mHistory.getKey(), getHistoryKey())
                 && service() != null && !player().isEmpty();
         if (!keepLive) {
-            mHistory = History.find(getHistoryKey());
-            mHistory = mHistory == null ? createHistory(item) : mHistory;
+            // 往进页占位上填（不换对象）：落盘有行把行状态整表搬入占位，
+            // 没行按 createHistory 原口径拿详情填占位——键与定版前逐字一致，
+            // 主键一行，不造第二条。
+            History found = History.find(getHistoryKey());
+            if (found == null) fillHistory(mHistory, item);
+            else if (found != mHistory) mHistory.adopt(found);
             if (!TextUtils.isEmpty(getWallPic())) mHistory.setWallPic(getWallPic());
             if (!TextUtils.isEmpty(getMark())) mHistory.setVodRemarks(getMark());
             applySourceSwitchCarry();
@@ -7563,15 +7324,28 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         }
     }
 
-    private History createHistory(Vod item) {
-        History history = new History();
+    /**
+     * 进页即建历史占位：页面已握站点 key 与影片 id（详情就是凭这个去拉的），
+     * 按 getHistoryKey 现行同一构成先把 History 建出来——手势与控制条在
+     * initView 期即活，详情异步回来之前它们摸到的就是这个占位对象，
+     * 不再撞空。占位只带身份（键＋cid），内容由详情定版时 fillHistory /
+     * adopt 往本对象上填；落盘走 saveHistory 既有门（canSave 需 position>0），
+     * 占位本身不会先落出一行空历史。
+     */
+    private void initHistory() {
+        mHistory = new History();
+        mHistory.setKey(getHistoryKey());
+        mHistory.setCid(VodConfig.getCid());
+    }
+
+    /** 原 createHistory 的填法，改成往既有对象（进页占位）上填，赋值逐项不变。 */
+    private void fillHistory(History history, Vod item) {
         history.setKey(getHistoryKey());
         history.setCid(VodConfig.getCid());
         history.setVodName(item.getName());
         history.setVodPic(getInitialArtwork(item));
         history.setWallPic(getWallPic());
         history.findEpisode(item.getFlags());
-        return history;
     }
 
     private void saveHistory() {
@@ -8643,22 +8417,24 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             showAudioDrawerSheet(dialog, drawerAtStart);
             return;
         }
-        dialog.setOnShowListener(d -> {
-            FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
-            if (sheet == null) return;
+        // 展开态在 show 之前钉死（旧法挂 OnShow：先按折叠高出首帧、再滑开＝「弹出来还会动一下」）；
+        // setContentView 后容器与 behavior 已关联，此处直接落定，首帧即终态
+        FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (sheet != null) {
             sheet.setBackgroundColor(Color.TRANSPARENT);
             // 基类 behaviorOf() 为 protected、Activity 调不到：这里包 try/catch 同款兜底，未关联即降级、不强制展开
-            BottomSheetBehavior<FrameLayout> behavior;
+            BottomSheetBehavior<FrameLayout> behavior = null;
             try {
                 behavior = BottomSheetBehavior.from(sheet);
             } catch (IllegalArgumentException e) {
                 SpiderDebug.log("bottomsheet", "behavior unavailable, degraded: %s", e.getMessage());
-                return;
             }
-            behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-            behavior.setSkipCollapsed(true);
-            behavior.setDraggable(draggable);
-        });
+            if (behavior != null) {
+                behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                behavior.setSkipCollapsed(true);
+                behavior.setDraggable(draggable);
+            }
+        }
         dialog.show();
         applyAudioSheetWindowGlass(dialog);
     }
@@ -8682,9 +8458,10 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void showAudioDrawerSheet(BottomSheetDialog dialog, boolean atStart) {
-        dialog.setOnShowListener(d -> {
-            FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
-            if (sheet == null) return;
+        // 抽屉的宽高/重力/边距与展开态全部在 show 之前钉死（旧法挂 OnShow：出框后再改
+        // 尺寸与位置＝「弹出来还会动一下」）；setContentView 后容器已在，此处直接落定
+        FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (sheet != null) {
             sheet.setBackgroundColor(Color.TRANSPARENT);
             int height = audioDrawerHeight();
             int bottomMargin = audioDrawerBottomMargin();
@@ -8699,20 +8476,21 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             }
             sheet.setLayoutParams(raw);
             // 同上：from() 未关联抛 IllegalArgumentException 时降级，对话框照常可用
-            BottomSheetBehavior<FrameLayout> behavior;
+            BottomSheetBehavior<FrameLayout> behavior = null;
             try {
                 behavior = BottomSheetBehavior.from(sheet);
             } catch (IllegalArgumentException e) {
                 SpiderDebug.log("bottomsheet", "behavior unavailable, degraded: %s", e.getMessage());
-                return;
             }
-            behavior.setFitToContents(false);
-            behavior.setExpandedOffset(Math.max(0, ResUtil.getScreenHeight(this) - height - bottomMargin));
-            behavior.setPeekHeight(height);
-            behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-            behavior.setSkipCollapsed(true);
-            behavior.setDraggable(false);
-        });
+            if (behavior != null) {
+                behavior.setFitToContents(false);
+                behavior.setExpandedOffset(Math.max(0, ResUtil.getScreenHeight(this) - height - bottomMargin));
+                behavior.setPeekHeight(height);
+                behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                behavior.setSkipCollapsed(true);
+                behavior.setDraggable(false);
+            }
+        }
         dialog.show();
         applyAudioSheetWindowGlass(dialog);
     }
@@ -10313,7 +10091,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.control.setting.setVisibility(isVerticalFullscreen && !isLock() ? View.VISIBLE : View.GONE);
         mBinding.control.right.episodesVertical.setVisibility(isVerticalFullscreen && !isLock() && mEpisodeAdapter != null && getEpisodeCount() >= 2 ? View.VISIBLE : View.GONE);
         mBinding.control.right.castVertical.setVisibility(isVerticalFullscreen && !isLock() ? View.VISIBLE : View.GONE);
-        updateCommentEntries();
     }
 
     private void syncFullscreenForOrientation(int orientation) {
@@ -10436,7 +10213,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         saveHistory(true);
         Timer.get().reset();
         DanmakuApi.cancel();
-        mHongguoExecutor.shutdownNow();
         RefreshEvent.keep();
         mNextPreloader.clear();
         App.removeCallbacks(mR1, mR2, mR3, mR4);

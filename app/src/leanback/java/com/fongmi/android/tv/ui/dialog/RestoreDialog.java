@@ -43,6 +43,9 @@ public class RestoreDialog extends BaseAlertDialog implements RestoreAdapter.OnC
         Dialog dialog = LightDialog.create(requireContext(), getString(R.string.restore_select), getBinding().getRoot());
         initView();
         initEvent();
+        // 摆位在 show 之前落定（原 onStart 里 setWidth 是出框后改宽，会动一下）；
+        // 列表为空时 onStart 仍会自关，宽先落不影响那条路
+        setWidth(dialog, 0.4f);
         return dialog;
     }
 
@@ -98,6 +101,5 @@ public class RestoreDialog extends BaseAlertDialog implements RestoreAdapter.OnC
     public void onStart() {
         super.onStart();
         if (adapter.getItemCount() == 0) dismiss();
-        else setWidth(0.4f);
     }
 }

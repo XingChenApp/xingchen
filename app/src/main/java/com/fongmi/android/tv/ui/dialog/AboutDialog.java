@@ -31,8 +31,9 @@ public final class AboutDialog {
         dialog.setContentView(binding.getRoot());
         binding.confirm.setOnClickListener(v -> dialog.dismiss());
         dialog.setCanceledOnTouchOutside(false);
-        dialog.show();
+        // 摆位在 show 之前落定（原 show 后才 configureWindow：首帧默认宽、随后跳到终宽）
         configureWindow(activity, dialog);
+        dialog.show();
         binding.confirm.requestFocus();
     }
 

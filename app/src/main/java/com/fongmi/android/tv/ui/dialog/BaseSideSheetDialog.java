@@ -70,12 +70,20 @@ public abstract class BaseSideSheetDialog extends AppCompatDialogFragment {
 
     @Override
     public void onStart() {
-        super.onStart();
+        // 摆位在 show 之前落定：super.onStart() 内部才 show()，内容视图在此之前
+        // 已由框架 setContentView 进侧框容器——先把窗旗标与面板宽按终值钉死，
+        // 首帧即终态，不在出框后再改（旧法在 super 之后改，同「出框后动一下」病）。
         applyWindow();
         // 与 applyWindow 同口径补判空：getDialog() 理论上可为 null。
-        if (getDialog() == null) return;
+        if (getDialog() == null) {
+            super.onStart();
+            return;
+        }
         FrameLayout sheet = getDialog().findViewById(com.google.android.material.R.id.m3_side_sheet);
-        if (sheet == null) return;
+        if (sheet == null) {
+            super.onStart();
+            return;
+        }
         if (edgeToEdgeOnFullscreen() && fullscreen) {
             if (sheet.getParent() instanceof ViewGroup) ((ViewGroup) sheet.getParent()).setPadding(0, 0, 0, 0);
             sheet.setPadding(0, 0, 0, 0);
@@ -86,6 +94,7 @@ public abstract class BaseSideSheetDialog extends AppCompatDialogFragment {
             ((ViewGroup.MarginLayoutParams) params).setMargins(0, 0, 0, 0);
         }
         sheet.setLayoutParams(params);
+        super.onStart();
     }
 
     private void applyWindow() {

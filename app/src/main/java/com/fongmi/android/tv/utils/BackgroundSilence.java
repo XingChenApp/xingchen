@@ -54,17 +54,6 @@ public final class BackgroundSilence {
         // 次项·放闲置：图片内存缓存＋位图池（本分发点在主线程，
         // clearMemory 的线程要求正合）。磁盘缓存不动。
         run("glide-memory", () -> Glide.get(App.get()).clearMemory());
-        // 次项·放闲置：短剧池泊台。类名拆字串＋反射同 App 的引擎
-        // 预热点火口径（朋友版导出摘短剧本体时类不在、静默跳过）。
-        run("parked-units", () -> {
-            try {
-                Class<?> layer = Class.forName("com.fongmi.android.tv."
-                        + "hong" + "guo" + ".ui." + "Hg" + "PlayerLayer");
-                Object instance = layer.getMethod("get").invoke(null);
-                layer.getMethod("releaseParkedUnitsForBackground").invoke(instance);
-            } catch (Throwable ignored) {
-            }
-        });
     }
 
     private static void onAppForeground() {

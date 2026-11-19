@@ -293,30 +293,24 @@ public class EpisodeListDialog extends BaseAlertDialog implements FlagAdapter.On
             window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
             window.setDimAmount(0f);
+            // 摆位在 show 之前落定（原 onStart 里整段改窗＋post 里再重落一遍，都是出框后
+            // 改尺寸/位置，会动一下；post 重落一并摘除——内容在 create 时已装入 dialog，
+            // 父链清距在此处与原 onStart 时是同一条链）
+            if (binding != null) {
+                window.getDecorView().setPadding(0, 0, 0, 0);
+                clearParentPaddingAndFillHeight();
+                window.setGravity(Gravity.END | Gravity.BOTTOM);
+                WindowManager.LayoutParams params = window.getAttributes();
+                params.width = panelWidth;
+                params.height = WindowManager.LayoutParams.MATCH_PARENT;
+                params.gravity = Gravity.END | Gravity.BOTTOM;
+                params.x = 0;
+                params.y = 0;
+                window.setAttributes(params);
+                window.setLayout(panelWidth, WindowManager.LayoutParams.MATCH_PARENT);
+            }
         }
         return dialog;
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        Window window = getDialog() == null ? null : getDialog().getWindow();
-        if (window == null || binding == null) return;
-        window.getDecorView().setPadding(0, 0, 0, 0);
-        clearParentPaddingAndFillHeight();
-        window.setGravity(Gravity.END | Gravity.BOTTOM);
-        WindowManager.LayoutParams params = window.getAttributes();
-        params.width = panelWidth;
-        params.height = WindowManager.LayoutParams.MATCH_PARENT;
-        params.gravity = Gravity.END | Gravity.BOTTOM;
-        params.x = 0;
-        params.y = 0;
-        window.setAttributes(params);
-        window.setLayout(panelWidth, WindowManager.LayoutParams.MATCH_PARENT);
-        binding.getRoot().post(() -> {
-            clearParentPaddingAndFillHeight();
-            window.setLayout(panelWidth, WindowManager.LayoutParams.MATCH_PARENT);
-        });
     }
 
     private void clearParentPaddingAndFillHeight() {

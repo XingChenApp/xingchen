@@ -47,8 +47,9 @@ public final class PatchDialog {
         });
         binding.patchInfo.setText("正在读取补丁文件…");
 
-        dialog.show();
+        // 摆位在 show 之前落定（原 show 后才 configureWindow：首帧默认宽、随后跳到终宽）
         configureWindow(activity, dialog);
+        dialog.show();
 
         PatchInstaller.start(activity, patchUri, new PatchInstaller.Listener() {
             @Override
